@@ -24,11 +24,9 @@ from backend.features.photo_generation.data.ffmpeg_stills import FfmpegStills
 from backend.features.photo_generation.data.mmaudio_generator import MMAudioGenerator
 from backend.features.photo_generation.data.mmaudio_sampler import MMAudioSampler
 from backend.features.photo_generation.data.comfy_h3_video_generator import ComfyH3VideoGenerator
-from backend.features.photo_generation.data.comfy_video_generator import ComfyVideoGenerator
 from backend.features.photo_generation.data.prompt_writer import (
     AudioPromptWriter,
     H3VideoPromptWriter,
-    VideoPromptWriter,
 )
 from backend.features.photo_generation.domain import layers, seed
 from backend.features.photo_generation.data.order_store import DriveOrderStore
@@ -100,7 +98,7 @@ from backend.features.projects.domain.usecases.save_reference_settings import (
 )
 from backend.features.projects.domain.usecases.save_settings import save_settings
 from backend.features.producers.data.comfy_models import ComfyModelFiles
-from backend.features.producers.domain.model_groups import audio_weights, groups_for
+from backend.features.producers.domain.model_groups import GROUPS, audio_weights
 from backend.features.producers.domain.usecases.list_producers import list_producers
 from backend.features.producers.presentation.routes import make_producers_blueprint
 from backend.features.projects.presentation.reference_settings_routes import (
@@ -130,18 +128,13 @@ _photo_generator = ComfyPhotoGenerator(_comfy_client, config.WORKFLOW_PATH, conf
 # request again (madde 416).
 _queen_ai = Box(DeepSeekClient(config.DEEPSEEK_API_KEY, config.DEEPSEEK_MODEL,
                                config.DEEPSEEK_URL, timeout=config.DEEPSEEK_TIMEOUT))
-# One video model per session (madde 243): the notebook installs WAN or H3, never both, and says
-# which. Each comes with the writer that knows its prompt.
-if config.VIDEO_MODEL == "h3":
-    _video_generator = ComfyH3VideoGenerator(_comfy_client, config.H3_VIDEO_WORKFLOW_PATH,
-                                             config.H3_VIDEO_FIRST_LAST_WORKFLOW_PATH,
-                                             config.VIDEO_TIMEOUT)
-    _video_writer = H3VideoPromptWriter(_queen_ai)
-else:
-    _video_generator = ComfyVideoGenerator(_comfy_client, config.VIDEO_WORKFLOW_PATH,
-                                           config.VIDEO_FIRST_LAST_WORKFLOW_PATH,
-                                           config.VIDEO_TIMEOUT)
-    _video_writer = VideoPromptWriter(_queen_ai)
+# H3 is the one video model (madde 435): every session renders its videos with H3's graphs, and
+# Queen AI writes H3's prompt for them. A session with no video installed is wired the same way --
+# the producers panel says H3's files are missing, and the video panel keeps Kuyruğa ekle closed.
+_video_generator = ComfyH3VideoGenerator(_comfy_client, config.H3_VIDEO_WORKFLOW_PATH,
+                                         config.H3_VIDEO_FIRST_LAST_WORKFLOW_PATH,
+                                         config.VIDEO_TIMEOUT)
+_video_writer = H3VideoPromptWriter(_queen_ai)
 # Sound is the one producer that is not a ComfyUI graph: MMAudio runs inside this process. Where
 # its weights live is the producers feature's answer, so the path is taken from the group it
 # installs rather than spelled out here a second time.
@@ -227,12 +220,10 @@ _reference_orders = DriveReferenceOrderStore(_storage)
 # queue carries it, because any run can reach a card that was made of the pool.
 _reference_files = partial(reference_files, _photo_store, _reference_store, _reference_orders)
 
-# How long the project's H3 videos run (madde 422): a file of its own in the project, behind a door of
-# its own. Only H3's length is chosen ("h3e özel"), so only an H3 session's queue reads it -- a WAN
-# video runs as long as its graph says, and its job carries no length at all.
+# How long the project's videos run (madde 422): a file of its own in the project, behind a door of
+# its own, which every way into the queue reads.
 _video_lengths = DriveVideoLengthStore(_storage)
-_video_length = (partial(get_video_length, _video_lengths) if config.VIDEO_MODEL == "h3"
-                 else None)
+_video_length = partial(get_video_length, _video_lengths)
 
 _photo_bp = make_photo_generation_blueprint(
     start_batch=partial(start_batch, _photo_runner, _photo_store, _photo_record, _plan_store,
@@ -278,7 +269,8 @@ _photo_bp = make_photo_generation_blueprint(
     save_order=partial(save_order, _photo_record, _photo_store, _plan_store, _order_store),
     # How long a video runs is on its line, its producer's answer (madde 423). A line written before
     # says nothing, and its video ran as long as the graph says -- so the producer that owns the
-    # graph answers for it.
+    # graph answers for it. That is H3's: a WAN video's line from before 423 counts at H3's four
+    # seconds, as an H3 session always counted it (madde 435).
     export_summary=partial(export_summary, _photo_record, _photo_store, _plan_store, _order_store,
                            _video_generator.seconds),
     export_state=_export_runner.state,
@@ -300,13 +292,10 @@ _references_bp = make_reference_blueprint(
     remove_reference=partial(remove_reference, _photo_store, _reference_store, _reference_orders),
     save_reference_order=partial(save_reference_order, _photo_store, _reference_store,
                                  _reference_orders),
-    # Which video model the notebook installed is the installation's own answer, and only H3 can be
-    # handed references at all (madde 302).
     queue_references=partial(queue_references, _photo_runner, _photo_store, _photo_record,
                              _plan_store, _order_store, _reference_store, _reference_orders,
                              _producers, seed.random_seed,
                              lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                             config.VIDEO_MODEL == "h3",
                              log=_timing, writers=_writers, stills=_stills,
                              length=_video_length),
     reference_dir=_reference_store.dir_path,
@@ -319,10 +308,9 @@ _video_length_bp = make_video_length_blueprint(
 
 # Every producer is judged by its own model group: installed means those files are on this machine.
 # Nothing is installed from here -- the notebook does that before this process starts
-# (FOUNDATION 9), so the panel only reads. Video is judged by the model the notebook installed.
+# (FOUNDATION 9), so the panel only reads.
 _producers_bp = make_producers_blueprint(
-    list_producers=lambda: list_producers(groups_for(config.VIDEO_MODEL), _model_files,
-                                          config.VIDEO_MODEL))
+    list_producers=lambda: list_producers(GROUPS, _model_files))
 
 # The agent's chats: one record per project, kept in the project's own folder (madde 417). One
 # object for every writer -- the doors and every agent -- so its lock keeps all their lines whole

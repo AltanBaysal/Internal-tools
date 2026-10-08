@@ -20,14 +20,14 @@ Revisit the libraries only if we ever embed the UI inside ComfyUI as a custom no
 
 ## Independence from collab-toolbox
 Queen Editor wraps the same pipelines as `collab-toolbox` — the photo one from
-`photo_generator/nova-3dcg/`, the video one from `video_generator/wan22-arbuzai/`, the sound one
-from `mmaudio_generate.ipynb` — but it depends on nothing there at runtime: no imported cell, no
-shared file, no shared Drive folder. What we inherit is knowledge, not code:
+`photo_generator/nova-3dcg/`, the video one, MiniMax H3, from `video_experiments/minimax-h3/`, the
+sound one from `mmaudio_generate.ipynb` — but it depends on nothing there at runtime: no imported
+cell, no shared file, no shared Drive folder. What we inherit is knowledge, not code:
 
 | Inherited (knowledge) | Never (dependency) |
 |---|---|
-| The ComfyUI graphs — copied into `queen-editor/workflow_api.json` and `workflow_video_api.json` as our own files | Reading `collab-toolbox`'s copies, or Drive's copy of either |
-| Injection node ids — photo (`"3"`, `"4"`, `"23"`, `"40"`, `"45"`), video (`"287"`, `"233:240"`, `"210"`) | `api.ipynb`'s or `photo_to_video.ipynb`'s CONFIG cell |
+| The ComfyUI graphs — copied into `assets/` as our own files: `workflow_api.json`, and H3's `workflow_video_h3_api.json` and `workflow_video_h3_first_last_api.json` | Reading `collab-toolbox`'s copies, or Drive's copy of any of them |
+| Injection node ids — photo (`"3"`, `"4"`, `"23"`, `"40"`, `"45"`), video (`"2730"`, `"2739"`) | `api.ipynb`'s or `minimax-h3/manual.ipynb`'s CONFIG cell |
 | MMAudio's settings — architecture, fine-tune, steps, cfg, solver, negative, chunk lengths — written into our own files | Importing anything from `mmaudio_generate.ipynb`, or running it. Sound is the one engine we call as a library rather than through ComfyUI ([FOUNDATION 6](FOUNDATION.md)) |
 | Setup cells — custom nodes, headless ComfyUI — copied verbatim into `queeneditor.ipynb`, because that machinery is proven. The model downloads and the custom node install started as copies too and moved to `colab/` — madde 310 and 314 — where they run under test | Running or importing their cells, or reading a file they own. A copy is not a dependency; its cost is that the two notebooks are maintained separately |
 | Which model files each pipeline needs: the names into `features/producers/` so the panel can answer whether they are here, the addresses into `queeneditor.ipynb` where they are fetched ([FOUNDATION 9](FOUNDATION.md)) | Two places knowing one address. The app carries no URL at all — a producer's group is a reading list, and reading it is all the app does with it |

@@ -16,7 +16,6 @@ import pytest
 from backend import config
 from backend.features.photo_generation.data.comfy_h3_video_generator import ComfyH3VideoGenerator
 from backend.features.photo_generation.data.comfy_photo_generator import ComfyPhotoGenerator
-from backend.features.photo_generation.data.comfy_video_generator import ComfyVideoGenerator
 from backend.features.photo_generation.data.mmaudio_generator import MMAudioGenerator
 from backend.features.photo_generation.domain import layers
 from backend.features.photo_generation.domain.running_name import RunningName
@@ -26,12 +25,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 # The shipped graphs, asked of config: where they live is its answer, and a second copy of the
 # path here would go on being right about the old place (madde 251).
 PHOTO_GRAPH = config.WORKFLOW_PATH
-VIDEO_GRAPH = config.VIDEO_WORKFLOW_PATH
-FIRST_LAST_GRAPH = config.VIDEO_FIRST_LAST_WORKFLOW_PATH
 
-# Every graph config knows the way to -- the five it names, in one place.
-GRAPHS = (config.WORKFLOW_PATH, config.VIDEO_WORKFLOW_PATH,
-          config.VIDEO_FIRST_LAST_WORKFLOW_PATH, config.H3_VIDEO_WORKFLOW_PATH,
+# Every graph config knows the way to -- the three it names, in one place.
+GRAPHS = (config.WORKFLOW_PATH, config.H3_VIDEO_WORKFLOW_PATH,
           config.H3_VIDEO_FIRST_LAST_WORKFLOW_PATH)
 
 
@@ -192,10 +188,16 @@ FRAMES = [
 ]
 
 
+def h3(video_comfy=None):
+    """H3's producer over its shipped graphs: the one video model (madde 435)."""
+    return ComfyH3VideoGenerator(video_comfy or VideoComfy(), config.H3_VIDEO_WORKFLOW_PATH,
+                                 config.H3_VIDEO_FIRST_LAST_WORKFLOW_PATH, timeout=60)
+
+
 def producers_over(video_comfy, ffmpeg, tmp_path):
     return {
         layers.PHOTO: ComfyPhotoGenerator(PhotoComfy(), PHOTO_GRAPH, timeout=60),
-        layers.VIDEO: ComfyVideoGenerator(video_comfy, VIDEO_GRAPH, FIRST_LAST_GRAPH, timeout=60),
+        layers.VIDEO: h3(video_comfy),
         layers.AUDIO: MMAudioGenerator(Sampler(), ffmpeg, tmp_dir=str(tmp_path)),
     }
 
@@ -257,8 +259,7 @@ def test_a_producer_that_makes_no_video_takes_a_length_anyway(tmp_path):
 
 
 def test_the_queue_hands_the_real_producers_a_video_job_that_carries_its_length(tmp_path):
-    """The real loop, the real producers: WAN takes the job's length and keeps its own, and the
-    run goes through."""
+    """The real loop, the real producers: H3 takes the job's length, and the run goes through."""
     store, video_comfy, ffmpeg = Store(), VideoComfy(), Ffmpeg()
     timed = [{**job, "seconds": 8} if job["type"] == "video" else job for job in FRAMES]
 
@@ -313,15 +314,6 @@ def test_a_prompts_variants_go_through_the_real_photo_producer_as_one_batch():
 
 # --- Madde 423: a video's row says how long the video that was made runs ---------------------------
 
-def wan():
-    return ComfyVideoGenerator(VideoComfy(), VIDEO_GRAPH, FIRST_LAST_GRAPH, timeout=60)
-
-
-def h3():
-    return ComfyH3VideoGenerator(VideoComfy(), config.H3_VIDEO_WORKFLOW_PATH,
-                                 config.H3_VIDEO_FIRST_LAST_WORKFLOW_PATH, timeout=60)
-
-
 def video_row(video, asked, tmp_path):
     """One frame's three layers under the real loop, its video made by `video` and its job asked at
     `asked` seconds (None: asked none) -- the row the video left."""
@@ -332,16 +324,6 @@ def video_row(video, asked, tmp_path):
     make_job(Runner(), Store(), record, Plan(jobs), producers,
              lambda: "2026-10-06T00:00:00+00:00", "düğün")()
     return next(row for row in record.rows if row["layer"] == layers.VIDEO)
-
-
-def test_a_video_queued_for_h3_and_made_by_wan_says_wans_length(tmp_path):
-    """An H3 session queued it at 12 seconds; a later session installed WAN, which makes its graph's
-    5 whatever it is asked. The row says what was made -- the export adds these up (madde 423)."""
-    assert video_row(wan(), 12, tmp_path)["seconds"] == 5
-
-
-def test_a_wan_video_says_its_graphs_length(tmp_path):
-    assert video_row(wan(), None, tmp_path)["seconds"] == 5
 
 
 @pytest.mark.parametrize("asked", [4, 8, 12])

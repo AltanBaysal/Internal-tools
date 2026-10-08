@@ -10,20 +10,19 @@ const CONFIRMED = new Map();
 
 /** The project's H3 video length (madde 424): the number to show and say, and how to choose one.
  *
- * `videoRow` is the producers' video row. Only an H3 session has a length to choose -- WAN's is fixed
- * in its graph -- and the server says which session this is: `reads_references` is written from the
- * same setting that puts a length on every H3 job. No row means the model is not read yet, and then
- * nobody can say. `seconds` is null there, and while the length is not known: nothing drawn and
- * nothing promised, rather than a number that may be wrong.
+ * `videoRow` is the producers' video row. H3 is the one video model (madde 435), so every session
+ * has a length to choose; no row means the model is not read yet, and nothing is drawn until it is
+ * -- the design's rule (424). `seconds` is null there, and while the length is not known: nothing
+ * drawn and nothing promised, rather than a number that may be wrong.
  */
 export function useVideoLength(project, videoRow) {
-  const h3 = videoRow?.reads_references === true;
+  const read = Boolean(videoRow);
   const [known, setKnown] = useState(() => CONFIRMED.get(project) ?? null);
   // A press made while the read was on its way is newer than what the read will answer.
   const pressed = useRef(false);
 
   useEffect(() => {
-    if (!h3) return undefined;
+    if (!read) return undefined;
     let alive = true;
     getVideoLength(project)
       .then((seconds) => {
@@ -35,7 +34,7 @@ export function useVideoLength(project, videoRow) {
       // server is already said by the gallery's own poll, in the panel's card.
       .catch(() => {});
     return () => { alive = false; };
-  }, [project, h3]);
+  }, [project, read]);
 
   // Shown at once, the design's way, then written. A write that fails takes the screen back to what
   // the project holds: a length shown as chosen that the queue will not use would be a lie.
@@ -50,5 +49,5 @@ export function useVideoLength(project, videoRow) {
       });
   }
 
-  return { seconds: h3 ? known : null, choose };
+  return { seconds: read ? known : null, choose };
 }

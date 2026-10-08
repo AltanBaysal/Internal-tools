@@ -104,8 +104,8 @@ def queue_layer(runner, store, record, plan_store, order_store, producers, now, 
                 mode=production_mode.STANDARD, stills=None, references=None, length=None):
     """Returns how many jobs of this kind the queue took.
 
-    `length` answers how long the project's H3 videos run now (madde 422); None in a session whose
-    video model takes no length.
+    `length` answers how long the project's videos run now (madde 422); None hands the jobs none,
+    and each is made at its graph's own.
     """
     if files is not None and (not isinstance(files, list)
                               or any(not isinstance(name, str) for name in files)):

@@ -361,8 +361,9 @@ export default function PhotoDetail({ project, frame: fid }) {
   // model and its lora as ids -- the names they were picked by are in these lists and nowhere else.
   // The hook remembers the answer for the visit, so opening frames costs nothing.
   const { models, loras } = useModels();
-  // Which video model the session has, for the one thing this page says about it: the length a new
-  // video gets (madde 424). The answer is remembered for the visit, so stepping in costs nothing.
+  // The producers' video row, for the one thing this page says about the video model: the length a
+  // new video gets (madde 424), said once the row is read. The answer is remembered for the visit,
+  // so stepping in costs nothing.
   const { producers } = useProducers();
   const { seconds: length } =
     useVideoLength(project, (producers || []).find((row) => row.id === "video"));

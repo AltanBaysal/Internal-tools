@@ -126,7 +126,8 @@ yüklenmesi gerekiyor)*, ve yarım taşımak tam CPU'dan kötü. Kaldıraçları
 *(Kullanıcı, 23 Eylül — loop'lardaki tempo düşmesi için yapılan internet araştırmasının cevabından
 şu paragrafı alıp: "Asıl çözüm: 3. yol. Hangi modelde yapılacağına göre iş değişiyor. H3'te iki uca
 birden kare sabitleyerek loop'u kapatmak bir deneme maddesi olur. WAN'da ise yeni model (VACE)
-gerektiriyor."; ve "bunu backlog'a at o zaman".)* **Ayrıntılar kullanıcıyla konuşulacak.**
+gerektiriyor."; ve "bunu backlog'a at o zaman".)* **WAN 435'te Queen Editor'den çıktı:** geri gelirse
+yalnız H3'ün yolu kalır. **Ayrıntılar kullanıcıyla konuşulacak.**
 
 ### HF'nin yüksek hız ayarı — 429 çözülürse geri açılır
 

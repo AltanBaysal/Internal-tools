@@ -16,17 +16,17 @@ class PhotoGenerator(Protocol):
         sound take the argument and ignore it, for the same reason `source` is taken by all three.
 
         `references` is the project's reference pool as (name, bytes, kind), in the pool's own
-        order -- only a video made from it has any, and only H3 can read them (madde 304).
+        order -- only a video made from it has any (madde 304).
 
         The file's name is the domain's (photo_name.layer_file), never the producer's.
 
         An empty model means the graph's own default, and an empty lora means the default lora.
         Only a photo has either; a video and a sound take both and ignore them, like `end`.
 
-        `seconds` is how long a video should run, from its job (madde 422). Only an H3 video job
-        carries one, and only H3's producer uses it; the others take it and ignore it, like `end`.
-        None is a job that carries none, and its graph's own length stands. How long the video then
-        runs is the producer's to say (VideoGenerator.seconds).
+        `seconds` is how long a video should run, from its job (madde 422). Only a video job
+        carries one; a photo and a sound take it and ignore it, like `end`. None is a job that
+        carries none, and its graph's own length stands. How long the video then runs is the
+        producer's to say (VideoGenerator.seconds).
         """
         ...
 
@@ -51,8 +51,7 @@ class VideoGenerator(PhotoGenerator, Protocol):
     of the video producer alone, and writes the answer on the video's row."""
 
     def seconds(self, asked: int | None = None) -> float:
-        """How long a video asked to run `asked` seconds comes out. H3 makes what it is asked; WAN
-        makes its graph's own whatever it is asked ("h3e özel"). None -- a job that asked for no
+        """How long a video asked to run `asked` seconds comes out. None -- a job that asked for no
         length -- is the graph's own, which is also what the export summary counts a row that says
         no length at."""
         ...

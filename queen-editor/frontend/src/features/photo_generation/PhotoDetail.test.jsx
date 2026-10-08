@@ -2049,18 +2049,17 @@ describe("PhotoDetail — a frame its batch is making (madde 411)", () => {
 });
 
 describe("PhotoDetail — the length a new video gets (madde 424)", () => {
-  // The video row the way the server gives it: whether the session's model is H3 is its to say.
-  const H3_ROWS = [{ id: "video", name: "Video üreticisi", installed: true, model: "MiniMax H3",
-                     reads_references: true }];
-  const WAN_ROWS = [{ ...H3_ROWS[0], model: "WAN 2.2 I2V", reads_references: false }];
+  // The video row the way the server gives it. H3 is the one video model (madde 435), so the row
+  // has nothing to say about which: once it is read, the length is the project's to say.
+  const ROWS = [{ id: "video", name: "Video üreticisi", installed: true, model: "MiniMax H3" }];
   const LOOPED = { ...LAYERED, modes: { video: "loop" } };
   const RED_VIDEO = { ...LAYERED, layers: { photo: "P0_0.png" }, failed: ["video"],
                       errors: { video: "ComfyUI 500 — 3 kez denendi" },
                       prompts: { photo: "kırmızı elbise" } };
   const NOTE = "Yeni bir kare açılır — P0_0 kopyası, loop video.";
 
-  // The session's model and then the project's length are two answers in a row, so the page is
-  // given two turns to take them.
+  // The producers' row and then the project's length are two answers in a row, so the page is given
+  // two turns to take them.
   async function openIn({ rows, frames, project = "düğün", video = true }) {
     listProducers.mockResolvedValue(rows);
     listFrames.mockResolvedValue(frames);
@@ -2072,37 +2071,24 @@ describe("PhotoDetail — the length a new video gets (madde 424)", () => {
     if (video) fireEvent.click(tab("Video"));
   }
 
-  it("ends the note under Yeniden üret with the project's length in an H3 session", async () => {
+  it("ends the note under Yeniden üret with the project's length", async () => {
     // The project's length, not the frame's: a new video is made at what the project says now.
     getVideoLength.mockResolvedValue(12);
-    await openIn({ rows: H3_ROWS, frames: [LOOPED] });
+    await openIn({ rows: ROWS, frames: [LOOPED] });
 
     expect(screen.getByText(`${NOTE} 12 sn.`)).toBeTruthy();
   });
 
-  it("leaves that note as it was in a WAN session", async () => {
-    await openIn({ rows: WAN_ROWS, frames: [LOOPED] });
-
-    expect(screen.getByText(NOTE)).toBeTruthy();
-  });
-
-  it("puts a note under a red video's Tekrar dene in an H3 session", async () => {
-    await openIn({ rows: H3_ROWS, frames: [RED_VIDEO] });
+  it("puts a note under a red video's Tekrar dene", async () => {
+    await openIn({ rows: ROWS, frames: [RED_VIDEO] });
 
     const note = screen.getByText("Aynı kare yeniden denenir. 8 sn.");
     expect(screen.getByText("Tekrar dene — bu kareye").compareDocumentPosition(note)
            & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("gives Tekrar dene no note in a WAN session", async () => {
-    await openIn({ rows: WAN_ROWS, frames: [RED_VIDEO] });
-
-    expect(screen.getByText("Tekrar dene — bu kareye")).toBeTruthy();
-    expect(screen.queryByText(/Aynı kare yeniden denenir/)).toBeNull();
-  });
-
   it("gives the photo tab's Tekrar dene no note", async () => {
-    await openIn({ rows: H3_ROWS, frames: [BROKEN], video: false });
+    await openIn({ rows: ROWS, frames: [BROKEN], video: false });
 
     expect(screen.getByText("Tekrar dene — bu kareye")).toBeTruthy();
     expect(screen.queryByText(/Aynı kare yeniden denenir/)).toBeNull();
@@ -2110,14 +2096,14 @@ describe("PhotoDetail — the length a new video gets (madde 424)", () => {
 
   it("promises no length under Yeniden üret while the length cannot be read", async () => {
     getVideoLength.mockRejectedValue(new Error("Sunucuya ulaşılamadı — bağlantıyı kontrol et."));
-    await openIn({ rows: H3_ROWS, frames: [LOOPED], project: "kına-424a" });
+    await openIn({ rows: ROWS, frames: [LOOPED], project: "kına-424a" });
 
     expect(screen.getByText(NOTE)).toBeTruthy();
   });
 
   it("gives Tekrar dene no note while the length cannot be read", async () => {
     getVideoLength.mockRejectedValue(new Error("Sunucuya ulaşılamadı — bağlantıyı kontrol et."));
-    await openIn({ rows: H3_ROWS, frames: [RED_VIDEO], project: "kına-424b" });
+    await openIn({ rows: ROWS, frames: [RED_VIDEO], project: "kına-424b" });
 
     expect(screen.queryByText(/Aynı kare yeniden denenir/)).toBeNull();
   });

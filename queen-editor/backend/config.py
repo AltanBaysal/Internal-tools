@@ -37,16 +37,9 @@ _ASSETS_DIR = os.path.join(os.path.dirname(_BACKEND_DIR), "assets")
 
 # The graph ships in the repo (our own copy -- never read collab-toolbox's file).
 WORKFLOW_PATH = os.path.join(_ASSETS_DIR, "workflow_api.json")
-# The video graph the same way: our own WAN 2.2 I2V export, exported from ComfyUI and committed.
-VIDEO_WORKFLOW_PATH = os.path.join(_ASSETS_DIR, "workflow_video_api.json")
-# The second video graph: a video that ends on a chosen picture. Its own pipeline rather than the
-# one above with a node swapped, so it ships beside it and standard production is untouched.
-VIDEO_FIRST_LAST_WORKFLOW_PATH = os.path.join(_ASSETS_DIR, "workflow_video_first_last_api.json")
-# Which video model the notebook installed: "wan", "h3", or empty when video was not installed. The
-# two never share a session (madde 243), and the disk cannot say which one was picked.
-VIDEO_MODEL = os.environ.get("QE_VIDEO_MODEL", "")
 # MiniMax H3's two graphs, exported in madde 213's trial and made sterile in 242: I2VA for a video
-# that hangs on a photo, FL2VA for one that arrives at another.
+# that hangs on a photo, FL2VA for one that arrives at another. H3 is the one video model (madde
+# 435), so every session renders its videos with these.
 H3_VIDEO_WORKFLOW_PATH = os.path.join(_ASSETS_DIR, "workflow_video_h3_api.json")
 H3_VIDEO_FIRST_LAST_WORKFLOW_PATH = os.path.join(_ASSETS_DIR,
                                                  "workflow_video_h3_first_last_api.json")
@@ -60,7 +53,7 @@ H3_VIDEO_FIRST_LAST_WORKFLOW_PATH = os.path.join(_ASSETS_DIR,
 DISCLAIMER_PATH = os.path.join(_ASSETS_DIR, "disclaimer.png")
 
 RENDER_TIMEOUT = 15 * 60   # seconds for one photo; a T4 render is ~1 min, so this is a stall guard
-VIDEO_TIMEOUT = 30 * 60    # seconds for one video; 5s of WAN takes minutes, so this is a stall guard
+VIDEO_TIMEOUT = 30 * 60    # seconds for one video; a render takes minutes, so this is a stall guard
 POLL_INTERVAL = 5          # longest gap between /history looks; ComfyUI's done notice cuts it short
 
 # Queen AI: the model that writes every video's prompt looking at the frame's photo, and every

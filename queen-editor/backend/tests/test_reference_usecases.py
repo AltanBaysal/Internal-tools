@@ -7,10 +7,7 @@ from backend.features.photo_generation.domain.usecases.add_references import (
 )
 from backend.features.photo_generation.domain.usecases.list_references import list_references
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
-from backend.features.photo_generation.domain.usecases.queue_references import (
-    NoReferenceProducer,
-    queue_references,
-)
+from backend.features.photo_generation.domain.usecases.queue_references import queue_references
 from backend.features.photo_generation.domain.usecases.remove_reference import remove_reference
 from backend.features.photo_generation.domain.usecases.save_reference_order import (
     InvalidReferenceOrder,
@@ -379,28 +376,17 @@ def ready_pool(orders=None):
     return store, pool, orders
 
 
-def run(store, pool, orders, prompts='["gotik kız"]', variants=1, has_h3=True, project="düğün"):
+def run(store, pool, orders, prompts='["gotik kız"]', variants=1, project="düğün"):
     """A reference run, as far as its refusals.
 
     Everything a run would need once it is allowed to start is None here on purpose: these tests
     are about the checks that come first, and nothing past them is touched. What a run that IS
     allowed does is tested beside the queue's own fakes (test_photo_usecases).
 
-    The H3 flag rides with the stores rather than with the press: which video model the notebook
-    installed is the installation's answer, and main.py binds it once.
+    No word about the video model: H3 is the one there is (madde 435), and it reads the pool.
     """
     return queue_references(None, store, None, None, None, pool, orders, None, None, None,
-                            has_h3, project, prompts, variants)
-
-
-def test_a_reference_run_without_h3_is_refused():
-    """Only H3 has a mode that reads references; WAN has nothing to be handed them."""
-    store, pool, orders = ready_pool()
-
-    with pytest.raises(NoReferenceProducer) as exc:
-        run(store, pool, orders, has_h3=False)
-
-    assert "H3" in str(exc.value)
+                            project, prompts, variants)
 
 
 def test_a_reference_run_with_an_empty_pool_is_refused():

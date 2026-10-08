@@ -101,8 +101,8 @@ def test_a_video_with_no_end_frame_is_rendered_by_the_i2va_graph(tmp_path):
 
 
 def test_a_video_with_an_end_frame_is_rendered_by_the_fl2va_graph(tmp_path):
-    """The producer is told an ending picture, never a mode -- the same seam WAN's producer has, so
-    loop and linked videos reach both engines in one shape."""
+    """The producer is told an ending picture, never a mode, so loop and linked videos reach it in
+    one shape."""
     client = FakeClient()
 
     generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", b"PNG"),
@@ -199,8 +199,8 @@ def test_only_an_mp4_counts_as_the_render(tmp_path):
 
 
 def test_how_long_a_video_runs_is_the_director_s_duration(tmp_path):
-    """Read from the I2VA graph alone, like WAN's standard graph: one number is quoted for every
-    video, and the two graphs are held to it by test_workflow_asset."""
+    """Read from the I2VA graph alone: one number is quoted for every video, and the two graphs are
+    held to it by test_workflow_asset."""
     longer = {"2730": director("FL2VA", 2, duration=6), "2739": seed_control()}
 
     assert generator(tmp_path, FakeClient(), fl2va=longer).seconds() == 4.0
@@ -476,8 +476,8 @@ def test_an_fl2va_prompt_says_the_video_arrives_at_the_end_of_its_length(tmp_pat
 
 @every_mode
 def test_a_video_handed_no_length_keeps_the_graphs_own(tmp_path, asked):
-    """Every job queued before madde 422, and every one a WAN session queued, comes out at the
-    length it was added with: the graph's own four seconds."""
+    """Every job queued before madde 422, and every one queued in a WAN session before 435, comes
+    out at the length it was added with: the graph's own four seconds."""
     client = FakeClient()
 
     generator(tmp_path, client).generate("motion", "", 42, **asked)

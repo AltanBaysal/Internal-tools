@@ -13,7 +13,7 @@ def retry_failed(runner, store, record, plan_store, producers, now, project, log
                  order_store=None, writers=None, stills=None, references=None, length=None):
     """Returns how many jobs went back into the queue.
 
-    `length` answers how long the project's H3 videos run now: every red video goes back at that
+    `length` answers how long the project's videos run now: every red video goes back at that
     length, as one frame's Tekrar dene sends it (madde 422).
     """
     if not store.project_exists(project):

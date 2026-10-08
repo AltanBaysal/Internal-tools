@@ -99,9 +99,13 @@ def test_the_notebook_carries_the_tool_s_own_name():
 def test_every_file_the_panel_counts_is_fetched_by_the_notebook():
     """A row naming a kind rather than a file is skipped here and covered by
     test_the_notebook_offers_every_checkpoint_a_model_asks_for instead, which pins the checkpoint by
-    name and by version id -- a tighter guard than this one, not a looser one."""
+    name and by version id -- a tighter guard than this one, not a looser one.
+
+    Asked by the file's own name: the video group names H3's files the way the graph loads them,
+    MiniMaxH3/ included, and the notebook names the file itself and puts it in that folder."""
+    source = _source()
     missing = [row["name"] for group in GROUPS.values() for row in group
-               if "name" in row and row["name"] not in _source()]
+               if "name" in row and os.path.basename(row["name"]) not in source]
 
     assert missing == [], f"Defter bu dosyaları indirmiyor: {missing}"
 
@@ -161,34 +165,13 @@ def test_the_notebook_starts_comfyui_through_start_comfy():
 
 def test_every_producer_has_a_checkbox_of_its_own():
     """Colab draws a `#@param {type:"boolean"}` line as a checkbox: that is how the user picks.
-    Default False, so nothing heavy starts by accident. Video went back to a box in madde 244, its
-    model picked below it the way the photo's is."""
+    Default False, so nothing heavy starts by accident. Video's box installs H3, the one video model
+    since madde 435."""
     source = _source()
 
     for kind in GROUPS:
         assert f'{SWITCH[kind]} = False  #@param {{type:"boolean"}}' in source, \
             f"{kind}: CONFIG'de kapalı gelen bir onay kutusu yok"
-
-
-def test_every_video_model_has_a_checkbox_of_its_own():
-    """The photo's pattern, one level down: the producer's box, then its models' boxes, all off."""
-    config = _cell("# === CONFIG ===")
-
-    for box in ("VIDEO_WAN", "VIDEO_H3"):
-        assert f'{box} = False  #@param {{type:"boolean"}}' in config, \
-            f"{box}: CONFIG'de kapalı gelen bir kutu yok"
-
-
-def test_choosing_video_without_a_model_stops_the_notebook():
-    """Video ticked and no model is a producer with nothing to render with -- asked in CONFIG, like
-    the photo's, where it costs a second rather than an install."""
-    assert "assert not INSTALL_VIDEO or VIDEO_WAN or VIDEO_H3" in _cell("# === CONFIG ===")
-
-
-def test_choosing_both_video_models_stops_the_notebook():
-    """WAN and H3 never share a session (user's call, madde 243). Colab's boxes cannot be tied to
-    each other, so the form cannot prevent it -- CONFIG stops it before a byte comes down."""
-    assert "assert not (VIDEO_WAN and VIDEO_H3)" in _cell("# === CONFIG ===")
 
 
 def test_the_form_names_the_producer_boxes_too():
@@ -236,23 +219,8 @@ def test_the_form_leaves_the_model_section_at_its_heading():
     assert "#@markdown ---" in drawn, "Formda iki grubu ayıran çizgi yok"
     tail = drawn[drawn.index("#@markdown ---"):]
 
-    assert tail == ["#@markdown ---", "#@markdown ### Fotoğraf modelleri",
-                    "#@markdown ---", "#@markdown ### Video modelleri"], \
+    assert tail == ["#@markdown ---", "#@markdown ### Fotoğraf modelleri"], \
         f"Model bölümleri başlıklarından ibaret değil: {tail}"
-
-
-def test_the_form_gives_video_models_a_section_of_their_own():
-    """Pinned by position, like the photo's: the video boxes come after the photo models, under
-    their own divider and heading."""
-    config = _cell("# === CONFIG ===")
-    photo_box = config.find("PHOTO_DASIWA = ")
-    heading = config.find("#@markdown ### Video modelleri")
-    divider = config.rfind("#@markdown ---", 0, heading)
-    first_box = config.find("VIDEO_WAN = ")
-
-    assert heading != -1, "Video modelleri başlığı yok"
-    assert photo_box < divider < heading < first_box, \
-        "Video modelleri kendi ayracı ve başlığıyla fotoğraf modellerinin altında değil"
 
 
 def test_choosing_nothing_stops_the_notebook():
@@ -288,8 +256,7 @@ def test_an_unticked_group_costs_no_bytes():
     source = _source()
 
     for names, switch in ((("CIVITAI_PHOTO", "HF_PHOTO"), SWITCH["photo"]),
-                          (("CIVITAI_VIDEO", "HF_VIDEO"), 'VIDEO_MODEL == "wan"'),
-                          (("CIVITAI_H3", "HF_H3"), 'VIDEO_MODEL == "h3"'),
+                          (("CIVITAI_H3", "HF_H3"), SWITCH["video"]),
                           (("HF_AUDIO",), SWITCH["audio"])):
         for name in names:
             assert f"{name} if {switch} else []" in source, \
@@ -506,17 +473,6 @@ def test_the_setup_names_the_deepseek_secret():
         "Kurulum anlatımı DeepSeek secret'ını saymıyor"
 
 
-def test_every_file_the_h3_group_counts_is_fetched_by_the_notebook():
-    """The group names a file the way the graph loads it, MiniMaxH3/ included; the notebook names
-    the file itself and puts it in that folder."""
-    from backend.features.producers.domain.model_groups import H3_VIDEO
-    source = _source()
-
-    missing = [row["name"] for row in H3_VIDEO if os.path.basename(row["name"]) not in source]
-
-    assert missing == [], f"Defter bu H3 dosyalarını indirmiyor: {missing}"
-
-
 def test_the_notebook_fetches_motion_booster_by_its_version():
     """Named rather than derived, like the photo checkpoints: the one lora the user kept from 213's
     trial."""
@@ -526,7 +482,7 @@ def test_the_notebook_fetches_motion_booster_by_its_version():
 def test_the_notebook_fetches_eros_max_from_its_author_s_repo_into_the_h3_diffusion_models():
     """Madde 333, the user's pick after trying both (329, 332): the file the author says to use by
     default (TURBO-hybrid int8), from the Hugging Face repo the Civitai page points at -- Civitai's
-    own version link hands out a different, w4a8 file. A row of HF_H3: only an H3 run reaches it
+    own version link hands out a different, w4a8 file. A row of HF_H3: only a video run reaches it
     (test_an_unticked_group_costs_no_bytes), and hf_fetch uploads nothing, so the file never touches
     the mirror. H3DIFF is where the graph's MiniMaxH3/ prefix looks."""
     cell = _cell("HF_H3 = [")
@@ -564,11 +520,49 @@ def test_the_face_detailer_s_files_are_gone_from_the_notebook():
         assert leftover not in source, f"Defterde yüz detailer'ından iz kaldı: {leftover}"
 
 
+# What only WAN's graphs used (madde 435): the nodes of none of the three graphs left come from these
+# packages -- they came with WAN's own notebook, wan22-arbuzai, and the photo's and H3's do not have
+# them.
+WAN_PACKAGES = ("melMass/comfy_mtb", "Kosinkadink/ComfyUI-VideoHelperSuite",
+                "kijai/ComfyUI-WanVideoWrapper", "city96/ComfyUI-GGUF", "evanspearman/ComfyMath",
+                "Fannovel16/ComfyUI-Frame-Interpolation", "GACLove/ComfyUI-VFI",
+                "Suzie1/ComfyUI_Comfyroll_CustomNodes", "Smirnov75/ComfyUI-mxToolkit",
+                "scottmudge/ComfyUI-NAG", "Alectriciti/comfyui-adaptiveprompts")
+
+
+def test_wan_is_gone_from_the_notebook():
+    """Madde 435, the user's words: "wan modelini kaldıralım queen editorden direkt kullanımıyor
+    zaten". Its box, the pick it made and the name it handed the app; its files, the folder only its
+    CLIP vision used, and its two graphs; and the packages only its graphs read. A row left behind
+    would still bring ~39 GiB or a clone down for a producer the app no longer has."""
+    source = _source()
+
+    for leftover in ("VIDEO_WAN", "VIDEO_H3", "VIDEO_MODEL", "Wan2_1_VAE_fp32", "umt5_xxl",
+                     "lightx2v", "SmoothMix", "clip_vision", "Comfy-Org/Wan_2",
+                     "workflow_video_api.json", "workflow_video_first_last_api.json",
+                     *WAN_PACKAGES):
+        assert leftover not in source, f"Defterde WAN'dan iz kaldı: {leftover}"
+
+
+def test_the_notebook_keeps_the_packages_the_photo_and_h3_graphs_read():
+    """The other half of the same cut: the nine that stay. Photo's graph reads Impact-Pack, ppm,
+    rgthree and Easy-Use; H3's reads DaSiWa and KJNodes; Manager, Custom-Scripts and Ultimate SD
+    Upscale came with the photo's own notebook."""
+    nodes = _cell("CUSTOM_NODES = [")
+
+    for kept in ("ltdrdata/ComfyUI-Manager", "rgthree/rgthree-comfy", "ltdrdata/ComfyUI-Impact-Pack",
+                 "yolain/ComfyUI-Easy-Use", "pythongosssss/ComfyUI-Custom-Scripts",
+                 "ssitu/ComfyUI_UltimateSDUpscale", "kijai/ComfyUI-KJNodes",
+                 "pamparamm/ComfyUI-ppm", "darksidewalker/ComfyUI-DaSiWa-Nodes"):
+        assert kept in nodes, f"Defter bu paketi kurmuyor: {kept}"
+    assert nodes.count('.git"),') == 9, "Defter dokuz paketten fazlasını kuruyor"
+
+
 def test_the_notebook_fetches_mystic_xxx_by_its_version_into_the_loras():
     """Madde 328: the address is the user's -- Civitai version 3266628, "v4.0 (FL2VA & REF2VA)" -- and
     the file lands in loras/ under the name the lora stack would load it by. Madde 330 took it out of
     the stack and kept this row: the file stays on the disk, so turning it back on is a graph edit
-    and no notebook change. A row of CIVITAI_H3, which only an H3 run reaches
+    and no notebook change. A row of CIVITAI_H3, which only a video run reaches
     (test_an_unticked_group_costs_no_bytes)."""
     cell = _cell("CIVITAI_H3 = [")
     listing = cell[cell.find("CIVITAI_H3 = ["):]
@@ -657,15 +651,8 @@ def test_the_notebook_installs_the_nodes_the_h3_graph_asks_for():
     assert "darksidewalker/ComfyUI-DaSiWa-Nodes" in _cell("CUSTOM_NODES = [")
 
 
-def test_the_disk_estimate_counts_h3_when_h3_is_picked():
-    assert '(VIDEO_MODEL == "h3", ' in _cell("SIZES = ["), "Disk hesabı H3'ü saymıyor"
-
-
-def test_the_app_is_told_which_video_model_the_notebook_installed():
-    """The disk cannot answer this for the producer to use -- only the notebook knows what was
-    picked."""
-    assert '"QE_VIDEO_MODEL"' in _cell("# === Start Flask"), \
-        "Defter seçilen video modelini uygulamaya geçirmiyor"
+def test_the_disk_estimate_counts_h3_when_video_is_ticked():
+    assert '(INSTALL_VIDEO, 37, "video (H3)")' in _cell("SIZES = ["), "Disk hesabı H3'ü saymıyor"
 
 
 def test_the_clone_checks_for_the_h3_graphs_too():

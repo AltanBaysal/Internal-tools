@@ -296,25 +296,19 @@ describe("LayerPanel — the panel's own shape", () => {
   const offered = () => [...screen.getByRole("combobox").options].map((one) => one.textContent);
 
   it("offers the model in the same box the photo panel uses", () => {
-    // One option, because one video model is installed per session -- a box that opens and shows
-    // the only thing there is. The name is the server's (madde 247): the notebook picked it.
+    // One option, because H3 is the one video model (madde 435) -- a box that opens and shows the
+    // only thing there is. The name is the server's (madde 247).
     renderPanel({ producer: { ...VIDEO_ROW, model: "MiniMax H3" } });
 
     expect(screen.getByRole("combobox").className).toContain("wf-input");
     expect(offered()).toEqual(["MiniMax H3"]);
   });
 
-  it("offers WAN when the server says WAN", () => {
-    renderPanel({ producer: { ...VIDEO_ROW, model: "WAN 2.2 I2V" } });
-
-    expect(offered()).toEqual(["WAN 2.2 I2V"]);
-  });
-
   it("names no model before the server has said which", () => {
-    // A name made up here is what showed WAN over an H3 session.
+    // Empty rather than a name made up here: a guess once showed one model over another's session.
     renderPanel();
 
-    expect(offered()).not.toContain("WAN 2.2 I2V");
+    expect(offered()).toEqual([""]);
   });
 
   it("has no block of its own for the length", () => {
@@ -1058,7 +1052,8 @@ describe("LayerPanel — the pool's one button", () => {
 });
 
 describe("LayerPanel — what stops a run from the pool (madde 324)", () => {
-  // The design's own sentences (V2-UPDATE §1); the second is the server's too.
+  // The design's own sentence (V2-UPDATE §1), and the server's too. The one before it -- that the
+  // session's video model was not H3 -- went with WAN (madde 435).
   const H3_ONLY =
     "Referanstan üretim için H3 gerekiyor — bu oturumda başka bir video modeli kurulu.";
   const NO_REFERENCES = "Havuzda referans yok — önce en az bir referans ekle.";
@@ -1067,11 +1062,9 @@ describe("LayerPanel — what stops a run from the pool (madde 324)", () => {
   const pool = (references) => ({ references, limits: LIMITS });
   const EMPTY = pool([]);
   const KEDI = pool([{ name: "kedi.png", kind: "picture", seconds: null, slot: 1 }]);
-  // The video row as the server gives it: whether its model reads references is the server's to say.
-  const H3 = { id: "video", name: "Video üreticisi", installed: true, model: "MiniMax H3",
-               reads_references: true };
-  const WAN = { ...H3, model: "WAN 2.2 I2V", reads_references: false };
-  const MISSING = { ...WAN, installed: false };
+  // The video row as the server gives it: H3's, the one video model, which reads the pool.
+  const H3 = { id: "video", name: "Video üreticisi", installed: true, model: "MiniMax H3" };
+  const MISSING = { ...H3, installed: false };
 
   const promptBox = () => screen.getByLabelText("Prompt listesi");
   const addButton = () => screen.getByText("Kuyruğa ekle").closest("button");
@@ -1116,24 +1109,18 @@ describe("LayerPanel — what stops a run from the pool (madde 324)", () => {
     expect(addButton().disabled).toBe(false);
   });
 
-  it("says H3 is needed on a session with another video model, and keeps the button closed",
-     async () => {
-    await openReference({ producer: WAN, pool: KEDI });
+  it("never says another video model is in the way, and opens the button", async () => {
+    // H3 is the one video model there is (madde 435): the row says nothing about the pool, and
+    // nothing on Referanstan waits on it.
+    await openReference({ producer: H3, pool: KEDI });
     write('["gotik kız"]');
 
-    expect(screen.getByText(H3_ONLY)).toBeTruthy();
-    expect(addButton().disabled).toBe(true);
+    expect(screen.queryByText(H3_ONLY)).toBeNull();
+    expect(addButton().disabled).toBe(false);
   });
 
-  it("says one thing at a time, in the app's order: the model before the pool", async () => {
-    await openReference({ producer: WAN, pool: EMPTY });
-
-    expect(screen.getByText(H3_ONLY)).toBeTruthy();
-    expect(screen.queryByText(NO_REFERENCES)).toBeNull();
-  });
-
-  it("leaves the model to the install card while the video producer is missing", async () => {
-    // With no video model there is no wrong one: the card at the top says what is missing.
+  it("says an empty pool while the video producer is missing", async () => {
+    // The card at the top says what is missing; the line says what the pool lacks.
     await openReference({ producer: MISSING, pool: EMPTY });
 
     expect(screen.queryByText(H3_ONLY)).toBeNull();
@@ -1164,11 +1151,9 @@ describe("LayerPanel — what stops a run from the pool (madde 324)", () => {
 });
 
 describe("LayerPanel — the H3 video length (madde 424)", () => {
-  // The video row the way the server gives it: whether the session's model is H3 is the server's to
-  // say (reads_references), never read off the name in the box.
-  const H3 = { id: "video", name: "Video üreticisi", installed: true, model: "MiniMax H3",
-               reads_references: true };
-  const WAN = { ...H3, model: "WAN 2.2 I2V", reads_references: false };
+  // The video row the way the server gives it. H3 is the one video model (madde 435), so the row
+  // says nothing about which: once it is read, the length is drawn.
+  const H3 = { id: "video", name: "Video üreticisi", installed: true, model: "MiniMax H3" };
   const AUDIO = { id: "audio", name: "Ses üreticisi", installed: true, model: "MMAudio v2" };
   const PLAIN = ["Model", "Kapsam", "Üretim modu", "Varyant"];
   const LOOP_LINE = "2 loop video üretilecek — her video kendine döner.";
@@ -1176,14 +1161,14 @@ describe("LayerPanel — the H3 video length (madde 424)", () => {
   const lengthButton = (seconds) => screen.getByRole("button", { name: `${seconds} saniye` });
   const chosen = () => [4, 8, 12].map((one) => lengthButton(one).className.includes("is-on"));
 
-  // An H3 session unless told otherwise, with the project's length already read.
+  // The video row read, unless told otherwise, and the project's length with it.
   async function renderReady(props) {
     const view = renderPanel({ producer: H3, ...props });
     await act(async () => {});
     return view;
   }
 
-  it("sits right under the Model box in an H3 session, the project's 8 chosen", async () => {
+  it("sits right under the Model box, the project's 8 chosen", async () => {
     const project = freshProject();
     const view = await renderReady({ project });
 
@@ -1272,14 +1257,6 @@ describe("LayerPanel — the H3 video length (madde 424)", () => {
     expect(chosen()).toEqual([true, false, false]);
   });
 
-  it("is not drawn in a WAN session, and nobody asks for the length", async () => {
-    const view = await renderReady({ producer: WAN });
-
-    expect(labels(view)).toEqual(PLAIN);
-    expect(screen.getByText(LOOP_LINE)).toBeTruthy();
-    expect(getVideoLength).not.toHaveBeenCalled();
-  });
-
   it("is not drawn while the model is not read yet", async () => {
     const view = await renderReady({ producer: null });
 
@@ -1288,7 +1265,7 @@ describe("LayerPanel — the H3 video length (madde 424)", () => {
     expect(getVideoLength).not.toHaveBeenCalled();
   });
 
-  it("is drawn in an H3 session whose video producer is not installed yet", async () => {
+  it("is drawn while the video producer is not installed yet", async () => {
     // The Model box names H3 either way, and the length is the project's, not the producer's.
     const view = await renderReady({ producer: { ...H3, installed: false } });
 

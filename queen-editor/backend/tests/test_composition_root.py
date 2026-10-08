@@ -12,28 +12,26 @@ joined, weights are loaded on the first render, and torch is imported inside it.
 import base64
 import importlib
 import json
-import os
 import sys
 
 import pytest
 import requests
 
 from backend import config
+from backend.features.photo_generation.data.comfy_h3_video_generator import ComfyH3VideoGenerator
+from backend.features.photo_generation.data.prompt_writer import H3VideoPromptWriter
 from backend.features.photo_generation.domain import layers
 from backend.tests.test_deepseek_box import Answers, calling
 from backend.tests.test_deepseek_client import FakeResponse, answering
 
-VIDEO_MODEL = "QE_VIDEO_MODEL"
 
+def _import_main():
+    """backend.main, freshly imported under the environment the test set.
 
-def _import_main(video_model):
-    """backend.main, freshly imported under one video model.
-
-    config reads the environment at import and main branches on what it read, so config is reloaded
-    rather than re-imported: reload keeps the one module object every other importer already holds,
-    and a second config object would leave two answers to the same question.
+    config reads the environment at import, so config is reloaded rather than re-imported: reload
+    keeps the one module object every other importer already holds, and a second config object would
+    leave two answers to the same question.
     """
-    os.environ[VIDEO_MODEL] = video_model
     importlib.reload(config)
     sys.modules.pop("backend.main", None)
     return importlib.import_module("backend.main")
@@ -41,36 +39,27 @@ def _import_main(video_model):
 
 @pytest.fixture
 def import_main():
-    before = os.environ.get(VIDEO_MODEL)
     yield _import_main
-    if before is None:
-        os.environ.pop(VIDEO_MODEL, None)
-    else:
-        os.environ[VIDEO_MODEL] = before
-    # The environment is what it was, so config is reloaded once more and the rest of the suite
-    # reads the real one. main is dropped instead of re-imported: on a broken wiring importing it
-    # again would raise out of a fixture, which reports as an error on top of the failure it
-    # already has.
+    # Every test asks for this fixture before monkeypatch, so the environment is put back first and
+    # the config reloaded here is the real one the rest of the suite reads. main is dropped instead of
+    # re-imported: on a broken wiring importing it again would raise out of a fixture, which reports
+    # as an error on top of the failure it already has.
     sys.modules.pop("backend.main", None)
     importlib.reload(config)
 
 
-@pytest.mark.parametrize("video_model", ["", "h3"])
-def test_the_app_comes_up_and_answers_health(import_main, video_model):
-    """Both video producers are wired at module level, each in its own branch, and Colab runs h3 --
-    so one import would leave the branch the user actually runs unread."""
-    main = import_main(video_model)
+def test_the_app_comes_up_and_answers_health(import_main):
+    main = import_main()
 
     response = main.app.test_client().get("/api/health")
 
     assert response.status_code == 200
 
 
-@pytest.mark.parametrize("video_model", ["", "h3"])
-def test_the_app_serves_referanstans_record(import_main, video_model):
+def test_the_app_serves_referanstans_record(import_main):
     """Madde 317: the door's own tests wire it by hand, so only this one reads main.py's wiring. A
     project that does not exist answers in the door's words -- a door never hung would not."""
-    main = import_main(video_model)
+    main = import_main()
 
     response = main.app.test_client().get("/api/projects/m317-yok/reference-settings")
 
@@ -78,12 +67,11 @@ def test_the_app_serves_referanstans_record(import_main, video_model):
     assert response.get_json() == {"error": "Proje yok: m317-yok"}
 
 
-@pytest.mark.parametrize("video_model", ["", "h3"])
-def test_the_app_hands_a_reference_run_to_the_use_case(import_main, video_model):
+def test_the_app_hands_a_reference_run_to_the_use_case(import_main):
     """Madde 326: main.py hung this door with an argument queue_references does not take, and every
     press came back 500 -- the door's own tests wire it by hand. A missing project is the use case's
     first question, so its answer proves the call got in."""
-    main = import_main(video_model)
+    main = import_main()
 
     response = main.app.test_client().post("/api/projects/m326-yok/references/produce",
                                            json={"prompts": '["a"]', "variants": 1})
@@ -92,11 +80,10 @@ def test_the_app_hands_a_reference_run_to_the_use_case(import_main, video_model)
     assert response.get_json() == {"error": "Proje yok: m326-yok"}
 
 
-@pytest.mark.parametrize("video_model", ["", "h3"])
-def test_the_app_serves_the_agents_chats(import_main, video_model):
+def test_the_app_serves_the_agents_chats(import_main):
     """Madde 417: the door's own tests wire it by hand, so only this one reads main.py's wiring. A
     project that does not exist answers in the door's words -- a door never hung would not."""
-    main = import_main(video_model)
+    main = import_main()
 
     response = main.app.test_client().get("/api/projects/m417-yok/chats")
 
@@ -104,15 +91,14 @@ def test_the_app_serves_the_agents_chats(import_main, video_model):
     assert response.get_json() == {"error": "Proje yok: m417-yok"}
 
 
-@pytest.mark.parametrize("video_model", ["", "h3"])
 @pytest.mark.parametrize("method, url", [("post", "/api/projects/m420-yok/chats/1/questions"),
                                          ("post", "/api/projects/m420-yok/chats/1/stop"),
                                          ("get", "/api/projects/m420-yok/chats/working")],
                          ids=["ask", "stop", "working"])
-def test_the_app_serves_the_agents_doors(import_main, video_model, method, url):
+def test_the_app_serves_the_agents_doors(import_main, method, url):
     """Madde 420: the doors' own tests wire them by hand, so only this one reads main.py's wiring. A
     project that does not exist answers in the doors' words -- a door never hung would not."""
-    main = import_main(video_model)
+    main = import_main()
 
     response = getattr(main.app.test_client(), method)(url, json={"text": "Kaç kare var?"})
 
@@ -120,11 +106,10 @@ def test_the_app_serves_the_agents_doors(import_main, video_model, method, url):
     assert response.get_json() == {"error": "Proje yok: m420-yok"}
 
 
-@pytest.mark.parametrize("video_model", ["", "h3"])
-def test_the_app_serves_the_projects_video_length(import_main, video_model):
+def test_the_app_serves_the_projects_video_length(import_main):
     """Madde 422: the door's own tests wire it by hand, so only this one reads main.py's wiring. A
     project that does not exist answers in the door's words -- a door never hung would not."""
-    main = import_main(video_model)
+    main = import_main()
 
     response = main.app.test_client().get("/api/projects/m422-yok/video-length")
 
@@ -132,23 +117,29 @@ def test_the_app_serves_the_projects_video_length(import_main, video_model):
     assert response.get_json() == {"error": "Proje yok: m422-yok"}
 
 
-def test_an_h3_session_queues_its_videos_at_the_projects_length(import_main, monkeypatch,
-                                                                tmp_path):
+def test_the_queue_reads_the_projects_video_length(import_main, monkeypatch, tmp_path):
     """The queue's doors read the length the door saved: one store behind both."""
     (tmp_path / "düğün").mkdir()
     monkeypatch.setenv("QE_DRIVE_ROOT", str(tmp_path))
-    main = import_main("h3")
+    main = import_main()
 
     assert main._video_length("düğün") == 8
     main.app.test_client().put("/api/projects/düğün/video-length", json={"seconds": 12})
     assert main._video_length("düğün") == 12
 
 
-def test_a_wan_session_queues_its_videos_with_no_length(import_main):
-    """"h3e özel": a WAN video runs as long as its graph says."""
-    main = import_main("")
+def test_every_session_makes_its_videos_with_h3(import_main, monkeypatch, tmp_path):
+    """Madde 435: "wan modelini kaldıralım queen editorden direkt kullanımıyor zaten". The notebook
+    names no video model any more, and the app wires H3's producer, H3's writer and the project's
+    length in every session -- one with no video installed included, where the producers panel says
+    what is missing."""
+    (tmp_path / "düğün").mkdir()
+    monkeypatch.setenv("QE_DRIVE_ROOT", str(tmp_path))
+    main = import_main()
 
-    assert main._video_length is None
+    assert isinstance(main._producers[layers.VIDEO], ComfyH3VideoGenerator)
+    assert isinstance(main._writers[layers.VIDEO], H3VideoPromptWriter)
+    assert main._video_length("düğün") == 8
 
 
 class FakeRun:
@@ -189,7 +180,7 @@ def test_the_agent_reads_the_open_project_through_the_box_and_changes_nothing(
     before = {path.name: path.read_bytes() for path in project.iterdir()}
     monkeypatch.setenv("QE_DRIVE_ROOT", str(tmp_path))
     monkeypatch.setenv("QE_DEEPSEEK_API_KEY", "k-1")
-    main = import_main("h3")
+    main = import_main()
     read = {"id": "call_1", "type": "function",
             "function": {"name": "read_frame", "arguments": '{"frame": 1}'}}
     look = {"id": "call_2", "type": "function",
@@ -227,28 +218,18 @@ def _refusal(main, kind):
     return str(refused.value)
 
 
-def test_an_h3_session_s_video_prompt_is_queen_ai_s(import_main, monkeypatch):
+def test_the_video_prompt_is_queen_ai_s(import_main, monkeypatch):
     """Madde 400: DeepSeek writes H3's prompt, looking at the photo."""
     monkeypatch.setenv("QE_DEEPSEEK_API_KEY", "")
-    main = import_main("h3")
+    main = import_main()
 
     assert "DEEPSEEK_API_KEY" in _refusal(main, layers.VIDEO)
 
 
-def test_a_wan_session_s_video_prompt_is_queen_ai_s(import_main, monkeypatch):
-    """Madde 404: DeepSeek writes WAN's prompt too. With no key the sentence names the model the
-    writer asks -- and no request leaves."""
+def test_the_sound_prompt_is_queen_ai_s(import_main, monkeypatch):
+    """Madde 404: the sound is written by Queen AI too."""
     monkeypatch.setenv("QE_DEEPSEEK_API_KEY", "")
-    main = import_main("")
-
-    assert "DEEPSEEK_API_KEY" in _refusal(main, layers.VIDEO)
-
-
-@pytest.mark.parametrize("video_model", ["", "h3"])
-def test_every_session_s_sound_prompt_is_queen_ai_s(import_main, monkeypatch, video_model):
-    """Madde 404: the sound is written by Queen AI in a session of either video model."""
-    monkeypatch.setenv("QE_DEEPSEEK_API_KEY", "")
-    main = import_main(video_model)
+    main = import_main()
 
     assert "DEEPSEEK_API_KEY" in _refusal(main, layers.AUDIO)
 
@@ -257,23 +238,21 @@ def test_the_deepseek_key_comes_from_the_environment(import_main, monkeypatch):
     """The notebook hands it over as QE_DEEPSEEK_API_KEY, the way every setting of this app
     travels. The model and its address are DeepSeek's own, the ones QueenAgent speaks to."""
     monkeypatch.setenv("QE_DEEPSEEK_API_KEY", "ds-1")
-    import_main("h3")
+    import_main()
 
     assert config.DEEPSEEK_API_KEY == "ds-1"
     assert config.DEEPSEEK_MODEL == "deepseek-flash"
     assert config.DEEPSEEK_URL == "https://api.deepseek.com/chat/completions"
 
 
-@pytest.mark.parametrize("video_model, kind", [
-    ("h3", layers.VIDEO), ("", layers.VIDEO), ("h3", layers.AUDIO), ("", layers.AUDIO),
-], ids=["h3-video", "wan-video", "h3-sound", "wan-sound"])
-def test_every_queen_ai_prompt_goes_through_the_box(import_main, monkeypatch, video_model, kind):
-    """Madde 416 and 418: H3's, WAN's and the sound's writer, as main.py wires them, have a failed
+@pytest.mark.parametrize("kind", [layers.VIDEO, layers.AUDIO], ids=["video", "sound"])
+def test_every_queen_ai_prompt_goes_through_the_box(import_main, monkeypatch, kind):
+    """Madde 416 and 418: H3's and the sound's writer, as main.py wires them, have a failed
     request sent again and the answer checked -- four HTTP errors, then the fifth try's answer and
     the check's approval, and that answer is the prompt. requests.post is the one the client sends
     with, so no request leaves this machine."""
     monkeypatch.setenv("QE_DEEPSEEK_API_KEY", "k-1")
-    main = import_main(video_model)
+    main = import_main()
     http = Answers([FakeResponse(status_code=500, text="iç hata")] * 4
                    + [answering("she turns"), answering("APPROVED")])
     monkeypatch.setattr(requests, "post", http.post)

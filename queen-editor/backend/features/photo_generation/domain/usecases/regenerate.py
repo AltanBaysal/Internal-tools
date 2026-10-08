@@ -59,8 +59,8 @@ def regenerate(runner, store, record, plan_store, order_store, producers, new_se
     the layers over it are made from what is under them, so whatever is passed for a video or a
     sound is dropped here rather than at the caller.
 
-    `length` answers how long the project's H3 videos run now (madde 422): the new video goes at
-    that length. None in a session whose video model takes no length.
+    `length` answers how long the project's videos run now (madde 422): the new video goes at that
+    length. None hands it none, and the video is made at its graph's own.
     """
     # Above the gallery read: an unknown mode is an unknown mode even in a project that is not
     # there, and the cheap refusal comes first.

@@ -1,11 +1,11 @@
 """Produce videos from the project's reference pool. Returns how many jobs the queue took.
 
-Two things stop a run before it starts (madde 302), and the app says which: the engine that can read
-references is not installed, or the pool is empty. Both are the app's to count -- H3 complains into
-a Colab log the user never opens, and about an empty pool it would not complain at all.
+An empty pool stops a run before it starts (madde 302), and the app says so: H3 would not complain
+about it at all. Nothing about the session is asked: H3 is the one video model (madde 435) and it
+reads the pool, and whether its files are on the machine is the producers panel's to say.
 
-Checked in the order a person would look: what is installed, then what they wrote, then what the
-pool holds. Nothing is written until every one of them has passed.
+Checked in the order a person would look: what they wrote, then what the pool holds. Nothing is
+written until every one of them has passed.
 
 What comes back are CARDS, not layers on frames that exist: one per prompt per variant, each born
 from a video and holding no picture at all (madde 303). The gallery draws them because madde 292
@@ -53,21 +53,13 @@ def plan_reference_cards(start, prompts, variants, new_seed):
             for variant in range(variants)]
 
 
-class NoReferenceProducer(Exception):
-    """The installed video engine has no reference mode (message is user-facing)."""
-
-
 def queue_references(runner, store, record, plan_store, order_store, pool, orders, producers,
-                     new_seed, now, has_h3, project, prompts, variants,
+                     new_seed, now, project, prompts, variants,
                      log=None, writers=None, stills=None, length=None):
-    """Returns how many cards the queue took. `length` answers how long the project's H3 videos
-    run now (madde 422)."""
+    """Returns how many cards the queue took. `length` answers how long the project's videos run
+    now (madde 422)."""
     if not store.project_exists(project):
         raise ProjectMissing(f"Proje yok: {project}")
-    if not has_h3:
-        # WAN has no such mode at all, so there is nothing to hand the pool to.
-        raise NoReferenceProducer(
-            "Referanstan üretim için H3 gerekiyor — bu oturumda başka bir video modeli kurulu.")
     written = parse_prompts(prompts)        # raises InvalidPrompts
     # bool is an int in Python, and True would silently mean "1 variant".
     if isinstance(variants, bool) or not isinstance(variants, int) \

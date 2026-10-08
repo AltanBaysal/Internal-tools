@@ -37,8 +37,7 @@ const LENGTHS = [4, 8, 12];
 // "video panelinin birebir aynısı" -- so only these words and the scope rule differ between them.
 const WORDS = {
   video: {
-    // No model name here: which video model runs is the notebook's pick, and the producers row
-    // carries it (madde 247).
+    // No model name here: the producers row carries it (madde 247), and the box waits for it.
     missing: "Videosu olmayan kareler",
     // The bare noun for counting, and the possessive the estimate line needs -- Turkish does not
     // build one from the other.
@@ -107,9 +106,8 @@ function acceptsVariants(text) {
 // The one reason that belongs to no layer: the box is on both panels and says the same thing.
 const NO_VARIANTS = "Varyant sayısı girilmedi — en az 1 yaz.";
 
-// What stops a run from the pool, said before the press (madde 324). The server's own sentences
+// What stops a run from the pool, said before the press (madde 324). The server's own sentence
 // (queue_references.py), word for word: the line shows the refusal a press would get.
-const H3_ONLY = "Referanstan üretim için H3 gerekiyor — bu oturumda başka bir video modeli kurulu.";
 const NO_REFERENCES = "Havuzda referans yok — önce en az bir referans ekle.";
 
 // A list pasted out of a notebook cell may carry its name in front: prompt_list.py's own pattern.
@@ -169,13 +167,12 @@ function refusalOf(words, can, scope, scoped, variants, fromPool) {
 
 /** What the line above the button says on Referanstan, or null (madde 324).
  *
- * The app's order, one sentence at a time: the model, then the pool. A preview of the server's own
- * refusals, never a rule (FOUNDATION 4): what has not answered yet -- the producers, the pool --
- * says nothing, and the press goes. With no video producer there is no wrong model: the install card
- * at the top says what is missing. One reference of any kind is enough.
+ * A preview of the server's own refusal, never a rule (FOUNDATION 4): a pool that has not answered
+ * yet says nothing, and the press goes. One reference of any kind is enough. Nothing is said about
+ * the model: H3 is the one there is, and it reads the pool (madde 435) -- a missing producer is the
+ * install card's to say.
  */
-function poolRefusal(producer, pool) {
-  if (producer?.installed && !producer.reads_references) return H3_ONLY;
+function poolRefusal(pool) {
   if (pool && !pool.references.length) return NO_REFERENCES;
   return null;
 }
@@ -372,9 +369,9 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
   useEffect(() => { setRefused(null); }, [chosen, scope, shownVariants]);
   const missingProducer = Boolean(producer) && !producer.installed;
   // Referanstan's line, and nothing on Kareden: the frame form answers after the press.
-  const missingLine = fromPool ? poolRefusal(producer, pool) : null;
-  // The server's name first -- it knows which model the notebook installed. Until it answers the
-  // box stays empty rather than guessing.
+  const missingLine = fromPool ? poolRefusal(pool) : null;
+  // The server's name first -- it names the one video model there is (madde 435). Until it answers
+  // the box stays empty rather than guessing.
   const model = producer?.model || words.model || "";
   // The project's setting, not this panel's: it is read and written through the project, and only a
   // video has one -- the sound panel is handed no video row (madde 424).
@@ -463,8 +460,8 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
 
       {length !== null && (
         /* Under the Model box and above everything a tab has of its own, so changing tab leaves it
-           where it is (madde 424). Not drawn until there is a length to show: under WAN, while the
-           model or the length is not read yet, nothing stands in for it. */
+           where it is (madde 424). Not drawn until there is a length to show: while the model or
+           the length is not read yet, nothing stands in for it. */
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <Mono size={11} data-label style={LABEL}>Video uzunluğu</Mono>
           <div className="wf-segment" style={{ display: "flex" }}>

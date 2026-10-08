@@ -145,7 +145,8 @@ class FfmpegVideoExporter:
         one. The cost is one more small call per piece.
 
         An empty answer is an answer, not a failure: a WAN video with no sound layer has no audio
-        stream, and ffprobe says so by printing nothing.
+        stream -- the ones made before madde 435 stay in their projects -- and ffprobe says so by
+        printing nothing.
 
         No separator is named, unlike size's `s=x`: ffprobe splits the writer's option string on
         colons, so asking csv to separate with one left `s=` without a value and the writer refused

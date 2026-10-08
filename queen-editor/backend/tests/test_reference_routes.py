@@ -44,7 +44,7 @@ def fixed_length(seconds=4.0):
         "Done", (), {"returncode": 0, "stdout": f"{seconds}\n", "stderr": ""})())
 
 
-def client_over(drive, dist, clips=None, has_h3=True):
+def client_over(drive, dist, clips=None):
     """A server over this Drive folder. A second one is what a restart looks like from here: the
     pool is a folder, not a session."""
     storage = DriveStorage(str(drive))
@@ -63,7 +63,7 @@ def client_over(drive, dist, clips=None, has_h3=True):
         save_reference_order=partial(save_reference_order, store, pool, orders),
         queue_references=partial(queue_references, runner, store, record, plan_store, gallery,
                                  pool, orders, {layers.VIDEO: FakeGenerator()}, lambda: 7,
-                                 lambda: "t", has_h3),
+                                 lambda: "t"),
         reference_dir=pool.dir_path)
     return create_app(dist_dir=str(dist), blueprints=[blueprint]).test_client()
 

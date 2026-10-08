@@ -22,8 +22,8 @@ class FrameMissing(Exception):
 
 def retry_frame(runner, store, record, plan_store, producers, now, project, fid, log=None,
                 order_store=None, writers=None, stills=None, references=None, length=None):
-    """`length` answers how long the project's H3 videos run now: a red video goes back at that
-    length (madde 422). None in a session whose video model takes no length."""
+    """`length` answers how long the project's videos run now: a red video goes back at that
+    length (madde 422). None leaves its line as it is."""
     if not store.project_exists(project):
         raise ProjectMissing(f"Proje yok: {project}")
     frames = plan_store.read(project)["frames"]

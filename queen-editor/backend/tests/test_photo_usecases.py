@@ -4392,7 +4392,7 @@ def run_references(store, record, plan_store, prompts='["gotik kız"]', variants
     return queue_references(sync_runner(), store, record, plan_store, FakeOrderStore(),
                             pool or FakePool(), orders or FakeReferenceOrders(),
                             {layers.VIDEO: generator or FakeGenerator()}, lambda: 7, lambda: "t",
-                            True, "düğün", prompts, variants)
+                            "düğün", prompts, variants)
 
 
 def reference_jobs(plan_store):

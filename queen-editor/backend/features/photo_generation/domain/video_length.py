@@ -1,8 +1,8 @@
 """How long an H3 video runs (madde 422): the project's one choice, and what the queue does with it.
 
 The user's words (v9-1, 5 Ekim): "videoları veya 4 8 12 arasında seçebilmek video uzunlupunu",
-"varsalın 8 olsun", "h3e özel". Only H3's length is chosen -- a WAN video runs as long as its graph
-says, and in a WAN session nothing here is handed a length at all (main.py).
+"varsalın 8 olsun", "h3e özel". H3 is the one video model since madde 435, so every video job is
+handed the project's length (main.py).
 
 A video carries the length it was put in the queue with, and comes out at it however the project
 changes while it waits ("Eklendiği uzunlukta"): the length is written on the job's plan line, never
@@ -27,8 +27,7 @@ def check(seconds):
 
 def carried(length, project):
     """What a video job put in the queue now carries about its length: the project's length at this
-    moment. `length` answers it; None -- a session whose video model takes no length -- carries
-    nothing."""
+    moment. `length` answers it; None carries nothing, and the job is made at its graph's own."""
     return {"seconds": length(project)} if length else {}
 
 

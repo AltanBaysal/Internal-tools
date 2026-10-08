@@ -154,8 +154,8 @@ def _made_with(job, end, kind, producer):
     nothing: the frame a video ends on can be deleted while the video stays.
 
     A video's length is its producer's answer, not the job's: the job carries the length it was
-    queued with, and the model that makes it may not make that length -- an H3 session's job made in
-    a later WAN session comes out at WAN's own (madde 423). The export adds these up.
+    queued with, and the producer says what it made of it -- a job queued with none comes out at
+    the graph's own (madde 423). The export adds these up.
     """
     made = {"mode": production_mode.of(job)} if job.get("mode") else {}
     if end:

@@ -1,8 +1,8 @@
 """The MiniMax H3 video producer over ComfyUI -- the only place that knows what the H3 graphs look
 like.
 
-Two graphs, the same seam as WAN's producer: with an ending frame the FL2VA graph runs, without one
-the I2VA graph. Both are our own exports (madde 242):
+Two graphs: with an ending frame the FL2VA graph runs, without one the I2VA graph. Both are our own
+exports (madde 242):
   "2730"  MiniMaxH3Director   -> the pictures, the prompt and the length
   "2739"  DaSiWa_SeedControl  -> the sampler's noise seed
 

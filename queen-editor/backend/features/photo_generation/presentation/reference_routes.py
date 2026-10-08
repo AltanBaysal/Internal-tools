@@ -13,7 +13,6 @@ from flask import Blueprint, jsonify, request, send_from_directory
 
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
 from backend.features.photo_generation.domain.references import LIMITS, PoolLimit
-from backend.features.photo_generation.domain.usecases.queue_references import NoReferenceProducer
 from backend.features.photo_generation.domain.usecases.add_references import UnknownReference
 from backend.features.photo_generation.domain.usecases.save_reference_order import (
     InvalidReferenceOrder,
@@ -84,8 +83,8 @@ def make_reference_blueprint(add_references, list_references, remove_reference,
         prompts = prompts if isinstance(prompts, str) else ""
         try:
             added = queue_references(project, prompts, body.get("variants", 1))
-        except (InvalidPrompts, InvalidVariants, NoReferenceProducer, PoolLimit) as exc:
-            # Four refusals, one answer: the run cannot start, and the sentence is the difference.
+        except (InvalidPrompts, InvalidVariants, PoolLimit) as exc:
+            # Three refusals, one answer: the run cannot start, and the sentence is the difference.
             return jsonify({"error": str(exc)}), 400
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404

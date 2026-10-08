@@ -176,23 +176,13 @@ def test_a_sound_carries_no_length():
     assert "seconds" not in jobs[0]
 
 
-def test_a_session_whose_video_model_takes_no_length_queues_none():
-    """"h3e özel": a WAN session's video job carries no length, and WAN makes the video its graph
-    says. A length on its line would be a lie about how long that video is."""
-    store, record, plan_store = photographed(0)
-
-    jobs = from_kareden(store, record, plan_store, length=None)
-
-    assert "seconds" not in jobs[0]
-
-
 def test_a_card_from_referanstan_carries_the_projects_length():
     """"Evet, iki sekme de" -- Referanstan's cards are made at the chosen length too."""
     plan_store = FakePlanStore()
 
     queue_references(idle_runner(), FakeStore(), FakeRecord(), plan_store, FakeOrderStore(),
-                     FakePool(), FakeReferenceOrders(), {}, lambda: 7, lambda: "t", True,
-                     "düğün", '["gotik kız"]', 2, length=at(4))
+                     FakePool(), FakeReferenceOrders(), {}, lambda: 7, lambda: "t", "düğün",
+                     '["gotik kız"]', 2, length=at(4))
 
     assert [job["seconds"] for job in plan_store.appended[-1]] == [4, 4]
 
@@ -289,9 +279,9 @@ def test_a_video_is_made_at_the_length_its_job_carries():
 
 
 def test_a_job_that_carries_no_length_is_made_at_the_graphs_own():
-    """Every video queued before madde 422, and every one a WAN session queued: the producer is told
-    nothing, and its graph says how long the video runs. The row says what was made -- the
-    producer's answer, this fake's graph 4 (madde 423)."""
+    """Every video queued before madde 422, and every one queued in a WAN session before 435: the
+    producer is told nothing, and its graph says how long the video runs. The row says what was
+    made -- the producer's answer, this fake's graph 4 (madde 423)."""
     generator, row = made({})
 
     assert generator.lengths == [None]

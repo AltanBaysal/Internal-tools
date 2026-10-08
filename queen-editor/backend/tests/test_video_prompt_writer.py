@@ -7,9 +7,7 @@ import pytest
 from backend.features.photo_generation.data import prompt_writer
 from backend.features.photo_generation.data.prompt_writer import (
     AUDIO_INSTRUCTION,
-    VIDEO_INSTRUCTION,
     AudioPromptWriter,
-    VideoPromptWriter,
 )
 
 TOOL = os.path.dirname(          # queen-editor
@@ -63,42 +61,11 @@ def _queen_agent_suffix():
     return module.SYSTEM_PROMPT_SUFFIX
 
 
-def test_the_wan_writer_shows_queen_ai_the_photo_and_the_scenario():
-    """Madde 404: WAN's prompt is written the way H3's is -- the model sees the picture the tags
-    drew, so the tags themselves are not sent."""
-    client = FakeQueenAI(answer="she turns her head")
-
-    written = VideoPromptWriter(client).write({"photo": "score_9_up, 1girl, queen"}, "standard",
-                                              source=PHOTO, scene=THRONE)
-
-    assert written == "she turns her head"
-    assert client.calls == [(_sent(VIDEO_INSTRUCTION), f"Scenario: {THRONE}", [PHOTO])]
-
-
-def test_a_wan_frame_with_no_scenario_sends_the_photo_alone():
-    client = FakeQueenAI()
-
-    VideoPromptWriter(client).write({"photo": "score_9_up, 1girl, queen"}, "standard",
-                                    source=PHOTO, scene="")
-
-    assert client.calls == [(_sent(VIDEO_INSTRUCTION), "", [PHOTO])]
-
-
-def test_the_wan_text_asks_for_the_motion_alone_with_the_camera_still():
-    assert "Never describe the photo again." in VIDEO_INSTRUCTION
-    assert "Keep the camera static: no camera movement, no zoom, no pan." in VIDEO_INSTRUCTION
-
-
-def test_the_wan_text_leaves_the_sound_out():
-    """The user's words (1 Ekim): "wan değişsin sesi katma" -- WAN makes no sound, and the sound
-    has a prompt of its own."""
-    assert "Wan makes no sound." in VIDEO_INSTRUCTION
-    assert "Write no sounds and no spoken words." in VIDEO_INSTRUCTION
-
-
-def test_the_wan_text_says_what_to_do_without_a_scenario():
-    assert ("If no scenario is given, write a small, natural motion for the photo."
-            in VIDEO_INSTRUCTION)
+def test_no_wan_writer_is_left():
+    """Madde 435: H3 is the one video model, so Queen AI is asked for H3's prompt and the sound's --
+    WAN's text and its writer went with WAN."""
+    assert not hasattr(prompt_writer, "VideoPromptWriter")
+    assert not hasattr(prompt_writer, "VIDEO_INSTRUCTION")
 
 
 def test_the_sound_is_written_from_the_video_s_prompt_alone():
@@ -125,8 +92,8 @@ def test_the_sound_instruction_asks_for_the_scenes_own_sounds():
 
 
 def _h3():
-    """Imported where it is used: a name that is not there yet would fail collection and take the
-    WAN and sound questions above down with it."""
+    """Imported where it is used: a name that is not there would fail collection and take the sound
+    questions above down with it."""
     from backend.features.photo_generation.data import prompt_writer
     return prompt_writer.H3_VIDEO_INSTRUCTION, prompt_writer.H3VideoPromptWriter
 
@@ -320,16 +287,6 @@ def test_a_loop_video_shows_its_picture_once():
     assert client.calls == [(_sent(instruction + _loop_rule()), "", [PHOTO])]
 
 
-def test_wan_asks_for_the_same_returning_motion():
-    # Loop is a mode of both engines, so the rule belongs to both writers -- as one sentence.
-    client = FakeQueenAI()
-
-    VideoPromptWriter(client).write({"photo": "kırmızı elbiseli kadın"}, "loop", source=PHOTO,
-                                    scene="")
-
-    assert client.calls == [(_sent(VIDEO_INSTRUCTION + _loop_rule()), "", [PHOTO])]
-
-
 def test_the_loop_rule_says_what_it_wants_and_what_it_refuses():
     # The whole of the fix is in these words: a motion that comes back, not one that comes to rest.
     rule = _loop_rule()
@@ -367,17 +324,6 @@ def test_the_sound_writer_takes_the_mode_and_ignores_it():
     assert "loop" not in client.calls[0][0].lower()
 
 
-def test_wan_never_hears_of_picture_2():
-    """The linked text names Picture 2 and is H3's alone: WAN is shown its own photo and nothing
-    else, whatever the mode."""
-    client = FakeQueenAI()
-
-    VideoPromptWriter(client).write({"photo": "kırmızı elbiseli kadın"}, "linked", source=PHOTO,
-                                    end=NEXT, scene=THRONE)
-
-    assert client.calls == [(_sent(VIDEO_INSTRUCTION), f"Scenario: {THRONE}", [PHOTO])]
-
-
 def test_the_sound_is_shown_no_picture_whatever_it_is_handed():
     """The loop hands every writer the same arguments; the sound's takes the video's prompt alone."""
     client = FakeQueenAI(answer="fabric rustling")
@@ -401,13 +347,13 @@ def test_the_suffix_is_queen_agent_s_word_for_word():
 
 
 def test_every_writer_s_system_prompt_ends_with_queen_agent_s_suffix():
-    """Madde 407, as its done-sentence says it: whichever prompt Queen AI writes -- H3, WAN or the
-    sound -- and in whichever mode, the system prompt it is handed ends with QueenAgent's suffix.
-    Asked of QueenAgent's text rather than the copy."""
+    """Madde 407, as its done-sentence says it: whichever prompt Queen AI writes -- H3 or the sound
+    -- and in whichever mode, the system prompt it is handed ends with QueenAgent's suffix. Asked of
+    QueenAgent's text rather than the copy."""
     _instruction, h3 = _h3()
     client = FakeQueenAI()
 
-    for writer in (VideoPromptWriter, h3, AudioPromptWriter):
+    for writer in (h3, AudioPromptWriter):
         for mode in ("standard", "loop", "linked"):
             writer(client).write({"photo": "kırmızı elbiseli kadın", "video": "kadın dönüyor"},
                                  mode, source=PHOTO, end=NEXT, scene=THRONE)
@@ -419,11 +365,11 @@ def test_every_writer_s_system_prompt_ends_with_queen_agent_s_suffix():
 
 # --- Madde 416: the box's failure ----------------------------------------------------------------
 
-@pytest.mark.parametrize("kind", ["wan", "h3", "sound"])
+@pytest.mark.parametrize("kind", ["h3", "sound"])
 def test_a_failed_answer_is_never_a_prompt(kind):
     """When the box gave up it says why in its text, and that text goes the way any failure goes --
     raised into the run loop, never written on the card as the prompt."""
-    writer = {"wan": VideoPromptWriter, "h3": _h3()[1], "sound": AudioPromptWriter}[kind]
+    writer = {"h3": _h3()[1], "sound": AudioPromptWriter}[kind]
     queen_ai = FakeQueenAI(answer="DeepSeek HTTP 503\nmeşgul", failed=True)
 
     with pytest.raises(RuntimeError) as failed:
