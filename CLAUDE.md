@@ -7,7 +7,7 @@ apps). Their rules sit beside them and say why the code is shaped as it is: `FOU
 ## Commands
 
 ```bash
-# The four suites are independent and can run side by side.
+# One suite at a time, whoever runs it: side by side they nearly fill this machine's 16 GB.
 python -m pytest queen-agent -q
 npm test --prefix queen-agent/frontend
 python -m pytest queen-editor -q
