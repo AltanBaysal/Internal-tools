@@ -572,6 +572,25 @@ def test_the_notebook_fetches_mystic_xxx_by_its_version_into_the_loras():
         f"CIVITAI_H3'te Mystic XXX satırı yok:\n{listing}"
 
 
+def test_the_notebook_fetches_hmcumshot_by_its_version_into_the_loras():
+    """Madde 426: Mutlu son's lora, v1.0 -- Civitai version 3329529 -- landing in loras/ under the name
+    the producer puts in the stack. A row of CIVITAI_H3, so it comes down with H3's other files and
+    only on a video run (test_an_unticked_group_costs_no_bytes)."""
+    cell = _cell("CIVITAI_H3 = [")
+    listing = cell[cell.find("CIVITAI_H3 = ["):]
+    listing = listing[:listing.find("\n]")]
+
+    assert re.search(r'\(3329529,\s*LORA,\s*"HMCumshot_V1\.0\.safetensors",', listing), \
+        f"CIVITAI_H3'te HMCumshot satırı yok:\n{listing}"
+
+
+def test_hmcumshot_comes_through_the_mirror():
+    """Through civitai_fetch's ordinary road: the HF mirror first, Civitai when it is not there."""
+    from colab.downloads import MIRRORLESS
+
+    assert "HMCumshot_V1.0.safetensors" not in MIRRORLESS
+
+
 def test_no_huggingface_file_is_fetched_by_its_address():
     """An address sends the file through HF's bridge, which cuts a plain download to 8.7 MB/s on most
     of its servers (xet-core #821) -- the user timed H3's install at about a hundred minutes (madde

@@ -3,8 +3,9 @@ like.
 
 Two graphs: with an ending frame the FL2VA graph runs, without one the I2VA graph. Both are our own
 exports (madde 242):
-  "2730"  MiniMaxH3Director   -> the pictures, the prompt and the length
-  "2739"  DaSiWa_SeedControl  -> the sampler's noise seed
+  "2730"  MiniMaxH3Director      -> the pictures, the prompt and the length
+  "2739"  DaSiWa_SeedControl     -> the sampler's noise seed
+  "2678"  DaSiWa_LTX2LoraLoader  -> the lora stack, touched only for Mutlu son
 
 The Director keeps its pictures and its prompt inside its own JSON rather than in wired inputs. The
 pictures are items of `timeline_data`, written in by position; the prompt sits in four places --
@@ -16,6 +17,11 @@ The length is the Director's `duration`, in seconds (madde 422): the graph's own
 there, and nothing else in the graph counts frames -- the latent comes out of the Director's guide,
 and the Combine takes its frame rate from the Director. It sits in three places for the same reason
 the prompt sits in four: the input, and the `duration` of both builder states.
+
+The lora stack keeps its slots in a JSON string, `stack_data`. The exports carry Motion Booster and
+nothing else, and a video goes out with the stack as exported -- except one that ends happily
+(madde 426), which loads HMCumshot in the first free slot: a slot named "None", the way every empty
+slot has loaded nothing since madde 213.
 
 Which picture sits where is the graph's fact, not the scene's, so this file opens the prompt with it
 rather than the writer. The sentences are the graph's own examples ("Example: FL2VA First Frame" and
@@ -37,6 +43,15 @@ FL2VA_SENTENCE = ("How the reference pictures align with the target video — Pi
 
 # Motion Booster's word, added by hand to the prompts that want it (madde 331).
 TRIGGER = "dynv2"
+
+STACK_NODE = "2678"
+# Mutlu son's lora (madde 426): HMCumshot v1.0, Civitai version 3329529, at the strength its author
+# recommends ("I recommend using strength 0.7"). v1.0 has no trigger word. The file is fetched by
+# the notebook with H3's others and counted in the video group (model_groups).
+HAPPY_ENDING_LORA = "HMCumshot_V1.0.safetensors"
+HAPPY_ENDING_STRENGTH = 0.7
+# What an empty slot of the stack is named.
+FREE = "None"
 
 # The mode the Director runs a pool-made video in. A plain string on the node, which is why no new
 # export was needed: the ref2va_model slot of the shipped graph is already filled (madde 304).
@@ -69,6 +84,23 @@ def _director(workflow, seconds):
     return director
 
 
+def _with_happy_ending(workflow, name):
+    """The graph with HMCumshot in its stack's first free slot. The slot keeps its own video and
+    audio strengths (`vs`, `as`), which the export gives every slot, Motion Booster's included."""
+    if STACK_NODE not in workflow:
+        raise RuntimeError(f"{name} grafiğinde {STACK_NODE} node yok — graf değişmiş, "
+                           "node id'lerini güncelle")
+    inputs = workflow[STACK_NODE]["inputs"]
+    stack = json.loads(inputs["stack_data"])
+    free = next((slot for slot in stack if slot["lora"] == FREE), None)
+    if free is None:
+        raise RuntimeError(f"{name} grafiğinin LoRA yığınında boş yuva yok — mutlu sonun LoRA'sı "
+                           "eklenemedi, grafik değişmiş")
+    free.update(on=True, lora=HAPPY_ENDING_LORA, str=HAPPY_ENDING_STRENGTH)
+    # Written back compact, the way the export writes it.
+    inputs["stack_data"] = json.dumps(stack, separators=(",", ":"))
+
+
 class ComfyH3VideoGenerator:
     def __init__(self, client, workflow_path, first_last_path, timeout):
         self._client = client
@@ -77,7 +109,7 @@ class ComfyH3VideoGenerator:
         self._timeout = timeout
 
     def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                 references=(), seconds=None):
+                 references=(), seconds=None, happy_ending=False):
         """`source` is the frame's photo as (name, bytes); `end`, when given, is the picture the video
         arrives at, and giving one is the whole of the choice between the two graphs.
 
@@ -85,19 +117,23 @@ class ComfyH3VideoGenerator:
         THEM and of no frame at all: the mode becomes REF2VA and no source picture is asked for
         (madde 304).
 
-        `negative`, `model` and `lora` belong to the port rather than to these graphs: the lora and
-        its strength are baked into the exports (madde 213), and a video job carries none of them.
+        `negative`, `model` and `lora` belong to the port rather than to these graphs: the loras and
+        their strengths are baked into the exports (madde 213) -- all but Mutlu son's, which
+        `happy_ending` asks for -- and a video job carries none of them.
 
         `seconds` is how long the video runs, from its job (madde 422), in every mode; None leaves
         the graph's own.
+
+        `happy_ending` puts HMCumshot in the stack, in every mode (madde 426); off, the graph goes
+        out as it ships.
         """
         if references:
-            return self._from_pool(prompt, seed, references, seconds)
+            return self._from_pool(prompt, seed, references, seconds, happy_ending)
         if not source:
             # The ending frame is where the video arrives, not what it is built on.
             raise RuntimeError("Video için kaynak foto verilmedi")
         path = self._first_last_path if end else self._workflow_path
-        workflow = self._load(path)
+        workflow = self._load(path, happy_ending)
         # Set before the FL2VA sentence reads it: the second picture sits at the video's end.
         director = _director(workflow, seconds)
 
@@ -125,7 +161,7 @@ class ComfyH3VideoGenerator:
             written = f"{opening}\n\n{prompt}"
         return self._render(workflow, director, timeline, written, seed)
 
-    def _from_pool(self, prompt, seed, references, seconds):
+    def _from_pool(self, prompt, seed, references, seconds, happy_ending):
         """The same graph, run in REF2VA: the timeline is the pool rather than the frame.
 
         The I2VA export is what is loaded, because the mode is a string and the node's ref2va_model
@@ -135,7 +171,7 @@ class ComfyH3VideoGenerator:
         the producer telling H3 which picture sits where; here the prompt is the user's own six
         sections and nothing is put in front of it.
         """
-        workflow = self._load(self._workflow_path)
+        workflow = self._load(self._workflow_path, happy_ending)
         director = _director(workflow, seconds)
         director["mode"] = REF2VA
         timeline = json.loads(director["timeline_data"])
@@ -188,8 +224,9 @@ class ComfyH3VideoGenerator:
         standard = self._load(self._workflow_path)
         return float(standard[DIRECTOR_NODE]["inputs"]["duration"])
 
-    def _load(self, path):
-        """Fresh copy per render -- patching is never written back to the shipped file."""
+    def _load(self, path, happy_ending=False):
+        """Fresh copy per render -- patching is never written back to the shipped file. With
+        `happy_ending` the copy carries HMCumshot."""
         try:
             with open(path, encoding="utf-8") as f:
                 workflow = json.load(f)
@@ -205,4 +242,6 @@ class ComfyH3VideoGenerator:
             if node_id not in workflow:
                 raise RuntimeError(f"{name} grafiğinde {node_id} node yok — graf değişmiş, "
                                    "node id'lerini güncelle")
+        if happy_ending:
+            _with_happy_ending(workflow, name)
         return workflow

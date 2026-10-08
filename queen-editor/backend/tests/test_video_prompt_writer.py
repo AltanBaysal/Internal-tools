@@ -377,3 +377,74 @@ def test_a_failed_answer_is_never_a_prompt(kind):
                                "standard", source=PHOTO, scene=THRONE)
 
     assert str(failed.value) == "DeepSeek HTTP 503\nmeşgul"
+
+
+# --- Madde 426: Mutlu son ------------------------------------------------------------------------
+
+def _happy_rule():
+    from backend.features.photo_generation.data import prompt_writer
+    return prompt_writer.HAPPY_ENDING_RULE
+
+
+@pytest.mark.parametrize("mode, rule", [("standard", ""), ("loop", "loop"), ("linked", "linked")])
+def test_a_happy_ending_asks_for_the_ending_after_the_mode_s_own_rule(mode, rule):
+    """The LoRA's author: "this is mostly prompting". The ending's part comes last, after whatever the
+    mode asks, and the suffix still closes the message (madde 407)."""
+    instruction, writer = _h3()
+    client = FakeQueenAI()
+    mode_rule = {"": "", "loop": _loop_rule(), "linked": _linked_rule()}[rule]
+
+    writer(client).write({"photo": "kırmızı elbiseli kadın"}, mode, source=PHOTO, end=NEXT,
+                         scene=THRONE, happy_ending=True)
+
+    assert client.calls[0][0] == _sent(instruction + mode_rule + _happy_rule())
+
+
+@pytest.mark.parametrize("mode", ["standard", "loop", "linked"])
+def test_without_a_happy_ending_the_instruction_is_today_s_word_for_word(mode):
+    instruction, writer = _h3()
+    client = FakeQueenAI()
+    mode_rule = {"standard": "", "loop": _loop_rule(), "linked": _linked_rule()}[mode]
+
+    writer(client).write({"photo": "kırmızı elbiseli kadın"}, mode, source=PHOTO, end=NEXT,
+                         scene=THRONE, happy_ending=False)
+
+    assert client.calls[0][0] == _sent(instruction + mode_rule)
+
+
+def test_the_happy_ending_asks_for_the_cumshot_at_the_end():
+    rule = _happy_rule()
+
+    assert "ends with a cumshot" in rule
+    assert "the last thing that happens in [Shot 1]" in rule
+
+
+def test_the_happy_ending_asks_for_the_texture_in_detail():
+    """The author: "A thorough description of the cum texture helps a lot!"."""
+    rule = _happy_rule()
+
+    assert "texture" in rule and "thick" in rule
+
+
+def test_the_happy_ending_asks_for_its_sound_plainly_in_the_soundscape():
+    """The author: "Sound is still off, I recommend adding explicit sound description in your
+    prompts"."""
+    rule = _happy_rule()
+
+    assert "overall_soundscape" in rule and "sound" in rule
+
+
+def test_the_happy_ending_says_no_length_and_asks_for_no_trigger_word():
+    """v1.0 has no trigger word, and the length stays the project's alone (madde 421)."""
+    rule = _happy_rule()
+
+    assert LENGTH.findall(rule) == []
+    assert "trigger" not in rule.lower()
+
+
+def test_the_sound_writer_takes_a_happy_ending_and_ignores_it():
+    client = FakeQueenAI(answer="fabric rustling")
+
+    AudioPromptWriter(client).write({"video": "kadın dönüyor"}, "standard", happy_ending=True)
+
+    assert client.calls == [(_sent(AUDIO_INSTRUCTION), "Video prompt: kadın dönüyor", [])]

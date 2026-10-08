@@ -87,6 +87,19 @@ This video ends on the photo of the next frame. Two photos are given: the first 
 """
 
 
+# What a video with Mutlu son has to ask for, appended to H3's instruction after the mode's own rule
+# (madde 426). The video is made with HMCumshot, whose author says the effect "is mostly prompting",
+# that "A thorough description of the cum texture helps a lot!", and that "Sound is still off, I
+# recommend adding explicit sound description in your prompts" -- so the ending, its texture and its
+# sound are asked for in so many words. v1.0 has no trigger word, so none is asked for.
+HAPPY_ENDING_RULE = """
+This video ends with a cumshot.
+- Write the cumshot as the last thing that happens in [Shot 1], after everything the scenario says.
+- Describe the cum plainly, in concrete words: its color, its texture, how thick and sticky it is, how it shoots out in spurts, where it lands, and how it drips and spreads.
+- In overall_soundscape, write the sound of the cumshot plainly: the moans or groans, the breathing, and the wet sounds of the cum as it shoots out and lands.
+"""
+
+
 # Written for MMAudio, which takes a short list of what should be heard. Queen AI reads the video's
 # prompt alone (madde 404): it already says what happens, and the sound is laid over that video.
 AUDIO_INSTRUCTION = """
@@ -147,17 +160,23 @@ class H3VideoPromptWriter:
     def __init__(self, queen_ai):
         self._queen_ai = queen_ai
 
-    def write(self, prompts, mode=production_mode.STANDARD, source=None, end=None, scene=""):
+    def write(self, prompts, mode=production_mode.STANDARD, source=None, end=None, scene="",
+              happy_ending=False):
         """Queen AI is shown the photo the video starts from and reads the frame's scenario
         (madde 400). The photo's own words are not sent: the model sees the picture they drew.
 
         A linked video is shown the photo it ends on too, after its own, and is asked for the way
         between them (madde 402). A loop ends on its own photo, already shown, so it is not sent
         twice.
+
+        A video with Mutlu son is asked for its ending too, last (madde 426); without one the
+        instruction is what it was before.
         """
         instruction, pictures = asked(H3_VIDEO_INSTRUCTION, mode), [source]
         if mode == production_mode.LINKED:
             instruction, pictures = instruction + LINKED_RULE, [source, end]
+        if happy_ending:
+            instruction += HAPPY_ENDING_RULE
         return _prompt(self._queen_ai.ask(instruction + SYSTEM_PROMPT_SUFFIX, _scenario(scene),
                                           pictures))
 
@@ -166,14 +185,16 @@ class AudioPromptWriter:
     def __init__(self, queen_ai):
         self._queen_ai = queen_ai
 
-    def write(self, prompts, mode=production_mode.STANDARD, source=None, end=None, scene=""):
+    def write(self, prompts, mode=production_mode.STANDARD, source=None, end=None, scene="",
+              happy_ending=False):
         """A sound is written from its video's prompt alone (madde 404): that prompt says what
         happens, so neither the photo's words nor a picture are sent. The loop asks only when the
         video has one (run_loop._has_words).
 
         `mode` is a video's business -- a sound is laid over the whole of one however it was made.
-        It is taken and ignored, like `source`, `end` and `scene`, because the queue has one call
-        shape for every writer.
+        It is taken and ignored, like `source`, `end`, `scene` and `happy_ending` -- a video with
+        Mutlu son already says its ending in its prompt -- because the queue has one call shape for
+        every writer.
         """
         return _prompt(self._queen_ai.ask(AUDIO_INSTRUCTION + SYSTEM_PROMPT_SUFFIX,
                                           f"Video prompt: {prompts.get('video', '')}"))

@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  getHappyEnding,
   getStatus,
   getVideoLength,
   listFrames,
@@ -19,6 +20,7 @@ import PhotoDetail from "./PhotoDetail.jsx";
 vi.mock("../../shared/api.js", () => ({
   cancelGeneration: vi.fn(),
   generateBatch: vi.fn(),
+  getHappyEnding: vi.fn(),
   getStatus: vi.fn(),
   getVideoLength: vi.fn(),
   listFrames: vi.fn(),
@@ -157,6 +159,7 @@ beforeEach(() => {
   // the page as it was.
   listProducers.mockResolvedValue([]);
   getVideoLength.mockResolvedValue(8);
+  getHappyEnding.mockResolvedValue(false);
 });
 
 // The frame the worker is holding a layer of: its photo is on disk, its video is not yet.
@@ -2106,5 +2109,55 @@ describe("PhotoDetail — the length a new video gets (madde 424)", () => {
     await openIn({ rows: ROWS, frames: [RED_VIDEO], project: "kına-424b" });
 
     expect(screen.queryByText(/Aynı kare yeniden denenir/)).toBeNull();
+  });
+});
+
+describe("PhotoDetail — Mutlu son on a new video (madde 426)", () => {
+  const ROWS = [{ id: "video", name: "Video üreticisi", installed: true, model: "MiniMax H3" }];
+  const LOOPED = { ...LAYERED, modes: { video: "loop" } };
+  const RED_VIDEO = { ...LAYERED, layers: { photo: "P0_0.png" }, failed: ["video"],
+                      errors: { video: "ComfyUI 500 — 3 kez denendi" },
+                      prompts: { photo: "kırmızı elbise" } };
+  const NOTE = "Yeni bir kare açılır — P0_0 kopyası, loop video.";
+
+  async function openIn({ frames, project }) {
+    listProducers.mockResolvedValue(ROWS);
+    listFrames.mockResolvedValue(frames);
+    getStatus.mockResolvedValue(IDLE);
+    listModels.mockResolvedValue({ models: [], loras: LORAS });
+    render(<PhotoDetail project={project} frame="P0_0" />);
+    await settle();
+    await settle();
+    fireEvent.click(tab("Video"));
+  }
+
+  it("ends the note under Yeniden üret with it, after the length", async () => {
+    // The project's switch, not the frame's: a new video goes the way the project is set now.
+    getHappyEnding.mockResolvedValue(true);
+    await openIn({ frames: [LOOPED], project: "kına-426a" });
+
+    expect(screen.getByText(`${NOTE} 8 sn, mutlu son.`)).toBeTruthy();
+    expect(getHappyEnding).toHaveBeenCalledWith("kına-426a");
+  });
+
+  it("ends a red video's Tekrar dene note with it", async () => {
+    getHappyEnding.mockResolvedValue(true);
+    await openIn({ frames: [RED_VIDEO], project: "kına-426b" });
+
+    expect(screen.getByText("Aynı kare yeniden denenir. 8 sn, mutlu son.")).toBeTruthy();
+  });
+
+  it("still says it under Tekrar dene when the length cannot be read", async () => {
+    getVideoLength.mockRejectedValue(new Error("Sunucuya ulaşılamadı — bağlantıyı kontrol et."));
+    getHappyEnding.mockResolvedValue(true);
+    await openIn({ frames: [RED_VIDEO], project: "kına-426c" });
+
+    expect(screen.getByText("Aynı kare yeniden denenir. Mutlu son.")).toBeTruthy();
+  });
+
+  it("says nothing of it while it is off", async () => {
+    await openIn({ frames: [LOOPED], project: "kına-426d" });
+
+    expect(screen.getByText(`${NOTE} 8 sn.`)).toBeTruthy();
   });
 });

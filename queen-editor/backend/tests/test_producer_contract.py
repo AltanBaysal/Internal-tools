@@ -334,3 +334,30 @@ def test_an_h3_video_says_the_length_it_was_asked(tmp_path, asked):
 def test_an_h3_video_asked_no_length_says_its_graphs_own(tmp_path):
     """Every H3 job queued before madde 422: the Director keeps the graph's 4."""
     assert video_row(h3(), None, tmp_path)["seconds"] == 4
+
+
+# --- Madde 426: Mutlu son -----------------------------------------------------------------------------
+
+def test_a_producer_that_makes_no_video_takes_a_happy_ending_anyway(tmp_path):
+    """A video job carries whether it ends happily, and the queue hands it to whichever producer it
+    calls -- one call shape. A photo and a sound take it and ignore it."""
+    photo = ComfyPhotoGenerator(PhotoComfy(), PHOTO_GRAPH, timeout=60).generate(
+        "kraliçe tahtta", "blurry", 1, happy_ending=True)
+    sound = MMAudioGenerator(Sampler(), Ffmpeg(), tmp_dir=str(tmp_path)).generate(
+        "dalga sesi", "", 4242, source=("P0_0_V1_0.mp4", b"MP4"), happy_ending=True)
+
+    assert photo == b"PNG"
+    assert sound == b"RIFFwav"
+
+
+def test_the_queue_hands_the_real_h3_a_video_job_that_ends_happily(tmp_path):
+    """The real loop, the real producers: H3 takes the job's switch and loads HMCumshot."""
+    store, video_comfy, ffmpeg = Store(), VideoComfy(), Ffmpeg()
+    happy = [{**job, "happyEnding": True} if job["type"] == "video" else job for job in FRAMES]
+
+    state = make_job(Runner(), store, Record(), Plan(happy),
+                     producers_over(video_comfy, ffmpeg, tmp_path),
+                     lambda: "2026-10-09T00:00:00+00:00", "düğün")()
+
+    assert state["status"] == "done"
+    assert "HMCumshot_V1.0.safetensors" in video_comfy.submitted["2678"]["inputs"]["stack_data"]

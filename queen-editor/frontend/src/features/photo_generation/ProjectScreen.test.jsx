@@ -21,6 +21,7 @@ vi.mock("../../shared/api.js", () => ({
   getStatus: vi.fn().mockResolvedValue({ status: "idle" }),
   // The video panel asks for the project's length once a video row is read (madde 424, 435).
   getVideoLength: vi.fn().mockResolvedValue(8),
+  getHappyEnding: vi.fn().mockResolvedValue(false),
   listFrames: vi.fn().mockResolvedValue([]),
   listModels: vi.fn().mockResolvedValue({
     models: [{ value: "nova3dcg", label: "Nova 3DCG XL" }],

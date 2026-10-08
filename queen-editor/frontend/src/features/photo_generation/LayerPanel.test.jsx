@@ -1,16 +1,18 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getReferenceSettings, getVideoLength, saveReferenceSettings,
-         saveVideoLength } from "../../shared/api.js";
+import { getHappyEnding, getReferenceSettings, getVideoLength, saveHappyEnding,
+         saveReferenceSettings, saveVideoLength } from "../../shared/api.js";
 import LayerPanel from "./LayerPanel.jsx";
 
-// Referanstan's record and the project's video length are the server's; everything else the panel
-// needs arrives as props.
+// Referanstan's record, the project's video length and its Mutlu son are the server's; everything
+// else the panel needs arrives as props.
 vi.mock("../../shared/api.js", async (importOriginal) => ({
   ...(await importOriginal()),
+  getHappyEnding: vi.fn(),
   getReferenceSettings: vi.fn(),
   getVideoLength: vi.fn(),
+  saveHappyEnding: vi.fn(),
   saveReferenceSettings: vi.fn(),
   saveVideoLength: vi.fn(),
 }));
@@ -39,6 +41,9 @@ beforeEach(() => {
   // The project's length as the server says it when nothing is saved.
   getVideoLength.mockResolvedValue(8);
   saveVideoLength.mockResolvedValue(null);
+  // Off, as the server says it when nothing is saved (madde 426).
+  getHappyEnding.mockResolvedValue(false);
+  saveHappyEnding.mockResolvedValue(null);
 });
 
 const tab = (name) => screen.getByRole("button", { name });
@@ -1172,7 +1177,8 @@ describe("LayerPanel — the H3 video length (madde 424)", () => {
     const project = freshProject();
     const view = await renderReady({ project });
 
-    expect(labels(view)).toEqual(["Model", "Video uzunluğu", "Kapsam", "Üretim modu", "Varyant"]);
+    expect(labels(view)).toEqual(["Model", "Video uzunluğu", "Mutlu son", "Kapsam", "Üretim modu",
+                                  "Varyant"]);
     // One segment, in the design's order; the number and its unit never part.
     const segment = lengthButton(8).parentElement;
     expect(segment.className).toContain("wf-segment");
@@ -1188,7 +1194,7 @@ describe("LayerPanel — the H3 video length (madde 424)", () => {
     await act(async () => { fireEvent.click(tab("Referanstan")); });
 
     expect(labels(view))
-      .toEqual(["Model", "Video uzunluğu", "Referanslar", "Prompt listesi", "Varyant"]);
+      .toEqual(["Model", "Video uzunluğu", "Mutlu son", "Referanslar", "Prompt listesi", "Varyant"]);
   });
 
   it("opens on the length the project saved", async () => {
@@ -1274,6 +1280,7 @@ describe("LayerPanel — the H3 video length (madde 424)", () => {
 
   it("waits for the project's length before it draws the choice or says the length", async () => {
     getVideoLength.mockReturnValue(new Promise(() => {}));
+    getHappyEnding.mockReturnValue(new Promise(() => {}));
     const view = await renderReady();
 
     expect(labels(view)).toEqual(PLAIN);
@@ -1283,6 +1290,7 @@ describe("LayerPanel — the H3 video length (madde 424)", () => {
   it("leaves the choice out, and says nothing of its own, when the length cannot be read",
      async () => {
     getVideoLength.mockRejectedValue(new Error("Sunucuya ulaşılamadı — bağlantıyı kontrol et."));
+    getHappyEnding.mockRejectedValue(new Error("Sunucuya ulaşılamadı — bağlantıyı kontrol et."));
     const view = await renderReady();
 
     expect(labels(view)).toEqual(PLAIN);
@@ -1370,5 +1378,159 @@ describe("LayerPanel — the H3 video length (madde 424)", () => {
 
     expect(screen.queryByText("Proje yok: düğün")).toBeNull();
     expect(chosen()).toEqual([true, false, false]);
+  });
+});
+
+describe("LayerPanel — Mutlu son (madde 426)", () => {
+  const H3 = { id: "video", name: "Video üreticisi", installed: true, model: "MiniMax H3" };
+  const AUDIO = { id: "audio", name: "Ses üreticisi", installed: true, model: "MMAudio v2" };
+  const LOOP_LINE = "2 loop video üretilecek — her video kendine döner.";
+
+  const off = () => screen.getByRole("button", { name: "Mutlu son kapalı" });
+  const on = () => screen.getByRole("button", { name: "Mutlu son açık" });
+  const chosen = () => [off(), on()].map((one) => one.className.includes("is-on"));
+
+  async function renderReady(props) {
+    const view = renderPanel({ producer: H3, ...props });
+    await act(async () => {});
+    return view;
+  }
+
+  it("sits right under the length, off for a project that saved nothing", async () => {
+    const project = freshProject();
+    const view = await renderReady({ project });
+
+    const order = labels(view);
+    expect(order.indexOf("Mutlu son")).toBe(order.indexOf("Video uzunluğu") + 1);
+    // The length's own segment, with two buttons: what the panel's neighbours already look like.
+    const segment = off().parentElement;
+    expect(segment.className).toContain("wf-segment");
+    expect([...segment.children].map((one) => one.textContent)).toEqual(["Kapalı", "Açık"]);
+    expect(chosen()).toEqual([true, false]);
+    expect(getHappyEnding).toHaveBeenCalledWith(project);
+  });
+
+  it("stands in the same place on Referanstan", async () => {
+    const view = await renderReady();
+
+    await act(async () => { fireEvent.click(tab("Referanstan")); });
+
+    const order = labels(view);
+    expect(order.indexOf("Mutlu son")).toBe(order.indexOf("Video uzunluğu") + 1);
+  });
+
+  it("opens on what the project saved", async () => {
+    getHappyEnding.mockResolvedValue(true);
+    await renderReady();
+
+    expect(chosen()).toEqual([false, true]);
+  });
+
+  it("turns on at once and writes it to the project", async () => {
+    saveHappyEnding.mockReturnValue(new Promise(() => {}));
+    const project = freshProject();
+    await renderReady({ project });
+
+    fireEvent.click(on());
+
+    expect(chosen()).toEqual([false, true]);
+    expect(saveHappyEnding).toHaveBeenCalledWith(project, true);
+  });
+
+  it("keeps its choice when the tab changes", async () => {
+    await renderReady();
+    await act(async () => { fireEvent.click(on()); });
+
+    await act(async () => { fireEvent.click(tab("Referanstan")); });
+    expect(chosen()).toEqual([false, true]);
+    await act(async () => { fireEvent.click(tab("Kareden")); });
+    expect(chosen()).toEqual([false, true]);
+  });
+
+  it("opens a rebuilt panel on what it knew", async () => {
+    getHappyEnding.mockResolvedValue(true);
+    (await renderReady({ project: "mutlu-a" })).unmount();
+    getHappyEnding.mockReturnValue(new Promise(() => {}));
+
+    await renderReady({ project: "mutlu-a" });
+
+    expect(chosen()).toEqual([false, true]);
+  });
+
+  it("leaves the length's choice alone, and the length its", async () => {
+    await renderReady();
+
+    await act(async () => { fireEvent.click(on()); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "12 saniye" })); });
+
+    expect(chosen()).toEqual([false, true]);
+    expect(saveHappyEnding).toHaveBeenCalledTimes(1);
+    expect(saveVideoLength).toHaveBeenCalledWith(expect.any(String), 12);
+  });
+
+  it("says the server's sentence when it cannot be written, and goes back to the saved one",
+     async () => {
+    saveHappyEnding.mockRejectedValue(new Error("Proje yok: düğün"));
+    await renderReady();
+
+    await act(async () => { fireEvent.click(on()); });
+
+    const card = screen.getByText("Proje yok: düğün");
+    expect(card.closest(".wf-stroke").style.borderColor).toBe("var(--danger)");
+    expect(chosen()).toEqual([true, false]);
+  });
+
+  it("is not drawn while the model is not read yet", async () => {
+    const view = await renderReady({ producer: null });
+
+    expect(labels(view)).not.toContain("Mutlu son");
+    expect(getHappyEnding).not.toHaveBeenCalled();
+  });
+
+  it("is not drawn, and says nothing, when it cannot be read", async () => {
+    getHappyEnding.mockRejectedValue(new Error("Sunucuya ulaşılamadı — bağlantıyı kontrol et."));
+    const view = await renderReady();
+
+    expect(labels(view)).not.toContain("Mutlu son");
+    expect(screen.getByText(`${LOOP_LINE} 8 sn.`)).toBeTruthy();
+  });
+
+  it("is not on the sound panel", async () => {
+    const view = await renderReady({ layer: "audio", producer: AUDIO,
+                                     frames: [done("0_a.png", { video: "0_a_V1_0.mp4" })] });
+
+    expect(labels(view)).not.toContain("Mutlu son");
+    expect(getHappyEnding).not.toHaveBeenCalled();
+  });
+
+  it("is said after the length once it is on", async () => {
+    await renderReady();
+
+    await act(async () => { fireEvent.click(on()); });
+
+    expect(screen.getByText(`${LOOP_LINE} 8 sn, mutlu son.`)).toBeTruthy();
+  });
+
+  it("is said alone when the length cannot be read", async () => {
+    getVideoLength.mockRejectedValue(new Error("Sunucuya ulaşılamadı — bağlantıyı kontrol et."));
+    getHappyEnding.mockResolvedValue(true);
+    await renderReady();
+
+    expect(screen.getByText(`${LOOP_LINE} Mutlu son.`)).toBeTruthy();
+  });
+
+  it("ends the copy warning and Referanstan's line too", async () => {
+    getHappyEnding.mockResolvedValue(true);
+    await renderReady({ selected: ["1_a"] });
+
+    expect(screen.getByText("1 loop video üretilecek — videolu 1 kare için yeniler kopya kare "
+                            + "olur, eskisi durur. 8 sn, mutlu son.")).toBeTruthy();
+
+    await act(async () => { fireEvent.click(tab("Referanstan")); });
+    fireEvent.change(screen.getByLabelText("Prompt listesi"),
+                     { target: { value: '["gotik kız", "dans"]' } });
+    fireEvent.change(variantBox(), { target: { value: "3" } });
+
+    expect(screen.getByText("2 prompt × 3 varyant = 6 kart. 8 sn, mutlu son.")).toBeTruthy();
   });
 });

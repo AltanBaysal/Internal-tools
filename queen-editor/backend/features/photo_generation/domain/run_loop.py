@@ -23,6 +23,7 @@ from backend.features.photo_generation.domain import (
     scene,
     seed,
     variant_batch,
+    video_settings,
 )
 from backend.features.photo_generation.domain.photo_name import layer_file, photo_file
 
@@ -312,6 +313,9 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                 # once per job rather than once per attempt: all three tries share it, so the row
                 # names the number every one of them used.
                 chosen = current["seed"] if current["seed"] is not None else new_seed()
+            # Whether this video ends happily, from its job (madde 426): the writer asks for the
+            # ending and the producer loads the lora that makes it. Only a video job carries one.
+            happy = bool(current.get(video_settings.HAPPY_ENDING))
             # While a prompt is written nothing is being made and every owed frame waits -- current
             # is set to None rather than left out, because a report merges into the one before it.
             # startedAt is cleared for the same reason: no model is working on anything until the
@@ -346,7 +350,8 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                     words = writers[kind].write(_prompts_of(record, project, fid),
                                                 production_mode.of(current), source=under,
                                                 end=ending,
-                                                scene=scene.of(scene.by_number(jobs), fid))
+                                                scene=scene.of(scene.by_number(jobs), fid),
+                                                happy_ending=happy)
                 else:
                     # The card's prompt when the job carries none of its own. The record is asked
                     # only then, so a job the user wrote for never reaches it.
@@ -378,7 +383,8 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                         made = [producer.generate(prompt, current["negative"], chosen,
                                                   current["model"], current.get("lora", ""),
                                                   source=under, end=ending, references=pool,
-                                                  seconds=current.get("seconds"))]
+                                                  seconds=current.get("seconds"),
+                                                  happy_ending=happy)]
             except Exception as exc:
                 if runner.stop_requested():
                     # The user's own pause killed this render -- that is not a failure. The job

@@ -5,7 +5,8 @@ from typing import Protocol
 class PhotoGenerator(Protocol):
     def generate(self, prompt: str, negative: str, seed: int, model: str = "", lora: str = "",
                  source: tuple | None = None, end: tuple | None = None,
-                 references: tuple = (), seconds: int | None = None) -> bytes:
+                 references: tuple = (), seconds: int | None = None,
+                 happy_ending: bool = False) -> bytes:
         """Render one layer and return its bytes -- nothing else, and no name.
 
         `source` is the file this layer is made from as (name, bytes): a video's photo, a sound's
@@ -27,6 +28,9 @@ class PhotoGenerator(Protocol):
         carries one; a photo and a sound take it and ignore it, like `end`. None is a job that
         carries none, and its graph's own length stands. How long the video then runs is the
         producer's to say (VideoGenerator.seconds).
+
+        `happy_ending` is whether the video ends happily, from its job (madde 426): H3 loads
+        HMCumshot for it. A photo and a sound take it and ignore it, like `seconds`.
         """
         ...
 
@@ -59,7 +63,7 @@ class VideoGenerator(PhotoGenerator, Protocol):
 
 class PromptWriter(Protocol):
     def write(self, prompts: dict, mode: str, source: tuple | None = None,
-              end: tuple | None = None, scene: str = "") -> str:
+              end: tuple | None = None, scene: str = "", happy_ending: bool = False) -> str:
         """The prompt a job of this type should be produced with.
 
         `prompts` is what the frame already says: {"photo": …} today, plus the video's own when
@@ -78,6 +82,9 @@ class PromptWriter(Protocol):
         `end` is the picture the video arrives at -- the one its producer is handed as `end` -- or
         None. H3's writer shows it to the model for a linked video (madde 402); the others take it
         and ignore it.
+
+        `happy_ending` is whether the video's job carries Mutlu son (madde 426). H3's writer then asks
+        for the ending; the sound's takes it and ignores it.
         """
         ...
 
@@ -224,4 +231,17 @@ class VideoLengthStore(Protocol):
 
     def write(self, project: str, seconds: int) -> None:
         """Replace the saved length."""
+        ...
+
+
+class HappyEndingStore(Protocol):
+    def project_exists(self, project: str) -> bool:
+        ...
+
+    def read(self, project: str) -> bool | None:
+        """The project's Mutlu son switch; None when nothing usable is saved."""
+        ...
+
+    def write(self, project: str, on: bool) -> None:
+        """Replace the saved switch."""
         ...

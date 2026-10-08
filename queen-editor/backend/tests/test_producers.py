@@ -146,6 +146,9 @@ H3_FILES = [
     ("vae", "MiniMaxH3/minimax_h3_audio_vae_fp32.safetensors"),
     ("vae_approx", "taeh3.safetensors"),
     ("loras", "H3_Motion_BoosterV2.safetensors"),
+    # Mutlu son's lora (madde 426): a switched-on video loads it, so the producer is installed only
+    # when it is here.
+    ("loras", "HMCumshot_V1.0.safetensors"),
 ]
 
 

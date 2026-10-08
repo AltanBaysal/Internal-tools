@@ -199,6 +199,22 @@ describe("api.request", () => {
     expect(JSON.parse(put.body)).toEqual({ seconds: 4 });
   });
 
+  it("reads and writes the project's Mutlu son switch at its own address", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse({ on: true }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(await api.getHappyEnding("düğün")).toBe(true);
+    await api.saveHappyEnding("düğün", false);
+
+    const url = `/api/projects/${encodeURIComponent("düğün")}/happy-ending`;
+    expect(fetchMock.mock.calls[0][0]).toBe(url);
+    expect(fetchMock.mock.calls[0][1].method).toBeUndefined();
+    const [putUrl, put] = fetchMock.mock.calls[1];
+    expect(putUrl).toBe(url);
+    expect(put.method).toBe("PUT");
+    expect(JSON.parse(put.body)).toEqual({ on: false });
+  });
+
   it("does not abort a request after its answer has arrived", async () => {
     vi.useFakeTimers();
     let signal;

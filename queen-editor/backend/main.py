@@ -38,6 +38,7 @@ from backend.features.photo_generation.data.reference_order_store import (
 )
 from backend.features.photo_generation.data.reference_store import DriveReferenceStore
 from backend.features.photo_generation.data.video_length_store import DriveVideoLengthStore
+from backend.features.photo_generation.data.happy_ending_store import DriveHappyEndingStore
 from backend.features.photo_generation.domain.usecases.add_references import add_references
 from backend.features.photo_generation.domain.usecases.copy_frames import copy_frames
 from backend.features.photo_generation.domain.usecases.list_references import list_references
@@ -71,12 +72,19 @@ from backend.features.photo_generation.domain.usecases.video_length import (
     get_video_length,
     save_video_length,
 )
+from backend.features.photo_generation.domain.usecases.happy_ending import (
+    get_happy_ending,
+    save_happy_ending,
+)
 from backend.features.photo_generation.presentation.reference_routes import (
     make_reference_blueprint,
 )
 from backend.features.photo_generation.presentation.routes import make_photo_generation_blueprint
 from backend.features.photo_generation.presentation.video_length_routes import (
     make_video_length_blueprint,
+)
+from backend.features.photo_generation.presentation.happy_ending_routes import (
+    make_happy_ending_blueprint,
 )
 from backend.features.photo_generation.runner import PhotoRunner
 from backend.features.projects.data.project_store import DriveProjectStore
@@ -224,6 +232,9 @@ _reference_files = partial(reference_files, _photo_store, _reference_store, _ref
 # its own, which every way into the queue reads.
 _video_lengths = DriveVideoLengthStore(_storage)
 _video_length = partial(get_video_length, _video_lengths)
+# Whether they end happily (madde 426): the length's twin, a file and a door of its own.
+_happy_endings = DriveHappyEndingStore(_storage)
+_happy_ending = partial(get_happy_ending, _happy_endings)
 
 _photo_bp = make_photo_generation_blueprint(
     start_batch=partial(start_batch, _photo_runner, _photo_store, _photo_record, _plan_store,
@@ -245,22 +256,26 @@ _photo_bp = make_photo_generation_blueprint(
                         _producers,
                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
                         log=_timing, order_store=_order_store, writers=_writers, stills=_stills,
-                        references=_reference_files, length=_video_length),
+                        references=_reference_files, length=_video_length,
+                        ending=_happy_ending),
     retry_failed=partial(retry_failed, _photo_runner, _photo_store, _photo_record, _plan_store,
                          _producers,
                          lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
                          log=_timing, order_store=_order_store, writers=_writers, stills=_stills,
-                        references=_reference_files, length=_video_length),
+                        references=_reference_files, length=_video_length,
+                        ending=_happy_ending),
     queue_layer=partial(queue_layer, _photo_runner, _photo_store, _photo_record, _plan_store,
                         _order_store, _producers,
                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
                         log=_timing, writers=_writers, stills=_stills,
-                        references=_reference_files, length=_video_length),
+                        references=_reference_files, length=_video_length,
+                        ending=_happy_ending),
     regenerate=partial(regenerate, _photo_runner, _photo_store, _photo_record, _plan_store,
                        _order_store, _producers, seed.random_seed,
                        lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
                        log=_timing, writers=_writers, stills=_stills,
-                       references=_reference_files, length=_video_length),
+                       references=_reference_files, length=_video_length,
+                       ending=_happy_ending),
     remove_layer=partial(remove_layer, _photo_record, _photo_store, _plan_store, _order_store,
                          lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
     list_frames=partial(list_frames, _photo_record, _photo_store, _plan_store, _order_store),
@@ -297,7 +312,7 @@ _references_bp = make_reference_blueprint(
                              _producers, seed.random_seed,
                              lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
                              log=_timing, writers=_writers, stills=_stills,
-                             length=_video_length),
+                             length=_video_length, ending=_happy_ending),
     reference_dir=_reference_store.dir_path,
 )
 
@@ -305,6 +320,9 @@ _references_bp = make_reference_blueprint(
 _video_length_bp = make_video_length_blueprint(
     get_video_length=partial(get_video_length, _video_lengths),
     save_video_length=partial(save_video_length, _video_lengths))
+_happy_ending_bp = make_happy_ending_blueprint(
+    get_happy_ending=_happy_ending,
+    save_happy_ending=partial(save_happy_ending, _happy_endings))
 
 # Every producer is judged by its own model group: installed means those files are on this machine.
 # Nothing is installed from here -- the notebook does that before this process starts
@@ -335,7 +353,8 @@ _agent_bp = make_agent_blueprint(
     working_chats=partial(working_chats, _chat_record, _agent_runner))
 
 app = create_app(blueprints=[_projects_bp, _reference_settings_bp, _photo_bp, _references_bp,
-                             _video_length_bp, _producers_bp, _chats_bp, _agent_bp])
+                             _video_length_bp, _happy_ending_bp, _producers_bp, _chats_bp,
+                             _agent_bp])
 
 if __name__ == "__main__":
     print(f"Proje kökü: {config.DRIVE_ROOT}")

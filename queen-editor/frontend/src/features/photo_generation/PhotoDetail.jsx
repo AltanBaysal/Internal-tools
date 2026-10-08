@@ -15,7 +15,7 @@ import LayerPlayer from "./LayerPlayer.jsx";
 import { LINKED, MODES, STANDARD, labelOf, nounOf } from "./production_modes.js";
 import { useGeneration } from "./useGeneration.js";
 import { useModels } from "./useModels.js";
-import { useVideoLength } from "./useVideoLength.js";
+import { useHappyEnding, useVideoLength, videoSaid } from "./useVideoSettings.js";
 
 // minmax(0, …) rather than plain columns: a long project or file name would otherwise widen the
 // bar past the window and take the whole page sideways with it (madde 107).
@@ -362,13 +362,14 @@ export default function PhotoDetail({ project, frame: fid }) {
   // The hook remembers the answer for the visit, so opening frames costs nothing.
   const { models, loras } = useModels();
   // The producers' video row, for the one thing this page says about the video model: the length a
-  // new video gets (madde 424), said once the row is read. The answer is remembered for the visit,
-  // so stepping in costs nothing.
+  // new video gets (madde 424) and its Mutlu son (426), said once the row is read. The answer is
+  // remembered for the visit, so stepping in costs nothing.
   const { producers } = useProducers();
-  const { seconds: length } =
-    useVideoLength(project, (producers || []).find((row) => row.id === "video"));
-  // The video panel's own ending: unbreakable, so the number keeps its unit on its line.
-  const lengthSaid = length === null ? "" : ` ${length}\u00a0sn.`;
+  const videoRow = (producers || []).find((row) => row.id === "video");
+  const { seconds: length } = useVideoLength(project, videoRow);
+  const { on: ending } = useHappyEnding(project, videoRow);
+  // The video panel's own ending to its sentences.
+  const settingsSaid = videoSaid(length, ending);
   // Which window is open, not merely that one is: a failed layer's way out deletes the FRAME while
   // a layer tab is open, and deciding from the open tab would show it the layer's words.
   const [asking, setAsking] = useState(null);              // "frame" | "layer" | null
@@ -831,7 +832,8 @@ export default function PhotoDetail({ project, frame: fid }) {
                 /* What one press opens, in the mode's own words: a copy frame beside this one,
                    never a video written over the one that is here (madde 77). */
                 <Note size={12} style={{ color: "var(--ink-3)", textAlign: "center" }}>
-                  Yeni bir kare açılır — {frame.id} kopyası, {nounOf(picked, "video")}.{lengthSaid}
+                  Yeni bir kare açılır — {frame.id} kopyası, {nounOf(picked, "video")}.
+                  {settingsSaid}
                 </Note>
               )}
               {openState === "failed" && (
@@ -843,11 +845,11 @@ export default function PhotoDetail({ project, frame: fid }) {
                   {wasSent(open) ? "Kuyruğa eklendi" : <><Icon.Regen /> Tekrar dene — bu kareye</>}
                 </Btn>
               )}
-              {openState === "failed" && open === "video" && length !== null && (
-                /* The red video is made again at the project's length now, and this is the one
-                   place a retry can say so (madde 424). */
+              {openState === "failed" && open === "video" && settingsSaid && (
+                /* The red video is made again the way the project is set now, and this is the one
+                   place a retry can say so (madde 424, 426). */
                 <Note size={12} style={{ color: "var(--ink-3)", textAlign: "center" }}>
-                  Aynı kare yeniden denenir.{lengthSaid}
+                  Aynı kare yeniden denenir.{settingsSaid}
                 </Note>
               )}
 

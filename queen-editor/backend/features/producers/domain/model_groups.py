@@ -45,6 +45,10 @@ GROUPS = {
         {"folder": "vae_approx", "name": "taeh3.safetensors"},
         # Inside the lora stack's JSON, where a scan for model names cannot see it.
         {"folder": "loras", "name": "H3_Motion_BoosterV2.safetensors"},
+        # Mutlu son's lora (madde 426), which the producer puts in the stack when a video asks for
+        # it. Counted although most videos never load it: a switched-on video does, and the panel
+        # says installed only when every video this producer can be handed can be made.
+        {"folder": "loras", "name": "HMCumshot_V1.0.safetensors"},
     ],
     "audio": [
         # The fine-tune the sampler loads. MMAudio's own vae, synchformer and vocoder come down

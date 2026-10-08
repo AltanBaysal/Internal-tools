@@ -14,7 +14,7 @@ import {
   STANDARD,
   nounOf,
 } from "./production_modes.js";
-import { useVideoLength } from "./useVideoLength.js";
+import { useHappyEnding, useVideoLength, videoSaid } from "./useVideoSettings.js";
 
 const LABEL = { color: "var(--ink-2)", letterSpacing: ".08em", textTransform: "uppercase" };
 // Long enough to be read after the eyes have moved to the gallery (the same number the photo
@@ -32,6 +32,12 @@ const MAX_VARIANTS = 26;
 // The lengths an H3 video can be made at, in seconds (madde 422). The server refuses any other, so
 // this is only what the segment offers.
 const LENGTHS = [4, 8, 12];
+
+// Mutlu son's two buttons (madde 426), the default first.
+const ENDINGS = [
+  { on: false, label: "Kapalı", name: "Mutlu son kapalı" },
+  { on: true, label: "Açık", name: "Mutlu son açık" },
+];
 
 // What each layer calls itself. The panel is one component because the design asks for one --
 // "video panelinin birebir aynısı" -- so only these words and the scope rule differ between them.
@@ -373,19 +379,19 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
   // The server's name first -- it names the one video model there is (madde 435). Until it answers
   // the box stays empty rather than guessing.
   const model = producer?.model || words.model || "";
-  // The project's setting, not this panel's: it is read and written through the project, and only a
-  // video has one -- the sound panel is handed no video row (madde 424).
-  const { seconds: length, choose: chooseLength } =
-    useVideoLength(project, layer === "video" ? producer : null);
-  // What a video will be, said once at the end of whichever sentence is on show. The space is
-  // unbreakable so the number never ends a line with its unit alone on the next.
-  const lengthSaid = length === null ? "" : ` ${length}\u00a0sn.`;
+  // The project's settings, not this panel's: they are read and written through the project, and
+  // only a video has them -- the sound panel is handed no video row (madde 424, 426).
+  const videoRow = layer === "video" ? producer : null;
+  const { seconds: length, choose: chooseLength } = useVideoLength(project, videoRow);
+  const { on: ending, choose: chooseEnding } = useHappyEnding(project, videoRow);
+  // What a video will be, said once at the end of whichever sentence is on show.
+  const settingsSaid = videoSaid(length, ending);
 
   // A press of its own, so its answer takes the slot under the button: nothing when it is written,
   // the sentence that came back when it is not -- where the panel says its other failures.
-  function handleLength(seconds) {
+  function handleSetting(choose, value) {
     setRefused(null);
-    chooseLength(seconds).catch((err) => {
+    choose(value).catch((err) => {
       setAdded(null);
       clearTimeout(fade.current);
       setRefused(err.message);
@@ -468,8 +474,25 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
             {LENGTHS.map((one) => (
               <button key={one} type="button" aria-label={`${one} saniye`}
                       className={length === one ? "is-on" : ""} style={{ flex: 1 }}
-                      onClick={() => handleLength(one)}>
+                      onClick={() => handleSetting(chooseLength, one)}>
                 {`${one}\u00a0sn`}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {ending !== null && (
+        /* Under the length, in its shape: a segment of two (madde 426). Drawn on the length's rule
+           -- once the model and the switch are read. */
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <Mono size={11} data-label style={LABEL}>Mutlu son</Mono>
+          <div className="wf-segment" style={{ display: "flex" }}>
+            {ENDINGS.map((one) => (
+              <button key={one.label} type="button" aria-label={one.name}
+                      className={ending === one.on ? "is-on" : ""} style={{ flex: 1 }}
+                      onClick={() => handleSetting(chooseEnding, one.on)}>
+                {one.label}
               </button>
             ))}
           </div>
@@ -615,7 +638,7 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
           listed ? (
             <Note size={12} style={{ color: "var(--ink-3)", textAlign: "center" }}>
               {`${listed} prompt × ${Number(shownVariants) || 0} varyant = `
-                + `${listed * (Number(shownVariants) || 0)} kart.${lengthSaid}`}
+                + `${listed * (Number(shownVariants) || 0)} kart.${settingsSaid}`}
             </Note>
           ) : null
         ) : owed ? (
@@ -624,7 +647,7 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
           <Note size={12} style={{ color: "var(--ink-3)", textAlign: "center" }}>
             {owed} {said.noun} üretilecek — {copies
               ? `${words.held} ${copies} kare için yeniler kopya kare olur, eskisi durur.`
-              : said.tail}{lengthSaid}
+              : said.tail}{settingsSaid}
           </Note>
         ) : null}
       </div>

@@ -128,6 +128,27 @@ def test_the_queue_reads_the_projects_video_length(import_main, monkeypatch, tmp
     assert main._video_length("düğün") == 12
 
 
+def test_the_app_serves_the_projects_happy_ending(import_main):
+    """Madde 426: the door's own tests wire it by hand, so only this one reads main.py's wiring."""
+    main = import_main()
+
+    response = main.app.test_client().get("/api/projects/m426-yok/happy-ending")
+
+    assert response.status_code == 404
+    assert response.get_json() == {"error": "Proje yok: m426-yok"}
+
+
+def test_the_queue_reads_the_projects_happy_ending(import_main, monkeypatch, tmp_path):
+    """The queue's doors read the switch the door saved: one store behind both."""
+    (tmp_path / "düğün").mkdir()
+    monkeypatch.setenv("QE_DRIVE_ROOT", str(tmp_path))
+    main = import_main()
+
+    assert main._happy_ending("düğün") is False
+    main.app.test_client().put("/api/projects/düğün/happy-ending", json={"on": True})
+    assert main._happy_ending("düğün") is True
+
+
 def test_every_session_makes_its_videos_with_h3(import_main, monkeypatch, tmp_path):
     """Madde 435: "wan modelini kaldıralım queen editorden direkt kullanımıyor zaten". The notebook
     names no video model any more, and the app wires H3's producer, H3's writer and the project's

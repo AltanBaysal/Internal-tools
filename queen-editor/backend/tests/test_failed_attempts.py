@@ -46,7 +46,7 @@ class Falls:
         self.calls = 0
 
     def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                 references=(), seconds=None):
+                 references=(), seconds=None, happy_ending=False):
         self.calls += 1
         if self.errors:
             raise self.errors.pop(0)

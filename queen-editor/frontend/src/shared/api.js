@@ -131,6 +131,21 @@ export async function saveVideoLength(project, seconds) {
   });
 }
 
+// The project's Mutlu son switch (madde 426): on or off. With nothing saved the server answers off.
+export async function getHappyEnding(project) {
+  const body = await request(`/api/projects/${encodeURIComponent(project)}/happy-ending`);
+  return body.on;
+}
+
+// 204 with no body, like the length's.
+export async function saveHappyEnding(project, on) {
+  return request(`/api/projects/${encodeURIComponent(project)}/happy-ending`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ on }),
+  });
+}
+
 export async function generateBatch(project, { prompts, negative, variants, model, lora }) {
   return request(`/api/projects/${encodeURIComponent(project)}/generate`, {
     method: "POST",

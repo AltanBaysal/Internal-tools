@@ -17,7 +17,7 @@ from backend.features.photo_generation.domain import (
     layers,
     production_mode,
     references,
-    video_length,
+    video_settings,
 )
 from backend.features.photo_generation.domain.photo_name import frame_id
 from backend.features.photo_generation.domain.prompt_list import parse_prompts
@@ -55,9 +55,9 @@ def plan_reference_cards(start, prompts, variants, new_seed):
 
 def queue_references(runner, store, record, plan_store, order_store, pool, orders, producers,
                      new_seed, now, project, prompts, variants,
-                     log=None, writers=None, stills=None, length=None):
+                     log=None, writers=None, stills=None, length=None, ending=None):
     """Returns how many cards the queue took. `length` answers how long the project's videos run
-    now (madde 422)."""
+    now (madde 422), and `ending` whether they end happily (madde 426)."""
     if not store.project_exists(project):
         raise ProjectMissing(f"Proje yok: {project}")
     written = parse_prompts(prompts)        # raises InvalidPrompts
@@ -69,8 +69,9 @@ def queue_references(runner, store, record, plan_store, order_store, pool, order
     if not held:
         raise references.PoolLimit(
             "Havuzda referans yok — önce en az bir referans ekle.")
-    # Every card is an H3 video, made at the project's length of this moment (madde 422).
-    timed = video_length.carried(length, project)
+    # Every card is an H3 video, made at the project's length and with its switch of this moment
+    # (madde 422, 426).
+    timed = video_settings.carried(length, ending, project)
     cards = [{**card, **timed}
              for card in plan_reference_cards(next_number(store, plan_store, record, project),
                                               written, variants, new_seed)]

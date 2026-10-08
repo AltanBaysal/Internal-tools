@@ -36,7 +36,7 @@ class FakeGenerator:
         self.loras = []
 
     def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                 references=(), seconds=None):
+                 references=(), seconds=None, happy_ending=False):
         self.calls.append((prompt, negative, seed, model))
         self.loras.append(lora)
         return b"PNGDATA"
@@ -52,7 +52,7 @@ class StopsAfter:
         self.calls = 0
 
     def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                 references=(), seconds=None):
+                 references=(), seconds=None, happy_ending=False):
         self.calls += 1
         if self.calls > self.count:
             self.runner.request_stop()
@@ -253,7 +253,7 @@ def test_adding_to_the_running_projects_own_queue_is_accepted(tmp_path):
 def test_failed_batch_shows_the_real_error_in_status(tmp_path):
     class Broken:
         def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                     references=(), seconds=None):
+                     references=(), seconds=None, happy_ending=False):
             raise RuntimeError("node 9 (CheckpointLoaderSimple): dosya yok")
 
     client, _ = make_client(tmp_path, generator=Broken())
@@ -392,7 +392,7 @@ def test_the_gallery_keeps_a_red_frame_after_the_worker_is_gone(tmp_path):
         """Drops the same job every time it is offered -- three attempts, then red."""
 
         def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                     references=(), seconds=None):
+                     references=(), seconds=None, happy_ending=False):
             if prompt == "a":
                 raise RenderFailed("node 41: OOM")
             return b"PNGDATA"
@@ -514,7 +514,7 @@ def test_retry_without_a_file_puts_every_red_frame_back(tmp_path):
             self.forgiving = False
 
         def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                     references=(), seconds=None):
+                     references=(), seconds=None, happy_ending=False):
             if not self.forgiving:
                 raise RenderFailed("node 41: OOM")
             return b"PNGDATA"
