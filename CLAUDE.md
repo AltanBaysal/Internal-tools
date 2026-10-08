@@ -52,8 +52,10 @@ the git.
   `docs/specs/YYYY-MM-DD-<tool>-m<number>-<topic>-design.md` and `docs/plans/…-plan.md` — and the code,
   test-driven (TDD). A spec says what is built, why, its limits and when it is done; a plan lists the steps
   file by file.
-- The main agent checks the spec against the item, reads the diff, runs the four suites itself, and
-  opens the screen with Playwright when it changed. What falls short goes back to the same coder, who
+- A [qa](.claude/agents/qa.md) agent then checks the work against the item and its spec, as a tester:
+  the four suites, and the screen with Playwright when it changed. It reports; the coder fixes.
+- The main agent reads the spec against the item and the diff as a code review, and runs the four
+  suites itself. What falls short, in QA's report or the review, goes back to the same coder, who
   still holds the context; what passes, the main agent commits.
 - A coder can ask the main agent at any time and wait for the answer. The main agent answers from
   what it has — the roadmap, the code, the rules, the conversation — and asks the user whenever it
@@ -67,9 +69,9 @@ the git.
 
 ## Browser
 
-Playwright MCP (`.mcp.json`) is the main agent's, for seeing a running tool the way the user does. It
-opens the tools on this machine; any other address is the user's call, since the allow-list flag
-misses redirects and is no security boundary.
+Playwright MCP (`.mcp.json`) is the main agent's and QA's, for seeing a running tool the way the user
+does. It opens the tools on this machine; any other address is the user's call, since the allow-list
+flag misses redirects and is no security boundary.
 
 ## Designs
 
