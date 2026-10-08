@@ -21,18 +21,22 @@ class FakeResponse:
         return self._payload
 
     def raise_for_status(self):
+        # What requests itself raises, the response on it: the client wraps that exception, and a
+        # stand-in of another type would not be recognised.
         if self.status_code >= 400:
-            raise RuntimeError(f"HTTP {self.status_code}")
+            raise requests.HTTPError(f"{self.status_code} Server Error", response=self)
 
 
 class FakeHttp:
     """Stands in for the requests module: records calls, replays queued responses."""
 
-    def __init__(self, post=None, gets=(), refuse=False, log=None):
+    def __init__(self, post=None, gets=(), refuse=False, log=None, raises=None):
         self._post = post or FakeResponse({"prompt_id": "p1"})
         self._gets = list(gets)
         # Nobody listening on the port: what requests raises when ComfyUI is not up.
         self._refuse = refuse
+        # Any other error requests raises on every request, e.g. a reply that never came.
+        self._raises = raises
         # One record, shared with the fake socket, of what happened in which order (madde 410).
         self._log = log
         self.posted = None
@@ -44,6 +48,8 @@ class FakeHttp:
         self.post_calls.append({"url": url, "json": json, "files": files, "data": data})
         if self._refuse:
             raise requests.ConnectionError(REFUSED)
+        if self._raises:
+            raise self._raises
         return self._post
 
     def get(self, url, timeout=None, params=None):
@@ -52,6 +58,8 @@ class FakeHttp:
             self._log.append("get")
         if self._refuse:
             raise requests.ConnectionError(REFUSED)
+        if self._raises:
+            raise self._raises
         return self._gets.pop(0) if self._gets else FakeResponse({})
 
 
@@ -568,3 +576,111 @@ def test_asking_about_the_card_names_an_unreachable_server_too(tmp_path):
         client.vram_total()
 
     assert str(exc.value).splitlines()[0] == "ComfyUI'ye bağlanılamadı — http://comfy:8188"
+
+
+# --- Madde 433: ComfyUI's silence, marked for the queue's wait -----------------------------------
+# The queue waits 45 s before trying again only when ComfyUI gave no answer, or broke while giving
+# one: unreachable, a 5xx, a request it did not answer in time. The mark is `no_answer`, read through
+# getattr the way frame_level is. Every message keeps the words it had: the card does not change.
+
+def _raised(call):
+    """What a client call raises."""
+    with pytest.raises(Exception) as exc:
+        call()
+    return exc.value
+
+
+def test_an_unreachable_server_gave_no_answer(tmp_path):
+    assert getattr(_refused_upload(tmp_path), "no_answer", False) is True
+
+
+def test_a_5xx_on_submit_gave_no_answer_and_keeps_its_words():
+    error = _raised(lambda: client_with(FakeHttp(post=FakeResponse(status_code=500))).submit({}))
+
+    assert getattr(error, "no_answer", False) is True
+    assert str(error) == "POST /prompt -> HTTP 500\nraw body"
+
+
+def test_a_4xx_on_submit_is_comfyuis_answer_and_keeps_its_words():
+    # A graph ComfyUI rejects -- a model not in its list -- comes back as a 400: asking again after
+    # a wait gets the same answer.
+    error = _raised(lambda: client_with(FakeHttp(post=FakeResponse(status_code=400))).submit({}))
+
+    assert getattr(error, "no_answer", False) is False
+    assert str(error) == "POST /prompt -> HTTP 400\nraw body"
+
+
+def test_a_5xx_on_upload_gave_no_answer():
+    client = client_with(FakeHttp(post=FakeResponse(status_code=502)))
+
+    error = _raised(lambda: client.upload_image("P0_0.png", b"PNG"))
+
+    assert getattr(error, "no_answer", False) is True
+    assert str(error) == "POST /upload/image -> HTTP 502\nraw body"
+
+
+ENTRY_ONE = {"outputs": {"55": {"images": [{"filename": "a.png", "subfolder": "",
+                                            "type": "output"}]}}}
+
+
+def test_a_5xx_on_view_gave_no_answer_in_requests_own_words():
+    client = client_with(FakeHttp(gets=[FakeResponse(status_code=503)]))
+
+    error = _raised(lambda: client.fetch_output(ENTRY_ONE))
+
+    assert getattr(error, "no_answer", False) is True
+    assert isinstance(error, RuntimeError)
+    assert str(error) == "503 Server Error"
+
+
+def test_a_4xx_on_view_is_comfyuis_answer():
+    client = client_with(FakeHttp(gets=[FakeResponse(status_code=404)]))
+
+    error = _raised(lambda: client.fetch_output(ENTRY_ONE))
+
+    assert getattr(error, "no_answer", False) is False
+    assert str(error) == "404 Server Error"
+
+
+def test_a_5xx_on_asking_about_the_card_gave_no_answer():
+    client = client_with(FakeHttp(gets=[FakeResponse(status_code=502)]))
+
+    assert getattr(_raised(client.vram_total), "no_answer", False) is True
+
+
+READ_TIMEOUT = ("HTTPConnectionPool(host='127.0.0.1', port=8188): Read timed out. "
+                "(read timeout=30)")
+
+
+def test_a_request_comfyui_did_not_answer_in_time_gave_no_answer_in_requests_own_words():
+    client = client_with(FakeHttp(raises=requests.ReadTimeout(READ_TIMEOUT)))
+
+    error = _raised(lambda: client.submit({}))
+
+    assert getattr(error, "no_answer", False) is True
+    assert isinstance(error, TimeoutError)
+    assert str(error) == READ_TIMEOUT
+
+
+def test_a_render_that_did_not_finish_in_time_is_not_a_missing_answer():
+    # ComfyUI answered every look; the prompt only ran over its time, and waiting changes nothing.
+    ticks = itertools.count(0, 10)
+    client = client_with(FakeHttp(), now=lambda: next(ticks))
+
+    error = _raised(lambda: client.wait("p1", timeout=15))
+
+    assert isinstance(error, TimeoutError)
+    assert getattr(error, "no_answer", False) is False
+
+
+def test_node_errors_are_comfyuis_answer():
+    http = FakeHttp(post=FakeResponse({"prompt_id": "p1", "node_errors": {"3": "bad"}}))
+
+    assert getattr(_raised(lambda: client_with(http).submit({})), "no_answer", False) is False
+
+
+def test_a_render_comfyui_reported_failed_is_its_answer():
+    http = FakeHttp(gets=[FakeResponse({"p1": FAILED})])
+
+    assert getattr(_raised(lambda: client_with(http).wait("p1", timeout=100)), "no_answer",
+                   False) is False

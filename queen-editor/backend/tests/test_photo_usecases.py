@@ -4276,7 +4276,9 @@ def test_a_frame_that_blew_up_writes_no_timing_line():
     run_batch(sync_runner(), FakeStore(), FakeGenerator(fail_on=["patlak"]), text='["patlak"]',
               variants=1, log=lines.append)
 
-    assert lines == []
+    # Nothing was made, so nothing is timed. The attempts that fell are on the log all the same
+    # (madde 433), each with what it raised.
+    assert [line for line in lines if line.startswith("⏱")] == []
 
 
 def test_nothing_is_written_when_nobody_asked_for_timings():

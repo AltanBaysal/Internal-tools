@@ -186,9 +186,29 @@ def _files(name, together):
     return [name] + [photo_file(other["id"]) for other in together[1:]]
 
 
+def _attempt_line(name, attempts, wait, exc):
+    """The live log's line for an attempt that fell (madde 433): which layer, which attempt, when the
+    next one comes -- and under it what was raised, its type and its whole message. The last attempt
+    says nothing about what follows: the card does."""
+    head = f"⚠ {name} · deneme {attempts}/{policy.MAX_ATTEMPTS} düştü"
+    if attempts < policy.MAX_ATTEMPTS:
+        head += f" — {wait} sn sonra yeniden denenecek" if wait else " — yeniden deneniyor"
+    return f"{head}\n{type(exc).__name__}: {exc}"
+
+
+def _wait(runner, sleep, seconds):
+    """`seconds` before the next attempt, one at a time: a Durdur pressed meanwhile ends the wait
+    within a second, and the turn it returns to pauses."""
+    for _ in range(seconds):
+        if runner.stop_requested():
+            return
+        sleep(1)
+
+
 def make_job(runner, store, record, plan_store, producers, now, project,
              clock=time.monotonic, log=None, order_store=None, writers=None,
-             new_seed=seed.random_seed, named=None, stills=None, references=None):
+             new_seed=seed.random_seed, named=None, stills=None, references=None,
+             sleep=time.sleep):
     """Returns the callable PhotoRunner.start expects: it drains this project's queue.
 
     `producers` maps a job type to the thing that can do it (see ports.PhotoGenerator). A type with
@@ -213,7 +233,12 @@ def make_job(runner, store, record, plan_store, producers, now, project,
     `log` is where the per-frame timing line goes -- None means nobody asked for one. What the line
     says is decided here; where it lands is main.py's to choose, so the loop can be tested without
     capturing output and the clock can be faked instead of waited on. The render's seconds on that
-    line are the ones written on the produced layer's row, which the card shows (madde 405).
+    line are the ones written on the produced layer's row, which the card shows (madde 405). Every
+    attempt that falls goes there too, with what it raised (madde 433): the card shows only the
+    last of three.
+
+    `sleep` is how the loop waits before trying a job again when the engine gave no answer
+    (policy.retry_wait). Injected like the clock, so no test waits a real second.
 
     `stills` is what pulls a picture out of a video (see ports.Stills). None means no picture is
     pulled at all, which is what the loop did before madde 296 and what a run with no ffmpeg does.
@@ -360,9 +385,15 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                     # writes no line, so it stays owed and is done again on resume.
                     return summary("paused")
                 attempts += 1
+                # Nothing to wait for after the last attempt: what follows it does not try again.
+                wait = policy.retry_wait(exc) if attempts < policy.MAX_ATTEMPTS else 0
+                if log:
+                    log(_attempt_line(name, attempts, wait, exc))
                 if attempts < policy.MAX_ATTEMPTS:
                     # Every failure gets the same three tries at the same job (design v3, madde 45);
-                    # what differs is what happens after the third.
+                    # what differs is what happens after the third. An engine that gave no answer is
+                    # given time to come back first (madde 433).
+                    _wait(runner, sleep, wait)
                     continue
                 if policy.is_frame_fault(exc):
                     # The renderer answered three times that this one job is what failed. The queue

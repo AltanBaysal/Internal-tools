@@ -11,7 +11,13 @@ import uuid
 
 import requests
 
-from backend.services.comfy.errors import ComfyExecutionError, ComfyUnreachable, describe
+from backend.services.comfy.errors import (
+    ComfyExecutionError,
+    ComfyHttpError,
+    ComfyTimeout,
+    ComfyUnreachable,
+    describe,
+)
 
 
 def _websocket_client():
@@ -37,6 +43,15 @@ def _is_done(message, prompt_id):
             and notice["data"].get("prompt_id") == prompt_id)
 
 
+def _ok(resp):
+    """requests' own raise_for_status, its error raised as ComfyHttpError in requests' own words: the
+    type is what carries the queue's mark for a 5xx (madde 433)."""
+    try:
+        resp.raise_for_status()
+    except requests.HTTPError as exc:
+        raise ComfyHttpError(str(exc), resp.status_code) from exc
+
+
 class ComfyClient:
     def __init__(self, base_url, http=requests, poll_interval=5, sleep=time.sleep,
                  now=time.monotonic, log_path="", websocket=None):
@@ -52,11 +67,15 @@ class ComfyClient:
         self._websocket = websocket
 
     def _send(self, method, url, **kwargs):
-        """Every request goes through here, so none of them can forget what a refusal means."""
+        """Every request goes through here, so none of them can forget what a refusal means -- or a
+        reply that never came. A connection that could not be made in time is a ConnectionError too,
+        and reads as unreachable."""
         try:
             return getattr(self._http, method)(url, **kwargs)
         except requests.ConnectionError as exc:
             raise ComfyUnreachable(self.base, exc, self._log_path) from exc
+        except requests.Timeout as exc:
+            raise ComfyTimeout(str(exc)) from exc
 
     def upload_image(self, name, data):
         """Put an image in ComfyUI's input folder and return the name the server kept it under.
@@ -69,7 +88,8 @@ class ComfyClient:
                                files={"image": (name, data)},
                                data={"overwrite": "true"}, timeout=120)
         if resp.status_code >= 400:
-            raise RuntimeError(f"POST /upload/image -> HTTP {resp.status_code}\n{resp.text}")
+            raise ComfyHttpError(f"POST /upload/image -> HTTP {resp.status_code}\n{resp.text}",
+                                 resp.status_code)
         return resp.json()["name"]
 
     def submit(self, workflow):
@@ -78,7 +98,8 @@ class ComfyClient:
                                json={"prompt": workflow, "client_id": self.client_id}, timeout=30)
         if resp.status_code >= 400:
             # The server's own body, not a summary of it.
-            raise RuntimeError(f"POST /prompt -> HTTP {resp.status_code}\n{resp.text}")
+            raise ComfyHttpError(f"POST /prompt -> HTTP {resp.status_code}\n{resp.text}",
+                                 resp.status_code)
         data = resp.json()
         if data.get("node_errors"):
             raise RuntimeError("POST /prompt -> node_errors\n"
@@ -197,7 +218,7 @@ class ComfyClient:
             "subfolder": item.get("subfolder", ""),
             "type": "output",
         })
-        resp.raise_for_status()
+        _ok(resp)
         return resp.content
 
     def vram_total(self):
@@ -205,10 +226,10 @@ class ComfyClient:
         lists that device first. What decides whether a prompt's variants fit in one batch
         (madde 411)."""
         resp = self._send("get", f"{self.base}/system_stats", timeout=30)
-        resp.raise_for_status()
+        _ok(resp)
         return resp.json()["devices"][0]["vram_total"]
 
     def interrupt(self):
         """Cut whatever ComfyUI is rendering right now; harmless when nothing runs."""
         resp = self._send("post", f"{self.base}/interrupt", timeout=30)
-        resp.raise_for_status()
+        _ok(resp)

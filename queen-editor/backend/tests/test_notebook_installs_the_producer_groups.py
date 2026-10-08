@@ -148,6 +148,17 @@ def test_the_notebook_installs_its_nodes_through_install_node():
     assert "install_node" in imported, "Defter install_node'u klondan import etmiyor"
 
 
+def test_the_notebook_starts_comfyui_through_start_comfy():
+    """The start left the ComfyUI cell for colab/ in madde 433, where it runs under test: the old one
+    gone before the new one starts, and hazır only for the process the cell started."""
+    imported = [name for module, names in _imports_from_code() if module == "colab.comfy"
+                for name in names]
+
+    assert "start_comfy(COMFY_ROOT, COMFY_PORT, COMFY_LOG)" in _cell("# === Start ComfyUI ==="), \
+        "ComfyUI hücresi ComfyUI'yi start_comfy ile başlatmıyor"
+    assert "start_comfy" in imported, "Defter start_comfy'yi klondan import etmiyor"
+
+
 def test_every_producer_has_a_checkbox_of_its_own():
     """Colab draws a `#@param {type:"boolean"}` line as a checkbox: that is how the user picks.
     Default False, so nothing heavy starts by accident. Video went back to a box in madde 244, its

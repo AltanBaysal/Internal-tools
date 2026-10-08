@@ -89,12 +89,12 @@ like `health.py`.
 
 ## Notebook code (`colab/`)
 The notebook's own code: what `queeneditor.ipynb` imports from its clone — the console helpers
-(`console.py`), the model downloads (`downloads.py`) and the custom node installs (`nodes.py`). It
-sits outside `backend/` because the app downloads nothing ([FOUNDATION 9](FOUNDATION.md)): the app
-never imports `colab/`, and `colab/` imports nothing from the app. The lists stay in the notebook:
-what to download next to the boxes that choose it, which nodes to install in the ComfyUI cell. Why a
-module and not cells: a cell never runs under pytest, and the notebook has a size ceiling
-(madde 239).
+(`console.py`), the model downloads (`downloads.py`), the custom node installs (`nodes.py`) and
+ComfyUI's start (`comfy.py`). It sits outside `backend/` because the app downloads nothing
+([FOUNDATION 9](FOUNDATION.md)): the app never imports `colab/`, and `colab/` imports nothing from
+the app. The lists stay in the notebook: what to download next to the boxes that choose it, which
+nodes to install in the ComfyUI cell. Why a module and not cells: a cell never runs under pytest,
+and the notebook has a size ceiling (madde 239).
 
 One piece of the notebook's own code stays in a cell: the timer that opens CONFIG and ends every
 cell's output with how long it took (madde 312). The cells it times include the Drive mount and the
