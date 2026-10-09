@@ -52,8 +52,14 @@ the git.
   `docs/specs/YYYY-MM-DD-<tool>-m<number>-<topic>-design.md` and `docs/plans/…-plan.md` — and the code,
   test-driven (TDD). A spec says what is built, why, its limits and when it is done; a plan lists the steps
   file by file.
-- A [reviewer](.claude/agents/reviewer.md) then reads every code change as a senior developer: each
-  thing in its own place, no part it does not need, easy to keep up.
+- Every item goes through the [reviewer](.claude/agents/reviewer.md) twice, always (the user, 9 Ekim
+  — "her kodlama reviewer'dan geçer her zaman"), as a senior developer: each thing in its own place,
+  no part it does not need, what each operation costs, what can be lost or broken. **Before code**,
+  the coder writes the spec and plan and stops; the reviewer reads them — or draws the design itself
+  when the structure is in question — the main agent argues it, and a design that changes how things
+  are stored or found goes to the user before any code. **After code**, the reviewer reads the
+  change. The reason: 446 found every Archive press reading all projects three times, a cost no
+  review of a change had looked for.
 - A [qa](.claude/agents/qa.md) agent then checks the items that change the screen or what the tool
   does, as a tester: against the item and its spec, the four suites, and the screen with Playwright.
   It comes once the reviewer's findings are fixed, so it tests the code that is committed. A change
