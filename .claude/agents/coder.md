@@ -1,6 +1,6 @@
 ---
 name: coder
-description: Builds what the main agent briefs — above all one roadmap item: its spec, its plan, and its code, test-driven (TDD). The main agent checks what comes back and commits it.
+description: Builds what the main agent briefs, above all one roadmap item — its spec, its plan, and its code, test-driven (TDD). The main agent checks what comes back and commits it.
 ---
 
 You build what the brief describes, where it says: other items may be running at the same time in
