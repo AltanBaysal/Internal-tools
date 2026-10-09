@@ -18,9 +18,11 @@ def install_mmaudio(folder):
     thirty minutes."""
     if not os.path.isdir(folder):
         log("MMAudio klonlanıyor…")
-        run(["git", "clone", "--depth", "1", REPO, folder], "clone MMAudio", timeout=300)
+        run(["git", "clone", "--progress", "--depth", "1", REPO, folder], "clone MMAudio",
+            timeout=300)
     log("MMAudio kuruluyor…")
-    run(["pip", "install", "-e", "."], "pip install MMAudio", cwd=folder, timeout=1800)
+    run(["pip", "install", "--progress-bar", "on", "-e", "."], "pip install MMAudio", cwd=folder,
+        timeout=1800)
     log("MMAudio kütüphanesi kuruldu", "OK")
 
 

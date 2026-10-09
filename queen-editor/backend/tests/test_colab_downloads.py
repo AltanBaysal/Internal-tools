@@ -56,6 +56,19 @@ def _safetensors(tail=b""):
     return struct.pack("<Q", len(header)) + header + b"\0" * 8 + tail
 
 
+def test_a_header_that_does_not_parse_says_what_the_parser_said(downloads, tmp_path):
+    """The parser's own words, `Type: message`, and not its type alone (madde 439)."""
+    path = tmp_path / "bad.safetensors"
+    header = b"<html>"
+    path.write_bytes(struct.pack("<Q", len(header)) + header + b"\0" * 8)
+
+    state, msg = downloads.check_safetensors(str(path))
+
+    assert state == "invalid"
+    assert msg == "header parse failed (JSONDecodeError: Expecting value: line 1 column 1 (char 0), " \
+                  "22.0B)", f"Ayrıştırıcının mesajı yok: {msg}"
+
+
 def _hub(monkeypatch, content, *, errors=()):
     """Hugging Face's downloader, faked: the first calls raise `errors`, one each, in order; after them
     `content` lands where the real one would put the file -- under local_dir, at its path in the repo.
@@ -435,6 +448,71 @@ def test_civitai_is_asked_on_its_red_host(downloads):
     """civitai.red is same-origin with the login cookie; .com is cross-domain and answers with the
     login page (NOTEBOOK-STANDARD, section 4)."""
     assert downloads.civitai_url(3314686) == "https://civitai.red/api/download/models/3314686"
+
+
+def _curl(monkeypatch, downloads, tmp_path, *, exit=0, code="200", body=b"", said=""):
+    """curl for the probe, faked: it writes `body` where it is told, the HTTP code on stdout and
+    `said` on stderr, and exits `exit`. Every command is remembered."""
+    monkeypatch.setattr(downloads, "PROBE", str(tmp_path / "_probe.bin"))
+    commands = []
+
+    def run(cmd, **kwargs):
+        commands.append(cmd)
+        with open(cmd[cmd.index("-o") + 1], "wb") as handle:
+            handle.write(body)
+        return types.SimpleNamespace(returncode=exit, stdout=code, stderr=said)
+
+    monkeypatch.setattr(downloads.subprocess, "run", run)
+    return commands
+
+
+def test_a_probe_curl_cannot_make_stops_with_all_curl_said(downloads, monkeypatch, tmp_path):
+    """-sS: silent, but its error still said, and all of it carried (madde 439)."""
+    said = "".join(f"curl satır {n}\n" for n in range(1, 9)) + "curl: (6) Could not resolve host\n"
+    commands = _curl(monkeypatch, downloads, tmp_path, exit=6, code="000", said=said)
+
+    with pytest.raises(RuntimeError) as failure:
+        downloads.civitai_probe(1, "M", COOKIE)
+
+    assert "-sS" in commands[0], f"curl hatasını söylemiyor: {commands[0]}"
+    assert str(failure.value) == f"❌ probe M: curl exit 6\n{said}", f"Hata böyle: {failure.value}"
+
+
+def test_a_probe_civitai_refuses_stops_with_its_whole_answer(downloads, monkeypatch, tmp_path):
+    """Civitai's error page, as long as it came, rather than its first 512 bytes (madde 439)."""
+    page = "<html>" + "giriş gerekli " * 60 + "</html>"
+    _curl(monkeypatch, downloads, tmp_path, code="401", body=page.encode("utf-8"))
+
+    with pytest.raises(RuntimeError) as failure:
+        downloads.civitai_probe(1, "M", COOKIE)
+
+    assert str(failure.value) == f"❌ M: HTTP 401 — Civitai yanıtı: {page}", \
+        f"Hata Civitai'nin bütün yanıtını taşımıyor: {failure.value}"
+    assert not (tmp_path / "_probe.bin").exists(), "Deneme dosyası silinmedi"
+
+
+@pytest.mark.parametrize("exit", [0, 28])
+def test_a_probe_that_gets_bytes_says_access_is_ok(downloads, monkeypatch, tmp_path, capsys, exit):
+    """28 is curl's timeout: a good probe cut by --limit-rate or --max-time is still good."""
+    _curl(monkeypatch, downloads, tmp_path, exit=exit, code="206", body=b"\x00\x01binary",
+          said="curl: (28) Operation timed out\n" if exit else "")
+
+    downloads.civitai_probe(1, "M", COOKIE)
+
+    assert "M: erişim OK" in capsys.readouterr().out
+
+
+def test_a_probe_that_timed_out_with_nothing_good_says_what_curl_said(downloads, monkeypatch,
+                                                                      tmp_path):
+    """Code 000 and no body: curl's own words are the only thing that says why (madde 439)."""
+    said = "curl: (28) Operation timed out after 20002 milliseconds with 0 bytes received\n"
+    _curl(monkeypatch, downloads, tmp_path, exit=28, code="000", said=said)
+
+    with pytest.raises(RuntimeError) as failure:
+        downloads.civitai_probe(1, "M", COOKIE)
+
+    assert str(failure.value) == f"❌ M: HTTP 000 — Civitai yanıtı: (boş gövde — binary değil)\n{said}", \
+        f"Hata curl'ün dediğini taşımıyor: {failure.value}"
 
 
 MIRROR = "Test468735/queen-editor-models"
@@ -873,14 +951,16 @@ def test_mystic_xxx_is_kept_out_of_the_mirror(downloads):
 
 def test_hf_xet_is_installed_for_hugging_face_s_downloader(downloads, monkeypatch):
     """Without hf_xet, huggingface_hub goes back to HF's bridge with nothing but a log line, and the
-    bridge cuts a plain download to 8.7 MB/s (xet-core #821)."""
+    bridge cuts a plain download to 8.7 MB/s (xet-core #821). pip is asked for its progress, and is
+    not quiet (madde 439)."""
     commands = []
     monkeypatch.setattr(downloads, "run", lambda cmd, label, cwd=None, timeout=3600:
                         commands.append(cmd))
 
     downloads.install_hf_xet()
 
-    assert commands == [["pip", "install", "-q", "-U", "hf_xet"]], f"hf_xet böyle kurulmadı: {commands}"
+    assert commands == [["pip", "install", "--progress-bar", "on", "-U", "hf_xet"]], \
+        f"hf_xet böyle kurulmadı: {commands}"
 
 
 GIB = 1024 ** 3

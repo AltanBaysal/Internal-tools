@@ -8,14 +8,9 @@ import os
 import re
 import subprocess
 import time
-import urllib.request
 
-from colab.console import run
-
-# Flask is given 90 seconds to answer, in looks two seconds apart.
-LOOKS = 45
-STEP = 2
-LOG_LINES = 30
+from colab.console import log_tail, run
+from colab.wait import wait_for
 
 CLOUDFLARED = "/content/cloudflared"
 CLOUDFLARED_URL = ("https://github.com/cloudflare/cloudflared/releases/latest/download/"
@@ -43,25 +38,19 @@ def _start_flask(app_dir, port, log_path, settings):
     with open(log_path, "wb") as out:
         subprocess.Popen(["python", "-m", "backend.main"], cwd=app_dir,
                          env={**os.environ, **settings}, stdout=out, stderr=subprocess.STDOUT)
-    for look in range(1, LOOKS + 1):
-        time.sleep(STEP)
-        try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/health", timeout=2):
-                pass
-        except Exception:
-            continue
-        print(f"✓ Flask ayakta ({look * STEP}s)")
-        return
-    print("".join(_read(log_path).splitlines(keepends=True)[-LOG_LINES:]))
-    raise RuntimeError(f"❌ Flask {LOOKS * STEP} sn içinde /api/health'e cevap vermedi — "
-                       "yukarıdaki log'a bak")
+    took = wait_for(f"http://127.0.0.1:{port}/api/health", "Flask", log_path)
+    print(f"✓ Flask ayakta ({took}s)")
 
 
 def _open_tunnel(port):
     """Over http2, not cloudflared's default QUIC: QUIC rides on UDP, which Colab's network throttles.
-    On 2026-08-24 the same photo took 17.74 s over the default tunnel and 0.18 s over this one."""
+    On 2026-08-24 the same photo took 17.74 s over the default tunnel and 0.18 s over this one.
+
+    cloudflared writes into its log, not onto the console, so a tunnel without a link stops the cell
+    with the end of that log."""
     if not os.path.isfile(CLOUDFLARED):
-        run(["wget", "-q", "-O", CLOUDFLARED, CLOUDFLARED_URL], "wget cloudflared")
+        # -nv rather than -q: no progress, but wget's error is still said.
+        run(["wget", "-nv", "-O", CLOUDFLARED, CLOUDFLARED_URL], "wget cloudflared")
         os.chmod(CLOUDFLARED, 0o755)
     with open(TUNNEL_LOG, "wb") as out:
         subprocess.Popen([CLOUDFLARED, "tunnel", "--protocol", "http2",
@@ -72,8 +61,8 @@ def _open_tunnel(port):
         found = LINK.search(_read(TUNNEL_LOG))
         if found:
             return found.group(0)
-    print(_read(TUNNEL_LOG)[-1000:])
-    raise RuntimeError(f"❌ cloudflared linki {TUNNEL_LOOKS} sn içinde alınamadı")
+    raise RuntimeError(f"❌ cloudflared linki {TUNNEL_LOOKS} sn içinde alınamadı\n"
+                       f"{log_tail(TUNNEL_LOG)}")
 
 
 def _read(path):

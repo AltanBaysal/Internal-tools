@@ -50,8 +50,9 @@ def test_the_lists_are_refreshed_then_the_packages_installed_off_the_console(sys
 
 @pytest.mark.parametrize("step, command", [("update", "apt-get update -qq"),
                                            ("install", "apt-get install -y aria2 ffmpeg")])
-def test_a_failed_step_stops_the_cell_with_apt_s_own_last_lines(system, monkeypatch, step, command):
-    """A missing ffmpeg would otherwise show up hours later, in an export."""
+def test_a_failed_step_stops_the_cell_with_all_apt_said(system, monkeypatch, step, command):
+    """A missing ffmpeg would otherwise show up hours later, in an export. apt's output is not on the
+    console, so the error carries all of it, as apt wrote it (madde 439)."""
     said = "".join(f"satır {n}\n" for n in range(1, 9)) + "E: Unable to locate package ffmpeg\n"
     calls = _apt(monkeypatch, system, fails=step, said=said)
 
@@ -59,7 +60,5 @@ def test_a_failed_step_stops_the_cell_with_apt_s_own_last_lines(system, monkeypa
         system.apt_install("aria2", "ffmpeg")
 
     message = str(failure.value)
-    assert message.startswith(f"{command}: exit 100\n"), f"Hata komutu söylemiyor: {message}"
-    assert "E: Unable to locate package ffmpeg" in message and "satır 1\n" not in message, \
-        f"Hata apt-get'in son satırlarını söylemiyor: {message}"
+    assert message == f"{command}: exit 100\n{said}", f"Hata apt-get'in bütün çıktısı değil: {message}"
     assert calls[-1][0][1] == step, "Düşen adımdan sonra apt-get yine çağrıldı"

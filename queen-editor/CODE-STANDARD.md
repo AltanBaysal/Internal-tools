@@ -92,6 +92,7 @@ The notebook's own code: what `queeneditor.ipynb` imports from its clone, one mo
 - `console.py`: the console helpers;
 - `vault.py`: reading a secret from Colab's vault;
 - `system.py`: the machine's apt packages;
+- `wait.py`: the wait for a server the notebook started — ComfyUI, Flask — to answer;
 - `comfy.py`: ComfyUI's install and its start;
 - `nodes.py`: the custom node installs;
 - `downloads.py`: the model downloads, with the disk check, the folder listing and the summary;

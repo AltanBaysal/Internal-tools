@@ -9,6 +9,7 @@ import io
 import os
 import subprocess
 import urllib.error
+import urllib.request
 from types import SimpleNamespace
 
 import pytest
@@ -43,7 +44,7 @@ class Machine:
             (tmp_path / "cloudflared").write_bytes(b"\x7fELF")
         monkeypatch.setattr(server.subprocess, "run", self._run)
         monkeypatch.setattr(server.subprocess, "Popen", self._popen)
-        monkeypatch.setattr(server.urllib.request, "urlopen", self._urlopen)
+        monkeypatch.setattr(urllib.request, "urlopen", self._urlopen)
         monkeypatch.setattr(server.time, "sleep", self.slept.append)
         monkeypatch.setattr(server, "run", self._wget)
 
@@ -133,6 +134,7 @@ def test_the_tunnel_is_opened_over_tcp_rather_than_quic_and_hands_back_its_link(
 
 
 def test_cloudflared_is_fetched_only_when_it_is_not_there(server, monkeypatch, tmp_path):
+    """wget -nv: a line per file, and its error said; -q would hide that too (madde 439)."""
     machine = Machine(monkeypatch, server, tmp_path, cloudflared=False)
     made = []
     monkeypatch.setattr(server.os, "chmod", lambda path, mode: made.append((path, mode)))
@@ -140,36 +142,46 @@ def test_cloudflared_is_fetched_only_when_it_is_not_there(server, monkeypatch, t
     _serve(server, tmp_path)
     _serve(server, tmp_path)
 
-    assert machine.events.count("wget -q") == 1, f"cloudflared böyle indirildi: {machine.events}"
-    assert machine.events.index("wget -q") < machine.events.index("popen cloudflared")
+    assert machine.events.count("wget -nv") == 1, f"cloudflared böyle indirildi: {machine.events}"
+    assert machine.events.index("wget -nv") < machine.events.index("popen cloudflared")
     assert made == [(str(tmp_path / "cloudflared"), 0o755)], \
         f"cloudflared çalıştırılabilir yapılmadı: {made}"
 
 
-def test_a_flask_that_never_answers_fails_after_ninety_seconds_with_its_log(server, monkeypatch,
-                                                                            tmp_path, capsys):
+def test_a_flask_that_never_answers_fails_after_ninety_seconds_with_its_last_look_and_its_log(
+        server, monkeypatch, tmp_path):
+    """The error carries what the last look got, in its own words, and the end of Flask's log: one
+    piece, copied whole (madde 439)."""
     machine = Machine(monkeypatch, server, tmp_path, answers=[REFUSED])
 
     said = _failure(server, tmp_path)
 
     assert machine.slept[1:] == [2] * 45
-    assert said == "❌ Flask 90 sn içinde /api/health'e cevap vermedi — yukarıdaki log'a bak"
-    out = capsys.readouterr().out
-    assert "flask satırı 11\n" in out and "flask satırı 40" in out and "flask satırı 10\n" not in out
+    log = tmp_path / "flask.log"
+    assert said.splitlines()[:3] == [
+        "❌ Flask 90 sn içinde cevap vermedi — http://127.0.0.1:8000/api/health",
+        "URLError: <urlopen error [Errno 111] Connection refused>",
+        f"--- {log} · son 30 satır ---",
+    ], f"Hata böyle:\n{said}"
+    assert said.endswith("flask satırı 40") and "flask satırı 11\n" in said \
+        and "flask satırı 10\n" not in said, f"Hata Flask'ın log'unun sonunu taşımıyor:\n{said}"
     assert "popen cloudflared" not in machine.events, "Flask açılmadan tünel açıldı"
 
 
 def test_a_tunnel_without_a_link_fails_after_thirty_seconds_with_its_log(server, monkeypatch,
-                                                                         tmp_path, capsys):
-    machine = Machine(monkeypatch, server, tmp_path, tunnel="x" * 1500 + "ERR failed to connect\n")
+                                                                         tmp_path):
+    """cloudflared writes into a file, so its log is nowhere on the console: the error carries the
+    end of it, its lines whole (madde 439)."""
+    long_line = "INF " + "x" * 1500
+    lines = [f"INF satır {n}" for n in range(1, 40)] + [long_line, "ERR failed to connect"]
+    machine = Machine(monkeypatch, server, tmp_path, tunnel="".join(f"{line}\n" for line in lines))
 
     said = _failure(server, tmp_path)
 
     assert machine.slept[-30:] == [1] * 30
-    assert said == "❌ cloudflared linki 30 sn içinde alınamadı"
-    out = capsys.readouterr().out
-    assert out.rstrip().endswith("ERR failed to connect") and "x" * 1000 not in out, \
-        f"Tünelin log'unun sonu basılmadı:\n{out[-200:]}"
+    assert said == (f"❌ cloudflared linki 30 sn içinde alınamadı\n"
+                    f"--- {tmp_path / 'cloudflared.log'} · son 30 satır ---\n"
+                    + "\n".join(lines[-30:])), f"Hata tünelin log'unun sonunu taşımıyor:\n{said}"
 
 
 def test_the_link_says_how_long_it_took_right_above_it(server, capsys):

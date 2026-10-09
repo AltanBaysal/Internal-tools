@@ -5,13 +5,11 @@ so neither belongs to the ComfyUI module.
 """
 import subprocess
 
-from colab.console import TAIL
-
 
 def apt_install(*packages):
     """The package lists refreshed, then the packages installed. apt-get's own output stays off the
     console: hundreds of lines, and none of them is read on a good day. A failure stops the cell with
-    apt's own last lines.
+    all of it, as apt wrote it: none of it is on the console yet (madde 439).
 
     The refresh comes first because a runtime's lists can be older than the archive they point at,
     and then the install asks for files that are gone."""
@@ -20,8 +18,7 @@ def apt_install(*packages):
 
 
 def _apt(cmd):
-    # stderr joins stdout, as in console.run: the error comes last, where the tail is taken.
+    # stderr joins stdout, as in console.run: apt's errors stay where it wrote them among its lines.
     done = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     if done.returncode != 0:
-        tail = "\n".join((done.stdout or "").strip().splitlines()[-TAIL:])
-        raise RuntimeError(f"{' '.join(cmd)}: exit {done.returncode}\n{tail}")
+        raise RuntimeError(f"{' '.join(cmd)}: exit {done.returncode}\n{done.stdout}")

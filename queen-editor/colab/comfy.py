@@ -9,21 +9,16 @@ import os
 import socket
 import subprocess
 import time
-import urllib.request
-from collections import deque
 
 from colab.console import log, run
+from colab.wait import wait_for
 
 REPO = "https://github.com/comfyanonymous/ComfyUI.git"
 # Packages pip puts into ComfyUI's environment next to its own requirements.
 EXTRAS = ["opencv-python", "imageio", "imageio-ffmpeg"]
 
-# The 90 seconds the cell has always given ComfyUI to start, in looks two seconds apart.
-LOOKS = 45
-STEP = 2
 # Seconds an old ComfyUI is given to let go of the port, after each of the two signals.
 FREE = 30
-LOG_LINES = 30
 
 
 def install_comfy(root):
@@ -35,13 +30,14 @@ def install_comfy(root):
     second Run all can find that clone in a state git will not pull into -- a detached HEAD, local
     changes. What git said is printed, and the install goes on with the ComfyUI it has."""
     if not os.path.isdir(root):
-        run(["git", "clone", REPO, root], "clone ComfyUI")
+        run(["git", "clone", "--progress", REPO, root], "clone ComfyUI")
     try:
         run(["git", "pull", "-q"], "git pull ComfyUI", cwd=root)
     except RuntimeError as e:
         log(f"{e}\nComfyUI güncellenemedi — yerindeki ComfyUI'yle devam ediliyor", "WARN")
-    run(["pip", "install", "-q", "-r", "requirements.txt"], "pip install ComfyUI", cwd=root)
-    run(["pip", "install", "-q", *EXTRAS], "pip install ComfyUI extras", cwd=root)
+    run(["pip", "install", "--progress-bar", "on", "-r", "requirements.txt"], "pip install ComfyUI",
+        cwd=root)
+    run(["pip", "install", "--progress-bar", "on", *EXTRAS], "pip install ComfyUI extras", cwd=root)
 
 
 def start_comfy(root, port, log_path):
@@ -55,18 +51,11 @@ def start_comfy(root, port, log_path):
             ["python", "main.py", "--listen", "127.0.0.1", "--port", str(port)],
             cwd=root, stdout=out, stderr=subprocess.STDOUT)
     log(f"ComfyUI başlatıldı (PID {process.pid}), log: {log_path}")
-    said = None
-    for look in range(1, LOOKS + 1):
-        time.sleep(STEP)
-        said = _asked(f"http://127.0.0.1:{port}/system_stats")
-        # Asked after the look, so an answer counts only while this process is alive: the port was
-        # free when it started, and nothing but it can be what answered.
-        if process.poll() is not None:
-            raise RuntimeError(f"❌ ComfyUI kapandı — exit {process.returncode}\n{_tail(log_path)}")
-        if said is None:
-            log(f"ComfyUI hazır ({look * STEP}s)", "OK")
-            return process
-    raise RuntimeError(f"❌ ComfyUI {LOOKS * STEP} sn içinde cevap vermedi\n{said}\n{_tail(log_path)}")
+    # The process goes along, so an answer counts only while it is alive: the port was free when it
+    # started, and nothing but it can be what answered.
+    took = wait_for(f"http://127.0.0.1:{port}/system_stats", "ComfyUI", log_path, process)
+    log(f"ComfyUI hazır ({took}s)", "OK")
+    return process
 
 
 def _free(port):
@@ -94,19 +83,3 @@ def _refused(port):
     except OSError:
         return False
     return False
-
-
-def _asked(url):
-    """None when ComfyUI answers at `url`, otherwise what the look raised, as `Type: message`."""
-    try:
-        with urllib.request.urlopen(url, timeout=2):
-            return None
-    except Exception as e:
-        return f"{type(e).__name__}: {e}"
-
-
-def _tail(path):
-    """The last lines of ComfyUI's own log, the one place that says why it ended."""
-    with open(path, encoding="utf-8", errors="replace") as handle:
-        tail = deque(handle, maxlen=LOG_LINES)
-    return f"--- {path} · son {LOG_LINES} satır ---\n" + "".join(tail).rstrip("\n")

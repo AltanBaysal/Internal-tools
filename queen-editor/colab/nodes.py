@@ -48,10 +48,11 @@ def install_node(name, url, folder):
         log(f"{name}: zaten var")
         return
     log(f"{name}: cloning...")
-    run(["git", "clone", "--depth", "1", "--recurse-submodules", url, target], f"clone {name}",
-        timeout=180)
+    run(["git", "clone", "--progress", "--depth", "1", "--recurse-submodules", url, target],
+        f"clone {name}", timeout=180)
     if not os.listdir(target):
         raise RuntimeError(f"{name}: klon sonrası klasör boş")
     req = os.path.join(target, "requirements.txt")
     if os.path.exists(req):
-        run(["pip", "install", "-q", "-r", _kept(req, name)], f"pip install {name}", timeout=300)
+        run(["pip", "install", "--progress-bar", "on", "-r", _kept(req, name)], f"pip install {name}",
+            timeout=300)

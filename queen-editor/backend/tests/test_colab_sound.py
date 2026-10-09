@@ -37,7 +37,8 @@ def _commands(monkeypatch, sound):
 
 def test_mmaudio_is_cloned_then_installed_each_stage_said_as_it_starts(sound, monkeypatch, tmp_path):
     """The user's words (madde 398): "burda takıldı, output'ta bir şey de yok". A line as each stage
-    starts says which one the cell is in. pip is not silenced: the install can take thirty minutes."""
+    starts says which one the cell is in. pip is not silenced: the install can take thirty minutes.
+    The clone and pip are asked for their progress (madde 439)."""
     folder = str(tmp_path / "MMAudio")
     events = _commands(monkeypatch, sound)
 
@@ -45,10 +46,10 @@ def test_mmaudio_is_cloned_then_installed_each_stage_said_as_it_starts(sound, mo
 
     assert events == [
         ("log", "MMAudio klonlanıyor…", "INFO"),
-        ("run", ["git", "clone", "--depth", "1", "https://github.com/hkchengrex/MMAudio.git", folder],
-         None, 300),
+        ("run", ["git", "clone", "--progress", "--depth", "1",
+                 "https://github.com/hkchengrex/MMAudio.git", folder], None, 300),
         ("log", "MMAudio kuruluyor…", "INFO"),
-        ("run", ["pip", "install", "-e", "."], folder, 1800),
+        ("run", ["pip", "install", "--progress-bar", "on", "-e", "."], folder, 1800),
         ("log", "MMAudio kütüphanesi kuruldu", "OK"),
     ], f"MMAudio böyle kurulmadı: {events}"
 
@@ -58,7 +59,8 @@ def test_an_mmaudio_already_cloned_is_only_installed(sound, monkeypatch, tmp_pat
 
     sound.install_mmaudio(str(tmp_path))
 
-    assert [event[1] for event in events if event[0] == "run"] == [["pip", "install", "-e", "."]], \
+    assert [event[1] for event in events if event[0] == "run"] == [
+        ["pip", "install", "--progress-bar", "on", "-e", "."]], \
         f"Yerinde duran MMAudio yeniden klonlandı: {events}"
 
 

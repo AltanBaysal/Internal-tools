@@ -106,6 +106,16 @@ def test_a_failed_command_says_its_own_last_lines(console):
         f"Hata komutun son satırlarını söylemiyor: {message}"
 
 
+def test_a_log_s_tail_is_its_last_lines_under_its_name(console, tmp_path):
+    """Where a server that did not come up says why: the last lines of its own log."""
+    path = tmp_path / "server.log"
+    path.write_text("".join(f"satır {n}\n" for n in range(1, 41)), encoding="utf-8")
+
+    tail = console.log_tail(str(path))
+
+    assert tail == f"--- {path} · son 30 satır ---\n" + "\n".join(f"satır {n}" for n in range(11, 41))
+
+
 def test_a_command_past_its_time_is_stopped(console):
     """A hung command stops the run at its deadline instead of holding the cell for good."""
     start = time.monotonic()

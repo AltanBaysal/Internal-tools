@@ -41,7 +41,7 @@ def check_safetensors(path):
         try:
             header = json.loads(f.read(header_len).decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as e:
-            return "invalid", f"header parse failed ({type(e).__name__}, {human(size)})"
+            return "invalid", f"header parse failed ({type(e).__name__}: {e}, {human(size)})"
 
     ends = [v["data_offsets"][1] for k, v in header.items()
             if k != "__metadata__" and isinstance(v, dict) and "data_offsets" in v]
@@ -348,32 +348,39 @@ def civitai_fetch(mirror, version_id, target_dir, filename, label, cookie):
     return row
 
 
+PROBE = "/content/_probe.bin"
+
+
 def civitai_probe(version_id, label, cookie):
-    out = "/content/_probe.bin"
+    """The first KB of a Civitai file, asked with the cookie before the file comes down. -sS keeps
+    curl's progress off and its error on: a failure stops the cell with all curl said, and a refusal
+    with Civitai's whole answer (madde 439).
+
+    Exit 28 is curl's timeout, which --limit-rate and --max-time can bring on a good probe too. When
+    nothing good came back, what curl said comes under Civitai's answer: often it is all there is."""
     done = subprocess.run(
-        ["curl", "-sL", "--max-time", "20", "--limit-rate", "200k", "-r", "0-1023",
-         "-H", cookie_header(cookie), "-w", "%{http_code}", "-o", out, civitai_url(version_id)],
+        ["curl", "-sS", "-L", "--max-time", "20", "--limit-rate", "200k", "-r", "0-1023",
+         "-H", cookie_header(cookie), "-w", "%{http_code}", "-o", PROBE, civitai_url(version_id)],
         capture_output=True, text=True)
     if done.returncode not in (0, 28):
-        tail = "\n".join((done.stderr or done.stdout or "").strip().splitlines()[-5:])
-        raise RuntimeError(f"❌ probe {label}: curl exit {done.returncode}\n{tail}")
+        raise RuntimeError(f"❌ probe {label}: curl exit {done.returncode}\n{done.stderr}")
     code = (done.stdout or "").strip()[-3:]
-    body = b""
-    if os.path.exists(out):
-        with open(out, "rb") as f:
-            body = f.read(512)
-        os.remove(out)
-    if code.startswith("2") and not body.startswith(b"<") and not body.startswith(b'{"'):
+    body = ""
+    if os.path.exists(PROBE):
+        body = head_text(PROBE)
+        os.remove(PROBE)
+    if code.startswith("2") and not body.startswith("<") and not body.startswith('{"'):
         log(f"{label}: erişim OK", "OK")
         return
     raise RuntimeError(f"❌ {label}: HTTP {code} — Civitai yanıtı: "
-                       f"{body.decode('utf-8', 'replace').strip() or '(boş gövde — binary değil)'}")
+                       f"{body.strip() or '(boş gövde — binary değil)'}"
+                       + (f"\n{done.stderr}" if done.stderr else ""))
 
 
 def install_hf_xet():
     """hf_xet, behind hf_fetch: without it huggingface_hub goes back to HF's bridge with nothing but a
     log line."""
-    run(["pip", "install", "-q", "-U", "hf_xet"], "pip install hf_xet")
+    run(["pip", "install", "--progress-bar", "on", "-U", "hf_xet"], "pip install hf_xet")
 
 
 # GiB the disk check asks to stay free past the models themselves.

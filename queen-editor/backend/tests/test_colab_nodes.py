@@ -172,3 +172,15 @@ def test_a_node_is_cloned_shallow_with_its_submodules_into_its_own_folder(
     assert (tmp_path / "ComfyMath" / "__init__.py").exists(), "Node kendi adlı klasörüne klonlanmadı"
     assert re.search(r"\[\d\d:\d\d:\d\d\] ComfyMath", capsys.readouterr().out), \
         "Konsol node'un başladığını saatle yazmıyor"
+
+
+def test_a_node_s_clone_and_pip_show_their_progress(nodes, monkeypatch, tmp_path):
+    """The clone and pip are asked for their progress, and pip is not quiet (madde 439)."""
+    commands, _ = _github(monkeypatch, nodes, {MATH: {"requirements.txt": "numpy\n"}})
+
+    nodes.install_node("ComfyMath", MATH, str(tmp_path))
+
+    clone, pip = commands
+    assert "--progress" in clone, f"Klon ilerlemeyi göstermiyor: {clone}"
+    assert pip[pip.index("--progress-bar") + 1] == "on" and "-q" not in pip, \
+        f"pip ilerlemeyi göstermiyor: {pip}"

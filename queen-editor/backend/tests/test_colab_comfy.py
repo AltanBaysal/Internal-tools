@@ -9,6 +9,7 @@ import importlib
 import io
 import subprocess
 import urllib.error
+import urllib.request
 from types import SimpleNamespace
 
 import pytest
@@ -43,7 +44,7 @@ class Machine:
         self._taken, self._answers, self._polls = list(taken), list(answers), list(polls)
         monkeypatch.setattr(comfy.subprocess, "run", self._run)
         monkeypatch.setattr(comfy.subprocess, "Popen", self._popen)
-        monkeypatch.setattr(comfy.urllib.request, "urlopen", self._urlopen)
+        monkeypatch.setattr(urllib.request, "urlopen", self._urlopen)
         monkeypatch.setattr(comfy.socket, "create_connection", self._connect)
         monkeypatch.setattr(comfy.time, "sleep", self.slept.append)
 
@@ -195,17 +196,19 @@ def _commands(monkeypatch, comfy, fails=None):
 
 def test_comfyui_is_cloned_when_it_is_not_there_and_then_set_up(comfy, monkeypatch, tmp_path):
     """Cloned, pulled, and its requirements and the extras installed, in that order, each in
-    ComfyUI's own folder but the clone."""
+    ComfyUI's own folder but the clone. The clone and pip are asked for their progress, and pip is
+    not quiet (madde 439)."""
     root = str(tmp_path / "ComfyUI")
     commands = _commands(monkeypatch, comfy)
 
     comfy.install_comfy(root)
 
     assert commands == [
-        (["git", "clone", "https://github.com/comfyanonymous/ComfyUI.git", root], None),
+        (["git", "clone", "--progress", "https://github.com/comfyanonymous/ComfyUI.git", root], None),
         (["git", "pull", "-q"], root),
-        (["pip", "install", "-q", "-r", "requirements.txt"], root),
-        (["pip", "install", "-q", "opencv-python", "imageio", "imageio-ffmpeg"], root),
+        (["pip", "install", "--progress-bar", "on", "-r", "requirements.txt"], root),
+        (["pip", "install", "--progress-bar", "on", "opencv-python", "imageio", "imageio-ffmpeg"],
+         root),
     ], f"ComfyUI böyle kurulmadı: {commands}"
 
 
@@ -258,6 +261,7 @@ def test_a_comfyui_that_never_answers_fails_after_ninety_seconds_with_what_the_p
 
     assert machine.events.count("look") == 45
     assert machine.slept[-45:] == [2] * 45
-    assert said.splitlines()[0] == "❌ ComfyUI 90 sn içinde cevap vermedi"
+    assert said.splitlines()[0] == \
+        "❌ ComfyUI 90 sn içinde cevap vermedi — http://127.0.0.1:8188/system_stats"
     assert "URLError: <urlopen error [Errno 111] Connection refused>" in said
     assert said.rstrip().endswith("comfy satırı 40")
