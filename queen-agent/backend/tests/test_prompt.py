@@ -141,59 +141,81 @@ def test_the_app_forces_no_language_of_its_own():
 # Four rules that sat in the skill texts one copy each, so a chat with no skill selected had none of
 # them -- and the copies drifted. What comes here is the agentic half only: how to work, never what
 # the work is.
+#
+# Since Madde 455 the text is laid out from the research into agent harnesses, and the tests ask
+# each rule by its words of substance rather than by the sentence it sits in: the wording is the
+# user's to change, and a test that held a sentence would break on every rewording of it.
+
+
+def _a_line_says(*words):
+    """Whether one line of the text holds all these words. A rule is one line since Madde 455, so
+    a rule's words are asked of one line rather than of the whole text, where they could come from
+    two different rules."""
+    return any(all(word in line for word in words) for line in SYSTEM_PROMPT.lower().splitlines())
 
 
 def test_the_base_looks_before_it_writes():
     # Having read it earlier in the chat is not having read it: the file on disk is what the next
     # step reads, and it may have moved on since.
-    assert "read it first" in SYSTEM_PROMPT.lower()
+    assert _a_line_says("read_file", "first")
 
 
 def test_the_base_says_where_a_read_file_appears():
     # Madde 179. The tool answers with a receipt now, so a model told only to read would get a
     # sentence back, believe it had not seen the file, and read it again -- which is the very thing
     # this item removes.
-    assert "opened files" in SYSTEM_PROMPT
+    assert _a_line_says("receipt", "opened files")
     # Correction 4. Saying only where the file appears left open whether what stands there is the
     # file as it was read; it is read from disk every round, and a model that does not know that
     # reads it again to be sure.
-    assert "always current" in SYSTEM_PROMPT
+    assert _a_line_says("opened files", "every round")
+
+
+def test_the_base_says_how_many_files_stay_open():
+    # Madde 455: the window explained, in one sentence. The box's own heading gives the number, but
+    # only once a file is open; a model that does not know the window holds five goes looking for
+    # a sixth it can no longer see. BOX_LIMIT is 5, and test_context_box holds it there.
+    assert _a_line_says("opened files", "five")
 
 
 def test_the_base_asks_rather_than_inventing():
     # Sat in three skill texts, each in its own words. A guess is either more than the user wanted
     # or less, and nothing on the screen says which one happened. Since 28 Aug the same rule covers
     # the request itself: what was not understood is asked about, not worked around.
-    said = SYSTEM_PROMPT.lower()
-    assert "ask" in said
-    assert "invent" in said
-    assert "not sure" in said
+    assert _a_line_says("invent", "ask")
+    assert _a_line_says("not sure", "ask")
+
+
+def test_the_base_asks_only_what_a_tool_cannot_find_out():
+    # Madde 455. What a file says is found out with a read; only what the user alone can decide is
+    # a question, and it is one question.
+    assert _a_line_says("tool can find out")
+    assert _a_line_says("only the user can decide", "one question")
 
 
 def test_the_base_works_in_pieces_and_lands_each_one():
     # The reason was written out three times, identically: quality falls away towards the end of a
     # long stretch. And each piece reaching disk is what makes an interruption cost one piece.
-    said = SYSTEM_PROMPT.lower()
-    assert "one long" in said or "in pieces" in said
-    assert "before the next" in said
+    assert _a_line_says("pieces", "before the next")
 
 
 def test_the_base_edits_what_exists_rather_than_rebirthing_it():
     # The observed failure: the model reaches for creation because creation is the only writing it
     # was told about, and code can only refuse the same name -- a file reborn under a second name
     # walks right past the wall. The preference has to live where the name is picked.
-    assert "edit_file" in SYSTEM_PROMPT
-    assert "never reborn" in SYSTEM_PROMPT.lower()
+    #
     # Correction 5. A scenario is not changed with edit_file at all -- Madde 171 shut that door --
     # so a sentence naming only that tool tells the model to make a call that comes back refused.
-    assert "the tool that owns that kind of file" in SYSTEM_PROMPT
+    assert _a_line_says("edit_file", "the tool that owns")
+    # And the new file is named for what it is not: a second version of an old one.
+    assert _a_line_says("new file", "second version")
 
 
 def test_the_base_puts_a_change_on_disk_rather_than_in_the_chat():
     # A change that only lands in the chat leaves the file saying the older thing, and the file is
     # what the next step reads. Correction 6: the old sentence described that failure instead of
     # asking for anything, and it covered only corrections -- the same is true of any change.
-    assert "make the change in the file" in SYSTEM_PROMPT.lower()
+    assert _a_line_says("change", "in the file")
 
 
 def test_the_base_starts_a_long_job_with_the_plan():
@@ -201,27 +223,90 @@ def test_the_base_starts_a_long_job_with_the_plan():
     # nothing. The plan file is where a job keeps its place -- which is also how a chat that grew
     # too long is survived.
     #
-    # Madde 207 changed the tool it names. Asked of the sentence rather than of the word
-    # create_file: that word is already in this text, about when to save a document, so a test
-    # looking only for it would pass without holding this sentence at all.
-    assert "keeps its place" in SYSTEM_PROMPT.lower()
-    assert "create_file writes it" in SYSTEM_PROMPT
+    # Madde 207 changed the tool it names. Asked of the line rather than of the word create_file:
+    # that word is already in this text, about when to save a document, so a test looking for it
+    # anywhere would pass without holding this rule at all.
+    assert _a_line_says("plan file", "create_file")
     assert "write_plan" not in SYSTEM_PROMPT
+
+
+def test_the_base_says_the_plan_and_carries_on():
+    # Madde 455. A plan announced at the end of a turn is a turn that stopped: the Codex guide saw
+    # strong models end the turn on "here is my plan". So the plan is said and the work goes on in
+    # the same turn, unless a skill says to wait for a yes -- and the plan is only for work of
+    # several steps.
+    assert _a_line_says("plan", "several steps", "same turn")
+    assert _a_line_says("skill", "wait")
 
 
 def test_the_base_says_what_it_did_even_when_it_did_nothing():
     # Silence is not an answer: a turn that found nothing to change and a turn that never looked
     # read exactly the same.
-    assert "nothing" in SYSTEM_PROMPT.lower()
+    assert _a_line_says("nothing", "say")
 
 
 def test_a_turn_does_not_end_with_a_menu_of_options():
     # 28 Aug: every answer closed with five things the user could ask for next. A turn ends with
     # the one question that decides what happens, or with nothing -- a list is the work handed
     # back rather than an ending.
-    said = SYSTEM_PROMPT.lower()
-    assert "list of things you could do next" in said
-    assert "ask the one question" in said
+    assert _a_line_says("list", "do next")
+    assert _a_line_says("one question", "stop")
+
+
+# --- what a tool's answer is worth (Madde 455) ----------------------------------------------------
+
+
+def test_a_tools_answer_is_what_happened():
+    # Every harness the research read says the same: the environment's answer is the ground truth.
+    # A weak model reports what it meant to do; the tool's answer is what it did.
+    assert _a_line_says("tool's answer", "truth")
+    assert _a_line_says("refused", "failed")
+    assert _a_line_says("never", "did not make")
+
+
+def test_the_same_call_is_not_made_twice_in_a_row():
+    # DeepSeek in other agent loops repeats the same action (the research's Roo Code and V3
+    # reports). The same call gets the same answer, and two failed tries at one change go to the
+    # user.
+    assert _a_line_says("same arguments", "twice")
+    assert _a_line_says("both fail", "stop")
+
+
+def test_independent_reads_go_in_one_round():
+    # Each round is one more request, and a turn has thirty-two. The loop runs every call of a
+    # round (test_stream_answer) and the black box collects them (test_black_box).
+    assert _a_line_says("one round", "several calls")
+
+
+# --- how the text is written (Madde 455) ----------------------------------------------------------
+
+
+def test_the_text_ends_on_its_last_word():
+    # system_prompt() puts the owner's part behind a blank line; a blank line of this text's own
+    # would make two, and an empty suffix returns this text as it is -- the cached prefix's head.
+    assert SYSTEM_PROMPT == SYSTEM_PROMPT.strip()
+
+
+def test_nothing_is_shouted():
+    # The research: newer models overtrigger on capitals and markdown emphasis, and the guides turn
+    # it down. AI is a name, not a shout.
+    words = [word.strip(".,:;()'") for word in SYSTEM_PROMPT.split()]
+    assert [word for word in words if len(word) > 2 and word.isupper()] == []
+    assert "**" not in SYSTEM_PROMPT
+    assert "#" not in SYSTEM_PROMPT
+
+
+def test_the_three_core_rules_close_the_text():
+    # What a weak model is told at both ends it keeps (GPT-4.1's guide; Gemini's Final Reminder):
+    # the last section repeats read first, never claim what a tool did not do, always answer in the
+    # chat -- three lines and nothing after them.
+    last = SYSTEM_PROMPT.split("\n\n")[-1].splitlines()
+    rules = [line.lower() for line in last[1:]]
+    assert len(rules) == 3
+    assert all(line.startswith("- ") for line in rules)
+    assert "read" in rules[0]
+    assert "tool" in rules[1]
+    assert "chat" in rules[2]
 
 
 # --- the ritual reads (Madde 107) -----------------------------------------------------------------
@@ -239,8 +324,8 @@ def test_a_fresh_read_is_for_a_file_that_is_not_already_open():
     # Correction 3: the old sentence gave the wrong reason -- somebody else may have changed it --
     # and a wrong reason is a rule the model applies in the wrong places.
     said = SYSTEM_PROMPT.lower()
-    assert "not among your opened files" in said
-    assert "check your own writing" in said
+    assert _a_line_says("not among your opened files")
+    assert _a_line_says("never", "own writing")
     assert "somebody else may have changed" not in said
     assert "not the same as reading it now" not in said
 
@@ -248,7 +333,7 @@ def test_a_fresh_read_is_for_a_file_that_is_not_already_open():
 def test_the_base_is_handed_the_names_rather_than_asking_for_them():
     # Madde 127. Asking for what exists was a whole round, every turn -- and the turn that did not
     # ask invented a name instead. The names are true every turn, so they ride in every request.
-    assert "listed for you in every request" in SYSTEM_PROMPT
+    assert _a_line_says("listed", "every request")
     assert "list_files" not in SYSTEM_PROMPT
 
 
@@ -256,7 +341,7 @@ def test_the_base_reads_only_what_the_answer_needs():
     # The other half of the same trial: files the question never touched were read anyway,
     # because nothing said the reading has a boundary. Correction 2 turned the boundary the right
     # way up -- what to do rather than what not to do.
-    assert "read only what the answer needs" in SYSTEM_PROMPT.lower()
+    assert _a_line_says("only what the answer needs")
 
 
 # --- what the turn's last round is told (Madde 137) -----------------------------------------------

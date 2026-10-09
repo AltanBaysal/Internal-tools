@@ -118,6 +118,19 @@ değiştirmiyor: kırpma yalnız mesajı işaretliyor *(452'nin QA'sı denedi)*.
 `GET …/chats` iki kez gidiyor. İkisi de bellekten cevaplanıyor, diske gidilmiyor; Drive'ın tünelinde
 bir gidiş-dönüş fazla.
 
+## create_file'ın tarifi plan dosyasını saymıyor
+
+*(Claude, 10 Ekim — v10'un 455'ini okuyan reviewer'ın bulduğu.)* `CREATE_FILE` *"Call this only when the
+user asked for something worth keeping"* diyor; oysa system prompt ve Start a scenario'nun 1. adımı,
+kullanıcı istemeden bir plan dosyası yazdırıyor. 455 system prompt'ta bunu düzeltti, tool'un tarifi
+aynı kaldı.
+
+## Suffix system prompt'a iki boş satırla ekleniyor
+
+*(Claude, 10 Ekim — 455'in reviewer'ı.)* `SYSTEM_PROMPT_SUFFIX` bir satır sonuyla başlıyor, ve
+`system_prompt()` araya bir boş satır daha koyuyor: ikisi arasında iki boş satır var, docstring bir
+diyor. Davranış eskisi gibi; yalnız docstring yanlış.
+
 ## Bir frontend testi arada düşüyor
 
 *(Claude, 9 Ekim — Queen Editor v9'un 439'unda görüldü.)* `src/features/workspace/ChatScreen.test.jsx`'in

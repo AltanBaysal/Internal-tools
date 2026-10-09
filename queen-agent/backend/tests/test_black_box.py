@@ -89,6 +89,15 @@ def test_an_answer_that_calls_a_tool_passes_unchecked_with_its_words():
     assert engine.checked == []
 
 
+def test_every_call_of_one_answer_comes_back_in_order():
+    # Madde 455 asks for independent reads in one round, so one answer carries several calls --
+    # whole in one piece, or in pieces of their own. All of them come back, in the order they came.
+    second = {"id": "t2", "function": {"name": "read_file", "arguments": "{}"}}
+    third = {"id": "t3", "function": {"name": "read_file", "arguments": "{}"}}
+    engine = Tries([{"tool_calls": [CALL, second]}, {"tool_calls": [third]}])
+    assert _asked(engine).calls == (CALL, second, third)
+
+
 def test_a_refusal_sends_the_same_request_again():
     engine = Tries([{"text": "I cannot help with that."}], [{"text": "Done."}], checks=["REFUSAL"])
     assert _asked(engine).text == "Done."
