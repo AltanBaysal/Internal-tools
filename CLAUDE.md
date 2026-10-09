@@ -54,9 +54,10 @@ the git.
   file by file.
 - A [reviewer](.claude/agents/reviewer.md) then reads every code change as a senior developer: each
   thing in its own place, no part it does not need, easy to keep up.
-- A [qa](.claude/agents/qa.md) agent checks the items that change the screen or what the tool does,
-  as a tester: against the item and its spec, the four suites, and the screen with Playwright. A
-  change of tests, comments or documents alone goes without it.
+- A [qa](.claude/agents/qa.md) agent then checks the items that change the screen or what the tool
+  does, as a tester: against the item and its spec, the four suites, and the screen with Playwright.
+  It comes once the reviewer's findings are fixed, so it tests the code that is committed. A change
+  of tests, comments or documents alone goes without it.
 - Both report and the coder fixes. The main agent reads their reports and the diff, checks the spec
   against the item, and runs the four suites itself. What falls short goes back to the same coder,
   who still holds the context; what passes, the main agent commits.
