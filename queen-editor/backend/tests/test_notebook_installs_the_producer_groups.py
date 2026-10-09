@@ -163,6 +163,17 @@ def test_the_notebook_starts_comfyui_through_start_comfy():
     assert "start_comfy" in imported, "Defter start_comfy'yi klondan import etmiyor"
 
 
+def test_the_notebook_reads_the_hf_token_itself_before_anything_downloads():
+    """Madde 437: in the helpers cell, the first one after the clone, ahead of every download; CONFIG
+    runs before the clone and cannot import colab/."""
+    imported = [name for module, names in _imports_from_code() if module == "colab.downloads"
+                for name in names]
+
+    assert "use_hf_token(userdata.get)" in _cell("# === Shared helpers ==="), \
+        "Yardımcılar hücresi HF_TOKEN'ı use_hf_token ile okumuyor"
+    assert "use_hf_token" in imported, "Defter use_hf_token'ı klondan import etmiyor"
+
+
 def test_every_producer_has_a_checkbox_of_its_own():
     """Colab draws a `#@param {type:"boolean"}` line as a checkbox: that is how the user picks.
     Default False, so nothing heavy starts by accident. Video's box installs H3, the one video model

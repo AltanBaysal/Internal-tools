@@ -761,6 +761,106 @@ def test_turning_one_file_s_mirror_off_leaves_the_others_on_it(downloads, monkey
     assert commands == [] and asked == [], "Aynası açık dosya için Civitai'ye gidildi"
 
 
+TOKEN = "hf_" + "t" * 34
+
+
+class SecretNotFoundError(Exception):
+    """What Colab's userdata.get raises for a secret the vault does not hold."""
+
+
+def test_the_hf_token_is_read_into_the_environment_and_never_printed(downloads, monkeypatch, capsys):
+    """Madde 437: the notebook reads the token itself, before anything downloads -- trimmed, as the
+    paste carries the newline."""
+    monkeypatch.delenv("HF_TOKEN", raising=False)
+    asked = []
+
+    downloads.use_hf_token(lambda name: asked.append(name) or f"{TOKEN}\n")
+
+    out = capsys.readouterr().out
+    assert asked == ["HF_TOKEN"], f"Kasadan böyle okunmadı: {asked}"
+    assert os.environ.get("HF_TOKEN") == TOKEN, "Token ortama kırpılarak konmadı"
+    assert "HF_TOKEN okundu" in out, f"Konsol token'ın okunduğunu söylemedi:\n{out}"
+    assert TOKEN not in out, "Token konsola basıldı"
+
+
+def test_a_token_that_cannot_be_read_says_what_the_read_raised(downloads, monkeypatch, capsys):
+    """Not silence and not a guessed cause: the read's own error, and what the run does without the
+    token. A token left in the environment by an earlier run in the same kernel goes, so the line
+    saying the run goes without one is true."""
+    monkeypatch.setenv("HF_TOKEN", "hf_old")
+
+    def read(name):
+        raise SecretNotFoundError("Secret HF_TOKEN does not exist.")
+
+    downloads.use_hf_token(read)
+
+    out = capsys.readouterr().out
+    assert "HF_TOKEN okunamadı — SecretNotFoundError: Secret HF_TOKEN does not exist." in out, \
+        f"Konsol okumanın attığı hatayı basmadı:\n{out}"
+    assert "token'sız" in out, f"Konsol token'sız gidileceğini söylemedi:\n{out}"
+    assert "HF_TOKEN" not in os.environ, "Önceki koşunun token'ı ortamda kaldı"
+
+
+@pytest.mark.parametrize("value", ["", "  \n", None])
+def test_an_empty_token_is_said_to_be_empty(downloads, monkeypatch, capsys, value):
+    monkeypatch.setenv("HF_TOKEN", "hf_old")
+
+    downloads.use_hf_token(lambda name: value)
+
+    out = capsys.readouterr().out
+    assert "HF_TOKEN boş" in out and "token'sız" in out, f"Konsol token'ın boş olduğunu söylemedi:\n{out}"
+    assert "HF_TOKEN" not in os.environ, "Boş token'da ortamda token kaldı"
+
+
+def _handed(monkeypatch, owner, name):
+    """The fake `owner.name` -- one _hub or _mirror put in place -- wrapped to remember the token each
+    call was handed, and otherwise left to do what it does."""
+    tokens = []
+    fake = getattr(owner, name)
+
+    def recording(*args, **kwargs):
+        tokens.append(kwargs.get("token", "verilmedi"))
+        return fake(*args, **kwargs)
+
+    monkeypatch.setattr(owner, name, recording)
+    return tokens
+
+
+@pytest.mark.parametrize("env, handed", [(TOKEN, TOKEN), (None, False)])
+def test_a_huggingface_download_hands_its_token_over_outright(downloads, monkeypatch, tmp_path,
+                                                              env, handed):
+    """The token in the environment, or False -- huggingface_hub's word for none -- so it looks for
+    no token of its own (madde 437, _token)."""
+    if env:
+        monkeypatch.setenv("HF_TOKEN", env)
+    else:
+        monkeypatch.delenv("HF_TOKEN", raising=False)
+    _hub(monkeypatch, _safetensors())
+    tokens = _handed(monkeypatch, sys.modules["huggingface_hub"], "hf_hub_download")
+
+    _eros(downloads, tmp_path)
+
+    assert tokens == [handed], f"İndirmeye token böyle verildi: {tokens}"
+
+
+@pytest.mark.parametrize("env, handed", [(TOKEN, TOKEN), (None, False)])
+def test_an_upload_to_the_mirror_hands_its_token_over_outright(downloads, monkeypatch, tmp_path,
+                                                               env, handed):
+    """The upload takes the token the way the download does."""
+    if env:
+        monkeypatch.setenv("HF_TOKEN", env)
+    else:
+        monkeypatch.delenv("HF_TOKEN", raising=False)
+    _mirror(monkeypatch, {})
+    tokens = _handed(monkeypatch, sys.modules["huggingface_hub"].HfApi, "upload_file")
+    commands = _transfer(monkeypatch, downloads, _safetensors())
+    _probe(monkeypatch, downloads, commands)
+
+    downloads.civitai_fetch(MIRROR, 3314686, str(tmp_path), "m.safetensors", "DaSiWa H3", COOKIE)
+
+    assert tokens == [handed], f"Yüklemeye token böyle verildi: {tokens}"
+
+
 def test_mystic_xxx_is_kept_out_of_the_mirror(downloads):
     """Madde 328, the list's first entry: the lora is on trial ("şimdilik hugging face gitmesin, önce
     test edeyim"). What the list does is asked by 327's tests above; this asks that the file is on it,

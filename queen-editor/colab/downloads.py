@@ -3,6 +3,9 @@ from and how fast.
 
 The lists of what to download stay in the notebook, next to the boxes that choose them -- addresses
 live there (FOUNDATION 9). What is here is how a file comes down, which a cell could not test.
+
+The Hugging Face token is here too: the notebook reads it once through use_hf_token, before anything
+downloads, and every download and upload hands it over (madde 437).
 """
 import json
 import os
@@ -161,6 +164,43 @@ def fetch(url, target_dir, filename, label, *, parallel, headers=None, floor=Non
                    time.perf_counter() - start, msg)
 
 
+def use_hf_token(read):
+    """HF_TOKEN read with `read` -- the notebook's userdata.get -- trimmed, and put in the environment,
+    where _token finds it.
+
+    Without a token the run goes on, and a line says so with what the read raised: the public files
+    come down without one, and civitai_fetch already takes a file the mirror refuses from Civitai."""
+    try:
+        token = (read("HF_TOKEN") or "").strip()
+    except Exception as e:
+        _without_token(f"HF_TOKEN okunamadı — {type(e).__name__}: {e}")
+        return
+    if not token:
+        _without_token("HF_TOKEN boş")
+        return
+    os.environ["HF_TOKEN"] = token
+    log("HF_TOKEN okundu — Hugging Face'e token'la gidilecek", "OK")
+
+
+def _without_token(said):
+    """A token an earlier run of this kernel left in the environment goes, so the line saying the run
+    goes without one holds."""
+    os.environ.pop("HF_TOKEN", None)
+    log(f"{said}\nHugging Face'e token'sız gidilecek: açık dosyalar iner ama HF 429 dönebilir; aynadan "
+        "alma ve aynaya yükleme olmaz — Civitai dosyaları çerezle Civitai'den iner. Colab 🔑 "
+        "Secrets'a 'HF_TOKEN' adıyla ekle.", "WARN")
+
+
+def _token():
+    """The token use_hf_token put in the environment, handed to huggingface_hub outright -- or False,
+    its word for going without one (madde 437).
+
+    Handed neither, huggingface_hub looks for a token itself, and in Colab it asks the vault first and
+    keeps the answer for the session. On 9 Ekim that ask came mid-download and timed out, and H3 came
+    down unauthenticated into a 429. A token handed over is used as it is, and nothing is asked."""
+    return os.environ.get("HF_TOKEN") or False
+
+
 # A download from HF sometimes drops halfway -- H3 Eros Max beta5 at 97%, a request to its chunk store
 # failing (madde 432) -- and is tried again: three attempts in all, thirty seconds before each retry.
 ATTEMPTS = 3
@@ -224,7 +264,7 @@ def hf_fetch(repo, path, target_dir, filename, label, *, floor=None):
     start = time.perf_counter()
     for attempt in range(1, ATTEMPTS + 1):
         try:
-            got = hf_hub_download(repo, path, local_dir=STAGE)
+            got = hf_hub_download(repo, path, local_dir=STAGE, token=_token())
             break
         except Exception as e:
             where = f"{label}: HF {repo}/{path}, deneme {attempt}/{ATTEMPTS}"
@@ -254,7 +294,7 @@ def _upload(mirror, path, target, label):
     start = time.perf_counter()
     try:
         HfApi().upload_file(path_or_fileobj=target, path_in_repo=path, repo_id=mirror,
-                            commit_message=f"{label} (Civitai {path})")
+                            commit_message=f"{label} (Civitai {path})", token=_token())
     except Exception as e:
         log(f"{label}: aynaya yüklenemedi — {type(e).__name__}: {e}", "WARN")
         return
