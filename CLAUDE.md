@@ -52,11 +52,14 @@ the git.
   `docs/specs/YYYY-MM-DD-<tool>-m<number>-<topic>-design.md` and `docs/plans/…-plan.md` — and the code,
   test-driven (TDD). A spec says what is built, why, its limits and when it is done; a plan lists the steps
   file by file.
-- A [qa](.claude/agents/qa.md) agent then checks the work against the item and its spec, as a tester:
-  the four suites, and the screen with Playwright when it changed. It reports; the coder fixes.
-- The main agent reads the spec against the item and the diff as a code review, and runs the four
-  suites itself. What falls short, in QA's report or the review, goes back to the same coder, who
-  still holds the context; what passes, the main agent commits.
+- A [reviewer](.claude/agents/reviewer.md) then reads every code change as a senior developer: each
+  thing in its own place, no part it does not need, easy to keep up.
+- A [qa](.claude/agents/qa.md) agent checks the items that change the screen or what the tool does,
+  as a tester: against the item and its spec, the four suites, and the screen with Playwright. A
+  change of tests, comments or documents alone goes without it.
+- Both report and the coder fixes. The main agent reads their reports and the diff, checks the spec
+  against the item, and runs the four suites itself. What falls short goes back to the same coder,
+  who still holds the context; what passes, the main agent commits.
 - A coder can ask the main agent at any time and wait for the answer. The main agent answers from
   what it has — the roadmap, the code, the rules, the conversation — and asks the user whenever it
   cannot answer itself.
