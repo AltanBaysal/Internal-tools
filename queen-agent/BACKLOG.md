@@ -102,6 +102,13 @@ Copy'nin görünüşünü aldı.
 write that file for you.Answer to …"*. `stream_answer.py`'de roundların sözleri `"".join(said)` ile
 birleşiyor.
 
+## 448'in taşıma kodu ve eski proje dosyaları silinecek
+
+*(Kullanıcı, 9 Ekim — "kullandıktan sonra sileceğimiz bir sonraki roadmap'te".)* v10'un 448'i eski
+projeleri her açılışta bir kerelik `projects.json`'a taşıyor ve eski dosyalara — proje başına
+`project.json`, `pinned`, `archived` — dokunmuyor. Kullanıcı taşımanın çalıştığını gördükten sonra bir
+sonraki QueenAgent roadmap'inde taşıma kodu ve bu eski dosyalar kalkar.
+
 ## Bir frontend testi arada düşüyor
 
 *(Claude, 9 Ekim — Queen Editor v9'un 439'unda görüldü.)* `src/features/workspace/ChatScreen.test.jsx`'in
