@@ -16,6 +16,12 @@
   --destructive-hover: #973026;
   --destructive-line: #ebcfc9;
   --destructive-soft: #fdf4f2;
+  /* The one green, for what worked and nothing else: the saved tick, the tokens an answer took from
+     the cache, and a copy that worked -- which wears all three, its pale face the designer's
+     (item 444). The dark one is the green darkened until a word in it reads on the canvas. */
+  --success: #6f8a5f;
+  --success-dark: #536747;
+  --success-soft: #e0ebd6;
   --ink: #22201d;
   --muted: #8b8378;
   --line: #e2dcd2;

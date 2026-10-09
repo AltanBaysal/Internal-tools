@@ -537,9 +537,44 @@ test("the three buttons in the bar are one height", () => {
   expect(grouped(".reader__bar > button,")).toContain("line-height: 20px");
 });
 
-test("Copy is wide enough for Could not copy, and Download is gone", () => {
-  expect(rule(".reader__copy")).toContain("min-width: 116px");
+test("Download is gone", () => {
   expect(CSS).not.toContain(".reader__download");
+});
+
+// --- Item 444 (the design's 219): what all three Copy buttons say after a press -------------------
+
+test("all three Copy buttons are wide enough for Could not copy", () => {
+  // The sidebar's and a failed list's had no floor, so their answer pushed what stood beside them.
+  for (const name of [".reader__copy", ".sidebar__copy", ".empty__copy"]) {
+    const floors = rulesSelecting([name]).filter(
+      ({ selectors, body }) => selectors.includes(name) && body.includes("min-width: 116px"),
+    );
+    expect(floors.length).toBe(1);
+  }
+});
+
+test("a copy that worked turns the whole button green", () => {
+  const yes = rule('.ghost[data-said="yes"]');
+  expect(yes).toContain("background: var(--success-soft)");
+  expect(yes).toContain("border-color: var(--success)");
+  expect(yes).toContain("color: var(--success-dark)");
+  expect(rule('.ghost[data-said="yes"]:hover')).toContain("border-color: var(--success-dark)");
+});
+
+test("a copy that failed keeps the button and turns only its word red", () => {
+  const no = rule('.ghost[data-said="no"]');
+  expect(no).toContain("color: var(--destructive)");
+  expect(no).not.toContain("background");
+  expect(no).not.toContain("border");
+});
+
+test("Copy's answer is one rule for all three places, and none of it the accent", () => {
+  // The answer used to be written once per place, in the accent, and a success read like an error.
+  const bare = CSS.replace(/\/\*[\s\S]*?\*\//g, "");
+  const marks = [...bare.matchAll(/[^{}]*\[data-said[^{]*\{/g)].map(([selector]) => selector.trim());
+  expect(marks.length).toBeGreaterThan(0);
+  for (const selector of marks) expect(selector.startsWith(".ghost[data-said")).toBe(true);
+  expect(CSS).not.toMatch(/data-said[^{]*\{[^}]*var\(--accent\)/);
 });
 
 test("no rule takes the ghost's frame off Refresh or Copy", () => {
@@ -682,11 +717,6 @@ test("Try again and Copy stand side by side, and wrap at the narrowest sidebar",
   const actions = rule(".sidebar__actions");
   expect(actions).toContain("display: flex");
   expect(actions).toContain("flex-wrap: wrap");
-});
-
-test("the sidebar's Copy answers in Copy's own colours", () => {
-  expect(rule('.sidebar__copy[data-said="yes"]')).toContain("color: var(--accent)");
-  expect(rule('.sidebar__copy[data-said="no"]')).toContain("color: var(--destructive)");
 });
 
 test("New chat is the filled accent", () => {
@@ -844,10 +874,14 @@ test("the strip carries no gap of its own", () => {
 });
 
 test("cached is the design's darker green and missed the destructive red", () => {
-  // Madde 354, design items 189 and 192: the app's only green, darkened to read on the canvas, and
-  // the red that marks a cost here rather than a destruction.
-  expect(rule(".msg__stamp-cached")).toContain("color: #536747");
+  // Madde 354, design items 189 and 192: the darker green of the --success family, darkened to read
+  // on the canvas, and the red that marks a cost here rather than a destruction.
+  expect(rule(".msg__stamp-cached")).toContain("color: var(--success-dark)");
   expect(rule(".msg__stamp-missed")).toContain("color: var(--destructive)");
+});
+
+test("the saved tick is the green itself", () => {
+  expect(rule(".file-card__saved")).toContain("color: var(--success)");
 });
 
 // Madde 352: the full chat's notice stands in the box's place in the box's own shape (design item
@@ -1042,11 +1076,6 @@ test("Try again and Copy stand side by side under the sentence", () => {
   expect(actions).toContain("display: flex");
   expect(actions).toContain("gap: 10px");
   expect(actions).toContain("margin-top: 16px");
-});
-
-test("the failure's Copy answers in Copy's own colours", () => {
-  expect(rule('.empty__copy[data-said="yes"]')).toContain("color: var(--accent)");
-  expect(rule('.empty__copy[data-said="no"]')).toContain("color: var(--destructive)");
 });
 
 test("a refused project's words are the server's, in the failure's own voice", () => {

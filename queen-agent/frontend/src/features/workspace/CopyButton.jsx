@@ -4,12 +4,14 @@ import { useEffect, useRef, useState } from "react";
 // before it is next needed.
 const SAID_MS = 2500;
 
-// The app's one Copy (Madde 193, 364): the open file's header and the project list that did not
-// come both hand their text to it, so the two can never answer a press differently. What it copies
-// is the caller's; where it stands and how wide it is, the caller's class.
+// The app's one Copy (Madde 193, 364, 386): the open file's header, the project list that did not
+// come and the sidebar's chat list that did not come all hand their text to it, so the three can
+// never answer a press differently. What it copies is the caller's; where it stands and how wide it
+// is, the caller's class. How its answer looks -- the whole button green, or red words (item 444) --
+// is workspace.css's one .ghost[data-said] rule.
 //
-// Its own component because it has its own state -- what it last said, and the timer that takes
-// that back.
+// Its own component because it has its own state -- what it last said and about which text, and the
+// timer that takes that back.
 //
 // The precedent is queen-editor's RawOutput and PhotoDetail; the two tools share no code, so what
 // travels is the reasoning.
@@ -34,12 +36,18 @@ export default function CopyButton({ text, className }) {
       landing = Promise.reject(absent);
     }
     Promise.resolve(landing)
-      .then(() => setSaid("Copied"))
-      .catch(() => setSaid("Could not copy"))
+      .then(() => setSaid({ word: "Copied", text }))
+      .catch(() => setSaid({ word: "Could not copy", text }))
       .finally(() => {
         fade.current = setTimeout(() => setSaid(null), SAID_MS);
       });
   };
+
+  // The answer is about the text that was pressed for, so it shows only while that text is still the
+  // one here. The open file's header keeps one button as files come and go: the next file, still
+  // being read (nothing to copy, the button dimmed -- and a dimmed Copy never turns green, the
+  // design's 219) or already arrived, was never copied, and Copied over it would be a lie.
+  const answer = said?.text === text ? said.word : null;
 
   return (
     // The answer is the button's own word and colour, written where Copy was: a word appearing
@@ -51,10 +59,10 @@ export default function CopyButton({ text, className }) {
       type="button"
       className={`ghost ${className}`}
       disabled={!text}
-      data-said={said === "Copied" ? "yes" : said ? "no" : undefined}
+      data-said={answer === "Copied" ? "yes" : answer ? "no" : undefined}
       onClick={copy}
     >
-      {said ?? "Copy"}
+      {answer ?? "Copy"}
     </button>
   );
 }

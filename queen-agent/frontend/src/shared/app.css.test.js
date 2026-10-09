@@ -28,6 +28,14 @@ test("the palette carries a destructive family of its own", () => {
   expect(ROOT).toContain("--destructive-soft: #fdf4f2");
 });
 
+test("the palette carries one green, a family as the red is", () => {
+  // Item 444, the design's 219: the saved tick's green, its darkened kind, and the designer's pale
+  // face a copy that worked stands on.
+  expect(ROOT).toContain("--success: #6f8a5f");
+  expect(ROOT).toContain("--success-dark: #536747");
+  expect(ROOT).toContain("--success-soft: #e0ebd6");
+});
+
 test("a filled accent and accent-coloured text darken differently", () => {
   expect(ROOT).toContain("--accent-hover: #9e5232");
   expect(ROOT).toContain("--accent-link-hover: #8f4a2c");

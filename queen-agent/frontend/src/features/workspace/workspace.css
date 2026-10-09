@@ -324,7 +324,8 @@
 }
 
 /* A chat list that could not be read (Madde 386): 364's failure -- one plain sentence, Try again
-   and Copy -- in No chats yet.'s place and size. The design draws none for the sidebar. */
+   and Copy -- in No chats yet.'s place and size. The design draws it too (its 219), 12 rather than
+   10 above the buttons and with Search chats dimmed; neither is taken here yet (BACKLOG.md). */
 .sidebar__failure {
   padding: 10px 12px;
 }
@@ -342,14 +343,6 @@
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 10px;
-}
-
-.sidebar__copy[data-said="yes"] {
-  color: var(--accent);
-}
-
-.sidebar__copy[data-said="no"] {
-  color: var(--destructive);
 }
 
 /* --- chat screen -------------------------------------------------------- */
@@ -1088,7 +1081,7 @@
 .file-card__saved {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: #6f8a5f;
+  color: var(--success);
 }
 
 .file-card__hint {
@@ -1311,12 +1304,12 @@
   color: var(--muted);
 }
 
-/* Madde 354, design items 189 and 192: what an answer sent, split under it. Cached is the app's
-   only green (#6f8a5f, the saved tick) darkened until it reads on the canvas: 5.7:1 there, where
-   the lighter one is 3.5:1. Missed is the destructive red, marking a cost here rather than a
-   destruction -- the design's own exception to red being for destruction alone. */
+/* Madde 354, design items 189 and 192: what an answer sent, split under it. Cached is the darker
+   green of the --success family, the saved tick's green darkened until it reads on the canvas:
+   5.7:1 there, where the lighter one is 3.5:1. Missed is the destructive red, marking a cost here
+   rather than a destruction -- the design's own exception to red being for destruction alone. */
 .msg__stamp-cached {
-  color: #536747;
+  color: var(--success-dark);
 }
 
 .msg__stamp-missed {
@@ -1608,8 +1601,12 @@
   overflow-wrap: anywhere;
 }
 
-/* Wide enough for Could not copy, so the answer takes Copy's place and the head does not move. */
-.reader__copy {
+/* All three Copy buttons -- the reader's, the sidebar's and a failed project list's -- are wide
+   enough for Could not copy, so the answer takes Copy's place and nothing beside it moves (item
+   444, the design's 219). */
+.reader__copy,
+.sidebar__copy,
+.empty__copy {
   min-width: 116px;
 }
 
@@ -1619,14 +1616,6 @@
 .reader__copy:disabled {
   opacity: 0.35;
   cursor: default;
-}
-
-.reader__copy[data-said="yes"] {
-  color: var(--accent);
-}
-
-.reader__copy[data-said="no"] {
-  color: var(--destructive);
 }
 
 .file-list__empty {
@@ -1707,15 +1696,6 @@
   display: flex;
   gap: 10px;
   margin-top: 16px;
-}
-
-/* Copy answers in its own word and colour, as the reader's does. */
-.empty__copy[data-said="yes"] {
-  color: var(--accent);
-}
-
-.empty__copy[data-said="no"] {
-  color: var(--destructive);
 }
 
 /* A project the server would not make: its words under the field that still holds the name, in the
@@ -2176,6 +2156,24 @@
 
 .ghost:hover {
   border-color: #c9bfb2;
+}
+
+/* What Copy says after a press, the same in all three places (item 444, the design's 219). A copy
+   that worked turns the whole button green -- face, edge and word --, kept off the accent, the
+   primary action's: a success in it read like an error. One that failed keeps the button and turns
+   only its word red. */
+.ghost[data-said="yes"] {
+  border-color: var(--success);
+  background: var(--success-soft);
+  color: var(--success-dark);
+}
+
+.ghost[data-said="yes"]:hover {
+  border-color: var(--success-dark);
+}
+
+.ghost[data-said="no"] {
+  color: var(--destructive);
 }
 
 /* --- the three steps ----------------------------------------------------- */
