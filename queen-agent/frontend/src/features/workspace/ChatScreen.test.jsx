@@ -614,6 +614,40 @@ test("once the chat has moved on, the failed answer's card has no Try again", ()
   expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
 });
 
+// The model refused on all five tries (Madde 445): the general message is plain answer text, with
+// no card, no button, and the time alone under it (design items 216 and 221).
+const REFUSED = {
+  ...CHAT,
+  messages: [
+    CHAT.messages[0],
+    {
+      ...CHAT.messages[1],
+      text: "The model returned an error. Try asking another way.",
+      failed: "refused",
+      usage: { sent: 12400, cached: 9100, answered: 842 },
+    },
+  ],
+};
+
+test("a refused answer is plain answer text, with no card and no button", () => {
+  const { container } = render(
+    <ChatScreen project={PROJECT} chat={REFUSED} onAnswerAgain={vi.fn()} />,
+  );
+  const answer = container.querySelector(".msg--ai");
+  expect(answer.classList.contains("msg--failed")).toBe(true);
+  expect(answer.querySelector(".msg__text").textContent).toBe(
+    "The model returned an error. Try asking another way.",
+  );
+  expect(answer.querySelector(".failure")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+});
+
+test("a refused answer's stamp is the time alone", () => {
+  // The record keeps what the finished rounds spent; the design's refusal carries none to draw.
+  const { container } = render(<ChatScreen project={PROJECT} chat={REFUSED} />);
+  expect(container.querySelector(".msg--ai .msg__stamp").textContent).toBe("11:05");
+});
+
 test("a failure states what happened and repeats the server's words", () => {
   render(<ChatScreen project={PROJECT} chat={CHAT} error="POST failed with 500" />);
   expect(screen.getByText("Couldn't get a response.")).toBeTruthy();

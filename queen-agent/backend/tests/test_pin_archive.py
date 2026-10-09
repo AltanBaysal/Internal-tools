@@ -16,6 +16,7 @@ from backend.features.workspace.data.memory_permissions import MemoryPermissions
 from backend.features.workspace.data.memory_stops import MemoryStops
 from backend.features.workspace.domain.errors import ProjectNotFound
 from backend.features.workspace.domain.project import Project
+from backend.features.workspace.domain.prompt import APPROVED
 from backend.features.workspace.domain.usecases.edit_project import edit_project
 from backend.features.workspace.domain.usecases.list_projects import list_projects
 from backend.features.workspace.presentation.routes import make_workspace_bp
@@ -212,6 +213,9 @@ def test_the_archived_are_listed_by_last_use_alone():
 class FakeEngine:
     def stream(self, messages, tools=None, on_open=None):
         yield {"text": "Done."}
+
+    def stream_alone(self, system, text, on_open=None):
+        yield {"text": APPROVED}
 
 
 def _client(tmp_path):

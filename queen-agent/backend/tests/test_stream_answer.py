@@ -6,8 +6,10 @@ import pytest
 from backend.features.workspace.data.file_chat_store import FileChatStore
 from backend.features.workspace.data.file_file_store import FileFileStore
 from backend.features.workspace.data.file_project_store import FileProjectStore
+from backend.features.workspace.domain.black_box import REFUSED_SAID
 from backend.features.workspace.domain.chat import Chat, ToolCall, Usage
 from backend.features.workspace.domain.errors import ChatNotFound, EmptyMessage, EngineFailed
+from backend.features.workspace.domain.prompt import APPROVED
 from backend.features.workspace.domain.skills import instruction_for
 from backend.features.workspace.domain.tools import MAX_ROUNDS, FileStarted, FileWritten
 from backend.features.workspace.domain.usecases.append_message import append_message
@@ -204,11 +206,16 @@ class PressedLater:
 
 
 class ScriptedEngine:
-    """Each round is a list of pieces the engine hands back."""
+    """Each round is a list of pieces the engine hands back.
 
-    def __init__(self, rounds, blow_up_after=None):
+    A worded answer is checked (Madde 445): `checks` are the check's words in order, and past them
+    it approves, so a test about rounds never has to mention it.
+    """
+
+    def __init__(self, rounds, blow_up_after=None, checks=()):
         self.rounds = list(rounds)
         self.blow_up_after = blow_up_after
+        self.checks = list(checks)
         self.seen = []
         self.handed = []
         # Which tools each round was offered. Since Madde 91 that is the mode's whole consequence.
@@ -232,6 +239,9 @@ class ScriptedEngine:
                 # says who did it, which is the whole difficulty this item deals with.
                 raise RuntimeError(BROKEN)
             yield piece
+
+    def stream_alone(self, system, text, on_open=None):
+        yield {"text": self.checks.pop(0) if self.checks else APPROVED}
 
     def _cut(self):
         self.handed.append("cut")
@@ -1003,6 +1013,30 @@ def test_a_failed_answer_keeps_the_steps_and_files_but_not_the_words_before_it(t
 def test_a_failed_answer_is_not_sent_to_the_model_on_the_next_turn(tmp_path):
     chats, files = _seeded(tmp_path)
     append_message(chats, "p1", "c1", "HTTP 502", NOW, role="ai", failed="technical")
+    append_message(chats, "p1", "c1", "and now?", NOW)
+    engine = ScriptedEngine([[{"text": "Here."}]])
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    said = [message["content"] for message in engine.seen[0] if message["role"] in ("user", "ai")]
+    assert said == ["hi", "and now?"]
+
+
+# --- the check (Madde 445) -----------------------------------------------------------------------
+
+
+def test_five_refusals_end_the_turn_in_the_refusal_message(tmp_path):
+    # The refusal's own words never reach the record: the general message stands as the answer,
+    # the steps the turn took stay, and nothing more is asked.
+    rounds = [[{"tool_calls": [a_call()]}], *[[{"text": "I cannot help."}]] * 6]
+    chats, _, engine, _ = _run(tmp_path, rounds, checks=["REFUSAL"] * 6)
+    kept = chats.get("p1", "c1").messages[-1]
+    assert (kept.text, kept.failed) == (REFUSED_SAID, "refused")
+    assert kept.calls == (A_STEP,)
+    assert len(engine.seen) == 6
+
+
+def test_a_refused_answer_is_not_sent_to_the_model_on_the_next_turn(tmp_path):
+    chats, files = _seeded(tmp_path)
+    append_message(chats, "p1", "c1", REFUSED_SAID, NOW, role="ai", failed="refused")
     append_message(chats, "p1", "c1", "and now?", NOW)
     engine = ScriptedEngine([[{"text": "Here."}]])
     list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))

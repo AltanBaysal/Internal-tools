@@ -7,7 +7,9 @@ from backend.features.workspace.data.file_file_store import FileFileStore
 from backend.features.workspace.data.file_project_store import FileProjectStore
 from backend.features.workspace.data.memory_permissions import MemoryPermissions
 from backend.features.workspace.data.memory_stops import MemoryStops
+from backend.features.workspace.domain.black_box import REFUSED_SAID
 from backend.features.workspace.domain.chat import Chat, Message
+from backend.features.workspace.domain.prompt import APPROVED
 from backend.features.workspace.domain.skills import instruction_for
 from backend.features.workspace.presentation.routes import make_workspace_bp
 from backend.services.store.store import Store
@@ -17,9 +19,11 @@ from backend.web.app import create_app
 class FakeEngine:
     """No network in a test: the answer is whatever this says it is."""
 
-    def __init__(self, answer="Done.", blow_up=None):
+    def __init__(self, answer="Done.", blow_up=None, check=APPROVED):
         self.answer = answer
         self.blow_up = blow_up
+        # What the black box's check says of every answer (Madde 445).
+        self.check = check
         self.seen = None
 
     def complete(self, messages, tools=None):
@@ -34,6 +38,9 @@ class FakeEngine:
             raise RuntimeError(self.blow_up)
         self.seen = [dict(message) for message in messages]
         yield {"text": self.answer}
+
+    def stream_alone(self, system, text, on_open=None):
+        yield {"text": self.check}
 
 
 class ScriptedEngine:
@@ -55,6 +62,9 @@ class ScriptedEngine:
         for piece in pieces:
             yield piece
 
+    def stream_alone(self, system, text, on_open=None):
+        yield {"text": APPROVED}
+
 
 class FailsThenAnswers:
     """An engine whose first `times` tries fail with these words, and whose next one answers.
@@ -73,6 +83,9 @@ class FailsThenAnswers:
             self.left -= 1
             raise RuntimeError(self.words)
         yield {"text": self.answer}
+
+    def stream_alone(self, system, text, on_open=None):
+        yield {"text": APPROVED}
 
 
 def _tool_call(tool, **arguments):
@@ -424,6 +437,22 @@ def test_an_engine_that_keeps_failing_ends_the_turn_in_a_failed_answer(tmp_path)
         ("hello", ""),
         ("401 bad key", "technical"),
     ]
+
+
+def test_an_answer_refused_five_times_ends_the_turn_in_the_refusal_message(tmp_path):
+    # Madde 445: the refusal's own words never reach the record. The general message stands as the
+    # answer, written like any answer so it stays on a reload, and the stream ends as any turn does.
+    client = _client(tmp_path, engine=FakeEngine(answer="I cannot help.", check="REFUSAL"))
+    pid, cid, body = _first_turn(client, "x" * 100)
+    assert _frames(body)[-1] == "done"
+    assert "event: error" not in body
+    record = _record(client, pid, cid)
+    assert [(m["text"], m["failed"]) for m in record["messages"]] == [
+        ("x" * 100, ""),
+        (REFUSED_SAID, "refused"),
+    ]
+    # It weighs nothing: the chat is as full as its question alone makes it.
+    assert record["context"]["sent"] == 100 * 3 // 10
 
 
 def test_every_message_says_whether_it_failed(tmp_path):

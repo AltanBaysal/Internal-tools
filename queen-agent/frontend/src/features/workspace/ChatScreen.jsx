@@ -172,7 +172,11 @@ export default function ChatScreen({
               <>
                 {chat.messages.map((message, index) => {
                   // The model failed technically on all five tries (Madde 440): the answer is the
-                  // failure card, the failure's own words under it.
+                  // failure card, the failure's own words under it. Refused on all five (Madde
+                  // 445), it is plain answer text -- the refusal message -- and only the card is
+                  // this kind's. Both carry msg--failed because the design marks every failed
+                  // answer with it; what the class styles is the card, so on a refusal it draws
+                  // nothing.
                   const technical = message.failed === "technical";
                   return (
                     <Fragment key={`${message.at}-${index}`}>
@@ -188,7 +192,7 @@ export default function ChatScreen({
                             ? "msg msg--user"
                             : /* The answer the turn just ended on fades its words in, once
                                  (design item 214). */
-                              `msg msg--ai${technical ? " msg--failed" : ""}${
+                              `msg msg--ai${message.failed ? " msg--failed" : ""}${
                                 index === arrived ? " msg--arrived" : ""
                               }`
                         }
@@ -258,14 +262,18 @@ export default function ChatScreen({
                             answer does, and a number under the question would read as its price.
                             The server sends the user's own message a usage of zeros, so this
                             would hold without the check -- but a rule that leans on someone else's
-                            zeros breaks the day they change. A stopped turn has no finished answer
-                            for the counts to describe, so its stamp is the time alone (design item
-                            215), and the failure card has no time of its own, so it has no
-                            stamp. */}
+                            zeros breaks the day they change. A stopped turn and a refused one have
+                            no finished answer for the counts to describe, so their stamp is the
+                            time alone (design items 215 and 221), and the failure card has no time
+                            of its own, so it has no stamp. */}
                         {technical ? null : (
                           <Stamp
                             at={message.at}
-                            usage={message.role === "ai" && !message.stopped ? message.usage : null}
+                            usage={
+                              message.role === "ai" && !message.stopped && !message.failed
+                                ? message.usage
+                                : null
+                            }
                           >
                             {/* The pencil is handed over only where there is something to correct:
                                 a question, and not one already open for correction -- a second

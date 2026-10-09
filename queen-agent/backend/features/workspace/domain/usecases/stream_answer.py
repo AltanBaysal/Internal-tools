@@ -382,8 +382,8 @@ def stream_answer(
     # of it was checked -- but it is still written, empty: a press that leaves no trace reads as a
     # press that did nothing, and the chat's last word would otherwise still be the user's, which
     # means owed an answer, which means asked for again on the next reload. A failed turn's words
-    # are the failure's own, so the card can say them. The steps and the files stay either way:
-    # they happened.
+    # are the black box's: a technical failure's own, so the card can say them, or the refusal
+    # message (Madde 445). The steps and the files stay either way: they happened.
     if failure:
         text = failure.text
     elif cut_short:

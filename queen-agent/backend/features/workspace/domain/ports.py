@@ -45,7 +45,7 @@ class ChatStore(Protocol):
 
 
 class Engine(Protocol):
-    """Something that answers a conversation.
+    """Something that answers a conversation, or one text on its own.
 
     Which model it answers with is settled when it is built, not asked per turn (Madde 358): there
     is one, config.py names it, and nothing on the screen does.
@@ -72,6 +72,16 @@ class Engine(Protocol):
         each figure is the total for this one call rather than the share since the last, so the
         newest replaces the one before it. An engine that never mentions spending never yields
         this, and every fake in the tests is such an engine.
+        """
+
+    def stream_alone(self, system: str, text: str, on_open=None):
+        """One instruction and one text in a request of their own, answered like `stream`.
+
+        No conversation, no tools, and none of QueenAgent's system prompt: `system` is the whole of
+        what the model is told and `text` the whole of what it reads. The black box's check asks
+        this (Madde 445) -- QueenAgent's page is about tools, files and chats, in front of a model
+        whose whole job is one word. A stream rather than one piece so that a stop cuts it like any
+        other request: `on_open` is the same as `stream`'s.
         """
 
 

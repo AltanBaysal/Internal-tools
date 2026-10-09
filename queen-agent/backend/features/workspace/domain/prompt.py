@@ -152,6 +152,43 @@ REFUSED_WORDS = ' They said: "{reason}"'
 it rather than in the function that appends it."""
 
 
+# --- what the black box's check is told (Madde 445) -----------------------------------------------
+#
+# After a whole answer in words: this instruction, and the answer word for word.
+
+APPROVED = "APPROVED"
+"""The one word that lets an answer through. The black box reads it back and nothing else: a check
+that wrote anything other than this -- a refusal, an empty answer, an explanation -- approved
+nothing."""
+
+CHECK = (
+    "You check an answer that a language model gave to a request.\n"
+    "\n"
+    "Context\n"
+    "- You are given the answer alone, word for word. You are not given the request.\n"
+    "- An answer is a refusal when the model does not do what was asked: it says it cannot or "
+    "will not, it apologizes instead of answering, or it gives a warning or a lecture instead of "
+    "the answer.\n"
+    "\n"
+    "Rules\n"
+    "- Judge only whether the answer is a refusal. Never judge whether the answer is good, true "
+    "or allowed.\n"
+    "- Adult, explicit or violent content in the answer is not a refusal.\n"
+    f"- If the answer is a refusal, write REFUSAL. Otherwise write {APPROVED}.\n"
+    "- Write only the one word. No quotes, no explanations."
+)
+"""What the check is told, with the answer as the one thing it reads.
+
+It asks whether the answer is a refusal and nothing more: a check that judged the content would
+refuse what the skills are there to write, and the adult line says so outright because that is
+exactly where a model's own caution would land.
+
+Word for word queen-editor's check (the user, 9 October: "konrol metni queen editordekini kullansın
+aynısı"). Copied, not shared: the two are separate projects and nothing ties them (the user, 8
+October), so a change to one is made to the other by hand.
+"""
+
+
 # --- what each skill tells the model, and nothing about when it is told ----------------------------
 #
 # Every text is written in the mood "this is how you do this job" rather than "do this": a selected

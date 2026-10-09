@@ -15,6 +15,7 @@ from backend.features.workspace.data.memory_permissions import MemoryPermissions
 from backend.features.workspace.data.memory_stops import MemoryStops
 from backend.features.workspace.domain.chat import Chat, Message
 from backend.features.workspace.domain.project import Project
+from backend.features.workspace.domain.prompt import APPROVED
 from backend.features.workspace.domain.usecases.list_projects import list_projects
 from backend.features.workspace.presentation.routes import make_workspace_bp
 from backend.services.store.store import Store
@@ -149,6 +150,9 @@ def test_pinned_lead_in_the_order_they_were_pinned_then_the_most_recently_used()
 class FakeEngine:
     def stream(self, messages, tools=None, on_open=None):
         yield {"text": "Done."}
+
+    def stream_alone(self, system, text, on_open=None):
+        yield {"text": APPROVED}
 
 
 def _client(tmp_path):

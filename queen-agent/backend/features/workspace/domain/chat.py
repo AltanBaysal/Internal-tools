@@ -78,10 +78,11 @@ class Message:
     # holds several lines: a version opened after this message carries it in front of it and stays
     # trimmed, and one cut before it never filled and carries nothing. Zero is untrimmed.
     trimmed: int = 0
-    # An answer the black box could not get in five tries (Madde 440): its text is then the
-    # failure's own words, kept so the card stays on a reload. The kind -- "technical" today, and
-    # the refusal Madde 445 adds -- or empty on every real message. It is not the model's answer,
-    # so it is not sent and weighs nothing (sent_messages, _size).
+    # An answer the black box could not get in five tries (Madde 440, Madde 445): the kind its last
+    # try failed with -- "technical" or "refused" -- or empty on every real message. Its text is
+    # then what the chat says of it, kept so it stays on a reload: a technical failure's own words
+    # for the card, or the refusal message. It is not the model's answer, so it is not sent and
+    # weighs nothing (sent_messages, _size).
     failed: str = ""
 
 

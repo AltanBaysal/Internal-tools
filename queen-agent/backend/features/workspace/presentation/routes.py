@@ -394,8 +394,8 @@ def _chat_json(chat):
                     for call in message.calls
                 ],
                 "stopped": message.stopped,
-                # "" or the kind of failure (Madde 440). Always present, like `stopped`; the text
-                # is then the failure's own words, which the card shows.
+                # "" or the kind of failure, "technical" or "refused" (Madde 440, Madde 445).
+                # Always present, like `stopped`; the text is then what the chat says of it.
                 "failed": message.failed,
                 # The breakdown travels whole: the screen draws `sent` and `cached` under an
                 # answer, and `answered` stays for the context work to read.

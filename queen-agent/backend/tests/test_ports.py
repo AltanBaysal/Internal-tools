@@ -7,13 +7,14 @@ from backend.features.workspace.domain.ports import Engine
 from backend.services.model.client import ModelClient
 
 
-def test_the_engine_port_asks_for_what_its_adapter_takes():
+@pytest.mark.parametrize("road", ["stream", "stream_alone"])
+def test_the_engine_port_asks_for_what_its_adapter_takes(road):
     # A Protocol has no body, so nothing running catches it drifting from the thing that answers it.
     # Its signature can still be read, and that is the measure: what the port promises the domain
     # against what the adapter actually takes. Measured on the real adapter rather than on a fake --
     # the fakes are written to whatever the caller passes, so they would agree with either side.
-    promised = list(inspect.signature(Engine.stream).parameters)
-    given = list(inspect.signature(ModelEngine.stream).parameters)
+    promised = list(inspect.signature(getattr(Engine, road)).parameters)
+    given = list(inspect.signature(getattr(ModelEngine, road)).parameters)
     assert promised == given
 
 

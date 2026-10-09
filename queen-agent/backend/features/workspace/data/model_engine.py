@@ -25,6 +25,13 @@ class ModelEngine:
             on_open=on_open,
         )
 
+    def stream_alone(self, system, text, on_open=None):
+        # Past _for_model on purpose: see the port (Engine.stream_alone).
+        return self._clients[self._default].stream(
+            [{"role": "system", "content": system}, {"role": "user", "content": text}],
+            on_open=on_open,
+        )
+
     @staticmethod
     def _for_model(messages):
         # Asked when the request is built rather than read at import (Madde 196): the second part of

@@ -27,6 +27,7 @@ class FakeClient:
 
     def stream(self, messages, tools=None, on_open=None):
         self.seen = messages
+        self.tools = tools
         self.on_open = on_open
         return iter(["hi"])
 
@@ -65,6 +66,32 @@ def test_the_way_to_cut_the_answer_travels_down_to_the_client():
         pass
 
     list(_engine(client).stream(CONVERSATION, on_open=handed))
+    assert client.on_open is handed
+
+
+# --- a request of its own, outside the conversation (Madde 445) ----------------------------------
+
+
+def test_a_request_alone_carries_its_instruction_and_its_text_and_nothing_else():
+    # The black box's check: the answer is shown to the model with none of QueenAgent's page in
+    # front of it -- that page is about tools, files and chats, and the check's job is one word.
+    client = FakeClient()
+    list(_engine(client).stream_alone("the instruction", "the answer"))
+    assert client.seen == [
+        {"role": "system", "content": "the instruction"},
+        {"role": "user", "content": "the answer"},
+    ]
+    assert not client.tools
+
+
+def test_a_request_alone_can_be_cut_like_any_other():
+    # A stop has to reach the check too, and only the client holds its socket.
+    client = FakeClient()
+
+    def handed(cut):
+        pass
+
+    list(_engine(client).stream_alone("the instruction", "the answer", on_open=handed))
     assert client.on_open is handed
 
 
