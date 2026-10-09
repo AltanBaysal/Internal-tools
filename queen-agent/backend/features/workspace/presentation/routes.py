@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, Response, jsonify, request
 
+from backend.features.workspace.domain.black_box import NOTHING
 from backend.features.workspace.domain.errors import (
     ChatNotFound,
     ChatNotFull,
@@ -31,6 +32,7 @@ from backend.features.workspace.domain.usecases.append_message import append_mes
 from backend.features.workspace.domain.usecases.create_project import create_project
 from backend.features.workspace.domain.usecases.delete_file import delete_file
 from backend.features.workspace.domain.usecases.delete_project import delete_project
+from backend.features.workspace.domain.usecases.drop_failed_answer import drop_failed_answer
 from backend.features.workspace.domain.usecases.edit_project import edit_project
 from backend.features.workspace.domain.usecases.list_chats import list_chats
 from backend.features.workspace.domain.usecases.list_files import list_files
@@ -151,6 +153,9 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, stops, perm
             chat = existing
             if chat is None:
                 return jsonify({"error": "there is nothing here to answer"}), 400
+            # Try again on a failed answer's card (Madde 440): the answer goes and its question is
+            # owed again. After the ceiling, so a full chat refuses before anything is taken out.
+            chat = drop_failed_answer(chat_store, project_id, chat)
             if not is_owed_an_answer(chat):
                 return jsonify({"error": "this chat has already been answered"}), 400
         # Every refusal is settled by here, which is why they can still be status codes: nothing
@@ -273,10 +278,10 @@ def _sse(chat_id, pieces):
     # no condition here, and the browser acts only if it differs from what it holds.
     yield _frame("chat", {"chat": chat_id})
     try:
+        # No words among them since Madde 440: the answer comes back whole and the screen reads it
+        # off the record once the turn is over.
         for piece in pieces:
-            if isinstance(piece, str):
-                yield _frame("chunk", {"text": piece})
-            elif isinstance(piece, FileStarted):
+            if isinstance(piece, FileStarted):
                 yield _frame("file-start", {})
             elif isinstance(piece, FileWritten):
                 yield _frame("file", {"name": piece.name})
@@ -307,10 +312,12 @@ def _sse(chat_id, pieces):
         # only travel inside the stream.
         yield _frame("error", {"error": str(failure)})
     except EmptyMessage:
-        # Neither a word nor a file, so there is no answer to keep. It travels as an event for the
-        # same reason: escaping here would break the connection, and a broken connection is read
-        # by the browser as a network fault, which is not what happened.
-        yield _frame("error", {"error": "The model returned nothing."})
+        # Neither a word nor a file, so there is no answer to keep -- rare since the black box
+        # tries an empty answer again (Madde 440); what is left is a plan-mode turn that ends on a
+        # create_file which wrote nothing ("Already there"), with no words. It travels as an event
+        # for the same reason: escaping here would break the connection, and a broken connection is
+        # read by the browser as a network fault, which is not what happened.
+        yield _frame("error", {"error": NOTHING})
 
 
 def _frame(event, data):
@@ -387,6 +394,9 @@ def _chat_json(chat):
                     for call in message.calls
                 ],
                 "stopped": message.stopped,
+                # "" or the kind of failure (Madde 440). Always present, like `stopped`; the text
+                # is then the failure's own words, which the card shows.
+                "failed": message.failed,
                 # The breakdown travels whole: the screen draws `sent` and `cached` under an
                 # answer, and `answered` stays for the context work to read.
                 "usage": {

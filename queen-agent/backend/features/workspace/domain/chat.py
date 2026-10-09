@@ -1,5 +1,5 @@
 """Chat and Message -- what was said in one conversation."""
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 TITLE_LIMIT = 42
 
@@ -65,8 +65,9 @@ class Message:
     # read again later, and a step that only existed while the answer streamed leaves that reader
     # exactly as blind as before.
     calls: tuple = ()
-    # Whether the user cut this answer short. Half a sentence with no mark cannot be told from a
-    # model that finished on one, and the chat is read again later by someone who was not there.
+    # Whether the user stopped this turn. Since Madde 440 a stopped turn keeps no words, only its
+    # steps and files, so this mark is what says the turn ended there -- to a reader who was not.
+    # Answers stopped before then still carry the half they had said.
     stopped: bool = False
     # What this answer cost. On the message rather than summed on the chat, because the question it
     # answers is which turn was expensive -- and a chat's total can be added up from these, while a
@@ -77,6 +78,11 @@ class Message:
     # holds several lines: a version opened after this message carries it in front of it and stays
     # trimmed, and one cut before it never filled and carries nothing. Zero is untrimmed.
     trimmed: int = 0
+    # An answer the black box could not get in five tries (Madde 440): its text is then the
+    # failure's own words, kept so the card stays on a reload. The kind -- "technical" today, and
+    # the refusal Madde 445 adds -- or empty on every real message. It is not the model's answer,
+    # so it is not sent and weighs nothing (sent_messages, _size).
+    failed: str = ""
 
 
 @dataclass(frozen=True)
@@ -143,6 +149,25 @@ def _line(chat, name):
     # A name nobody wrote. A chat on disk can be edited by hand -- the store reads it field by field
     # for the same reason -- and the first line is the one that always exists.
     return chat.messages
+
+
+def with_open_line(chat, change):
+    """The chat with the open line's own messages replaced by change(own).
+
+    Its own, not the past it grew out of: that past is the line before it too, and a change made
+    there would reach a line nobody is standing on. The first line when none is open.
+    """
+    if not chat.active:
+        return replace(chat, messages=change(chat.messages))
+    return replace(
+        chat,
+        versions=tuple(
+            replace(version, messages=change(version.messages))
+            if version.id == chat.active
+            else version
+            for version in chat.versions
+        ),
+    )
 
 
 def variants_of(chat):
@@ -222,8 +247,11 @@ def chat_size(chat):
 def _size(messages):
     """An estimate rather than a count: the app ships no tokenizer -- Flask is its one dependency --
     and DeepSeek's own rough measure is that an English character is about 0.3 of a token. Whole
-    numbers, so the ceiling's edge is not moved a character by rounding."""
-    characters = sum(len(message.text) for message in messages)
+    numbers, so the ceiling's edge is not moved a character by rounding.
+
+    A failed answer weighs nothing (Madde 440): the gauge, the ceiling and the trim read the real
+    answers, so a failure never changes how full a chat is."""
+    characters = sum(len(message.text) for message in messages if not message.failed)
     return characters * 3 // 10
 
 
@@ -247,9 +275,13 @@ def sent_from(chat):
 def sent_messages(chat):
     """What the chat sends the model of itself: the open line from its trim on.
 
-    The messages before the trim stay in the record and on screen; they only stop being sent.
+    The messages before the trim stay in the record and on screen; they only stop being sent. A
+    failed answer is never sent (Madde 440): its words are the failure's, not an answer the model
+    gave, and the user decided nothing of it goes back to the model.
     """
-    return active_messages(chat)[sent_from(chat) :]
+    return tuple(
+        message for message in active_messages(chat)[sent_from(chat) :] if not message.failed
+    )
 
 
 def trim_point(chat):

@@ -112,6 +112,20 @@ def test_an_empty_message_is_refused_and_the_chat_is_untouched(tmp_path, blank):
     assert len(chats.get("p1", "c1").messages) == 1
 
 
+def test_an_answer_that_wrote_a_file_may_carry_no_words(tmp_path):
+    # Madde 440, the user's 9 October rule: a turn that changed a file it did not make and then said
+    # nothing is finished, and what it did is its steps. Nothing about the write is stored on the
+    # message -- the steps already say it.
+    from backend.features.workspace.domain.chat import ToolCall
+
+    _, chats = _seeded(tmp_path)
+    step = ToolCall("edit_file", "plan.md", "Edited")
+    chat = append_message(
+        chats, "p1", "c1", "", "2026-08-09T11:06:00.000+00:00", role="ai", calls=(step,), wrote=True
+    )
+    assert (chat.messages[-1].text, chat.messages[-1].calls) == ("", (step,))
+
+
 def test_a_stopped_answer_may_carry_nothing(tmp_path):
     # A message has to carry something, and a stop is something: it happened, and what happened gets
     # written down. The user's own message never carries this flag, so the empty one they type is

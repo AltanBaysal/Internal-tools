@@ -364,3 +364,30 @@ def test_a_message_that_trimmed_nothing_writes_no_field_and_reads_zero(tmp_path)
     FileChatStore(raw).add("p1", _chat())
     assert "trimmed" not in raw.read_text("p1/chats/c1.json")
     assert FileChatStore(raw).get("p1", "c1").messages[0].trimmed == 0
+
+
+# --- the failed answer (Madde 440) ---------------------------------------------------------------
+
+
+def _failed():
+    return replace(
+        _chat(),
+        messages=(
+            Message(role="ai", at="2026-08-09T11:05:00+00:00", text="HTTP 502", failed="technical"),
+        ),
+    )
+
+
+def test_a_failed_answer_survives_a_round_trip(tmp_path):
+    # On disk so the card stays on a reload and when the chat is opened again.
+    raw = Store(str(tmp_path))
+    FileChatStore(raw).add("p1", _failed())
+    assert FileChatStore(Store(str(tmp_path))).get("p1", "c1") == _failed()
+    assert json.loads(raw.read_text("p1/chats/c1.json"))["messages"][0]["failed"] == "technical"
+
+
+def test_a_real_answer_writes_no_failed_field_and_reads_empty(tmp_path):
+    raw = Store(str(tmp_path))
+    FileChatStore(raw).add("p1", _chat())
+    assert "failed" not in raw.read_text("p1/chats/c1.json")
+    assert FileChatStore(raw).get("p1", "c1").messages[0].failed == ""

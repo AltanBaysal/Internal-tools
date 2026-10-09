@@ -3,6 +3,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import Composer from "./Composer.jsx";
 import ContextGauge from "./ContextGauge.jsx";
 import EditMessage from "./EditMessage.jsx";
+import FailureCard from "./FailureCard.jsx";
 import FileCard, { CreatingFile } from "./FileCard.jsx";
 import FileRail from "./FileRail.jsx";
 import FullNotice from "./FullNotice.jsx";
@@ -41,7 +42,7 @@ export default function ChatScreen({
   refused,
   missing,
   thinking,
-  streamingText,
+  arrived = null,
   creatingFile,
   createdFiles = [],
   progress,
@@ -61,6 +62,7 @@ export default function ChatScreen({
   onSkillChange,
   onStop,
   onRetry,
+  onAnswerAgain,
   onVersion,
   onNewChat,
   onContinue,
@@ -108,12 +110,21 @@ export default function ChatScreen({
   // A message the user just sent is theirs to see, so the list always jumps.
   useEffect(toBottom, [chat?.messages.length]);
 
-  // Whatever else lands at the foot -- the answer as it arrives, and the cards under it (Madde 380)
-  // -- follows the reader rather than the other way round. The files' count rather than the list:
-  // an absent list is a fresh [] on every render.
+  // Whatever else lands at the foot follows the reader rather than the other way round: the wait as
+  // its steps and its line grow -- no words pull the list down since Madde 440 -- and the cards a
+  // running turn puts there (Madde 380). Counts rather than lists: an absent list is a fresh [] on
+  // every render.
   useEffect(() => {
     if (following.current) toBottom();
-  }, [streamingText, createdFiles.length, permission, refused, error]);
+  }, [
+    streamingCalls.length,
+    progress,
+    creatingFile,
+    createdFiles.length,
+    permission,
+    refused,
+    error,
+  ]);
 
   // A chat the server says is not there: the way back, over the line saying so. A chat still being
   // read draws its own frame below instead (design item 194).
@@ -159,113 +170,129 @@ export default function ChatScreen({
                 running into this chat: there is no transcript yet to draw it on. */}
             {chat ? (
               <>
-                {chat.messages.map((message, index) => (
-                  <Fragment key={`${message.at}-${index}`}>
-                    {/* Before the first message still sent. Zero is a chat nobody trimmed, and a
-                        record from before Madde 345 carries no number, which equals no index. */}
-                    {index > 0 && index === chat.trimmed ? (
-                      <p className="trimmed">{TRIMMED_LINE}</p>
-                    ) : null}
-                    <div
-                      className={
-                        message.role === "user"
-                          ? "msg msg--user"
-                          : /* An answer the user cut short says so: half a sentence with no mark
-                               reads as a model that finished on one. */
-                            `msg msg--ai${message.stopped ? " msg--stopped" : ""}`
-                      }
-                    >
-                      {/* Only an answer has steps; a question is what was typed and nothing else. */}
-                      {message.role === "ai" ? <ToolCalls calls={message.calls} /> : null}
-                      {/* What the user typed stays what they typed -- `**test**` keeps its
-                          asterisks. Correcting it happens here rather than in the composer (Madde
-                          197): the sentence is on the message, so the field that changes it is
-                          too. Only a question can be gone back to -- an answer is a whole turn with
-                          its own calls, and stepping into the middle of one would mean nothing on
-                          disk. */}
-                      {message.role === "user" ? (
-                        editing?.index === index ? (
-                          <EditMessage
-                            text={editing.text}
-                            onConfirm={(text) => {
-                              setEditing(null);
-                              onSend?.(text, index);
-                            }}
-                            onCancel={() => setEditing(null)}
+                {chat.messages.map((message, index) => {
+                  // The model failed technically on all five tries (Madde 440): the answer is the
+                  // failure card, the failure's own words under it.
+                  const technical = message.failed === "technical";
+                  return (
+                    <Fragment key={`${message.at}-${index}`}>
+                      {/* Before the first message still sent. Zero is a chat nobody trimmed, and
+                          a record from before Madde 345 carries no number, which equals no
+                          index. */}
+                      {index > 0 && index === chat.trimmed ? (
+                        <p className="trimmed">{TRIMMED_LINE}</p>
+                      ) : null}
+                      <div
+                        className={
+                          message.role === "user"
+                            ? "msg msg--user"
+                            : /* The answer the turn just ended on fades its words in, once
+                                 (design item 214). */
+                              `msg msg--ai${technical ? " msg--failed" : ""}${
+                                index === arrived ? " msg--arrived" : ""
+                              }`
+                        }
+                      >
+                        {/* Only an answer has steps; a question is what was typed and nothing
+                            else. */}
+                        {message.role === "ai" ? <ToolCalls calls={message.calls} /> : null}
+                        {/* What the user typed stays what they typed -- `**test**` keeps its
+                            asterisks. Correcting it happens here rather than in the composer
+                            (Madde 197): the sentence is on the message, so the field that changes
+                            it is too. Only a question can be gone back to -- an answer is a whole
+                            turn with its own calls, and stepping into the middle of one would mean
+                            nothing on disk. */}
+                        {message.role === "user" ? (
+                          editing?.index === index ? (
+                            <EditMessage
+                              text={editing.text}
+                              onConfirm={(text) => {
+                                setEditing(null);
+                                onSend?.(text, index);
+                              }}
+                              onCancel={() => setEditing(null)}
+                            />
+                          ) : (
+                            <div className="msg__bubble">{message.text}</div>
+                          )
+                        ) : technical ? (
+                          /* Try again only while it is the open line's last message and no turn
+                             runs: a chat that has moved on keeps the card as a record, and a second
+                             press before the record is read again would start a second turn. It
+                             answers the question again and never sends the composer. */
+                          <FailureCard
+                            words={message.text}
+                            onRetry={
+                              index === chat.messages.length - 1 && !thinking ? onAnswerAgain : null
+                            }
                           />
-                        ) : (
-                          <div className="msg__bubble">{message.text}</div>
-                        )
-                      ) : /* Only when there is something to draw: an answer stopped before its
-                             first word would otherwise put the rule down the side of nothing. */
-                      message.text ? (
-                        <div className="msg__text">
-                          <Markdown text={message.text} />
-                        </div>
-                      ) : null}
-                      {/* Where the text stops and why. Above the cards and the count -- those are
-                          notes about the turn, this is the end of the sentence. Nobody but the
-                          user can stop an answer, so the word says what happened and invents no
-                          cause. */}
-                      {message.stopped ? <div className="msg__stopped">Stopped</div> : null}
-                      {/* One turn can produce more than one file, so the card is not a single
-                          slot. */}
-                      {message.files?.some((name) => onDisk.has(name)) ? (
-                        <div className="file-cards">
-                          {message.files
-                            .filter((name) => onDisk.has(name))
-                            .map((name) => (
-                              <FileCard
-                                key={name}
-                                name={name}
-                                selected={name === reading?.name}
-                                onOpen={reading?.open}
-                              />
-                            ))}
-                        </div>
-                      ) : null}
-                      {/* Closes the turn. Only an answer carries a count: spending is what an
-                          answer does, and a number under the question would read as its price.
-                          The server sends the user's own message a usage of zeros, so this would
-                          hold without the check -- but a rule that leans on someone else's zeros
-                          breaks the day they change. */}
-                      <Stamp at={message.at} usage={message.role === "ai" ? message.usage : null}>
-                        {/* The pencil is handed over only where there is something to correct: a
-                            question, and not one already open for correction -- a second door
-                            onto an open field is one whose meaning nobody can state. Named for the
-                            message rather than Edit alone, which the mode picker already wears. */}
-                        <MessageFoot
-                          standing={message.variants}
-                          onVersion={onVersion}
-                          onEdit={
-                            message.role === "user" && editing?.index !== index
-                              ? () => setEditing({ index, text: message.text })
-                              : null
-                          }
-                        />
-                      </Stamp>
-                    </div>
-                  </Fragment>
-                ))}
-                {streamingText ? (
-                  <div className="msg msg--ai" data-testid="streaming">
-                    <ToolCalls calls={streamingCalls} running />
-                    <div className="msg__text">
-                      {/* Formatted from the first frame: raw first and formatted afterwards would
-                          read as a flicker rather than a stream. */}
-                      <Markdown text={streamingText} />
-                    </div>
-                    {creatingFile ? <CreatingFile /> : null}
-                    {/* Until Madde 194 an answer still running carried only its time. Now it
-                        carries where the turn is after the time, and is the time alone until the
-                        first frame says so -- round 0/16 would claim a measurement nobody took. */}
-                    {progress ? <LiveStrip at={askedAt} {...progress} /> : <Stamp at={askedAt} />}
-                  </div>
-                ) : null}
+                        ) : /* Only when there is something to draw: a stopped answer has no
+                               words. */
+                        message.text ? (
+                          <div className="msg__text">
+                            <Markdown text={message.text} />
+                          </div>
+                        ) : null}
+                        {/* One turn can produce more than one file, so the card is not a single
+                            slot. */}
+                        {message.files?.some((name) => onDisk.has(name)) ? (
+                          <div className="file-cards">
+                            {message.files
+                              .filter((name) => onDisk.has(name))
+                              .map((name) => (
+                                <FileCard
+                                  key={name}
+                                  name={name}
+                                  selected={name === reading?.name}
+                                  onOpen={reading?.open}
+                                />
+                              ))}
+                          </div>
+                        ) : null}
+                        {/* Where the turn stopped: under what it made and just above its stamp
+                            (design item 215) -- the files stay, and this is the turn's end. Nobody
+                            but the user can stop an answer, so the word says what happened and
+                            invents no cause. */}
+                        {message.stopped ? <div className="msg__stopped">Stopped</div> : null}
+                        {/* Closes the turn. Only an answer carries a count: spending is what an
+                            answer does, and a number under the question would read as its price.
+                            The server sends the user's own message a usage of zeros, so this
+                            would hold without the check -- but a rule that leans on someone else's
+                            zeros breaks the day they change. A stopped turn has no finished answer
+                            for the counts to describe, so its stamp is the time alone (design item
+                            215), and the failure card has no time of its own, so it has no
+                            stamp. */}
+                        {technical ? null : (
+                          <Stamp
+                            at={message.at}
+                            usage={message.role === "ai" && !message.stopped ? message.usage : null}
+                          >
+                            {/* The pencil is handed over only where there is something to correct:
+                                a question, and not one already open for correction -- a second
+                                door onto an open field is one whose meaning nobody can state.
+                                Named for the message rather than Edit alone, which the mode picker
+                                already wears. */}
+                            <MessageFoot
+                              standing={message.variants}
+                              onVersion={onVersion}
+                              onEdit={
+                                message.role === "user" && editing?.index !== index
+                                  ? () => setEditing({ index, text: message.text })
+                                  : null
+                              }
+                            />
+                          </Stamp>
+                        )}
+                      </div>
+                    </Fragment>
+                  );
+                })}
 
-                {thinking && !streamingText ? (
-                  // Three blinking dots and nothing else, and only until the first piece lands: the
-                  // design refuses a fake partial answer.
+                {thinking ? (
+                  // The wait stands until the turn ends (design item 214): the words come whole,
+                  // with the record, and the design refuses a fake partial answer. Since Madde 194
+                  // it carries where the turn is after the time, and is the time alone until the
+                  // first frame says so -- round 0/16 would claim a measurement nobody took.
                   <div className="msg msg--ai msg--waiting" data-testid="thinking">
                     <ToolCalls calls={streamingCalls} running />
                     <div className="dots">
@@ -306,29 +333,14 @@ export default function ChatScreen({
 
                 {/* A message the server refused and an answer that never came are one card
                     (design item 193): either way no answer came, and Try again asks for one again
-                    -- what it sends is the hook's to know. */}
+                    -- what it sends is the hook's to know, and a refused reply is the
+                    composer's. */}
                 {[refused, error].filter(Boolean).map((words, index) => (
-                  <div key={index} className="failure">
-                    <div className="failure__body">
-                      {/* The design also said "The connection dropped." That is a guessed cause --
-                          a bad key and a wrong model name raise this same card -- so the card
-                          states what happened and the server's own words sit underneath. */}
-                      <span className="failure__line">Couldn&apos;t get a response.</span>
-                      {/* The server's own words and nothing beside them. There used to be a way
-                          out offered here -- a screen for typing a missing key -- and with the key
-                          coming from the environment there is no longer anywhere for it to lead. */}
-                      <span className="failure__detail">{words}</span>
-                    </div>
-                    {onRetry ? (
-                      <button
-                        type="button"
-                        className="failure__retry"
-                        onClick={() => onRetry(() => box.current.submit())}
-                      >
-                        Try again
-                      </button>
-                    ) : null}
-                  </div>
+                  <FailureCard
+                    key={index}
+                    words={words}
+                    onRetry={onRetry ? () => onRetry(() => box.current.submit()) : null}
+                  />
                 ))}
               </>
             ) : (

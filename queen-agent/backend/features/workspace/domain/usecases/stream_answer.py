@@ -1,10 +1,13 @@
-"""Stream an answer, reaching for tools as the model asks.
+"""Answer a chat, reaching for tools as the model asks.
 
-The generator yields text pieces and finally the updated Chat. Telling them apart by type is
-simpler than carrying a separate "this one is the last" flag.
+The generator yields what the turn does as it does it -- its rounds, steps, files and questions --
+and finally the updated Chat. Telling them apart by type is simpler than carrying a separate "this
+one is the last" flag. The words are not among them since Madde 440: every request goes through the
+black box (black_box.py), the answer comes back whole, and the screen reads it off the record.
 """
 from dataclasses import dataclass
 
+from backend.features.workspace.domain.black_box import ask
 from backend.features.workspace.domain.chat import ToolCall, Usage, active_messages, sent_messages
 from backend.features.workspace.domain.context_box import BOX_LIMIT, files_opened
 from backend.features.workspace.domain.errors import ChatNotFound, EngineFailed
@@ -154,6 +157,30 @@ def _asked(conversation, names, box, instruction, last=False):
     return asked
 
 
+class _Noting:
+    """The project's files as the turn's tools reach them, noting whether any of them wrote.
+
+    Asked at the one door every write goes through rather than of each tool's answer: a dozen tools
+    write -- a new file, an edit, an entry added to a scenario -- and an outcome like "Already there"
+    wrote nothing. What the turn needs is only whether it did (Madde 440, Madde 38): a turn that
+    wrote a file and then says nothing is finished.
+    """
+
+    def __init__(self, files):
+        self._files = files
+        self.wrote = False
+
+    def list_names(self, project_id):
+        return self._files.list_names(project_id)
+
+    def read(self, project_id, name):
+        return self._files.read(project_id, name)
+
+    def write(self, project_id, name, content):
+        self.wrote = True
+        return self._files.write(project_id, name, content)
+
+
 HEARTBEAT_SECONDS = 15
 """How often a paused turn writes something.
 
@@ -211,6 +238,11 @@ def stream_answer(
     # next move is the user's. Kept apart from cut_short: a stopped turn is written down as
     # stopped, and this one simply finished.
     done = False
+    # What the black box gave back after five failed tries, or None (Madde 440). The turn ends on it
+    # and nothing goes back to the model.
+    failure = None
+    # Whether a tool of this turn has written to the project yet.
+    writes = _Noting(file_store)
 
     try:
         for index in range(MAX_ROUNDS):
@@ -223,78 +255,63 @@ def stream_answer(
             # is the one that moves first, and a round announced only once it has ended would leave
             # the strip a whole request behind the turn.
             yield Progress(index + 1, MAX_ROUNDS, _volume(spent))
-            spoken, calls = [], []
-            # This round's bill so far. None until the engine says anything about it, so an engine
-            # that measures nothing leaves the total alone rather than adding zeroes to it.
-            round_spent = None
-            try:
-                for piece in engine.stream(
-                    # Both are read here rather than before the loop: a round that wrote a file
-                    # changes the answer, and the next round has to hear the new one. `made`
-                    # carries this turn's steps, which reach the record only when it is written.
-                    _asked(
-                        conversation,
-                        file_store.list_names(project_id),
-                        _boxed(file_store, project_id, chat, made),
-                        instruction,
-                        last,
-                    ),
-                    # Every tool, in every mode. Since Madde 99 the mode is not what the request
-                    # carries -- it is which of them run out of it without a question. The closing
-                    # round is the one exception, and it is not about the mode: nothing it asked for
-                    # could come back, so it is offered nothing to ask with.
-                    tools=None if last else TOOL_SPECS,
-                    # Only the transport holds a socket, so only it can hand out a way to cut one.
-                    on_open=lambda cut: stops.hold(project_id, chat_id, cut),
-                ):
-                    if "text" in piece:
-                        spoken.append(piece["text"])
-                        said.append(piece["text"])
-                        yield piece["text"]
-                    elif "usage" in piece:
-                        # Replaced rather than added. Today the engine says this once, as the
-                        # stream closes, so the rule idles -- but a figure is a total for the call
-                        # rather than a share since the last, and an engine that reported as it
-                        # went would have its bill multiplied by the number of pieces if these
-                        # were summed.
-                        round_spent = piece["usage"]
-                    else:
-                        calls.extend(piece["tool_calls"])
-            except Exception:
-                # A connection that died because we cut it is a stop; the same words from a network
-                # that dropped are a fault. Nothing in the failure says which, so the record is
-                # asked before it is believed.
-                if not stops.wanted(project_id, chat_id):
-                    raise
-                cut_short = True
+            answer = ask(
+                engine,
+                # Both are read here rather than before the loop: a round that wrote a file changes
+                # the answer, and the next round has to hear the new one. `made` carries this
+                # turn's steps, which reach the record only when it is written.
+                _asked(
+                    conversation,
+                    file_store.list_names(project_id),
+                    _boxed(file_store, project_id, chat, made),
+                    instruction,
+                    last,
+                ),
+                # Every tool, in every mode. Since Madde 99 the mode is not what the request carries
+                # -- it is which of them run out of it without a question. The closing round is the
+                # one exception, and it is not about the mode: nothing it asked for could come back,
+                # so it is offered nothing to ask with.
+                tools=None if last else TOOL_SPECS,
+                # Only the transport holds a socket, so only it can hand out a way to cut one.
+                on_open=lambda cut: stops.hold(project_id, chat_id, cut),
+                # A connection that died because we cut it is a stop; the same words from a
+                # network that dropped are a fault. Nothing in the failure says which, so the
+                # registry is asked before the black box tries again.
+                stopped=lambda: stops.wanted(project_id, chat_id),
+                # A turn that has written a file -- a new one or one it changed -- and then says
+                # nothing is finished, not empty: what it did is the answer (Madde 38; the user, 9
+                # October). Before any write, silence is tried again.
+                silence_is_an_answer=writes.wrote,
+            )
 
-            # After the round however it ended, because a round that was cut short still sent its
-            # whole conversation and was still charged for it. The window is narrow -- the engine
-            # reports as the stream closes, so a cut answer usually never hears the figure at all
-            # -- but what did arrive was really spent, and dropping it here would throw it away.
-            # Rounds add where pieces replaced: each round is its own call and its own bill, and
-            # that growth is the thing this number exists to show.
-            if round_spent:
+            # Rounds add: each round is its own call and its own bill, and that growth is the thing
+            # this number exists to show. A round the stop threw away never brought its figure.
+            if answer.usage:
                 spent = Usage(
-                    spent.sent + round_spent["sent"],
-                    spent.cached + round_spent["cached"],
-                    spent.answered + round_spent["answered"],
+                    spent.sent + answer.usage.sent,
+                    spent.cached + answer.usage.cached,
+                    spent.answered + answer.usage.answered,
                 )
                 yield Progress(index + 1, MAX_ROUNDS, _volume(spent))
 
-            # Asked once, at the end, rather than before every frame: since Madde 90 a stop cuts
-            # the connection, so a round that was stopped is over by the time this runs. What this
-            # catches is the round that ended quietly with the press landing just as it did.
-            if not cut_short and stops.wanted(project_id, chat_id):
+            # The registry is the one thing that knows a stop. It catches both: the request the stop
+            # cut, which the black box gave back empty without trying again, and the round that came
+            # back whole with the press landing just as it did -- whose calls do not run.
+            if stops.wanted(project_id, chat_id):
                 cut_short = True
-
-            # Reaching a stop is an end, not a failure -- the same way the round limit is.
-            if cut_short or not calls:
+                break
+            if answer.failed:
+                failure = answer
                 break
 
-            conversation.append(
-                {"role": "assistant", "content": "".join(spoken), "tool_calls": calls}
-            )
+            said.append(answer.text)
+            # Reaching the end of what the model asked for is an end, the same way the round limit
+            # is.
+            if not answer.calls:
+                break
+
+            calls = list(answer.calls)
+            conversation.append({"role": "assistant", "content": answer.text, "tool_calls": calls})
             for call in calls:
                 tool = call["function"]["name"]
                 if needs_permission(mode, tool):
@@ -326,7 +343,7 @@ def stream_answer(
                 # has, and the design's card carries no name anyway.
                 if tool in WRITES_FILES:
                     yield FileStarted()
-                result = run_tool(file_store, project_id, tool, call["function"]["arguments"])
+                result = run_tool(writes, project_id, tool, call["function"]["arguments"])
                 # A name born twice in one turn is still one file: the card says a file exists, not
                 # how many times it was written.
                 if result.created and result.created not in born:
@@ -350,30 +367,40 @@ def stream_answer(
             # before noticing.
             if done or cut_short:
                 break
-    except Exception as failure:
-        # Half an answer that nobody asked to end is never kept: the design's line is that an answer
-        # either exists or does not, and a file cannot be born of an unfinished thought. A stop is
-        # the other case -- somebody decided, and what they had read is theirs.
-        raise EngineFailed(str(failure)) from failure
+    except Exception as broken:
+        # The black box answers for the model, so what reaches here is the turn's own code -- a
+        # tool, the disk. The half answer is not kept: an answer either exists or does not.
+        raise EngineFailed(str(broken)) from broken
     finally:
         # However this ended. Left standing, the flag would cut the next answer as it was born, and
         # a decision nobody spent would settle the next question before it was asked.
         stops.clear(project_id, chat_id)
         permissions.clear(project_id, chat_id)
 
-    # Everything said across the rounds becomes one message: the user read one answer. A stop that
-    # landed before the first word writes one too, empty -- a press that leaves no trace reads as a
+    # Everything said across the rounds becomes one message: the user read one answer. A stopped
+    # turn keeps no words (Madde 440, the user: "atılsın") -- none of it was on screen yet, and none
+    # of it was checked -- but it is still written, empty: a press that leaves no trace reads as a
     # press that did nothing, and the chat's last word would otherwise still be the user's, which
-    # means owed an answer, which means asked for again on the next reload.
+    # means owed an answer, which means asked for again on the next reload. A failed turn's words
+    # are the failure's own, so the card can say them. The steps and the files stay either way:
+    # they happened.
+    if failure:
+        text = failure.text
+    elif cut_short:
+        text = ""
+    else:
+        text = "".join(said)
     yield append_message(
         chat_store,
         project_id,
         chat_id,
-        "".join(said),
+        text,
         now,
         role="ai",
         files=born,
         calls=made,
         stopped=cut_short,
         usage=spent,
+        failed=failure.failed if failure else "",
+        wrote=writes.wrote,
     )

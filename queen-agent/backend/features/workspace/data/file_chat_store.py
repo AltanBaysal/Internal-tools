@@ -85,6 +85,9 @@ def _message_json(message):
     # Only the message a trim was written on carries one.
     if message.trimmed:
         stored["trimmed"] = message.trimmed
+    # Only a failed answer carries one, and almost no answer fails.
+    if message.failed:
+        stored["failed"] = message.failed
     return stored
 
 
@@ -136,6 +139,7 @@ def _as_message(message):
         stopped=message.get("stopped", False),
         usage=_as_usage(message.get("usage")),
         trimmed=message.get("trimmed", 0),
+        failed=message.get("failed", ""),
     )
 
 

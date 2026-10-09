@@ -43,6 +43,7 @@ test("the message's parts are drawn from their own files", () => {
     "MessageFoot",
     "CreatingFile",
     "FileCard",
+    "FailureCard",
   ];
   expect(parts.filter((part) => source.includes(`function ${part}(`))).toEqual([]);
 });
@@ -208,14 +209,42 @@ test("with nothing running there is nothing to stop", () => {
   expect(screen.queryByRole("button", { name: "Stop" })).toBeNull();
 });
 
-test("a stopped answer is drawn as one", () => {
-  // Half a sentence with no mark reads as a model that finished on one.
+test("a stopped answer has no cost under it, only Stopped and the time", () => {
+  // Design item 215: the request it dropped never came, so there are no counts to describe. The
+  // record still keeps what the finished rounds spent.
   const stopped = {
     ...CHAT,
-    messages: [CHAT.messages[0], { ...CHAT.messages[1], text: "Half a", stopped: true }],
+    messages: [
+      CHAT.messages[0],
+      {
+        ...CHAT.messages[1],
+        text: "",
+        stopped: true,
+        usage: { sent: 12400, cached: 9100, answered: 842 },
+      },
+    ],
   };
   const { container } = render(<ChatScreen project={PROJECT} chat={stopped} />);
-  expect(container.querySelector(".msg--stopped")).toBeTruthy();
+  expect(container.querySelector(".msg--ai .msg__stamp").textContent).toBe("11:05");
+  expect(screen.getByText("Stopped")).toBeTruthy();
+  // No rule down the side: the design took the stopped answer's line away.
+  expect(container.querySelector(".msg--stopped")).toBeNull();
+});
+
+test("a stopped answer draws its file cards, then Stopped, then the time", () => {
+  // Design item 215 (shell.js, message): the files the turn wrote stay, and Stopped closes the
+  // turn just above its stamp.
+  const stopped = {
+    ...CHAT,
+    messages: [
+      CHAT.messages[0],
+      { ...CHAT.messages[1], text: "", stopped: true, files: ["plan.md"] },
+    ],
+  };
+  const files = [{ name: "plan.md", ext: "md", modifiedAt: NOW }];
+  const { container } = render(<ChatScreen project={PROJECT} chat={stopped} files={files} />);
+  const parts = [...container.querySelector(".msg--ai").children].map((part) => part.className);
+  expect(parts).toEqual(["file-cards", "msg__stopped", "msg__stamp"]);
 });
 
 test("a stopped answer says so in words", () => {
@@ -415,38 +444,11 @@ test("a turn that has not reported yet gets the dots and no strip", () => {
   expect(screen.getByTestId("thinking")).toBeTruthy();
 });
 
-test("the strip rides with the answer once the words start arriving", () => {
-  // The dots go when the first piece lands, and the turn is still running -- so the strip moves
-  // into the box that replaced them rather than disappearing with them.
-  render(
-    <ChatScreen
-      project={PROJECT}
-      chat={CHAT}
-      thinking
-      streamingText="Here it"
-      progress={RUNNING_AT}
-    />,
-  );
-  expect(screen.getByTestId("streaming").textContent).toContain("round 4/16");
-});
-
-test("the strip keeps its time once the words start arriving", () => {
-  vi.useFakeTimers();
-  vi.setSystemTime(new Date(2026, 7, 9, 14, 32));
-  try {
-    render(
-      <ChatScreen
-        project={PROJECT}
-        chat={CHAT}
-        thinking
-        streamingText="Here it"
-        progress={RUNNING_AT}
-      />,
-    );
-    expect(screen.getByTestId("live-strip").textContent).toMatch(/^14:32 · round 4\/16/);
-  } finally {
-    vi.useRealTimers();
-  }
+test("the strip rides in the wait for as long as the turn runs", () => {
+  // Design item 214: the words come and are not drawn, so the dots, the steps and the strip stand
+  // until the turn ends.
+  render(<ChatScreen project={PROJECT} chat={CHAT} thinking progress={RUNNING_AT} />);
+  expect(screen.getByTestId("thinking").textContent).toContain("round 4/16");
 });
 
 test("both messages are drawn", () => {
@@ -481,9 +483,7 @@ test("a chat still on its way stands in its own frame", () => {
 
 test("where the messages will be, the spinner turns and nothing else", () => {
   // Not even a turn still running into this chat: opening draws no turn (design item 194).
-  const { container } = render(
-    <ChatScreen project={PROJECT} chat={null} thinking streamingText="Half" />,
-  );
+  const { container } = render(<ChatScreen project={PROJECT} chat={null} thinking />);
   const column = container.querySelector(".chat__column");
   expect(column.children).toHaveLength(1);
   expect(column.firstElementChild.className).toBe("chat__spinner");
@@ -527,11 +527,91 @@ test("nothing blinks when nothing is pending", () => {
   expect(screen.queryByTestId("thinking")).toBeNull();
 });
 
-test("text that is still arriving is drawn as QueenAgent's turn", () => {
-  render(<ChatScreen project={PROJECT} chat={CHAT} thinking streamingText="Here it" />);
-  expect(screen.getByTestId("streaming").textContent).toContain("Here it");
-  // The dots are only for the wait before the first piece.
-  expect(screen.queryByTestId("thinking")).toBeNull();
+test("a running turn draws no words, only the wait", () => {
+  const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} thinking />);
+  expect(container.querySelector("[data-testid=thinking] .msg__text")).toBeNull();
+  expect(screen.queryByTestId("streaming")).toBeNull();
+});
+
+test("the answer that has just arrived whole fades its words in", () => {
+  // Design item 214, msg--arrived: the record's message takes the wait's place and its words fade
+  // in over 200ms. Only that one: the rest of the chat was already there.
+  const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} arrived={1} />);
+  const [question, answer] = container.querySelectorAll(".msg");
+  expect(answer.classList.contains("msg--arrived")).toBe(true);
+  expect(question.classList.contains("msg--arrived")).toBe(false);
+});
+
+test("a chat opened from disk has nothing arriving", () => {
+  const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} />);
+  expect(container.querySelector(".msg--arrived")).toBeNull();
+});
+
+// --- the failed answer (Madde 440; design items 216 and 221) -------------------------------------
+
+const READ = { tool: "read_file", target: "aylin.json", outcome: "45 lines" };
+const FAILED = {
+  ...CHAT,
+  messages: [
+    CHAT.messages[0],
+    { ...CHAT.messages[1], text: "HTTP 502", failed: "technical", calls: [READ] },
+  ],
+};
+
+test("a failed answer is the failure card, with the failure's own words", () => {
+  const { container } = render(<ChatScreen project={PROJECT} chat={FAILED} />);
+  const answer = container.querySelector(".msg--ai");
+  expect(answer.classList.contains("msg--failed")).toBe(true);
+  expect(answer.querySelector(".failure__line").textContent).toBe("Couldn't get a response.");
+  expect(answer.querySelector(".failure__detail").textContent).toBe("HTTP 502");
+  // Its words are the card's, never an answer's text.
+  expect(answer.querySelector(".msg__text")).toBeNull();
+});
+
+test("a failed answer keeps the steps its turn took", () => {
+  render(<ChatScreen project={PROJECT} chat={FAILED} />);
+  expect(screen.getByRole("button", { name: /1 step/ })).toBeTruthy();
+});
+
+test("a failed answer's card has no time", () => {
+  const { container } = render(<ChatScreen project={PROJECT} chat={FAILED} />);
+  expect(container.querySelector(".msg--ai .msg__stamp")).toBeNull();
+  expect(screen.queryByText("11:05")).toBeNull();
+});
+
+test("the failed answer's Try again answers the question again, not through the composer", () => {
+  // Its own door: the transient cards' Try again may send the composer, this one never does.
+  const onRetry = vi.fn();
+  const onAnswerAgain = vi.fn();
+  render(
+    <ChatScreen project={PROJECT} chat={FAILED} onRetry={onRetry} onAnswerAgain={onAnswerAgain} />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  expect(onAnswerAgain).toHaveBeenCalled();
+  expect(onRetry).not.toHaveBeenCalled();
+});
+
+test("while a turn runs, the failed answer's card has no Try again", () => {
+  // Between the press and the record read again, a second press would start a second turn.
+  const onAnswerAgain = vi.fn();
+  const { container } = render(
+    <ChatScreen project={PROJECT} chat={FAILED} thinking onAnswerAgain={onAnswerAgain} />,
+  );
+  expect(container.querySelector(".msg--failed .failure")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+});
+
+test("once the chat has moved on, the failed answer's card has no Try again", () => {
+  const onAnswerAgain = vi.fn();
+  const movedOn = {
+    ...FAILED,
+    messages: [...FAILED.messages, { role: "user", at: NOW, text: "never mind" }],
+  };
+  const { container } = render(
+    <ChatScreen project={PROJECT} chat={movedOn} onAnswerAgain={onAnswerAgain} />,
+  );
+  expect(container.querySelector(".msg--failed .failure")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
 });
 
 test("a failure states what happened and repeats the server's words", () => {
@@ -606,10 +686,10 @@ test("that time does not move while the answer arrives", () => {
   vi.setSystemTime(new Date(2026, 7, 9, 14, 32));
   const { rerender } = render(<ChatScreen project={PROJECT} chat={CHAT} thinking />);
   vi.setSystemTime(new Date(2026, 7, 9, 14, 35));
-  rerender(<ChatScreen project={PROJECT} chat={CHAT} thinking streamingText="Here" />);
+  rerender(<ChatScreen project={PROJECT} chat={CHAT} thinking progress={RUNNING_AT} />);
   // It answers "when was this asked for", and that answer stopped being new at 14:32.
-  expect(screen.getByText("14:32")).toBeTruthy();
-  expect(screen.queryByText("14:35")).toBeNull();
+  expect(screen.getByTestId("live-strip").textContent).toMatch(/^14:32 · /);
+  expect(screen.queryByText(/14:35/)).toBeNull();
   vi.useRealTimers();
 });
 
@@ -620,16 +700,6 @@ test("the file being written waits inside the block that is waiting", () => {
   expect(container.querySelector(".creating .creating__chip")).toBeTruthy();
 });
 
-test("a file born mid-answer waits under the text instead", () => {
-  // The design never met this one -- in its own flow the file is born at the end of the stream. The
-  // rule that covers both: the box belongs to whichever block is still pending.
-  const { container } = render(
-    <ChatScreen project={PROJECT} chat={CHAT} thinking streamingText="Saving" creatingFile />,
-  );
-  expect(container.querySelector("[data-testid=streaming] .creating")).toBeTruthy();
-  expect(container.querySelectorAll(".creating").length).toBe(1);
-});
-
 test("nothing dashed is drawn when no file is being written", () => {
   render(<ChatScreen project={PROJECT} chat={CHAT} thinking />);
   expect(screen.queryByText("creating file…")).toBeNull();
@@ -637,13 +707,7 @@ test("nothing dashed is drawn when no file is being written", () => {
 
 test("a file that lands mid-answer becomes a card straight away", () => {
   render(
-    <ChatScreen
-      project={PROJECT}
-      chat={CHAT}
-      thinking
-      streamingText="Saved it."
-      createdFiles={["outline.md"]}
-    />,
+    <ChatScreen project={PROJECT} chat={CHAT} thinking createdFiles={["outline.md"]} />,
   );
   expect(screen.getByText("outline.md")).toBeTruthy();
   expect(screen.getByText("✓ saved to project")).toBeTruthy();
@@ -758,23 +822,6 @@ test("what the user typed stays exactly as they typed it", () => {
   expect(container.querySelector(".msg__bubble strong")).toBeNull();
 });
 
-test("text that is still arriving is drawn as Markdown too", () => {
-  // Raw first and formatted afterwards would be a flicker, not a stream.
-  const { container } = render(
-    <ChatScreen project={PROJECT} chat={CHAT} thinking streamingText="# Title" />,
-  );
-  expect(container.querySelector("[data-testid=streaming] h1").textContent).toBe("Title");
-});
-
-test("text still arriving ends with the text and nothing after it", () => {
-  // Design item 156: the live stamp's word already says the answer is running, so no square blinks
-  // at the end of the words.
-  const { container } = render(
-    <ChatScreen project={PROJECT} chat={CHAT} thinking streamingText="Here it" />,
-  );
-  expect(container.querySelector("[data-testid=streaming] .md").innerHTML).toBe("<p>Here it</p>");
-});
-
 // jsdom lays nothing out, so the sizes are declared and what is under test is the decision: does
 // the list follow the answer down, or does it leave the reader where they are? The reader is put
 // there by a scroll, the way a real reader gets there.
@@ -797,26 +844,6 @@ test("a new message takes the list to the bottom", () => {
   const scroll = scrollable(container, { at: 0 });
   const said = { ...CHAT, messages: [...CHAT.messages, { role: "user", at: NOW, text: "More" }] };
   rerender(<ChatScreen project={PROJECT} chat={said} />);
-  expect(scroll.scrollTop).toBe(1000);
-});
-
-test("a reader who has scrolled up is never dragged back down", () => {
-  const { container, rerender } = render(
-    <ChatScreen project={PROJECT} chat={CHAT} thinking streamingText="Here" />,
-  );
-  // 700px from the bottom: reading, not watching.
-  const scroll = scrollable(container, { at: 0 });
-  rerender(<ChatScreen project={PROJECT} chat={CHAT} thinking streamingText="Here it is" />);
-  expect(scroll.scrollTop).toBe(0);
-});
-
-test("a reader who is watching the end stays stuck to it", () => {
-  const { container, rerender } = render(
-    <ChatScreen project={PROJECT} chat={CHAT} thinking streamingText="Here" />,
-  );
-  // 100px from the bottom, inside the design's 220.
-  const scroll = scrollable(container, { at: 600 });
-  rerender(<ChatScreen project={PROJECT} chat={CHAT} thinking streamingText="Here it is" />);
   expect(scroll.scrollTop).toBe(1000);
 });
 
@@ -859,21 +886,47 @@ test("a reader at the foot is taken down to a permission card taller than the fo
 });
 
 test("a reader at the foot sees a file card the answer just made", () => {
-  const { container, rerender } = render(
-    <ChatScreen project={PROJECT} chat={CHAT} thinking streamingText="Done." />,
-  );
+  const { container, rerender } = render(<ChatScreen project={PROJECT} chat={CHAT} thinking />);
   const scroll = scrollable(container, { at: 700 });
   grow(scroll, 1100);
+  rerender(<ChatScreen project={PROJECT} chat={CHAT} thinking createdFiles={["intro.md"]} />);
+  expect(scroll.scrollTop).toBe(1100);
+});
+
+test("a reader at the foot keeps the wait in view as its steps and its line grow", () => {
+  // No words pull the list down any more (Madde 440): the wait itself is what grows at the foot.
+  const { container, rerender } = render(<ChatScreen project={PROJECT} chat={CHAT} thinking />);
+  const scroll = scrollable(container, { at: 700 });
+  grow(scroll, 1100);
+  rerender(<ChatScreen project={PROJECT} chat={CHAT} thinking streamingCalls={RUNNING} />);
+  expect(scroll.scrollTop).toBe(1100);
+  grow(scroll, 1200);
   rerender(
     <ChatScreen
       project={PROJECT}
       chat={CHAT}
       thinking
-      streamingText="Done."
-      createdFiles={["intro.md"]}
+      streamingCalls={RUNNING}
+      progress={RUNNING_AT}
     />,
   );
-  expect(scroll.scrollTop).toBe(1100);
+  expect(scroll.scrollTop).toBe(1200);
+});
+
+test("a reader up the page is not pulled down by the wait growing", () => {
+  const { container, rerender } = render(<ChatScreen project={PROJECT} chat={CHAT} thinking />);
+  const scroll = scrollable(container, { at: 0 });
+  grow(scroll, 1600);
+  rerender(
+    <ChatScreen
+      project={PROJECT}
+      chat={CHAT}
+      thinking
+      streamingCalls={RUNNING}
+      progress={RUNNING_AT}
+    />,
+  );
+  expect(scroll.scrollTop).toBe(0);
 });
 
 test("a reader up the page stays where they are when cards arrive at the foot", () => {

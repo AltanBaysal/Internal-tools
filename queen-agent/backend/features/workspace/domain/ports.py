@@ -59,6 +59,9 @@ class Engine(Protocol):
     ):
         """Answer a conversation piece by piece.
 
+        One request, one try: the black box (black_box.py) reads the stream to its end and is what
+        sends it again (Madde 440). Raising is how a try fails.
+
         Yields {"text": str} as words arrive and {"tool_calls": [...]} when the model asks for one.
 
         `on_open` is handed a callable that cuts the connection this answer is reading, as soon as

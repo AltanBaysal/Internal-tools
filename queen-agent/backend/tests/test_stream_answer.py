@@ -181,6 +181,27 @@ In production it is a socket that was shut down and a chunked body that stopped 
 it is a piece the engine refuses to get past.
 """
 
+BROKEN = "IncompleteRead(0 bytes read)"
+
+
+class PressedLater:
+    """A stop nobody has asked for until a piece of the script presses it."""
+
+    def __init__(self):
+        self.pressed = False
+
+    def press(self):
+        self.pressed = True
+
+    def hold(self, project_id, chat_id, cut):
+        pass
+
+    def wanted(self, project_id, chat_id):
+        return self.pressed
+
+    def clear(self, project_id, chat_id):
+        pass
+
 
 class ScriptedEngine:
     """Each round is a list of pieces the engine hands back."""
@@ -202,10 +223,14 @@ class ScriptedEngine:
             raise RuntimeError("connection dropped")
         pieces = self.rounds.pop(0) if self.rounds else []
         for piece in pieces:
-            if piece is CUT:
+            if piece is CUT or callable(piece):
+                # A callable is a press landing at that moment: the stop is asked for, and the
+                # connection dies the way a cut one does.
+                if callable(piece):
+                    piece()
                 # What Python says when a chunked body stops in the middle. Nothing in the words
                 # says who did it, which is the whole difficulty this item deals with.
-                raise RuntimeError("IncompleteRead(0 bytes read)")
+                raise RuntimeError(BROKEN)
             yield piece
 
     def _cut(self):
@@ -486,11 +511,16 @@ def _write_round(name="plan.md"):
 
 def test_a_round_without_tools_ends_the_loop(tmp_path):
     chats, _, engine, produced = _run(tmp_path, [[{"text": "He"}, {"text": "llo"}]])
-    # Madde 194 put a progress piece in front of every round, so the words are what is left when
-    # those are taken out. Their own tests are at the foot of this file.
-    assert [piece for piece in produced[:-1] if isinstance(piece, str)] == ["He", "llo"]
     assert isinstance(produced[-1], Chat)
+    assert chats.get("p1", "c1").messages[-1].text == "Hello"
     assert len(engine.seen) == 1
+
+
+def test_the_words_are_not_handed_on_piece_by_piece(tmp_path):
+    # Madde 440: the answer comes back whole, and the screen shows it once the turn has ended -- so
+    # nothing of it travels while the turn runs. The record is where the words are read.
+    _, _, _, produced = _run(tmp_path, [[{"text": "He"}, {"text": "llo"}]])
+    assert not [piece for piece in produced if isinstance(piece, str)]
 
 
 def test_a_tool_call_is_run_and_the_answer_goes_back_to_the_model(tmp_path):
@@ -649,6 +679,7 @@ def test_the_silent_answer_keeps_the_file_and_no_words(tmp_path):
     kept = chats.get("p1", "c1").messages[-1]
     assert kept.text == ""
     assert kept.files == ("plan.md",)
+    assert kept.failed == ""
 
 
 def test_the_silent_answer_is_still_one_reply_in_the_chat(tmp_path):
@@ -657,12 +688,67 @@ def test_the_silent_answer_is_still_one_reply_in_the_chat(tmp_path):
     assert [m.role for m in chats.get("p1", "c1").messages] == ["user", "ai"]
 
 
-def test_a_turn_that_said_nothing_and_made_nothing_is_not_an_answer(tmp_path):
-    # The boundary of the rule: reading a file is not making one, so this turn produced neither a
-    # word nor a file and there is nothing to keep.
-    rounds = [[{"tool_calls": [call("read_file", name="ghost.md")]}], []]
-    with pytest.raises(EmptyMessage):
-        _run(tmp_path, rounds)
+def test_silence_after_a_file_is_not_asked_again(tmp_path):
+    # Madde 38 kept through Madde 440 (the user, 9 October): the black box tries an empty answer
+    # again only while the turn has made no file. Here it has, so the silence is the end.
+    rounds = [
+        [{"tool_calls": [call("create_file", name="plan.md", content="x")]}],
+        [],
+        [{"text": "never asked for"}],
+    ]
+    _, _, engine, _ = _run(tmp_path, rounds)
+    assert len(engine.seen) == 2
+
+
+def test_silence_after_an_edit_is_not_asked_again(tmp_path):
+    # Editing a file the project already had is writing too (the user, 9 October): the turn wrote,
+    # so its silence is the end.
+    chats, files = _seeded(tmp_path)
+    files.write("p1", "plan.md", "alpha")
+    rounds = [
+        [{"tool_calls": [call("edit_file", name="plan.md", old="alpha", new="beta")]}],
+        [],
+        [{"text": "never asked for"}],
+    ]
+    engine = ScriptedEngine(rounds)
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    kept = chats.get("p1", "c1").messages[-1]
+    assert (kept.text, kept.failed) == ("", "")
+    assert len(engine.seen) == 2
+
+
+def test_silence_after_a_create_that_wrote_nothing_is_asked_again(tmp_path):
+    # "Already there": the call ran and touched no file, so nothing was written.
+    chats, files = _seeded(tmp_path)
+    files.write("p1", "plan.md", "mine")
+    rounds = [
+        [{"tool_calls": [call("create_file", name="plan.md", content="x")]}],
+        [],
+        [{"text": "It was already there."}],
+    ]
+    engine = ScriptedEngine(rounds)
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    assert chats.get("p1", "c1").messages[-1].text == "It was already there."
+    assert len(engine.seen) == 3
+    assert files.read("p1", "plan.md") == "mine"
+
+
+def test_silence_before_any_file_is_asked_again(tmp_path):
+    # The other side of the same line: nothing made yet, so an empty answer is not an answer.
+    rounds = [[{"tool_calls": [call("read_file", name="ghost.md")]}], [], [{"text": "Not there."}]]
+    chats, _, engine, _ = _run(tmp_path, rounds)
+    assert chats.get("p1", "c1").messages[-1].text == "Not there."
+    assert len(engine.seen) == 3
+
+
+def test_a_turn_that_only_read_and_then_fell_silent_is_a_failed_answer(tmp_path):
+    # What used to be refused as no answer at all: the read is a step but makes no file, so the
+    # silence after it is five empty tries.
+    rounds = [[{"tool_calls": [call("read_file", name="ghost.md")]}]]
+    chats, _, _, _ = _run(tmp_path, rounds)
+    kept = chats.get("p1", "c1").messages[-1]
+    assert kept.failed == "technical"
+    assert kept.calls == (A_STEP,)
 
 
 def test_a_silent_turn_that_runs_out_of_rounds_is_not_an_answer_either(tmp_path):
@@ -845,12 +931,83 @@ def test_the_instruction_is_never_written_to_the_chat(tmp_path):
     assert [m.role for m in chats.get("p1", "c1").messages] == ["user", "user", "ai"]
 
 
-def test_a_stream_that_breaks_writes_nothing(tmp_path):
+def test_a_stream_that_keeps_breaking_ends_in_a_failed_answer(tmp_path):
+    # Madde 440: the black box never throws. After five tries the failure's own words are the
+    # answer, and the turn ends there.
     chats, files = _seeded(tmp_path)
     engine = ScriptedEngine([[{"text": "half"}]], blow_up_after=0)
-    with pytest.raises(EngineFailed):
-        list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED))
+    produced = list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED))
+    assert isinstance(produced[-1], Chat)
+    kept = chats.get("p1", "c1").messages
+    assert [(m.text, m.failed) for m in kept] == [("hi", ""), ("connection dropped", "technical")]
+    assert len(engine.seen) == 5
+
+
+# --- the black box (Madde 440) -------------------------------------------------------------------
+
+
+class UnreadableFiles:
+    """A file store whose disk has gone away: the turn's own code fails, not the model."""
+
+    def list_names(self, project_id):
+        raise OSError("the disk went away")
+
+
+def test_a_fault_outside_the_box_still_ends_the_turn_as_one(tmp_path):
+    # The black box answers for the model. What is left to raise is the turn's own code, and that
+    # still travels inside the stream rather than breaking it -- with nothing written.
+    chats, _ = _seeded(tmp_path)
+    with pytest.raises(EngineFailed, match="the disk went away"):
+        list(
+            stream_answer(
+                chats, UnreadableFiles(), ScriptedEngine([]), "p1", "c1", NOW, NEVER, UNASKED
+            )
+        )
     assert [m.text for m in chats.get("p1", "c1").messages] == ["hi"]
+
+
+def test_after_a_broken_stream_the_same_request_goes_again(tmp_path):
+    chats, _, engine, _ = _run(tmp_path, [[{"text": "Half"}, CUT], [{"text": "Done."}]])
+    assert chats.get("p1", "c1").messages[-1].text == "Done."
+    assert engine.seen[0] == engine.seen[1]
+    # Nothing on the record says a try failed: the retries never show.
+    assert chats.get("p1", "c1").messages[-1].failed == ""
+
+
+def test_five_broken_streams_are_the_failure_and_nothing_more_is_asked(tmp_path):
+    # The tool call never runs and no round follows: nothing goes back to the model.
+    rounds = [[CUT]] * 5 + [[{"text": "never"}]]
+    chats, _, engine, _ = _run(tmp_path, rounds)
+    kept = chats.get("p1", "c1").messages[-1]
+    assert (kept.text, kept.failed) == (BROKEN, "technical")
+    assert len(engine.seen) == 5
+
+
+def test_a_failed_answer_keeps_the_steps_and_files_but_not_the_words_before_it(tmp_path):
+    rounds = [
+        [
+            {"text": "Writing it. "},
+            {"tool_calls": [call("create_file", name="plan.md", content="x")]},
+        ],
+        *[[CUT]] * 5,
+    ]
+    chats, files, engine, _ = _run(tmp_path, rounds)
+    kept = chats.get("p1", "c1").messages[-1]
+    assert kept.text == BROKEN
+    assert kept.files == ("plan.md",)
+    assert kept.calls == (ToolCall("create_file", "plan.md", "Saved"),)
+    assert files.list_names("p1") == ["plan.md"]
+    assert len(engine.seen) == 6
+
+
+def test_a_failed_answer_is_not_sent_to_the_model_on_the_next_turn(tmp_path):
+    chats, files = _seeded(tmp_path)
+    append_message(chats, "p1", "c1", "HTTP 502", NOW, role="ai", failed="technical")
+    append_message(chats, "p1", "c1", "and now?", NOW)
+    engine = ScriptedEngine([[{"text": "Here."}]])
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    said = [message["content"] for message in engine.seen[0] if message["role"] in ("user", "ai")]
+    assert said == ["hi", "and now?"]
 
 
 def test_an_unknown_chat_is_reported_before_anything_streams(tmp_path):
@@ -951,10 +1108,28 @@ def test_a_stop_ends_the_answer_without_asking_the_model_again(tmp_path):
     assert len(engine.seen) == 1
 
 
-def test_what_was_already_said_is_kept(tmp_path):
-    # The owner's choice: stopping is something you decide, and what you had read stays yours.
+def test_a_stopped_turn_keeps_no_words(tmp_path):
+    # Madde 440 turned the old rule round (the user, 5 October: "atılsın"). The answer was never on
+    # screen and never checked, so none of it is kept -- not even what an earlier round said.
     chats, _, _, _ = _run(tmp_path, TWO_ROUNDS, stops=Cut())
-    assert chats.get("p1", "c1").messages[-1].text == "Half a"
+    assert chats.get("p1", "c1").messages[-1].text == ""
+
+
+def test_a_stop_in_a_later_round_keeps_the_steps_and_the_files(tmp_path):
+    # Only the request in flight is dropped: what the turn did before it stays.
+    stops = PressedLater()
+    rounds = [
+        [{"text": "Writing. "}, {"tool_calls": [call("create_file", name="plan.md", content="x")]}],
+        [{"text": "Half a"}, stops.press],
+        [{"text": "never"}],
+    ]
+    chats, files, engine, _ = _run(tmp_path, rounds, stops=stops)
+    kept = chats.get("p1", "c1").messages[-1]
+    assert (kept.text, kept.stopped, kept.files) == ("", True, ("plan.md",))
+    assert kept.calls == (ToolCall("create_file", "plan.md", "Saved"),)
+    assert files.list_names("p1") == ["plan.md"]
+    # The cut request is not sent again.
+    assert len(engine.seen) == 2
 
 
 def test_a_stopped_answer_says_it_was_stopped(tmp_path):
@@ -977,10 +1152,13 @@ def test_a_connection_we_cut_is_a_stop_rather_than_a_failure(tmp_path):
     # Our own cut and a network that dropped arrive as the same words -- nothing in the failure
     # says who ended it. The registry is the only thing that knows, so it is asked before the
     # failure is believed.
-    chats, _, _, _ = _run(tmp_path, [[{"text": "Half a "}, CUT]], stops=Cut())
+    chats, _, engine, _ = _run(tmp_path, [[{"text": "Half a "}, CUT]], stops=Cut())
     kept = chats.get("p1", "c1").messages[-1]
-    assert kept.text == "Half a"
+    assert kept.text == ""
     assert kept.stopped is True
+    assert kept.failed == ""
+    # A stop is never tried again.
+    assert len(engine.seen) == 1
 
 
 def test_an_answer_that_runs_to_the_end_is_not_marked(tmp_path):
@@ -1103,24 +1281,22 @@ def test_an_answer_nobody_measured_spent_nothing(tmp_path):
     assert _kept(chats).usage == Usage()
 
 
-def test_a_stopped_answer_still_says_what_it_spent(tmp_path):
-    # Whatever was measured before the cut is kept, and the fold happens before the stop is acted
-    # on so that it can be. The window is narrow -- the engine reports once, at the end of the
-    # round -- but a stop landing between that frame and the end of the loop is a real moment, and
-    # dropping the figure there would throw away something already paid for.
-    rounds = [[spent(1200, 900, 5), {"text": "Half a "}, CUT]]
+def test_a_stopped_answer_still_says_what_its_finished_rounds_spent(tmp_path):
+    # A round that came back whole was paid for, and the stop landing just after it does not undo
+    # that: the record keeps the figure, though the screen draws no cost under a stopped turn.
+    rounds = [[spent(1200, 900, 5), {"text": "Half a "}]]
     chats, _, _, _ = _run(tmp_path, rounds, stops=Cut())
-    assert _kept(chats).text == "Half a"
+    assert _kept(chats).text == ""
     assert _kept(chats).usage == Usage(1200, 900, 5)
 
 
 def test_an_answer_stopped_before_the_counts_arrive_spent_nothing_it_knows_of(tmp_path):
     # Madde 76, and the honest record of a limit rather than a guard on a behaviour. The engine
     # reports once, in a frame just before the stream closes; an answer cut short never reaches it.
-    # So a stopped answer usually says nothing about what it spent, even though it spent it.
-    rounds = [[{"text": "Half a "}, CUT, spent(1200, 900, 5)]]
+    # Since Madde 440 the cut round is thrown away whole, its figure with it.
+    rounds = [[spent(1200, 900, 5), {"text": "Half a "}, CUT]]
     chats, _, _, _ = _run(tmp_path, rounds, stops=Cut())
-    assert _kept(chats).text == "Half a"
+    assert _kept(chats).text == ""
     assert _kept(chats).usage == Usage()
 
 

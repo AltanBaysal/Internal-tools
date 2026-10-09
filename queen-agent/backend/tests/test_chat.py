@@ -389,3 +389,74 @@ def test_a_trim_never_cuts_between_a_question_and_its_answer():
 
     chat = _turns(("a" * 100, "a" * 100), ("a" * 30_000, "a" * 6_000))
     assert trim_point(chat) == 2
+
+
+# --- a failed answer weighs nothing (Madde 440) --------------------------------------------------
+#
+# After five failed tries the turn's answer is the failure's own words, written to the record so the
+# card stays. It is not the model's answer: it is not sent, and it does not fill the chat.
+
+
+def _failed(text):
+    return Message(role="ai", at=AT, text=text, failed="technical")
+
+
+def test_a_message_is_not_a_failed_answer_unless_it_says_so():
+    assert _said("ai", "Done.").failed == ""
+
+
+def test_a_failed_answer_is_not_sent_to_the_model():
+    from backend.features.workspace.domain.chat import sent_messages
+
+    chat = replace(_trunk("hi"), messages=(_said("user", "hi"), _failed("HTTP 502")))
+    assert [m.text for m in sent_messages(chat)] == ["hi"]
+
+
+def test_a_failed_answer_does_not_count_toward_the_chats_size():
+    from backend.features.workspace.domain.chat import chat_size
+
+    chat = replace(_trunk("a" * 100), messages=(_said("user", "a" * 100), _failed("b" * 1000)))
+    assert chat_size(chat) == 30
+
+
+def test_a_failed_answer_does_not_fill_the_chat():
+    from backend.features.workspace.domain.chat import is_full
+
+    chat = replace(_trunk("hi"), messages=(_said("user", "hi"), _failed("a" * 200_000)))
+    assert not is_full(chat)
+
+
+def test_a_failed_answer_does_not_move_the_trim():
+    # The trim reads what the turns weigh, and a failure weighs nothing: the same cut as without it.
+    from backend.features.workspace.domain.chat import trim_point
+
+    chat = _turns(*[("a" * 1000, "a" * 9000)] * 17)
+    asked = replace(chat, messages=chat.messages + (_said("user", "a"),))
+    failing = replace(asked, messages=asked.messages + (_failed("b" * 40_000),))
+    assert trim_point(failing) == trim_point(asked)
+
+
+# --- the open line's own messages, changed in one place -----------------------------------------
+
+
+def test_the_first_line_is_changed_when_it_is_open():
+    from backend.features.workspace.domain.chat import with_open_line
+
+    chat = _trunk("hi", "Done.")
+    changed = with_open_line(chat, lambda own: own[:-1])
+    assert [m.text for m in changed.messages] == ["hi"]
+
+
+def test_only_the_open_version_is_changed():
+    # The past a version grew out of is shared with the line before it, so it is never touched.
+    from backend.features.workspace.domain.chat import active_messages, with_open_line
+
+    chat = replace(
+        _trunk("hi", "Done."),
+        versions=(_version("l2", "", 0, "hello", "Hi."), _version("l3", "", 0, "hey", "Hey.")),
+        active="l2",
+    )
+    changed = with_open_line(chat, lambda own: own[:-1])
+    assert [m.text for m in active_messages(changed)] == ["hello"]
+    assert [m.text for m in changed.messages] == ["hi", "Done."]
+    assert [m.text for m in changed.versions[1].messages] == ["hey", "Hey."]

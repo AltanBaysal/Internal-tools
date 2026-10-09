@@ -17,7 +17,10 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
   const refusedReply = useRef(false);
   const [missing, setMissing] = useState(false);
   const [thinking, setThinking] = useState(false);
-  const [streamingText, setStreamingText] = useState("");
+  // Which message of the record the turn just ended on, so its words fade in once (design item
+  // 214), or null. The answer comes back whole with the record (Madde 440): nothing of it is drawn
+  // while the turn runs.
+  const [arrived, setArrived] = useState(null);
   const [creatingFile, setCreatingFile] = useState(false);
   const [createdFiles, setCreatedFiles] = useState([]);
   // What the turn has done so far. Held only while the answer runs: the record that arrives at the
@@ -69,6 +72,7 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
       setError(null);
       setRefused(null);
       setMissing(false);
+      setArrived(null);
       return undefined;
     }
     // Madde 88's birth guard, narrowed by Madde 106: skip the load only while what is held
@@ -83,6 +87,7 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
     setError(null);
     setRefused(null);
     setMissing(false);
+    setArrived(null);
     getJson(`/api/projects/${projectId}/chats/${chatId}`)
       .then((loaded) => {
         if (!cancelled) setChat(loaded);
@@ -139,7 +144,7 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
       setRefused(null);
       setError(null);
       setThinking(true);
-      setStreamingText("");
+      setArrived(null);
       setCreatingFile(false);
       setCreatedFiles([]);
       setStreamingCalls([]);
@@ -147,12 +152,14 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
       streamingInto.current = chatId;
       setStreamingChatId(chatId);
       // No text at all is how Try again asks: the question is already on disk and must not be
-      // written a second time. A blank one would be refused, which is a different thing.
+      // written a second time. A blank one would be refused, which is a different thing. It still
+      // carries the mode: a question asked again in Plan or Ask must not run in Edit and write
+      // without asking.
       // An edit carries where it starts from (Madde 195); an ordinary reply carries no such field,
       // and the server tells the two apart by its absence rather than by a number meaning nothing.
       const body =
         text === null
-          ? { chat: chatId }
+          ? { chat: chatId, mode }
           : {
               chat: chatId ?? "",
               text,
@@ -169,6 +176,18 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
               if (owner.current !== token) return;
               streamingInto.current = target;
               setStreamingChatId(target);
+              // Try again on a failed answer (Madde 440): by this first frame the server has taken
+              // it out of the record, so the record is read again and the wait takes the card's
+              // place. Which message goes is the server's rule, not the screen's. A read that fails
+              // here costs nothing but the card staying until the turn's own read at its end, which
+              // reports for itself; one that lands after this turn lost the screen draws nothing.
+              if (text === null) {
+                getJson(`/api/projects/${projectId}/chats/${target}`)
+                  .then((record) => {
+                    if (owner.current === token && target === live.current) setChat(record);
+                  })
+                  .catch(() => {});
+              }
               if (target !== chatId) born.current?.(target);
               return;
             }
@@ -179,9 +198,7 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
               if (frame.event === "file") announce.current?.();
               return;
             }
-            if (frame.event === "chunk") {
-              setStreamingText((current) => current + frame.data.text);
-            } else if (frame.event === "call") {
+            if (frame.event === "call") {
               setStreamingCalls((calls) => [...calls, frame.data]);
               // The dashed card lives between "the model asked" and "the tool answered", and this
               // frame is the second. Only a born file used to take it down, so a tool that wrote
@@ -221,7 +238,10 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
         if (landed) {
           try {
             const record = await getJson(`/api/projects/${projectId}/chats/${landed}`);
-            if (landed === live.current) setChat(record);
+            if (landed === live.current) {
+              setChat(record);
+              setArrived(record.messages.length - 1);
+            }
           } catch (unreadable) {
             // A fault already reported is the turn's real one, and replacing it with this would
             // show the wrong cause. Otherwise the read speaks for itself: the answer was written,
@@ -253,9 +273,8 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
         // Only the send that owns the screen clears it: an older stream sweeping these would wipe
         // one that is still drawing (Madde 106).
         if (owner.current === token) {
-          // The cards drawn from the stream go too: the stored answer carries the same names, and
-          // a stream that broke wrote no answer at all.
-          setStreamingText("");
+          // The cards drawn from the stream go: the stored answer carries the same names, and a
+          // stream that broke wrote no answer at all.
           setCreatingFile(false);
           setCreatedFiles([]);
           setStreamingCalls([]);
@@ -289,6 +308,8 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
       try {
         await postJson(`/api/projects/${projectId}/chats/${chatId}/version`, { version: wanted });
         setChat(await getJson(`/api/projects/${projectId}/chats/${chatId}`));
+        // Another line is drawn, and nothing on it has just arrived.
+        setArrived(null);
       } catch (failure) {
         setError(failure.message);
       }
@@ -341,7 +362,7 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
     refused,
     missing,
     thinking: visible && thinking,
-    streamingText: visible ? streamingText : "",
+    arrived,
     creatingFile: visible && creatingFile,
     createdFiles: visible ? createdFiles : [],
     streamingCalls: visible ? streamingCalls : [],
@@ -352,9 +373,14 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
     answer,
     version,
     trim,
-    // Try again sends again what got no answer. A refused reply is the box's to send: its sentence
-    // went back there. Anything else -- a failed answer, a refused Try again, or a refused edit,
-    // whose sentence nothing holds any more -- asks with no sentence on it.
-    retry: (sendBox) => (refused && refusedReply.current ? sendBox() : send(null)),
+    // The transient card's Try again sends again what got no answer. A refused reply is the
+    // composer's to send: its sentence went back there. Anything else -- a turn that broke, a
+    // refused Try again, or a refused edit, whose sentence nothing holds any more -- asks with no
+    // sentence on it, in the mode the session is in.
+    retry: (sendBox, mode) =>
+      refused && refusedReply.current ? sendBox() : send(null, "", mode),
+    // The recorded failed answer's Try again (Madde 440): the server takes the answer out and
+    // answers its question again. Never the composer -- what it holds is the next thing to say.
+    answerAgain: (mode) => send(null, "", mode),
   };
 }

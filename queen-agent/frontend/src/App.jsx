@@ -330,7 +330,7 @@ export default function App() {
               refused={chat.refused}
               missing={chat.missing}
               thinking={chat.thinking}
-              streamingText={chat.streamingText}
+              arrived={chat.arrived}
               creatingFile={chat.creatingFile}
               createdFiles={chat.createdFiles}
               streamingCalls={chat.streamingCalls}
@@ -364,7 +364,10 @@ export default function App() {
                 setLastMode(EDIT);
               }}
               onDeny={(reason) => chat.answer(false, reason)}
-              onRetry={chat.retry}
+              /* Both Try agains ask in the mode the session is in, as a send does: a question
+                 asked again in Plan or Ask must not run in Edit. */
+              onRetry={(sendBox) => chat.retry(sendBox, lastMode)}
+              onAnswerAgain={() => chat.answerAgain(lastMode)}
               focusReply={replyFor !== null && chat.chat?.id === replyFor}
               onReplyFocused={() => setReplyFor(null)}
             />

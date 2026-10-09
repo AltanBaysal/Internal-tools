@@ -56,6 +56,25 @@ class ScriptedEngine:
             yield piece
 
 
+class FailsThenAnswers:
+    """An engine whose first `times` tries fail with these words, and whose next one answers.
+
+    Five failures are one turn's failed answer (Madde 440), so this is how a test writes one through
+    the door rather than onto the disk.
+    """
+
+    def __init__(self, times, words="HTTP 502", answer="Done."):
+        self.left = times
+        self.words = words
+        self.answer = answer
+
+    def stream(self, messages, tools=None, on_open=None):
+        if self.left:
+            self.left -= 1
+            raise RuntimeError(self.words)
+        yield {"text": self.answer}
+
+
 def _tool_call(tool, **arguments):
     return {"id": "t1", "function": {"name": tool, "arguments": json.dumps(arguments)}}
 
@@ -158,8 +177,8 @@ def test_a_sentence_is_answered_in_the_same_request(tmp_path):
     resp = client.post(f"/api/projects/{pid}/messages", json={"text": "hello"})
     assert resp.mimetype == "text/event-stream"
     body = resp.get_data(as_text=True)
-    assert "Done." in body
     assert _frames(body)[-1] == "done"
+    assert [m["text"] for m in _record(client, pid, _named(body))["messages"]] == ["hello", "Done."]
 
 
 def test_the_first_frame_names_the_chat_that_was_born(tmp_path):
@@ -195,20 +214,19 @@ def test_the_separate_answering_door_is_gone(tmp_path):
 
 
 def test_a_body_with_no_text_asks_again_without_writing_the_sentence_twice(tmp_path):
-    # Try again. It can only be reached where a turn left no answer behind, so the engine here
-    # fails: the question stays on disk owed, and asking again must not write it a second time.
-    client = _client(tmp_path, engine=FakeEngine(blow_up="boom"))
+    # Try again. Since Madde 440 a turn the model failed on leaves a failed answer behind, and
+    # asking again takes it out and answers the same question -- written once.
+    client = _client(tmp_path, engine=FailsThenAnswers(5))
     pid = _project(client)
     first = client.post(f"/api/projects/{pid}/messages", json={"text": "hello"}).get_data(
         as_text=True
     )
     cid = _named(first)
     again = client.post(f"/api/projects/{pid}/messages", json={"chat": cid})
-    # It went through -- it is a stream carrying the same fault, not a refusal.
     assert again.mimetype == "text/event-stream"
-    assert "error" in _frames(again.get_data(as_text=True))
-    said = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()["messages"]
-    assert [m["text"] for m in said] == ["hello"]
+    again.get_data()
+    said = _record(client, pid, cid)["messages"]
+    assert [(m["text"], m["failed"]) for m in said] == [("hello", ""), ("Done.", "")]
 
 
 def test_a_body_with_neither_a_chat_nor_text_is_400(tmp_path):
@@ -367,12 +385,13 @@ def test_a_projects_chats_come_back_newest_first(tmp_path):
     assert [row["title"] for row in listed] == ["newer", "older"]
 
 
-def test_the_answer_arrives_as_a_stream_of_events(tmp_path):
+def test_the_words_do_not_travel_down_the_stream(tmp_path):
+    # Madde 440: the answer comes back whole and the screen shows it once the turn has ended, so the
+    # words are read off the record and nothing of them crosses while the turn runs.
     client = _client(tmp_path)
     pid, cid, body = _first_turn(client)
-    assert body.index("event: chunk") < body.index("event: done")
-    assert '"text": "Done."' in body
-    # The record the browser ends up trusting is the one the server wrote.
+    assert "chunk" not in _frames(body)
+    assert "Done." not in body
     kept = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()
     assert [m["text"] for m in kept["messages"]] == ["hello", "Done."]
 
@@ -393,14 +412,95 @@ def test_no_frame_in_the_stream_carries_the_record(tmp_path):
     assert "messages" not in body
 
 
-def test_a_broken_engine_speaks_inside_the_stream(tmp_path):
+def test_an_engine_that_keeps_failing_ends_the_turn_in_a_failed_answer(tmp_path):
+    # Madde 440: the black box does not throw, so the stream ends as any turn does, and the
+    # failure's own words are the record's answer -- there for the card on every reload.
     client = _client(tmp_path, engine=FakeEngine(blow_up="401 bad key"))
     pid, cid, body = _first_turn(client)
-    # The status code was settled when the first byte left, so the fault travels as an event.
-    assert "event: error" in body
-    assert "401 bad key" in body
+    assert _frames(body)[-1] == "done"
+    assert "event: error" not in body
     kept = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()
-    assert [m["text"] for m in kept["messages"]] == ["hello"]
+    assert [(m["text"], m["failed"]) for m in kept["messages"]] == [
+        ("hello", ""),
+        ("401 bad key", "technical"),
+    ]
+
+
+def test_every_message_says_whether_it_failed(tmp_path):
+    # Always present, like `stopped`: the browser draws from what it is handed.
+    client = _client(tmp_path)
+    pid, cid = _started(client)
+    assert [m["failed"] for m in _record(client, pid, cid)["messages"]] == ["", ""]
+
+
+def test_try_again_after_a_failed_answer_replaces_it(tmp_path):
+    client = _client(tmp_path, engine=FailsThenAnswers(5, answer="Here it is."))
+    pid, cid = _started(client)
+    assert _record(client, pid, cid)["messages"][-1]["failed"] == "technical"
+    body = client.post(f"/api/projects/{pid}/messages", json={"chat": cid}).get_data(as_text=True)
+    assert _frames(body)[-1] == "done"
+    said = _record(client, pid, cid)["messages"]
+    assert [m["text"] for m in said] == ["hello", "Here it is."]
+
+
+def test_a_failed_answer_followed_by_a_message_stays_in_the_record(tmp_path):
+    client = _client(tmp_path, engine=FailsThenAnswers(5))
+    pid, cid = _started(client)
+    client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": "again"}).get_data()
+    said = _record(client, pid, cid)["messages"]
+    assert [(m["text"], m["failed"]) for m in said] == [
+        ("hello", ""),
+        ("HTTP 502", "technical"),
+        ("again", ""),
+        ("Done.", ""),
+    ]
+
+
+def _failed_in_a_full_chat(tmp_path):
+    """A chat whose last question filled it and whose answer then failed, written to disk.
+
+    30,000 tokens of answer and 21,000 of question: full, and the trim's cut stands before that
+    question.
+    """
+    client = _client(tmp_path)
+    pid = _project(client)
+    FileChatStore(Store(str(tmp_path))).add(
+        pid,
+        Chat(
+            id="c1",
+            title="go",
+            created_at="2026-10-09T10:00:00+00:00",
+            messages=(
+                Message(role="user", at="2026-10-09T10:00:00+00:00", text="go"),
+                Message(role="ai", at="2026-10-09T10:01:00+00:00", text="a" * 100_000),
+                Message(role="user", at="2026-10-09T10:02:00+00:00", text="b" * 70_000),
+                Message(
+                    role="ai", at="2026-10-09T10:03:00+00:00", text="HTTP 502", failed="technical"
+                ),
+            ),
+        ),
+    )
+    return client, pid
+
+
+def test_try_again_in_a_full_chat_meets_the_ceiling_and_the_failed_answer_stays(tmp_path):
+    client, pid = _failed_in_a_full_chat(tmp_path)
+    refused = client.post(f"/api/projects/{pid}/messages", json={"chat": "c1"})
+    assert refused.status_code == 400
+    assert "ceiling" in refused.get_json()["error"]
+    assert _record(client, pid, "c1")["messages"][-1]["failed"] == "technical"
+
+
+def test_try_again_after_continue_here_keeps_the_trim(tmp_path):
+    # Continue here marks the line's last message, which here is the failed answer. Taking it out
+    # must not take the trim with it: the mark moves to the question in front of it.
+    client, pid = _failed_in_a_full_chat(tmp_path)
+    assert client.post(f"/api/projects/{pid}/chats/c1/trim").status_code == 200
+    client.post(f"/api/projects/{pid}/messages", json={"chat": "c1"}).get_data()
+    record = _record(client, pid, "c1")
+    assert record["trimmed"] == 2
+    assert [m["failed"] for m in record["messages"]] == ["", "", "", ""]
+    assert record["messages"][-1]["text"] == "Done."
 
 
 def _silent_with_a_file():
@@ -509,27 +609,27 @@ def test_a_silent_turn_that_made_a_file_closes_the_stream_cleanly(tmp_path):
 
 
 def test_the_record_keeps_the_silent_answer(tmp_path):
+    # Madde 38, kept through Madde 440: a turn that wrote a file and then said nothing is finished,
+    # not a failure.
     client = _client(tmp_path, engine=_silent_with_a_file())
     pid, cid, _body = _first_turn(client)
     kept = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()["messages"]
     assert [m["text"] for m in kept] == ["hello", ""]
     assert kept[-1]["files"] == ["plan.md"]
+    assert kept[-1]["failed"] == ""
 
 
-def test_a_turn_that_produced_nothing_says_so_inside_the_stream(tmp_path):
-    # Neither a word nor a file, so there is no answer -- and saying so is the server's job, not
-    # the browser's guess about the connection.
+def test_a_turn_that_produced_nothing_ends_in_a_failed_answer(tmp_path):
+    # Neither a word nor a file five times over. Saying so is the server's job, not the browser's
+    # guess about the connection, and since Madde 440 it is said on the record.
     client = _client(tmp_path, engine=ScriptedEngine([[]]))
     pid, cid, body = _first_turn(client)
-    assert "event: error" in body
-    assert "The model returned nothing." in body
-
-
-def test_a_turn_that_produced_nothing_writes_nothing(tmp_path):
-    client = _client(tmp_path, engine=ScriptedEngine([[]]))
-    pid, cid, _body = _first_turn(client)
+    assert "event: error" not in body
     kept = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()["messages"]
-    assert [m["text"] for m in kept] == ["hello"]
+    assert [(m["text"], m["failed"]) for m in kept] == [
+        ("hello", ""),
+        ("The model returned nothing.", "technical"),
+    ]
 
 
 def test_answering_an_unknown_chat_is_400(tmp_path):
@@ -877,7 +977,7 @@ def test_the_answer_left_at_the_door_lets_the_turn_finish(tmp_path):
     body = _write(client, pid, cid)
     # Madde 194's progress frames are dropped: this test is about the order of the door, the work
     # and the answer, and a signal that fires every round says nothing about that order.
-    assert _steps(body) == ["chat", "permission", "file-start", "file", "call", "chunk", "done"]
+    assert _steps(body) == ["chat", "permission", "file-start", "file", "call", "done"]
     assert [file["name"] for file in client.get(f"/api/projects/{pid}/files").get_json()] == [
         "plan.md"
     ]
@@ -901,7 +1001,7 @@ def test_a_refusal_at_the_door_writes_no_file_and_the_turn_still_ends(tmp_path):
         json={"allowed": False, "reason": "not that one"},
     )
     body = _write(client, pid, cid)
-    assert _steps(body) == ["chat", "permission", "call", "chunk", "done"]
+    assert _steps(body) == ["chat", "permission", "call", "done"]
     assert client.get(f"/api/projects/{pid}/files").get_json() == []
 
 
@@ -954,7 +1054,7 @@ def test_the_answer_to_an_edited_message_is_written_into_its_own_line(tmp_path):
     client = _client(tmp_path)
     pid, cid = _started(client, "Write the intro")
     body = _edited(client, pid, cid, "Write a shorter intro", 0)
-    assert "chunk" in _frames(body)
+    assert _frames(body)[-1] == "done"
     stored = json.loads(
         (tmp_path / pid / "chats" / f"{cid}.json").read_text(encoding="utf-8")
     )

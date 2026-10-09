@@ -447,6 +447,12 @@
   text-wrap: pretty;
 }
 
+/* An answer that has just arrived whole (design item 214): its words fade in, the rest of the
+   message stands as it was. The same fade the file cards use. */
+.msg--arrived .msg__text {
+  animation: fadeIn 0.2s ease both;
+}
+
 /* Everything a rendered answer is made of. Sizes live outside this block -- the container picks the
    scale -- and the measurements below come from the app's own tokens, which is what the design
    leaves us: it names the heading sizes and nothing else. */
@@ -710,6 +716,12 @@
 
 .failure__retry:hover {
   border-color: #c79b85;
+}
+
+/* A failed answer's card stands in a message box, whose children sit at its left: it takes the
+   column's width as the same card does outside one. */
+.msg--failed .failure {
+  align-self: stretch;
 }
 
 /* The question a paused turn is waiting on. The surface's own tone rather than the failure's:
@@ -1084,18 +1096,6 @@
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--muted);
-}
-
-/* Inside the block that is still pending, right under the dots. It carries the skeleton of the card
-   about to be born rather than being a note about it, which is why it holds a badge slot and stops
-   at the width a file card would take. */
-/* Stopping your own answer is neither the primary action nor a destructive one, so it takes neither
-   the accent nor the red: a quiet outlined control that sits beside the pickers. */
-/* An answer that was cut short. Marked at its edge rather than by dimming the text -- the words are
-   the user's to keep, and greying them would suggest they are worth less. */
-.msg--stopped .msg__text {
-  border-left: 2px solid var(--line);
-  padding-left: 12px;
 }
 
 /* What the turn did before it spoke, behind one door. Madde 78's rule holds and is written into the
