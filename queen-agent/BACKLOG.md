@@ -87,6 +87,14 @@ bir sohbette mesaj gönderip projeden çıkınca All projects proje satırını 
 zamanıyla gösteriyor; sunucu onu çoktan en yeni sayıyor. `App.jsx` listeyi yalnız sohbet doğunca ya da
 dosyalar değişince yeniden okuyor, var olan sohbette tur bitince değil.
 
+## Kenar çubuğunun "Couldn't load chats." hali tasarımdan iki yerde ayrı
+
+*(Claude, 9 Ekim — v10'un 444'ünü yapan coder'ın karşılaştırması; tasarım `queen-design`'ın
+`queen-agent-v4` dalı, 219.)* Tasarımda sohbetler okunamayınca *Search chats* soluk ve basılamaz
+(`disabled`, opacity 0.4); uygulamada açık kalıyor — bir şey göstermiyor, Enter bir şey açmıyor. Boşluk:
+tasarımda cümleyle düğmeler arası 12 px, altta boşluk yok; uygulamada 10 px ve altta 10 px. 444 yalnız
+Copy'nin görünüşünü aldı.
+
 ## Bir frontend testi arada düşüyor
 
 *(Claude, 9 Ekim — Queen Editor v9'un 439'unda görüldü.)* `src/features/workspace/ChatScreen.test.jsx`'in
