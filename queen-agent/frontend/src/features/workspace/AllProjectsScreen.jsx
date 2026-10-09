@@ -95,17 +95,23 @@ export default function AllProjectsScreen({
 
   // The pressed ⋯ leaves with its row, so the keyboard goes to the ⋯ that comes to stand in its
   // place -- the next one down the list as drawn, searched or not -- or to the search where none
-  // does (the design's 217). Handed over before the row goes, while the next one is still drawn.
+  // does. The design's 217 asks it of Archive, and Madde 451 of Unarchive: each is only on the ⋯ of
+  // a row on the tab that loses it. Handed over before the row goes, while the next one is still
+  // drawn.
   const handOverFrom = (id) => {
     const mores = [...column.current.querySelectorAll("[data-project]")];
-    const next = mores[mores.findIndex((more) => more.dataset.project === id) + 1];
+    const at = mores.findIndex((more) => more.dataset.project === id);
+    // A row not drawn has no next one: the first ⋯ would be a guess, as the design's page guards it.
+    const next = at === -1 ? null : mores[at + 1];
     // The next ⋯ moves into the place being looked at, so the window stays; the search may be
     // far above a long list's last row, and the keyboard is not left off the screen.
     if (next) next.focus({ preventScroll: true });
     else search.current.focus();
   };
+  // A refusal brings the row back and leaves the keyboard where the press handed it: the answer may
+  // come once the user is elsewhere.
   const archive = async (id, toArchive) => {
-    if (toArchive) handOverFrom(id);
+    handOverFrom(id);
     // The press is its own token: the answer clears the entry only while it is still this one.
     const press = { archived: toArchive };
     setAsked((now) => new Map(now).set(id, press));

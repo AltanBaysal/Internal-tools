@@ -461,6 +461,68 @@ test("Archive pressed while the unarchive is on its way keeps the project on Arc
   expect(names(container)).toEqual(["Shelved reel"]);
 });
 
+// --- Madde 451: Unarchive hands the keyboard over as Archive does --------------------------------
+
+const STORED = { ...SHELVED, id: "p7", name: "Stored cut", lastActivity: ago(40) };
+const SHELF = { ...SHELVED, id: "p8", name: "Shelf talk", lastActivity: ago(60) };
+
+test("after Unarchive the keyboard goes to the ⋯ of the archived row that now stands where it stood", () => {
+  const { unarchive } = onScreen([PINNED, SHELVED, STORED, RECENT]);
+  fireEvent.click(tab("Archived"));
+  const focus = vi.spyOn(moreOf("Stored cut"), "focus");
+  unarchive("p5");
+  expect(document.activeElement).toBe(moreOf("Stored cut"));
+  expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+});
+
+test("searched, Unarchive hands the keyboard to the next archived row the search left", () => {
+  const { unarchive } = onScreen([SHELVED, STORED, SHELF]);
+  fireEvent.click(tab("Archived"));
+  type("shel");
+  unarchive("p5");
+  expect(document.activeElement).toBe(moreOf("Shelf talk"));
+});
+
+test("with no archived row after it, Unarchive hands the keyboard to the search", () => {
+  const { unarchive } = onScreen([PINNED, SHELVED, STORED]);
+  fireEvent.click(tab("Archived"));
+  moreOf("Shelved reel").focus();
+  const focus = vi.spyOn(search(), "focus");
+  unarchive("p7");
+  expect(document.activeElement).toBe(search());
+  // Scrolled into view, as after the last Archive: a long archive's last row may be far below it.
+  expect(focus).toHaveBeenCalledWith();
+});
+
+test("the last archived project back, the keyboard is on the search", () => {
+  const { unarchive } = onScreen([PINNED, SHELVED]);
+  fireEvent.click(tab("Archived"));
+  // The search took the keyboard as the screen opened; the press is made from the row's own ⋯.
+  moreOf("Shelved reel").focus();
+  unarchive("p5");
+  expect(screen.getByText("No archived projects.", { selector: ".all-projects__empty" })).toBeTruthy();
+  expect(document.activeElement).toBe(search());
+});
+
+test("an unarchive the server refused brings the row back, and the keyboard stays where it went", async () => {
+  // The answer can come seconds later, when the user may be elsewhere: it does not pull the keyboard.
+  const { container, unarchive, answer } = onScreen([PINNED, SHELVED, STORED]);
+  fireEvent.click(tab("Archived"));
+  unarchive("p5");
+  await answer([PINNED, SHELVED, STORED]);
+  expect(names(container)).toEqual(["Shelved reel", "Stored cut"]);
+  expect(document.activeElement).toBe(moreOf("Stored cut"));
+});
+
+test("a pressed row not among the drawn ⋯ hands the keyboard to the search, not the first ⋯", () => {
+  const { archive } = onScreen([PINNED, RECENT, OLDER]);
+  // The hand-over finds the pressed row by its ⋯; one it cannot find has no next row to name.
+  moreOf("Night market").removeAttribute("data-project");
+  moreOf("Old pier").focus();
+  archive("p2");
+  expect(document.activeElement).toBe(search());
+});
+
 // --- Madde 443: an archived project opens, and Enter opens the first match (the design's 218) -----
 
 test("pressing an archived row opens that project, as any row does", () => {
