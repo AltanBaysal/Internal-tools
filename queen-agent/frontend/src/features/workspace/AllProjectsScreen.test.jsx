@@ -276,28 +276,29 @@ test("while the list loads the tabs stand, and count nothing yet", () => {
 
 // --- Madde 441: Archive takes the row out at once (the design's 217) -----------------------------
 
-// The screen as App draws it. `archive` presses a row's Archive from its ⋯, which App opens and,
-// once chosen, closes. The server takes its time (Madde 446), so its answer waits for `answer`:
-// the list editProject reads again, then the hand-back.
+// The screen as App draws it. `archive` and `unarchive` press a row's Archive or Unarchive from its
+// ⋯, which App opens and, once chosen, closes; Unarchive is on the Archived tab. The server takes
+// its time (Madde 446), so each answer waits for `answer`, in the order pressed, as editProject
+// sends them (Madde 450): the list it reads again, then the hand-back.
 function onScreen(projects, extra = {}) {
   const answers = [];
-  const onArchiveProject = vi.fn((id, archived) =>
-    archived ? new Promise((resolve) => answers.push(resolve)) : undefined,
-  );
+  const onArchiveProject = vi.fn(() => new Promise((resolve) => answers.push(resolve)));
   const props = { onCloseMenu: () => {}, onArchiveProject, ...extra };
   let listed = projects;
   const view = render(<AllProjectsScreen projects={listed} {...props} />);
-  const archive = (id) => {
+  const press = (id, label) => {
     view.rerender(<AllProjectsScreen projects={listed} menuFor={id} {...props} />);
-    fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+    fireEvent.click(screen.getByRole("button", { name: label }));
     view.rerender(<AllProjectsScreen projects={listed} {...props} />);
   };
+  const archive = (id) => press(id, "Archive");
+  const unarchive = (id) => press(id, "Unarchive");
   const answer = async (next) => {
     listed = next;
     view.rerender(<AllProjectsScreen projects={listed} {...props} />);
     await act(async () => answers.shift()());
   };
-  return { ...view, props, archive, answer };
+  return { ...view, props, archive, unarchive, answer };
 }
 const moreOf = (name) => screen.getByRole("button", { name: `Actions for ${name}` });
 
@@ -404,6 +405,60 @@ test("Unarchive asks for the project back", () => {
   fireEvent.click(tab("Archived"));
   fireEvent.click(screen.getByRole("button", { name: "Unarchive" }));
   expect(onArchiveProject).toHaveBeenCalledWith("p5", false);
+});
+
+// --- Madde 450: the last press stands ------------------------------------------------------------
+
+test("Unarchive takes the row out of Archived before the server answers", () => {
+  const { container, unarchive } = onScreen([PINNED, SHELVED, RECENT]);
+  fireEvent.click(tab("Archived"));
+  unarchive("p5");
+  expect(screen.getByText("No archived projects.", { selector: ".all-projects__empty" })).toBeTruthy();
+  expect(counts(container)).toEqual(["3", "0"]);
+});
+
+test("an unarchive the server refused brings the project back to Archived", async () => {
+  const { container, unarchive, answer } = onScreen([PINNED, SHELVED, RECENT]);
+  fireEvent.click(tab("Archived"));
+  unarchive("p5");
+  await answer([PINNED, SHELVED, RECENT]);
+  expect(names(container)).toEqual(["Shelved reel"]);
+  expect(counts(container)).toEqual(["2", "1"]);
+});
+
+test("Unarchive pressed while the archive is on its way keeps the project on Projects", async () => {
+  const { container, props, archive, unarchive, answer } = onScreen([PINNED, RECENT, OLDER]);
+  archive("p2");
+  fireEvent.click(tab("Archived"));
+  unarchive("p2");
+  expect(screen.getByText("No archived projects.", { selector: ".all-projects__empty" })).toBeTruthy();
+  fireEvent.click(tab("Projects"));
+  expect(names(container)).toEqual(["Harbour at dusk", "Night market", "Old pier"]);
+  // The archive's answer is the list as it stood after the archive: the later press still stands.
+  await answer([PINNED, { ...RECENT, archived: true }, OLDER]);
+  expect(names(container)).toEqual(["Harbour at dusk", "Night market", "Old pier"]);
+  expect(counts(container)).toEqual(["3", "0"]);
+  await answer([PINNED, RECENT, OLDER]);
+  expect(names(container)).toEqual(["Harbour at dusk", "Night market", "Old pier"]);
+  expect(props.onArchiveProject.mock.calls).toEqual([
+    ["p2", true],
+    ["p2", false],
+  ]);
+});
+
+test("Archive pressed while the unarchive is on its way keeps the project on Archived", async () => {
+  const { container, unarchive, archive, answer } = onScreen([PINNED, SHELVED, RECENT]);
+  fireEvent.click(tab("Archived"));
+  unarchive("p5");
+  fireEvent.click(tab("Projects"));
+  archive("p5");
+  expect(names(container)).toEqual(["Harbour at dusk", "Night market"]);
+  await answer([PINNED, { ...SHELVED, archived: false }, RECENT]);
+  expect(names(container)).toEqual(["Harbour at dusk", "Night market"]);
+  expect(counts(container)).toEqual(["2", "1"]);
+  await answer([PINNED, SHELVED, RECENT]);
+  fireEvent.click(tab("Archived"));
+  expect(names(container)).toEqual(["Shelved reel"]);
 });
 
 // --- Madde 443: an archived project opens, and Enter opens the first match (the design's 218) -----

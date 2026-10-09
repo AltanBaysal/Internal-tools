@@ -760,6 +760,127 @@ test("an archived project stands only under Archived, and Unarchive brings it ba
   expect(sections(container)).toEqual({ Recent: ["Thesis", "Notes"] });
 });
 
+// --- Madde 450: the last press stands -------------------------------------------------------------
+
+// serverForRows, which takes each PATCH as it arrives but holds its answer until `release`, one at a
+// time in the order they came: the server takes its time (Madde 446), and what the browser sends
+// meanwhile is what is watched.
+function holdingAnswers(projects) {
+  const server = serverForRows(projects);
+  const held = [];
+  const fetch = vi.fn((path, options) => {
+    const answer = server(path, options);
+    if (options?.method !== "PATCH") return answer;
+    return new Promise((resolve) => held.push(() => resolve(answer)));
+  });
+  vi.stubGlobal("fetch", fetch);
+  const release = () => act(async () => held.shift()());
+  return { fetch, release };
+}
+// Every write and every read of the list, in the order sent; a read is its path alone.
+const sent = (fetch) =>
+  fetch.mock.calls
+    .filter(([path]) => path.startsWith("/api/projects"))
+    .map(([path, options]) =>
+      [options?.method, path, options?.body].filter(Boolean).join(" "),
+    );
+// A reload: React's state is gone, and only what the server holds comes back.
+async function reloaded() {
+  cleanup();
+  const view = render(<App />);
+  await onAllProjects();
+  return view;
+}
+
+test("Unarchive pressed before the archive has answered goes after it, and the project stays", async () => {
+  const { fetch, release } = holdingAnswers(ROWS);
+  const { container } = render(<App />);
+  await onAllProjects();
+  actionsFor("Notes");
+  fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+  fireEvent.click(tab("Archived"));
+  actionsFor("Notes");
+  fireEvent.click(screen.getByRole("button", { name: "Unarchive" }));
+  expect(await screen.findByText("No archived projects.")).toBeTruthy();
+  // Sent side by side, the two could be handled in either order: the second waits for the first.
+  expect(sent(fetch)).toEqual(["/api/projects", 'PATCH /api/projects/p2 {"archived":true}']);
+  await release();
+  // ... and for the list read after it, so that list cannot come late and be drawn over its own.
+  await waitFor(() => expect(patches(fetch)).toHaveLength(2));
+  expect(sent(fetch)).toEqual([
+    "/api/projects",
+    'PATCH /api/projects/p2 {"archived":true}',
+    "/api/projects",
+    'PATCH /api/projects/p2 {"archived":false}',
+  ]);
+  fireEvent.click(tab("Projects"));
+  expect(sections(container)).toEqual({ Recent: ["Thesis", "Notes"] });
+  await release();
+  await waitFor(() => expect(listReads(fetch)).toBe(3));
+  expect(sections(container)).toEqual({ Recent: ["Thesis", "Notes"] });
+  const again = await reloaded();
+  expect(sections(again.container)).toEqual({ Recent: ["Thesis", "Notes"] });
+  expect(screen.getByRole("button", { name: "Archived 0" })).toBeTruthy();
+});
+
+test("Archive pressed before the unarchive has answered goes after it, and the project stays archived", async () => {
+  const { fetch, release } = holdingAnswers([ROWS[0], SHELVED]);
+  const { container } = render(<App />);
+  await onAllProjects();
+  fireEvent.click(tab("Archived"));
+  actionsFor("Notes");
+  fireEvent.click(screen.getByRole("button", { name: "Unarchive" }));
+  fireEvent.click(tab("Projects"));
+  actionsFor("Notes");
+  fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+  expect(sections(container)).toEqual({ Recent: ["Thesis"] });
+  await act(async () => {});
+  expect(patches(fetch)).toHaveLength(1);
+  await release();
+  await waitFor(() => expect(patches(fetch)).toHaveLength(2));
+  expect(sections(container)).toEqual({ Recent: ["Thesis"] });
+  await release();
+  await waitFor(() => expect(listReads(fetch)).toBe(3));
+  expect(sent(fetch).slice(1)).toEqual([
+    'PATCH /api/projects/p2 {"archived":false}',
+    "/api/projects",
+    'PATCH /api/projects/p2 {"archived":true}',
+    "/api/projects",
+  ]);
+  await reloaded();
+  expect(screen.getByRole("button", { name: "Archived 1" })).toBeTruthy();
+  fireEvent.click(tab("Archived"));
+  expect(screen.getByText("Notes", { selector: ".all-projects__row-name" })).toBeTruthy();
+});
+
+test("a delete confirmed while an archive is on its way goes after the archive's list", async () => {
+  // Sent side by side, the archive's list could be read before the delete and land after it,
+  // drawing the deleted project again.
+  const { fetch, release } = holdingAnswers(ROWS);
+  const { container } = render(<App />);
+  await onAllProjects();
+  actionsFor("Notes");
+  fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+  actionsFor("Thesis");
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+  // The menu closed on the choice, so the one Delete left is the question's own.
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+  await act(async () => {});
+  expect(sent(fetch)).toEqual(["/api/projects", 'PATCH /api/projects/p2 {"archived":true}']);
+  await release();
+  await waitFor(() => expect(screen.queryByText("Thesis")).toBeNull());
+  expect(sent(fetch)).toEqual([
+    "/api/projects",
+    'PATCH /api/projects/p2 {"archived":true}',
+    "/api/projects",
+    "DELETE /api/projects/p1",
+  ]);
+  expect(screen.getByText("Every project is archived.")).toBeTruthy();
+  fireEvent.click(tab("Archived"));
+  expect(sections(container)).toEqual({});
+  expect(screen.getByText("Notes", { selector: ".all-projects__row-name" })).toBeTruthy();
+});
+
 test("an archived project's Delete asks the same question", async () => {
   const fetch = serverForRows([ROWS[0], SHELVED]);
   render(<App />);

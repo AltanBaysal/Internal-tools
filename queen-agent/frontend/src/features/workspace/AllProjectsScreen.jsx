@@ -64,17 +64,20 @@ export default function AllProjectsScreen({
 }) {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("projects");
-  // The projects Archive has taken while the server is still asked: they leave Projects at once
-  // (the design's 217), since an archive takes its time (Madde 446). Each is drawn archived until
-  // its own answer, the list read again, says where it stands -- on Archived, or back on Projects
-  // with the refusal's words over the list. Until then it keeps its place in the server's order,
-  // so a project that was pinned stands at the top of Archived and moves once the answer comes.
-  const [leaving, setLeaving] = useState([]);
+  // The last Archive or Unarchive pressed on each project, while the server is still asked: the
+  // row moves at once (the design's 217), since the server takes its time (Madde 446). It is drawn
+  // as that press asked until the press's own answer, the list read again, says where it stands --
+  // or back where it was, with the refusal's words over the list. A later press takes the place of
+  // an earlier one, whose answer then leaves it be: the last press stands (Madde 450), and
+  // editProject sends them in the order pressed. Until then the row keeps its place in the server's
+  // order, so a project that was pinned stands at the top of Archived and moves once the answer
+  // comes.
+  const [asked, setAsked] = useState(() => new Map());
   const column = useRef(null);
   const search = useRef(null);
 
   const listed = projects.map((project) =>
-    leaving.includes(project.id) ? { ...project, archived: true } : project,
+    asked.has(project.id) ? { ...project, archived: asked.get(project.id).archived } : project,
   );
   const archived = listed.filter((project) => project.archived);
   const open = listed.filter((project) => !project.archived);
@@ -102,14 +105,17 @@ export default function AllProjectsScreen({
     else search.current.focus();
   };
   const archive = async (id, toArchive) => {
-    if (!toArchive) {
-      onArchiveProject?.(id, false);
-      return;
-    }
-    handOverFrom(id);
-    setLeaving((ids) => [...ids, id]);
-    await onArchiveProject?.(id, true);
-    setLeaving((ids) => ids.filter((one) => one !== id));
+    if (toArchive) handOverFrom(id);
+    // The press is its own token: the answer clears the entry only while it is still this one.
+    const press = { archived: toArchive };
+    setAsked((now) => new Map(now).set(id, press));
+    await onArchiveProject?.(id, toArchive);
+    setAsked((now) => {
+      if (now.get(id) !== press) return now;
+      const rest = new Map(now);
+      rest.delete(id);
+      return rest;
+    });
   };
 
   // Built once here rather than handed down as eight props through the list and its sections.
