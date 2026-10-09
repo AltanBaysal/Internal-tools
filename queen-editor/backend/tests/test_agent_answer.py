@@ -9,19 +9,11 @@ the top would stop the whole collection instead of failing these questions.
 """
 import base64
 import copy
-import importlib.util
 import json
-import os
 
 import pytest
 
 from backend.services.deepseek.box import Answer
-
-TOOL = os.path.dirname(          # queen-editor
-    os.path.dirname(             # backend
-        os.path.dirname(os.path.abspath(__file__))))  # tests
-QUEEN_AGENT_PROMPT = os.path.join(os.path.dirname(TOOL), "queen-agent", "backend", "features",
-                                  "workspace", "domain", "prompt.py")
 
 QUESTION = "Kaç kare var?"
 REFUSED = "Model hata döndü, farklı şekilde dene."
@@ -160,15 +152,6 @@ def frames_of(message):
     return first, [json.loads(line) for line in rest]
 
 
-def _queen_agent_suffix():
-    """QueenAgent's suffix, the value QueenAgent sends -- loaded, not parsed, the way
-    test_video_prompt_writer reads it. The module imports nothing, so nothing else comes with it."""
-    spec = importlib.util.spec_from_file_location("queen_agent_prompt", QUEEN_AGENT_PROMPT)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module.SYSTEM_PROMPT_SUFFIX
-
-
 def test_a_project_with_no_frames_is_answered_with_no_request():
     """Nothing to read: the look at the project, then the designer's sentence (BEHAVIOUR.md, Agent
     panel -- "A project with no frames gets one answer saying so")."""
@@ -200,21 +183,22 @@ def test_the_first_request_is_the_instruction_the_cards_and_the_question():
     assert project.asked == [("frames", "düğün")]
 
 
-def test_the_instruction_ends_with_queen_agent_s_suffix():
-    """The user: "aynı suffixi kullansın" -- asked of QueenAgent's own text, as madde 407 asks it of
-    the prompt writers. The copy is pinned to it: the day the owner rewrites QueenAgent's, this goes
-    red until the copy follows."""
+def test_the_instruction_ends_with_the_prompt_writers_suffix():
+    """The user: "aynı suffixi kullansın" -- the agent ends its instruction with the suffix Queen
+    AI's prompt writers end theirs with (madde 407). The two are copies, one per feature, and this
+    holds them to one text."""
+    from backend.features.photo_generation.data.prompt_writer import SYSTEM_PROMPT_SUFFIX
     box = FakeBox(Answer("Projede 3 kare var."))
 
     answering(box)
 
     sent = box.asked[0][0][0]["content"]
-    suffix = _queen_agent_suffix()
-    assert sent.endswith(suffix), f"Agent'ın talimatı QueenAgent'ın suffix'iyle bitmiyor:\n{sent}"
-    assert prompt().SYSTEM_PROMPT_SUFFIX == suffix, (
-        "Agent'ın suffix'i QueenAgent'ınkiyle aynı değil: queen-agent/backend/features/workspace/"
-        "domain/prompt.py'deki SYSTEM_PROMPT_SUFFIX, queen-editor/backend/features/agent/domain/"
-        "prompt.py'ye aynen kopyalanmalı"
+    assert sent.endswith(SYSTEM_PROMPT_SUFFIX), (
+        f"Agent'ın talimatı prompt yazıcılarının suffix'iyle bitmiyor:\n{sent}")
+    assert prompt().SYSTEM_PROMPT_SUFFIX == SYSTEM_PROMPT_SUFFIX, (
+        "Agent'ın suffix'i prompt yazıcılarınınkiyle aynı değil: queen-editor/backend/features/"
+        "photo_generation/data/prompt_writer.py'deki SYSTEM_PROMPT_SUFFIX, "
+        "queen-editor/backend/features/agent/domain/prompt.py'ye aynen kopyalanmalı"
     )
 
 

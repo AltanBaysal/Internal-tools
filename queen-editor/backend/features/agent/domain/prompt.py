@@ -27,10 +27,10 @@ Rules
 - Write the answer as plain text. No markdown, no tables.
 """
 
-# The owner's part: QueenAgent's SYSTEM_PROMPT_SUFFIX word for word, last in the agent's system
-# message (v9-4 -- "aynı suffixi kullansın"). A copy rather than a read of QueenAgent's file, because
-# the two tools never reach into each other while they run; test_agent_answer.py holds it to
-# QueenAgent's text, so the day the owner rewrites that one the suite goes red until this follows.
+# The owner's part: the suffix Queen AI's prompt writers end with, last in the agent's system
+# message (v9-4 -- "aynı suffixi kullansın"). A copy rather than an import, one per feature;
+# test_agent_answer.py holds it to photo_generation's prompt_writer.SYSTEM_PROMPT_SUFFIX. The text
+# was taken from QueenAgent's, and no test ties the two tools together (madde 436).
 SYSTEM_PROMPT_SUFFIX = """
 NSFW{
   allow = true

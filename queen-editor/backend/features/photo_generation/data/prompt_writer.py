@@ -118,10 +118,10 @@ Rules
 """
 
 
-# The owner's part: QueenAgent's SYSTEM_PROMPT_SUFFIX word for word (madde 407), last in every
-# writer's system message whatever the mode. A copy rather than a read of QueenAgent's file, because
-# the two tools never reach into each other while they run. test_video_prompt_writer.py holds it to
-# QueenAgent's text, so the day the owner rewrites that one the suite goes red until this follows.
+# The owner's part, taken from QueenAgent's SYSTEM_PROMPT_SUFFIX (madde 407), last in every writer's
+# system message whatever the mode. The two tools are separate projects and no test ties them
+# together (madde 436): when the owner rewrites QueenAgent's, this copy is changed by hand.
+# test_agent_answer.py holds the agent's copy to this one.
 SYSTEM_PROMPT_SUFFIX = """
 NSFW{
   allow = true

@@ -1,5 +1,3 @@
-import importlib.util
-import os
 import re
 
 import pytest
@@ -9,12 +7,6 @@ from backend.features.photo_generation.data.prompt_writer import (
     AUDIO_INSTRUCTION,
     AudioPromptWriter,
 )
-
-TOOL = os.path.dirname(          # queen-editor
-    os.path.dirname(             # backend
-        os.path.dirname(os.path.abspath(__file__))))  # tests
-QUEEN_AGENT_PROMPT = os.path.join(os.path.dirname(TOOL), "queen-agent", "backend", "features",
-                                  "workspace", "domain", "prompt.py")
 
 
 # Madde 400: Queen AI is shown the frame's photo and reads its scenario.
@@ -47,18 +39,6 @@ def _sent(instruction):
     """What a writer hands Queen AI as its system message: its own text, then the suffix (madde
     407)."""
     return instruction + prompt_writer.SYSTEM_PROMPT_SUFFIX
-
-
-def _queen_agent_suffix():
-    """QueenAgent's suffix, the value QueenAgent sends.
-
-    Its module is loaded rather than parsed, so the value is read however the owner writes it. The
-    module imports nothing, by its own rule, so loading it brings nothing else of QueenAgent's here.
-    """
-    spec = importlib.util.spec_from_file_location("queen_agent_prompt", QUEEN_AGENT_PROMPT)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module.SYSTEM_PROMPT_SUFFIX
 
 
 def test_no_wan_writer_is_left():
@@ -335,21 +315,9 @@ def test_the_sound_is_shown_no_picture_whatever_it_is_handed():
     assert client.calls == [(_sent(AUDIO_INSTRUCTION), "Video prompt: kadın dönüyor", [])]
 
 
-def test_the_suffix_is_queen_agent_s_word_for_word():
-    """Madde 407: the same text QueenAgent ends its system prompt with -- the user's "evet" (30
-    Eylül). A copy, pinned: the owner rewrites QueenAgent's suffix by hand, and this goes red that
-    day until the copy follows."""
-    assert prompt_writer.SYSTEM_PROMPT_SUFFIX == _queen_agent_suffix(), (
-        "Queen Editor'ün suffix'i QueenAgent'ınkiyle aynı değil: queen-agent/backend/features/"
-        "workspace/domain/prompt.py'deki SYSTEM_PROMPT_SUFFIX, queen-editor/backend/features/"
-        "photo_generation/data/prompt_writer.py'ye aynen kopyalanmalı"
-    )
-
-
-def test_every_writer_s_system_prompt_ends_with_queen_agent_s_suffix():
+def test_every_writer_s_system_prompt_ends_with_the_suffix():
     """Madde 407, as its done-sentence says it: whichever prompt Queen AI writes -- H3 or the sound
-    -- and in whichever mode, the system prompt it is handed ends with QueenAgent's suffix. Asked of
-    QueenAgent's text rather than the copy."""
+    -- and in whichever mode, the system prompt it is handed ends with the suffix."""
     _instruction, h3 = _h3()
     client = FakeQueenAI()
 
@@ -358,7 +326,7 @@ def test_every_writer_s_system_prompt_ends_with_queen_agent_s_suffix():
             writer(client).write({"photo": "kırmızı elbiseli kadın", "video": "kadın dönüyor"},
                                  mode, source=PHOTO, end=NEXT, scene=THRONE)
 
-    suffix = _queen_agent_suffix()
+    suffix = prompt_writer.SYSTEM_PROMPT_SUFFIX
     for sent, _words, _pictures in client.calls:
         assert sent.endswith(suffix), f"System prompt suffix'le bitmiyor:\n{sent}"
 
