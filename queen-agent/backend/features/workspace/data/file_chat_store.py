@@ -1,4 +1,8 @@
-"""FileChatStore -- the only place that knows the chats/<id>.json schema."""
+"""FileChatStore -- the only place that knows the chats/<id>.json schema.
+
+Which chats a project has is projects.json's answer (FileProjectStore, Madde 447): the list is read
+from there and opens no chat, and a chat is opened only once its row names it.
+"""
 import json
 
 from backend.features.workspace.domain.chat import Chat, Message, ToolCall, Usage, Version
@@ -8,8 +12,9 @@ SUFFIX = ".json"
 
 
 class FileChatStore:
-    def __init__(self, store):
+    def __init__(self, store, projects):
         self._store = store
+        self._projects = projects
 
     def add(self, project_id, chat):
         self._write(project_id, chat)
@@ -18,18 +23,20 @@ class FileChatStore:
         self._write(project_id, chat)
 
     def get(self, project_id, chat_id):
-        path = self._path(project_id, chat_id)
-        if not self._store.exists(path):
+        # The id comes from the address, so it becomes a path only once projects.json names it -- and
+        # an id nobody made costs no trip to the disk.
+        if not any(chat.id == chat_id for chat in self._projects.chats(project_id)):
             return None
-        return _as_chat(chat_id, json.loads(self._store.read_text(path)))
+        try:
+            text = self._store.read_text(self._path(project_id, chat_id))
+        except FileNotFoundError:
+            # A row that outlived its chat -- the project's folder moved by hand, or to the trash by a
+            # delete a sudden death half finished. Not found rather than a crash on every look.
+            return None
+        return _as_chat(chat_id, json.loads(text))
 
     def list_for(self, project_id):
-        chats = []
-        for entry in self._store.list_dir(f"{project_id}/{CHATS_DIR}"):
-            if not entry.endswith(SUFFIX):
-                continue  # anything else in the folder is not ours to read
-            chats.append(self.get(project_id, entry[: -len(SUFFIX)]))
-        return chats
+        return self._projects.chats(project_id)
 
     def _write(self, project_id, chat):
         # The id is the file name, so it is not written inside: no artifact repeats an answer
@@ -52,6 +59,8 @@ class FileChatStore:
             self._path(project_id, chat.id),
             json.dumps(stored, ensure_ascii=False, indent=2),
         )
+        # After the chat itself: a row never names a chat that is not on disk.
+        self._projects.put_chat(project_id, chat)
 
     @staticmethod
     def _path(project_id, chat_id):

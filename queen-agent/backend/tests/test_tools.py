@@ -4,7 +4,9 @@ import json
 import pytest
 
 from backend.features.workspace.data.file_file_store import FileFileStore
+from backend.features.workspace.data.file_project_store import FileProjectStore
 from backend.features.workspace.domain.naming import unique_name
+from backend.features.workspace.domain.project import Project
 from backend.features.workspace.domain.tools import (
     DEFAULT_NAME,
     MAX_ROUNDS,
@@ -39,8 +41,18 @@ STRUCTURE = json.dumps(
 )
 
 
+_FILES = {}
+
+
 def _files(tmp_path):
-    return FileFileStore(Store(str(tmp_path)))
+    # A file lives in a project, and projects.json is what says it is there (Madde 447). One store
+    # per root, as the server keeps one: two would be two writers of the same projects.json.
+    if tmp_path not in _FILES:
+        store = Store(str(tmp_path))
+        projects = FileProjectStore(store)
+        projects.add(Project(id="p1", name="Thesis", created_at="2026-08-09T10:00:00+00:00"))
+        _FILES[tmp_path] = FileFileStore(store, projects)
+    return _FILES[tmp_path]
 
 
 def _call(files, tool, **arguments):

@@ -1,7 +1,7 @@
 """Ports the workspace domain depends on. Implementations live in data/."""
-from typing import Protocol
+from typing import Callable, Protocol
 
-from backend.features.workspace.domain.chat import Chat
+from backend.features.workspace.domain.chat import Chat, ChatSummary
 from backend.features.workspace.domain.file import File, FileBody
 from backend.features.workspace.domain.permission import Decision
 from backend.features.workspace.domain.project import Project
@@ -17,17 +17,16 @@ class ProjectStore(Protocol):
     def get(self, project_id: str) -> Project | None:
         """The project carrying this id, or None."""
 
-    def replace(self, project: Project) -> None:
-        """Overwrite an existing project's stored fields."""
+    def update(self, project_id: str, change: Callable[[Project], Project]) -> Project | None:
+        """Apply `change` to the project and answer with it as it now stands, or None if there is
+        no such project.
+
+        What is kept of the changed project is its name, pinned_at and archived: the counts and
+        the last use are not the project's to set -- they come from its chats and files.
+        """
 
     def delete(self, project_id: str) -> str | None:
         """Move the whole project to the trash and answer with the name it took, or None."""
-
-    def set_pinned(self, project_id: str, pinned: bool) -> None:
-        """Pin the project or let it go. Asking for what already stands changes nothing."""
-
-    def set_archived(self, project_id: str, archived: bool) -> None:
-        """Archive the project or bring it back. Asking for what already stands changes nothing."""
 
 
 class ChatStore(Protocol):
@@ -40,8 +39,9 @@ class ChatStore(Protocol):
     def replace(self, project_id: str, chat: Chat) -> None:
         """Overwrite an existing chat."""
 
-    def list_for(self, project_id: str) -> list[Chat]:
-        """Every chat of the project, in no particular order."""
+    def list_for(self, project_id: str) -> list[ChatSummary]:
+        """What a list shows of every chat of the project, in no particular order -- read without
+        opening any chat (Madde 447)."""
 
 
 class Engine(Protocol):

@@ -20,6 +20,21 @@ Process memory is as disposable as the machine it runs on. Any state that matter
 messages, files — is written to the store as files, and the app rebuilds itself from those files
 after a restart.
 
+Project metadata is held differently, though it still lives on disk (Madde 447, the owner's
+decision of 9 October). Every project's name, pin, archive and lists of chats and files are one
+file, `projects.json`, that the server reads once at startup, answers every list from, and is the
+only writer of: a change is made in memory, the request answers at once, and one queued writer puts
+it on disk a moment later. Why: on Drive every file operation is a round trip, and reading the
+projects off their folders made one Archive press thousands of them. What it costs, accepted
+knowingly: a server that crashes loses the changes not written yet ("flask tak diye kapanırsa
+kaybolsun sıkıntı yok") — a stop, Ctrl+C or the notebook's SIGTERM, waits for them; one server runs
+per root. And hand edits on Drive are not all seen alike: an edit to `projects.json` is seen after a
+restart, and one made while the server runs is written over; a file dropped by hand into a project's
+folder is never listed, because only `projects.json` says what a project holds; an edit to what a
+chat or a file says is seen at once, because contents are read from their own files. What a chat or
+a file *says* is not metadata and keeps this principle whole — it is written to its own file before
+the request answers, and before any entry names it.
+
 **3. Correctness > simplicity > generality > performance.**
 YAGNI: no abstraction before a proven need, no optimization before a measured problem, no feature
 before a real user ask.

@@ -11,7 +11,8 @@ from backend.services.store.store import Store
 
 def _stores(tmp_path):
     store = Store(str(tmp_path))
-    return FileProjectStore(store), FileChatStore(store)
+    projects = FileProjectStore(store)
+    return projects, FileChatStore(store, projects)
 
 
 def _made(projects, chats, project_id, chat_id, text, now):

@@ -249,7 +249,8 @@ class ScriptedEngine:
 
 def _seeded(tmp_path):
     store = Store(str(tmp_path))
-    projects, chats, files = FileProjectStore(store), FileChatStore(store), FileFileStore(store)
+    projects = FileProjectStore(store)
+    chats, files = FileChatStore(store, projects), FileFileStore(store, projects)
     now = "2026-08-09T11:04:00.000+00:00"
     create_project(projects, new_id="p1", name="Thesis", now=now)
     # Naming no chat is what asks for one, since Madde 87.

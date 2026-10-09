@@ -1,17 +1,15 @@
 """Madde 339: a project can be pinned and archived, and the project list says which.
 
-Each answer is a file of its own in the project's directory -- `pinned` and `archived`, there or not
-there -- because project.json answers only what the project is called and since when (CODE-STANDARD,
-Separation of concerns). The two names are written out here rather than imported: what is held is
-the shape on disk.
+Since Madde 447 both are written in the project's entry in projects.json -- `pinnedAt` while it is
+pinned, `archived` while it is archived -- and nowhere else.
 """
-import os
+import json
 
 import pytest
 
 from backend.features.workspace.data.file_chat_store import FileChatStore
 from backend.features.workspace.data.file_file_store import FileFileStore
-from backend.features.workspace.data.file_project_store import PROJECT_FILE, FileProjectStore
+from backend.features.workspace.data.file_project_store import PROJECTS_FILE, FileProjectStore
 from backend.features.workspace.data.memory_permissions import MemoryPermissions
 from backend.features.workspace.data.memory_stops import MemoryStops
 from backend.features.workspace.domain.errors import ProjectNotFound
@@ -24,14 +22,22 @@ from backend.services.store.store import Store
 from backend.web.app import create_app
 
 
+def _day(day):
+    return f"2026-08-{day:02d}T10:00:00.000+00:00"
+
+
+NOW = _day(20)
+
+
 def _born(tmp_path):
     store = FileProjectStore(Store(str(tmp_path)))
     store.add(Project(id="pabc", name="Thesis", created_at="2026-08-09T10:00:00+00:00"))
     return store
 
 
-def _reopened(tmp_path):
-    # A second instance reads from disk only, which is what a restart does.
+def _reopened(store, tmp_path):
+    # What a restart does: the writer finishes, and a new store reads the file.
+    store.flush()
     return FileProjectStore(Store(str(tmp_path))).get("pabc")
 
 
@@ -39,8 +45,7 @@ def _reopened(tmp_path):
 
 
 def test_a_new_project_is_neither_pinned_nor_archived(tmp_path):
-    _born(tmp_path)
-    project = _reopened(tmp_path)
+    project = _reopened(_born(tmp_path), tmp_path)
     assert (project.pinned, project.archived) == (False, False), (
         "Yeni proje sabitli ya da arşivde doğdu"
     )
@@ -48,135 +53,129 @@ def test_a_new_project_is_neither_pinned_nor_archived(tmp_path):
 
 def test_a_pin_outlives_the_app_and_goes_when_unpinned(tmp_path):
     store = _born(tmp_path)
-    store.set_pinned("pabc", True)
-    assert _reopened(tmp_path).pinned, "Sabitleme yeniden açılınca kalmadı"
-    store.set_pinned("pabc", False)
-    assert not _reopened(tmp_path).pinned, "Bırakılan proje hâlâ sabitli"
+    edit_project(store, "pabc", NOW, pinned=True)
+    assert _reopened(store, tmp_path).pinned_at == NOW, "Sabitleme yeniden açılınca kalmadı"
+    edit_project(store, "pabc", NOW, pinned=False)
+    assert not _reopened(store, tmp_path).pinned, "Bırakılan proje hâlâ sabitli"
 
 
 def test_an_archive_outlives_the_app_and_goes_when_unarchived(tmp_path):
     store = _born(tmp_path)
-    store.set_archived("pabc", True)
-    assert _reopened(tmp_path).archived, "Arşiv yeniden açılınca kalmadı"
-    store.set_archived("pabc", False)
-    assert not _reopened(tmp_path).archived, "Geri getirilen proje hâlâ arşivde"
+    edit_project(store, "pabc", NOW, archived=True)
+    assert _reopened(store, tmp_path).archived, "Arşiv yeniden açılınca kalmadı"
+    edit_project(store, "pabc", NOW, archived=False)
+    assert not _reopened(store, tmp_path).archived, "Geri getirilen proje hâlâ arşivde"
 
 
-def test_each_answer_is_a_file_of_its_own(tmp_path):
+def test_pin_and_archive_live_in_projects_json_alone(tmp_path):
     store = _born(tmp_path)
+    edit_project(store, "pabc", NOW, pinned=True)
+    store.flush()
     raw = Store(str(tmp_path))
-    store.set_pinned("pabc", True)
-    store.set_archived("pabc", True)
-    assert raw.exists("pabc/pinned") and raw.exists("pabc/archived"), (
-        "Sabitleme ve arşiv projenin klasöründe kendi dosyalarında durmuyor"
-    )
-    store.set_pinned("pabc", False)
-    store.set_archived("pabc", False)
-    assert not raw.exists("pabc/pinned") and not raw.exists("pabc/archived"), (
-        "Bırakınca ve geri getirince dosyalar klasörde kaldı"
-    )
+    assert json.loads(raw.read_text(PROJECTS_FILE))["pabc"]["pinnedAt"] == NOW
+    edit_project(store, "pabc", NOW, archived=True)
+    store.flush()
+    assert json.loads(raw.read_text(PROJECTS_FILE))["pabc"]["archived"] is True
+    assert raw.list_dir("pabc") == [], "Sabitleme ya da arşiv projenin klasörüne bir dosya yazdı"
 
 
-def test_pinning_and_archiving_leave_project_json_alone(tmp_path):
-    store = _born(tmp_path)
+def test_asking_for_what_already_stands_writes_nothing(tmp_path, monkeypatch):
     raw = Store(str(tmp_path))
-    before = raw.read_text(f"pabc/{PROJECT_FILE}")
-    store.set_pinned("pabc", True)
-    store.set_archived("pabc", True)
-    assert raw.read_text(f"pabc/{PROJECT_FILE}") == before, (
-        "project.json sabitleme ya da arşiv yüzünden değişti"
-    )
-
-
-def test_asking_for_what_already_stands_changes_nothing(tmp_path):
-    store = _born(tmp_path)
+    store = FileProjectStore(raw)
+    store.add(Project(id="pabc", name="Thesis", created_at="2026-08-09T10:00:00+00:00"))
+    store.flush()
+    writes = []
+    monkeypatch.setattr(raw, "write_text", lambda rel, text: writes.append(rel))
     # Never pinned, never archived: there is nothing to take away, and that is not an error.
-    store.set_pinned("pabc", False)
-    store.set_archived("pabc", False)
-    store.set_pinned("pabc", True)
-    # The pin's mtime is when the project was pinned; a second pin must not move it.
-    pinned = os.path.join(str(tmp_path), "pabc", "pinned")
-    os.utime(pinned, (1_000_000_000, 1_000_000_000))
-    store.set_pinned("pabc", True)
-    assert os.path.getmtime(pinned) == 1_000_000_000, "İkinci sabitleme sabitlendiği anı kaydırdı"
+    edit_project(store, "pabc", NOW, pinned=False, archived=False)
+    store.flush()
+    assert writes == [], "Hiçbir şeyi değiştirmeyen istek diske yazdı"
 
 
-def test_a_pin_left_beside_an_archived_project_does_not_read_as_pinned(tmp_path):
-    # Madde 384: an archive takes the pin with it, but one made under the rule before (363, 382)
-    # left the file on disk. An archived project never reads as pinned all the same.
-    store = _born(tmp_path)
-    store.set_pinned("pabc", True)
-    store.set_archived("pabc", True)
-    assert not _reopened(tmp_path).pinned, "Arşivdeki proje sabitli okunuyor"
+def test_an_archived_project_never_reads_as_pinned():
+    # Madde 384: an archive takes the pin with it, and whatever an entry says, an archived project
+    # is not listed among the pins.
+    assert not Project(id="p", name="p", created_at=_day(1), pinned_at=_day(2), archived=True).pinned
 
 
 # ---- The use cases, with a fake port ----
 
 
-def _day(day):
-    return f"2026-08-{day:02d}T10:00:00.000+00:00"
-
-
 class FakeProjectStore:
+    """The port with one project, applying the change it is handed the way the real store does."""
+
     def __init__(self, **fields):
         self.project = Project(
             id="pabc", name="Thesis", created_at="2026-08-09T10:00:00+00:00", **fields
         )
-        self.replaced = []
-        self.marked = []
+        self.changes = 0
 
     def get(self, project_id):
         return self.project if project_id == self.project.id else None
 
-    def replace(self, project):
-        self.replaced.append(project)
-
-    def set_pinned(self, project_id, pinned):
-        self.marked.append(("pinned", project_id, pinned))
-
-    def set_archived(self, project_id, archived):
-        self.marked.append(("archived", project_id, archived))
+    def update(self, project_id, change):
+        if project_id != self.project.id:
+            return None
+        self.changes += 1
+        self.project = change(self.project)
+        return self.project
 
 
-def test_pinning_does_not_rewrite_the_project_file():
-    # project.json is written on create and on rename (CODE-STANDARD); a pin is neither.
+def test_pinning_stamps_the_moment():
     store = FakeProjectStore()
-    edit_project(store, "pabc", pinned=True, archived=False)
-    assert store.replaced == [], "Sabitlemek project.json'ı yeniden yazdı"
-    assert store.marked == [("pinned", "pabc", True), ("archived", "pabc", False)], (
-        "İstenen sabitleme ve arşiv depoya gitmedi"
+    pinned = edit_project(store, "pabc", NOW, pinned=True)
+    assert (pinned.pinned, pinned.pinned_at) == (True, NOW), "Sabitleme anı yazılmadı"
+
+
+def test_pinning_twice_does_not_move_the_moment():
+    # The order of the pinned is the order they were pinned in (Madde 339).
+    store = FakeProjectStore(pinned_at=_day(10))
+    assert edit_project(store, "pabc", NOW, pinned=True).pinned_at == _day(10), (
+        "İkinci sabitleme sabitlendiği anı kaydırdı"
     )
+
+
+def test_unpinning_lets_the_pin_go():
+    store = FakeProjectStore(pinned_at=_day(10))
+    assert edit_project(store, "pabc", NOW, pinned=False).pinned_at == "", "Sabitleme bırakılmadı"
 
 
 def test_an_unknown_project_cannot_be_pinned():
     store = FakeProjectStore()
     with pytest.raises(ProjectNotFound):
-        edit_project(store, "nope", pinned=True)
-    assert store.marked == [], "Olmayan bir proje için işaret yazıldı"
+        edit_project(store, "nope", NOW, pinned=True)
+    assert store.project.pinned_at == "", "Olmayan bir proje için sabitleme yazıldı"
 
 
 def test_archiving_lets_the_pin_go():
     # Madde 384: the archive takes the pin with it, on the server -- the browser sends none.
     store = FakeProjectStore(pinned_at=_day(10))
-    edit_project(store, "pabc", archived=True)
-    assert ("pinned", "pabc", False) in store.marked, "Arşiv sabitlemeyi silmedi"
+    archived = edit_project(store, "pabc", NOW, archived=True)
+    assert (archived.archived, archived.pinned_at) == (True, ""), "Arşiv sabitlemeyi silmedi"
 
 
 def test_unarchiving_lets_the_pin_go():
-    # Unarchive brings the project back into Recent, never into Pinned -- also one whose pin an
-    # archive made before Madde 384 left on disk.
+    # Unarchive brings the project back into Recent, never into Pinned -- also one pinned while it
+    # stood in the archive.
     store = FakeProjectStore(pinned_at=_day(10), archived=True)
-    edit_project(store, "pabc", archived=False)
-    assert ("pinned", "pabc", False) in store.marked, "Unarchive sabitlemeyi bırakmadı"
+    back = edit_project(store, "pabc", NOW, archived=False)
+    assert (back.archived, back.pinned_at) == (False, ""), "Unarchive sabitlemeyi bırakmadı"
 
 
 def test_bringing_back_what_is_not_archived_leaves_the_pin():
     # Asking for what already stands changes nothing (Madde 339).
     store = FakeProjectStore(pinned_at=_day(10))
-    edit_project(store, "pabc", archived=False)
-    assert ("pinned", "pabc", False) not in store.marked, (
+    assert edit_project(store, "pabc", NOW, archived=False).pinned_at == _day(10), (
         "Arşivde olmayan projeye gelen archived=False sabitlemeyi bıraktı"
     )
+
+
+def test_pin_archive_and_name_are_one_change():
+    # One request, one change: the store hears of it once, and the writer writes once.
+    store = FakeProjectStore()
+    edit_project(store, "pabc", NOW, name="Renamed", pinned=True)
+    assert store.changes == 1, "Bir istek depoya birden çok değişiklik gönderdi"
+    assert (store.project.name, store.project.pinned_at) == ("Renamed", NOW)
 
 
 class FakeListStore:
@@ -188,8 +187,8 @@ class FakeListStore:
 
 
 def test_the_archived_are_listed_by_last_use_alone():
-    # Madde 384: nothing archived stands among the pins -- not even one whose pin an older archive
-    # left on disk -- so the Archived tab, which keeps the server's order, is by last use alone.
+    # Madde 384: nothing archived stands among the pins, so the Archived tab, which keeps the
+    # server's order, is by last use alone.
     store = FakeListStore(
         [
             Project(id="a", name="a", created_at=_day(1), pinned_at=_day(10)),
@@ -218,22 +217,34 @@ class FakeEngine:
         yield {"text": APPROVED}
 
 
-def _client(tmp_path):
+def _wired(tmp_path):
     store = Store(str(tmp_path))
+    projects = FileProjectStore(store)
+    files = FileFileStore(store, projects)
     app = create_app(
         dist_dir=str(tmp_path),
         blueprints=(
             make_workspace_bp(
-                FileProjectStore(store),
-                FileChatStore(store),
-                FileFileStore(store),
+                projects,
+                FileChatStore(store, projects),
+                files,
                 FakeEngine(),
                 MemoryStops(),
                 MemoryPermissions(),
             ),
         ),
     )
-    return app.test_client()
+    return app.test_client(), projects, files
+
+
+def _client(tmp_path):
+    return _wired(tmp_path)[0]
+
+
+def _fresh(projects, tmp_path):
+    # A second app on the same root, once the first has written everything: a restart.
+    projects.flush()
+    return _client(tmp_path)
 
 
 def test_patch_pins_and_unpins(tmp_path):
@@ -259,14 +270,14 @@ def test_patch_archives_and_the_archived_project_stays_listed(tmp_path):
 
 
 def test_the_list_says_both_and_a_fresh_app_says_the_same(tmp_path):
-    client = _client(tmp_path)
+    client, projects, _ = _wired(tmp_path)
     first = client.post("/api/projects", json={"name": "Thesis"}).get_json()["id"]
     second = client.post("/api/projects", json={"name": "Thesis"}).get_json()["id"]
     client.patch(f"/api/projects/{first}", json={"pinned": True})
     client.patch(f"/api/projects/{second}", json={"archived": True})
     rows = {
         row["id"]: (row["pinned"], row["archived"])
-        for row in _client(tmp_path).get("/api/projects").get_json()
+        for row in _fresh(projects, tmp_path).get("/api/projects").get_json()
     }
     assert rows == {first: (True, False), second: (False, True)}, (
         "Liste yeniden açılınca sabitlemeyi ve arşivi söylemiyor"
@@ -276,19 +287,18 @@ def test_the_list_says_both_and_a_fresh_app_says_the_same(tmp_path):
 def test_archive_deletes_the_pin_and_unarchive_does_not_bring_it_back(tmp_path):
     # Madde 384: the archive takes the pin with it on the server, and Unarchive brings the project
     # back into Recent.
-    client = _client(tmp_path)
+    client, projects, _ = _wired(tmp_path)
     pid = client.post("/api/projects", json={"name": "Thesis"}).get_json()["id"]
     client.patch(f"/api/projects/{pid}", json={"pinned": True})
     archived = client.patch(f"/api/projects/{pid}", json={"archived": True}).get_json()
     assert (archived["pinned"], archived["archived"]) == (False, True), (
         "Arşive alınan proje sabitli kaldı"
     )
-    assert not Store(str(tmp_path)).exists(f"{pid}/pinned"), "Arşivden sonra pinned dosyası duruyor"
-    listed = _client(tmp_path).get("/api/projects").get_json()[0]
+    listed = _fresh(projects, tmp_path).get("/api/projects").get_json()[0]
     assert listed["pinned"] is False, "Yeniden açılınca arşivdeki proje sabitli"
     back = client.patch(f"/api/projects/{pid}", json={"archived": False}).get_json()
     assert back["pinned"] is False, "Unarchive projeyi sabitlemesiyle geri getirdi"
-    listed = _client(tmp_path).get("/api/projects").get_json()[0]
+    listed = _fresh(projects, tmp_path).get("/api/projects").get_json()[0]
     assert (listed["pinned"], listed["archived"]) == (False, False), (
         "Yeniden açılınca arşivden dönen proje sabitli ya da arşivde"
     )
@@ -298,12 +308,11 @@ def test_unarchive_brings_a_pinned_project_back_into_recent_unpinned(tmp_path):
     # Madde 384, the owner's choice over the design's restoreProject: Unarchive only takes the
     # archive back. The pin went with the archive, so the project stands in Recent, where its own
     # last use puts it (the design's 217).
-    projects = FileProjectStore(Store(str(tmp_path)))
+    client, projects, _ = _wired(tmp_path)
     for day, pid in enumerate(("pa", "pb", "pc"), start=1):
         projects.add(Project(id=pid, name=pid, created_at=f"2000-01-{day:02d}T00:00:00.000+00:00"))
-    projects.set_pinned("pa", True)
-    projects.set_pinned("pb", True)
-    client = _client(tmp_path)
+    client.patch("/api/projects/pa", json={"pinned": True})
+    client.patch("/api/projects/pb", json={"pinned": True})
     client.patch("/api/projects/pa", json={"archived": True})
     rows = client.get("/api/projects").get_json()
     assert [row["id"] for row in rows] == ["pb", "pc", "pa"], (
@@ -317,35 +326,15 @@ def test_unarchive_brings_a_pinned_project_back_into_recent_unpinned(tmp_path):
     assert [row["id"] for row in client.get("/api/projects").get_json()] == ["pb", "pc", "pa"], (
         "Unarchive'dan sonra proje Recent'te son kullanımının yerinde değil"
     )
-    assert not Store(str(tmp_path)).exists("pa/pinned"), "Unarchive'dan sonra pinned dosyası duruyor"
-
-
-def test_a_pin_an_older_archive_left_neither_orders_nor_survives_unarchive(tmp_path):
-    # An archive made before Madde 384 left the pin file on disk. The list reads past it and
-    # Unarchive clears it, so no migration is needed.
-    projects = FileProjectStore(Store(str(tmp_path)))
-    projects.add(Project(id="pa", name="pa", created_at="2000-01-01T00:00:00.000+00:00"))
-    projects.add(Project(id="pb", name="pb", created_at="2000-01-02T00:00:00.000+00:00"))
-    projects.set_pinned("pa", True)
-    projects.set_archived("pa", True)
-    projects.set_archived("pb", True)
-    client = _client(tmp_path)
-    rows = client.get("/api/projects").get_json()
-    assert [(row["id"], row["pinned"]) for row in rows] == [("pb", False), ("pa", False)], (
-        "Eski arşivin bıraktığı sabitleme arşivdeki projeyi öne dizdi ya da sabitli gösterdi"
-    )
-    back = client.patch("/api/projects/pa", json={"archived": False}).get_json()
-    assert back["pinned"] is False, "Unarchive eski sabitlemeyi geri getirdi"
-    assert not Store(str(tmp_path)).exists("pa/pinned"), "Unarchive eski pinned dosyasını silmedi"
 
 
 def test_an_archived_project_is_used_as_any_other_and_stays_archived(tmp_path):
     # Madde 443, the owner's words: the only difference between an archived project and another is
     # the list it stands in. Nothing on the server reads the mark but the list's order and the pin,
     # so an archived project is talked in and read like any other -- and using it does not unarchive.
-    client = _client(tmp_path)
+    client, _, files = _wired(tmp_path)
     pid = client.post("/api/projects", json={"name": "Thesis"}).get_json()["id"]
-    FileFileStore(Store(str(tmp_path))).write(pid, "plan.md", "the body")
+    files.write(pid, "plan.md", "the body")
     client.patch(f"/api/projects/{pid}", json={"archived": True})
 
     sent = client.post(f"/api/projects/{pid}/messages", json={"text": "hello"})

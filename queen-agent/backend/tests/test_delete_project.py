@@ -1,8 +1,10 @@
+import json
+
 import pytest
 
 from backend.features.workspace.data.file_chat_store import FileChatStore
 from backend.features.workspace.data.file_file_store import FileFileStore
-from backend.features.workspace.data.file_project_store import FileProjectStore
+from backend.features.workspace.data.file_project_store import PROJECTS_FILE, FileProjectStore
 from backend.features.workspace.domain.errors import ProjectNotFound
 from backend.features.workspace.domain.usecases.create_project import create_project
 from backend.features.workspace.domain.usecases.delete_project import delete_project
@@ -10,13 +12,16 @@ from backend.features.workspace.domain.usecases.append_message import append_mes
 from backend.services.store.store import Store
 
 
-def _project_with_contents(tmp_path, project_id="p1"):
+def _wired(tmp_path):
     store = Store(str(tmp_path))
-    projects = FileProjectStore(store)
+    return FileProjectStore(store), store
+
+
+def _with_contents(projects, store, project_id="p1"):
     create_project(projects, new_id=project_id, name="Thesis", now="2026-08-09T10:00:00+00:00")
     # Naming no chat is what asks for one, since Madde 87.
     append_message(
-        FileChatStore(store),
+        FileChatStore(store, projects),
         project_id,
         "",
         "hello",
@@ -24,7 +29,12 @@ def _project_with_contents(tmp_path, project_id="p1"):
         project_store=projects,
         new_id="c1",
     )
-    FileFileStore(store).write(project_id, "plan.md", "body")
+    FileFileStore(store, projects).write(project_id, "plan.md", "body")
+
+
+def _project_with_contents(tmp_path):
+    projects, store = _wired(tmp_path)
+    _with_contents(projects, store)
     return projects, store
 
 
@@ -34,22 +44,25 @@ def test_a_deleted_project_leaves_the_list(tmp_path):
     assert projects.list_all() == []
 
 
+def test_a_deleted_project_leaves_projects_json(tmp_path):
+    projects, store = _project_with_contents(tmp_path)
+    delete_project(projects, "p1")
+    projects.flush()
+    assert json.loads(store.read_text(PROJECTS_FILE)) == {}, "Silinen proje projects.json'da kaldı"
+
+
 def test_the_project_is_moved_rather_than_destroyed(tmp_path):
     projects, store = _project_with_contents(tmp_path)
     assert delete_project(projects, "p1") == "p1"
     # Whole and intact: the chats and the files go with the directory rather than being deleted one
-    # by one, and nothing on disk is lost.
+    # by one, and the entry lies beside them -- nothing the user made is lost, the name included.
     assert sorted(store.list_dir("trash/p1")) == ["chats", "files", "project.json"]
     assert store.list_dir("trash/p1/files") == ["plan.md"]
     assert store.list_dir("trash/p1/chats") == ["c1.json"]
-
-
-def test_the_trash_is_not_a_project(tmp_path):
-    # The root listing is one directory per live project. The trash has no project.json of its own,
-    # which is exactly what the store already skips.
-    projects, _ = _project_with_contents(tmp_path)
-    delete_project(projects, "p1")
-    assert [project.id for project in projects.list_all()] == []
+    kept = json.loads(store.read_text("trash/p1/project.json"))
+    assert (kept["name"], [chat["id"] for chat in kept["chats"]]) == ("Thesis", ["c1"]), (
+        "Çöpteki projenin kaydı adını ya da sohbetlerini tutmuyor"
+    )
 
 
 def test_the_same_id_deleted_twice_does_not_lose_the_first(tmp_path):
@@ -61,14 +74,16 @@ def test_the_same_id_deleted_twice_does_not_lose_the_first(tmp_path):
 
 
 def test_deleting_a_project_that_is_not_there_is_reported(tmp_path):
-    projects = FileProjectStore(Store(str(tmp_path)))
+    projects, _ = _wired(tmp_path)
     with pytest.raises(ProjectNotFound):
         delete_project(projects, "nope")
 
 
 def test_the_other_projects_are_untouched(tmp_path):
-    projects, store = _project_with_contents(tmp_path)
-    _project_with_contents(tmp_path, project_id="p2")
+    projects, store = _wired(tmp_path)
+    _with_contents(projects, store, "p1")
+    _with_contents(projects, store, "p2")
     delete_project(projects, "p1")
     assert [project.id for project in projects.list_all()] == ["p2"]
     assert store.list_dir("p2/files") == ["plan.md"]
+    assert [file.name for file in projects.files("p2")] == ["plan.md"]

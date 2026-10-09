@@ -29,27 +29,7 @@ class Store:
         # after that would take the user's work with it. It is replaced instead, which the operating
         # system does atomically -- either the old file stands or the new one does.
         full = self._full(rel)
-        os.makedirs(os.path.dirname(full), exist_ok=True)
-        # Beside the target rather than in the system's temp directory: os.replace cannot cross a
-        # filesystem, and the root is a Drive mount when the app runs on Colab while /tmp is that
-        # machine's own disk. Named rather than random, so a directory left behind by a crash can
-        # still be read by a person.
-        temp = f"{full}.writing"
-        try:
-            with open(temp, "w", encoding="utf-8") as handle:
-                handle.write(text)
-            os.replace(temp, full)
-        except BaseException:
-            # Half a file is rubbish rather than evidence, and these directories are listed in the
-            # UI -- what is left here comes back as one of the user's own files. KeyboardInterrupt
-            # leaves one too, so it is caught as well.
-            try:
-                os.remove(temp)
-            except OSError:
-                # The write's own error is the one that explains what happened; a failure to tidy up
-                # on top of it would report the wrong cause.
-                pass
-            raise
+        _into_folder(full, lambda: _replace_with(full, text))
 
     def list_dir(self, rel):
         # An empty directory is a normal state -- every screen starts with "nothing here yet" -- so
@@ -60,18 +40,44 @@ class Store:
         except FileNotFoundError:
             return []
 
-    def exists(self, rel):
-        return os.path.exists(self._full(rel))
-
-    def mtime(self, rel):
-        return os.path.getmtime(self._full(rel))
-
     def move(self, src_rel, dst_rel):
         # A rename, not a copy: what is moved keeps its mtime, so a whole project can go to the
         # trash without every file inside it looking as if it had just been written.
-        destination = self._full(dst_rel)
-        os.makedirs(os.path.dirname(destination), exist_ok=True)
-        os.replace(self._full(src_rel), destination)
+        source, destination = self._full(src_rel), self._full(dst_rel)
+        _into_folder(destination, lambda: os.replace(source, destination))
 
-    def remove(self, rel):
-        os.remove(self._full(rel))
+
+def _into_folder(full, act):
+    """Do `act`, making the folder `full` goes into only if it turns out to be missing (Madde 447).
+
+    Tried first rather than made first: on Drive every call is a round trip, making a folder that is
+    already there costs three, and it almost always is. A missing source fails the second try just
+    as it failed the first, so a move of nothing still raises.
+    """
+    try:
+        act()
+    except FileNotFoundError:
+        os.makedirs(os.path.dirname(full), exist_ok=True)
+        act()
+
+
+def _replace_with(full, text):
+    # Beside the target rather than in the system's temp directory: os.replace cannot cross a
+    # filesystem, and the root is a Drive mount when the app runs on Colab while /tmp is that
+    # machine's own disk. Named rather than random, so a directory left behind by a crash can still
+    # be read by a person.
+    temp = f"{full}.writing"
+    try:
+        with open(temp, "w", encoding="utf-8") as handle:
+            handle.write(text)
+        os.replace(temp, full)
+    except BaseException:
+        # Half a file is rubbish rather than evidence, and a person opening the folder on Drive would
+        # take it for one of their own. KeyboardInterrupt leaves one too, so it is caught as well.
+        try:
+            os.remove(temp)
+        except OSError:
+            # The write's own error is the one that explains what happened; a failure to tidy up on
+            # top of it would report the wrong cause.
+            pass
+        raise

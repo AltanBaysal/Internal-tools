@@ -41,6 +41,13 @@ def test_the_composition_root_reads_no_environment_of_its_own():
     assert "os.environ" not in _main(), "Bileşim kökü çevreyi kendisi okuyor"
 
 
+def test_a_stop_is_an_ordinary_exit():
+    """Madde 447. The notebook's pkill is SIGTERM, whose own answer ends the process without waiting
+    for the writer still holding the last change to projects.json; turned into sys.exit, the exit
+    waits for it."""
+    assert "signal.signal(signal.SIGTERM" in _main(), "SIGTERM yazıcıyı beklemeden kapatıyor"
+
+
 def test_no_prompt_writer_is_wired():
     """Madde 395, the owner's decision of 30 September: the main model writes each frame's action
     itself, so the engine is built with its default and nothing else."""

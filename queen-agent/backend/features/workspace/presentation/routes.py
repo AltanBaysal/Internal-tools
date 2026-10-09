@@ -67,6 +67,8 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, stops, perm
             project = edit_project(
                 project_store,
                 project_id,
+                # What a pin is stamped with: the pinned are listed in the order they were pinned.
+                now=_now(),
                 name=payload.get("name"),
                 pinned=payload.get("pinned"),
                 archived=payload.get("archived"),

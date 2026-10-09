@@ -1,32 +1,27 @@
 """Madde 346: the project list says when each project was last used, and is ordered by it.
 
-The moment is not stored anywhere: it is read off the chats, whose newest file was written the last
-time anybody talked in the project (CODE-STANDARD, "no file repeats another's answer"). A project
-with no chats was last used when it was made. The order is pinned first, in the order they were
-pinned, then the most recently used -- the design's All projects (items 135 and 167).
+The moment is not stored: it is read off the project's chats -- since Madde 447, the newest
+lastActivity among their rows in projects.json, which is when somebody last said something in one.
+A project with no chats was last used when it was made. The order is pinned first, in the order
+they were pinned, then the most recently used -- the design's All projects (items 135 and 167).
 """
-import os
-from datetime import datetime, timezone
+import json
 
 from backend.features.workspace.data.file_chat_store import FileChatStore
 from backend.features.workspace.data.file_file_store import FileFileStore
-from backend.features.workspace.data.file_project_store import PROJECT_FILE, FileProjectStore
+from backend.features.workspace.data.file_project_store import PROJECTS_FILE, FileProjectStore
 from backend.features.workspace.data.memory_permissions import MemoryPermissions
 from backend.features.workspace.data.memory_stops import MemoryStops
 from backend.features.workspace.domain.chat import Chat, Message
 from backend.features.workspace.domain.project import Project
 from backend.features.workspace.domain.prompt import APPROVED
+from backend.features.workspace.domain.usecases.edit_project import edit_project
 from backend.features.workspace.domain.usecases.list_projects import list_projects
 from backend.features.workspace.presentation.routes import make_workspace_bp
 from backend.services.store.store import Store
 from backend.web.app import create_app
 
 BORN = "2026-08-09T10:00:00.000+00:00"
-
-
-def _iso(seconds):
-    # The shape the server stamps everything with: UTC, to the millisecond.
-    return datetime.fromtimestamp(seconds, timezone.utc).isoformat(timespec="milliseconds")
 
 
 def _at(day):
@@ -39,22 +34,19 @@ def _born(tmp_path):
     return store
 
 
-def _reopened(tmp_path):
-    # A second instance reads from disk only, which is what a restart does.
+def _reopened(store, tmp_path):
+    # What a restart does: the writer finishes, and a new store reads the file.
+    store.flush()
     return FileProjectStore(Store(str(tmp_path))).get("pabc")
 
 
-def _chat(chat_id):
+def _chat(chat_id, said_at=BORN):
     return Chat(
         id=chat_id,
         title="Hi",
         created_at=BORN,
-        messages=(Message(role="user", at=BORN, text="Hi"),),
+        messages=(Message(role="user", at=said_at, text="Hi"),),
     )
-
-
-def _touch(tmp_path, *parts, seconds):
-    os.utime(os.path.join(str(tmp_path), *parts), (seconds, seconds))
 
 
 # ---- The project ----
@@ -73,44 +65,35 @@ def test_a_project_was_last_used_at_its_newest_chat_or_else_when_it_was_made():
 
 
 def test_a_project_with_no_chats_was_last_used_when_it_was_made(tmp_path):
-    _born(tmp_path)
-    assert _reopened(tmp_path).last_activity == BORN, (
+    assert _reopened(_born(tmp_path), tmp_path).last_activity == BORN, (
         "Sohbeti olmayan projenin son kullanımı createdAt değil"
     )
 
 
-def test_the_newest_chat_file_says_when_the_project_was_last_used(tmp_path):
-    _born(tmp_path)
-    raw = Store(str(tmp_path))
-    before = raw.read_text(f"pabc/{PROJECT_FILE}")
-    chats = FileChatStore(raw)
-    chats.add("pabc", _chat("c1"))
-    chats.add("pabc", _chat("c2"))
-    _touch(tmp_path, "pabc", "chats", "c1.json", seconds=1_000_000_100)
-    _touch(tmp_path, "pabc", "chats", "c2.json", seconds=1_000_000_000)
-    assert _reopened(tmp_path).last_activity == _iso(1_000_000_100), (
-        "Projenin son kullanımı en yeni sohbet dosyasının anı değil"
+def test_the_newest_chat_says_when_the_project_was_last_used(tmp_path):
+    store = _born(tmp_path)
+    chats = FileChatStore(Store(str(tmp_path)), store)
+    chats.add("pabc", _chat("c1", said_at=_at(20)))
+    chats.add("pabc", _chat("c2", said_at=_at(12)))
+    assert _reopened(store, tmp_path).last_activity == _at(20), (
+        "Projenin son kullanımı en yeni sohbetin anı değil"
     )
-    # Read, never written: the chats already say it, and a second copy is the one that goes stale.
-    assert raw.list_dir("pabc") == ["chats", PROJECT_FILE], (
-        "Son kullanım anı projenin klasörüne bir dosya olarak yazıldı"
-    )
-    assert raw.read_text(f"pabc/{PROJECT_FILE}") == before, (
-        "Son kullanım anı project.json'a yazıldı"
-    )
+    # Read off the chats' rows, never written as a field of its own: a second copy is the one that
+    # goes stale.
+    entry = json.loads(Store(str(tmp_path)).read_text(PROJECTS_FILE))["pabc"]
+    assert "lastActivity" not in entry, "Son kullanım anı projenin kaydına yazıldı"
 
 
 def test_the_pin_says_when_the_project_was_pinned(tmp_path):
     store = _born(tmp_path)
-    project = _reopened(tmp_path)
+    project = _reopened(store, tmp_path)
     assert (project.pinned, project.pinned_at) == (False, ""), (
         "Sabitli olmayan projenin sabitlendiği bir an var"
     )
-    store.set_pinned("pabc", True)
-    _touch(tmp_path, "pabc", "pinned", seconds=1_000_000_000)
-    project = _reopened(tmp_path)
-    assert (project.pinned, project.pinned_at) == (True, _iso(1_000_000_000)), (
-        "Sabitlendiği an pinned dosyasının anı değil"
+    edit_project(store, "pabc", _at(15), pinned=True)
+    project = _reopened(store, tmp_path)
+    assert (project.pinned, project.pinned_at) == (True, _at(15)), (
+        "Sabitlendiği an sabitleme isteğinin anı değil"
     )
 
 
@@ -157,13 +140,14 @@ class FakeEngine:
 
 def _client(tmp_path):
     store = Store(str(tmp_path))
+    projects = FileProjectStore(store)
     app = create_app(
         dist_dir=str(tmp_path),
         blueprints=(
             make_workspace_bp(
-                FileProjectStore(store),
-                FileChatStore(store),
-                FileFileStore(store),
+                projects,
+                FileChatStore(store, projects),
+                FileFileStore(store, projects),
                 FakeEngine(),
                 MemoryStops(),
                 MemoryPermissions(),
@@ -175,10 +159,11 @@ def _client(tmp_path):
 
 def _made_long_ago(tmp_path, *ids):
     # Born in 2000, a day apart, so nothing done in this test can land in the same millisecond as a
-    # birth and leave the order to chance.
+    # birth and leave the order to chance. Written to disk before the app that reads them starts.
     store = FileProjectStore(Store(str(tmp_path)))
     for day, pid in enumerate(ids, start=1):
         store.add(Project(id=pid, name=pid, created_at=f"2000-01-{day:02d}T00:00:00.000+00:00"))
+    store.flush()
 
 
 def _order(client):

@@ -34,7 +34,7 @@ def test_move_keeps_the_content_and_clears_the_old_place(tmp_path):
     store.write_text("files/note.md", "body")
     store.move("files/note.md", "trash/note.md")
     assert store.read_text("trash/note.md") == "body"
-    assert not store.exists("files/note.md")
+    assert store.list_dir("files") == []
 
 
 # Madde 59. A write that dies partway must leave what it was overwriting alone -- the first
@@ -54,8 +54,8 @@ def test_a_failed_write_leaves_the_old_file_alone(tmp_path):
 
 
 def test_a_failed_write_leaves_nothing_behind(tmp_path):
-    # These directories are listed in the UI -- file_file_store reads `files/` straight off disk --
-    # so a half-written temporary would show up as one of the user's own files.
+    # Half a file is rubbish beside the user's own, and a person opening the folder on Drive would
+    # take it for one of theirs.
     store = Store(str(tmp_path))
     store.write_text("a.txt", "body")
 
@@ -92,3 +92,51 @@ def test_root_is_created_on_first_write_not_on_construction(tmp_path):
     assert not os.path.exists(root)
     store.write_text("a.txt", "x")
     assert os.path.exists(root)
+
+
+# Madde 447. On Drive every call is a round trip, and making a folder that is already there costs
+# three of them; a folder is made only when the write finds it missing.
+
+
+def _counting_makedirs(monkeypatch):
+    made = []
+    real = os.makedirs
+
+    def counting(path, *args, **kwargs):
+        made.append(path)
+        return real(path, *args, **kwargs)
+
+    monkeypatch.setattr(os, "makedirs", counting)
+    return made
+
+
+def test_a_write_into_a_folder_that_is_there_makes_no_folder(tmp_path, monkeypatch):
+    store = Store(str(tmp_path))
+    store.write_text("a/b.txt", "first")
+    made = _counting_makedirs(monkeypatch)
+    store.write_text("a/b.txt", "second")
+    store.write_text("a/c.txt", "third")
+    assert made == [], "Var olan klasöre yazmak klasör yarattı"
+    assert store.read_text("a/b.txt") == "second"
+
+
+def test_a_move_into_a_folder_that_is_there_makes_no_folder(tmp_path, monkeypatch):
+    store = Store(str(tmp_path))
+    store.write_text("files/one.md", "1")
+    store.write_text("trash/old.md", "0")
+    made = _counting_makedirs(monkeypatch)
+    store.move("files/one.md", "trash/one.md")
+    assert made == [], "Var olan klasöre taşımak klasör yarattı"
+    assert store.list_dir("trash") == ["old.md", "one.md"]
+
+
+def test_a_move_into_a_missing_folder_makes_it(tmp_path):
+    store = Store(str(tmp_path))
+    store.write_text("files/one.md", "1")
+    store.move("files/one.md", "deep/trash/one.md")
+    assert store.read_text("deep/trash/one.md") == "1"
+
+
+def test_a_move_of_something_that_is_not_there_still_fails(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        Store(str(tmp_path)).move("ghost.md", "trash/ghost.md")

@@ -7,16 +7,15 @@ class Project:
     id: str
     name: str
     created_at: str
-    # Derived from the directories at read time and never written back: the counts are the
-    # directory's own answer, so storing them would be a second copy that can go stale.
+    # Counted off the project's lists of chats and files when it is read, and never written as
+    # numbers of their own: a second copy of a count is one that can go stale (Madde 447).
     chat_count: int = 0
     file_count: int = 0
-    # Read the same way (Madde 346): when a chat of this project was last written, empty while it
-    # has none -- the chats already say it, so it is stored nowhere.
+    # Read the same way (Madde 346): the newest last activity among the project's chats, empty while
+    # it has none -- the chats already say it, so it is stored nowhere.
     last_chat_at: str = ""
-    # Each read from a file of its own beside project.json (Madde 339): each answers a question of
-    # its own and is written at a moment of its own. pinned_at is the pin file's mtime, empty when
-    # there is none.
+    # When the project was pinned, empty while it is not (Madde 339); the pinned are listed in that
+    # order.
     pinned_at: str = ""
     archived: bool = False
 
@@ -27,6 +26,5 @@ class Project:
 
     @property
     def pinned(self):
-        # An archived project is never pinned (Madde 384) -- not even one an archive made before
-        # that rule left its pin file beside.
+        # An archived project is never pinned (Madde 384), whatever its entry says.
         return bool(self.pinned_at) and not self.archived

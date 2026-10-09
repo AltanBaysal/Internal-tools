@@ -92,23 +92,30 @@ def _tool_call(tool, **arguments):
     return {"id": "t1", "function": {"name": tool, "arguments": json.dumps(arguments)}}
 
 
-def _client(tmp_path, engine=None):
+def _wired(tmp_path, engine=None):
     # A fresh registry per client, like the stores: one test's stop must not reach another's answer.
+    # The chat store comes back too, for a test that lays a chat down the way the routes would.
     store = Store(str(tmp_path))
+    projects = FileProjectStore(store)
+    chats = FileChatStore(store, projects)
     app = create_app(
         dist_dir=str(tmp_path),
         blueprints=(
             make_workspace_bp(
-                FileProjectStore(store),
-                FileChatStore(store),
-                FileFileStore(store),
+                projects,
+                chats,
+                FileFileStore(store, projects),
                 engine or FakeEngine(),
                 MemoryStops(),
                 MemoryPermissions(),
             ),
         ),
     )
-    return app.test_client()
+    return app.test_client(), chats
+
+
+def _client(tmp_path, engine=None):
+    return _wired(tmp_path, engine)[0]
 
 
 def _project(client):
@@ -374,8 +381,7 @@ def test_there_is_no_workspace_wide_chat_address(tmp_path):
 
 def test_the_chat_store_offers_no_workspace_wide_listing(tmp_path):
     # Every chat is asked for through its project now, so the port shrank with the use case.
-    store = FileChatStore(Store(str(tmp_path)))
-    assert not hasattr(store, "list_all")
+    assert not hasattr(_wired(tmp_path)[1], "list_all")
 
 
 def test_the_recent_chats_use_case_is_gone():
@@ -491,9 +497,9 @@ def _failed_in_a_full_chat(tmp_path):
     30,000 tokens of answer and 21,000 of question: full, and the trim's cut stands before that
     question.
     """
-    client = _client(tmp_path)
+    client, chats = _wired(tmp_path)
     pid = _project(client)
-    FileChatStore(Store(str(tmp_path))).add(
+    chats.add(
         pid,
         Chat(
             id="c1",
@@ -721,9 +727,9 @@ def test_a_model_sent_with_a_message_is_not_kept(tmp_path):
 def test_a_message_on_the_wire_names_no_model_even_when_its_record_does(tmp_path):
     # Madde 146 to 357 wrote the model onto the message. The record keeps it; the screen shows no
     # model, so nothing sends it there.
-    client = _client(tmp_path)
+    client, chats = _wired(tmp_path)
     pid = _project(client)
-    FileChatStore(Store(str(tmp_path))).add(
+    chats.add(
         pid,
         Chat(
             id="c1",

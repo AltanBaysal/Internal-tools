@@ -13,22 +13,27 @@ class FakeEngine:
         yield {"text": "Done."}
 
 
-def _client(tmp_path):
+def _wired(tmp_path):
     store = Store(str(tmp_path))
+    projects = FileProjectStore(store)
     app = create_app(
         dist_dir=str(tmp_path),
         blueprints=(
             make_workspace_bp(
-                FileProjectStore(store),
-                FileChatStore(store),
-                FileFileStore(store),
+                projects,
+                FileChatStore(store, projects),
+                FileFileStore(store, projects),
                 FakeEngine(),
                 MemoryStops(),
                 MemoryPermissions(),
             ),
         ),
     )
-    return app.test_client()
+    return app.test_client(), projects
+
+
+def _client(tmp_path):
+    return _wired(tmp_path)[0]
 
 
 def _create(client, name="Thesis"):
@@ -43,9 +48,14 @@ def test_empty_root_returns_an_empty_list(tmp_path):
 
 
 def test_a_stray_file_beside_the_projects_is_not_one(tmp_path):
-    # The list skips anything without a project.json in it. The root is on the user's own Drive or
-    # disk, so a file nobody planned for can land there at any time -- and it must not become a row.
+    # The list is projects.json and nothing else under the root. The root is on the user's own
+    # Drive or disk, so a file nobody planned for -- or a project folder an older version left (no
+    # migration, Madde 447) -- can sit there at any time, and it must not become a row.
     (tmp_path / "notes.json").write_text('{"anything": "at all"}', encoding="utf-8")
+    (tmp_path / "pold").mkdir()
+    (tmp_path / "pold" / "project.json").write_text(
+        '{"name": "Old", "createdAt": "2026-08-09T10:00:00+00:00"}', encoding="utf-8"
+    )
     assert _client(tmp_path).get("/api/projects").get_json() == []
 
 
@@ -74,7 +84,9 @@ def test_a_project_needs_a_name_to_be_born(tmp_path):
 
 
 def test_projects_survive_a_fresh_app(tmp_path):
-    _create(_client(tmp_path))
+    client, projects = _wired(tmp_path)
+    _create(client)
+    projects.flush()
     assert len(_client(tmp_path).get("/api/projects").get_json()) == 1
 
 

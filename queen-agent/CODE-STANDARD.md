@@ -23,23 +23,26 @@ layering rules below, the language split, and the test discipline.
 One artifact, one job: keep two things apart when they answer different questions, are written at
 different moments, or have different lifetimes.
 
-The store follows the same rule, and it is why there is no file-index file:
+The store follows the same rule:
 
 | Artifact | The question it answers | Written when |
 |---|---|---|
-| `project.json` | what is this project called, and since when | on create, on rename |
-| `chats/<id>.json` | what was said in this conversation, and what it answers with | after each message, on opening a version, and on a trim |
-| `files/<name>` | what did QueenAgent produce | when a file is created |
-| `trash/<name>` | what did the user just delete | on a file's delete |
-| `pinned` | is this project pinned, and since when | on pin; removed on unpin, on archive and on unarchive — an archived project is never pinned |
-| `archived` | is this project archived | on archive; removed on unarchive |
+| `projects.json` | which projects there are; what each is called, since when, whether it is pinned (and since when) or archived; which chats and files it holds, with what a list shows of them | by the one queued writer, a moment after any of these changes |
+| `<id>/chats/<cid>.json` | what was said in this conversation, and what it answers with | after each message, on opening a version, and on a trim — before its entry |
+| `<id>/files/<name>` | what did QueenAgent produce | when a file is written — before its entry |
+| `<id>/trash/<name>` | what did the user just delete | on a file's delete |
+| `trash/<id>/` | which project did the user delete — its folder whole, with its entry as `project.json` | on a project's delete |
 
-No file repeats another's answer. The file list is the directory listing itself: the name is the
-filename, "2h ago" is its mtime, the order is mtime descending. A project's "2h ago" is its newest
-chat file's mtime, or its createdAt while it has none. The count on a sidebar project row is a
-directory count. Before adding a field, ask which question it answers — a field that answers a new
-question wants an artifact of its own, and a field that restates an answer already on disk wants
-deleting.
+`projects.json` is the one place a list is read from (Madde 447): the project list, the sidebar's
+chats, the files panel and the agent's file names all come out of the server's memory of it, and a
+chat or a file is opened only once its entry names it. To be that, it repeats on purpose what a list
+shows of a chat — its title, birth and last activity — and of a file — its time. That is the one
+exception to "no file repeats another's answer" (Madde 346), and it holds because both copies are
+written by the same server at the same moment, contents first. Nothing else is repeated: the
+counts, a project's last use (its newest chat's, or its createdAt while it has none) and a file's
+chip are read off the entries and never written. Before adding a field, ask which question it
+answers — a field that answers a new question wants an artifact of its own, and a field that
+restates an answer already on disk wants deleting.
 
 ## Services (`backend/services/`)
 

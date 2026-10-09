@@ -5,27 +5,28 @@ from backend.features.workspace.domain.errors import InvalidProjectName, Project
 from backend.features.workspace.domain.project import Project
 
 
-def edit_project(store, project_id, name=None, pinned=None, archived=None) -> Project:
-    current = store.get(project_id)
-    if current is None:
-        raise ProjectNotFound(project_id)
+def edit_project(store, project_id, now, name=None, pinned=None, archived=None) -> Project:
+    # The browser cancels on an empty prompt, but that is a convenience; the rule lives here.
+    if name is not None and not name.strip():
+        raise InvalidProjectName(name)
 
-    if name is not None:
-        trimmed = name.strip()
-        # The browser cancels on an empty prompt, but that is a convenience; the rule lives here.
-        if not trimmed:
-            raise InvalidProjectName(name)
-        # created_at stays: it is the project's history, not something a rename rewrites.
-        store.replace(replace(current, name=trimmed))
-    # project.json is written on create and on rename, and a pin is neither: each of these is a
-    # file of its own, written only when it is what was asked for (CODE-STANDARD).
-    if pinned is not None:
-        store.set_pinned(project_id, pinned)
-    if archived is not None:
-        store.set_archived(project_id, archived)
-        # A project goes into the archive without its pin, and comes out without one (Madde 384):
-        # the archive deletes it, and Unarchive clears one an archive made before that rule left.
-        if archived != current.archived:
-            store.set_pinned(project_id, False)
-    # Read back rather than assembled here: the counts and the two marks are the disk's answer.
-    return store.get(project_id)
+    def change(project):
+        if name is not None:
+            # created_at stays: it is the project's history, not something a rename rewrites.
+            project = replace(project, name=name.strip())
+        if pinned is not None:
+            # Pinning what is already pinned keeps the moment: the pinned are listed in the order
+            # they were pinned in.
+            project = replace(project, pinned_at=(project.pinned_at or now) if pinned else "")
+        # A project goes into the archive without its pin, and comes out without one (Madde 384).
+        # Asking for what already stands changes nothing, the pin included.
+        if archived is not None and archived != project.archived:
+            project = replace(project, archived=archived, pinned_at="")
+        return project
+
+    # One change for the whole request, so the store writes once. What comes back is the project as
+    # it now stands -- nothing is read back.
+    edited = store.update(project_id, change)
+    if edited is None:
+        raise ProjectNotFound(project_id)
+    return edited

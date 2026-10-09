@@ -122,6 +122,20 @@ class Chat:
         return said[-1].at if said else self.created_at
 
 
+@dataclass(frozen=True)
+class ChatSummary:
+    """What a list of chats shows of one -- the sidebar's row (Madde 447).
+
+    Kept beside the project rather than read out of the chat, so that listing a project's chats
+    opens none of them. last_activity is the chat's own, taken whenever the chat is written.
+    """
+
+    id: str
+    title: str
+    created_at: str
+    last_activity: str
+
+
 def chat_title(text):
     """A chat is named after the message that started it."""
     trimmed = text.strip()
