@@ -117,6 +117,10 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
       // Where this turn lands. Starts as the chat it was sent from; the first frame can name a
       // newborn instead. Local, so a send that lost the screen still knows its own chat.
       let target = chatId;
+      // Whether the first frame came (Madde 449). The server writes the question before it sends a
+      // byte, so from that frame on the question is on disk -- and the frame is also the one thing
+      // that names a chat born in the draft, where a Try again has to go.
+      let reached = false;
       if (text !== null) {
         // The bubble appears before the server answers -- the design says so in as many words. In
         // a draft there is no record to add it to, so one is stood up to hold it.
@@ -173,6 +177,7 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
           (frame) => {
             if (frame.event === "chat") {
               target = frame.data.chat;
+              reached = true;
               if (owner.current !== token) return;
               streamingInto.current = target;
               setStreamingChatId(target);
@@ -250,8 +255,22 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
           }
         }
       } catch (failure) {
-        // Refused before a byte came back, so nothing was written: the optimistic bubble is taken
-        // back out and the screen never claims something was said when it was not.
+        // The connection dropped after the first frame: the question is on disk, so this is an
+        // answer that never came, not a sentence refused (Madde 449). Its bubble stays, the box is
+        // not handed the sentence -- one more Enter would write it twice --, and the card's Try
+        // again asks with no sentence. A fault the stream already said is the real one and stays,
+        // as it does over a record that could not be read.
+        if (reached) {
+          if ((target ?? null) === (live.current ?? null)) {
+            setError((current) => current ?? failure.message);
+          }
+          return;
+        }
+        // No first frame: refused, or dropped before the server said anything. Nothing says the
+        // question was written, and almost always it was not -- the one gap is a connection lost
+        // between the server's write and its first byte. So it is read as unsent: the optimistic
+        // bubble is taken back out, and the screen never claims something was said that may not
+        // have been.
         if (text !== null) {
           setChat((current) =>
             current

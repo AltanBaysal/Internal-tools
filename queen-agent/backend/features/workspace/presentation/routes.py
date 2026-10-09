@@ -162,6 +162,8 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, stops, perm
                 return jsonify({"error": "this chat has already been answered"}), 400
         # Every refusal is settled by here, which is why they can still be status codes: nothing
         # has gone out yet. Past this line a fault can only travel inside the stream.
+        # The question is written by here too, and _sse's first frame is `chat`: the browser reads
+        # that frame as "the question is written" and asks again without it (Madde 449).
         return Response(
             _sse(
                 chat.id,

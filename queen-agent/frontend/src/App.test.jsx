@@ -1399,7 +1399,8 @@ test("a refusal's card does not follow the user into the draft", async () => {
 });
 
 // A stream that hands over its first frames, then waits to be released before the rest. The one-shot
-// helper cannot serve a test that has to press something *while* the answer is running.
+// helper cannot serve a test that has to press something *while* the answer is running. A `rest`
+// that is an error breaks the stream instead, the way a dropped connection does (Madde 449).
 function gatedSse(first, rest) {
   const encoder = new TextEncoder();
   let release;
@@ -1420,6 +1421,7 @@ function gatedSse(first, rest) {
           if (stage === 1) {
             stage = 2;
             await gate;
+            if (rest instanceof Error) throw rest;
             return { done: false, value: encoder.encode(rest) };
           }
           return { done: true };
@@ -3125,12 +3127,14 @@ test("coming back to a streaming chat finds its transcript and its stream", asyn
 
 // --- the answer comes back whole, or fails (Madde 440) -------------------------------------------
 
-// A chat answered by `stream`, whose record is whatever `server.record` holds when it is read: the
-// test moves it on as the server would.
-function stubTurn(server, stream) {
+// A chat answered by `streams`, one per send in turn and the last one again after that, whose record
+// is whatever `server.record` holds when it is read: the test moves it on as the server would.
+function stubTurn(server, ...streams) {
+  let posts = 0;
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (String(path).endsWith("/messages") && options?.method === "POST") {
-      return Promise.resolve(stream);
+      posts += 1;
+      return Promise.resolve(streams[Math.min(posts, streams.length) - 1]);
     }
     if (String(path).endsWith("/chats/c1")) {
       const record = server.record;
@@ -3228,6 +3232,159 @@ test("Try again on a failed answer asks in the mode the session is in", async ()
   await act(async () => {
     release();
   });
+});
+
+// --- a connection that drops (Madde 449) ---------------------------------------------------------
+
+// A stream that hands over its first frames and drops once released -- after the screen has caught
+// up with what those frames said.
+const droppingSse = (first) => gatedSse(first, new TypeError("network error"));
+
+const questions = () =>
+  [...document.querySelectorAll(".msg--user .msg__bubble")].map((bubble) => bubble.textContent);
+
+const CHAT_FRAME = 'event: chat\ndata: {"chat":"c1"}\n\n';
+
+test("a turn whose connection drops keeps its question once, and Try again has it answered", async () => {
+  // The server wrote the question before its first frame, so the card is an answer that never
+  // came: the sentence stays in the chat and not in the box, and Try again asks with no sentence.
+  const broken = droppingSse(CHAT_FRAME);
+  const again = gatedSse(CHAT_FRAME, "event: done\ndata: {}\n\n");
+  const server = { record: { id: "c1", title: "go", messages: [] } };
+  const fetch = stubTurn(server, broken.response, again.response);
+  render(<App />);
+  const box = await chatOpened();
+  fireEvent.change(box, { target: { value: "go" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+  await waitFor(() => expect(screen.getByTestId("thinking")).toBeTruthy());
+
+  server.record = { id: "c1", title: "go", messages: [QUESTION] };
+  await act(async () => {
+    broken.release();
+  });
+  expect(await screen.findByText("network error")).toBeTruthy();
+  expect(questions()).toEqual(["go"]);
+  expect(box.value).toBe("");
+
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  await waitFor(() => expect(messagePosts(fetch)).toHaveLength(2));
+  expect(messagePosts(fetch)[1]).toEqual({ chat: "c1", mode: "edit" });
+  await waitFor(() => expect(screen.queryByText("network error")).toBeNull());
+
+  server.record = {
+    id: "c1",
+    title: "go",
+    messages: [QUESTION, { role: "ai", at: NOW, text: "Here it is." }],
+  };
+  await act(async () => {
+    again.release();
+  });
+  expect(await screen.findByText("Here it is.")).toBeTruthy();
+  expect(questions()).toEqual(["go"]);
+});
+
+test("a draft's turn that drops after its first frame is asked again in the chat it was born as", async () => {
+  const broken = droppingSse(CHAT_FRAME);
+  const again = gatedSse(CHAT_FRAME, "event: done\ndata: {}\n\n");
+  const server = { record: { id: "c1", title: "go", messages: [QUESTION] } };
+  const fetch = stubTurn(server, broken.response, again.response);
+  window.history.pushState(null, "", "/p/p1/c/new");
+  render(<App />);
+  const box = await chatOpened();
+  fireEvent.change(box, { target: { value: "go" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c1"));
+
+  await act(async () => {
+    broken.release();
+  });
+  fireEvent.click(await screen.findByRole("button", { name: "Try again" }));
+  await waitFor(() => expect(messagePosts(fetch)).toHaveLength(2));
+  expect(messagePosts(fetch)[1]).toEqual({ chat: "c1", mode: "edit" });
+
+  await act(async () => {
+    again.release();
+  });
+});
+
+test("an edit whose connection drops keeps the corrected question once, and Try again answers it", async () => {
+  // The server opened the new line before its first frame: the corrected question stands where the
+  // old one stood, and nothing holds the old sentence any more for a send with text.
+  const answered = { id: "c1", title: "go", messages: [QUESTION, { role: "ai", at: NOW, text: "Here it is." }] };
+  const corrected = { role: "user", at: NOW, text: "go again" };
+  const broken = droppingSse(CHAT_FRAME);
+  const again = gatedSse(CHAT_FRAME, "event: done\ndata: {}\n\n");
+  const server = { record: answered };
+  const fetch = stubTurn(server, broken.response, again.response);
+  const { container } = render(<App />);
+  await screen.findByText("Here it is.");
+  fireEvent.click(screen.getByRole("button", { name: "Edit message" }));
+  fireEvent.change(container.querySelector(".msg__editing-input"), { target: { value: "go again" } });
+  fireEvent.click(screen.getByRole("button", { name: "Confirm edit" }));
+  await waitFor(() => expect(screen.getByTestId("thinking")).toBeTruthy());
+  expect(messagePosts(fetch)[0].from).toBe(0);
+
+  server.record = { id: "c1", title: "go", messages: [corrected] };
+  await act(async () => {
+    broken.release();
+  });
+  expect(await screen.findByText("network error")).toBeTruthy();
+  expect(questions()).toEqual(["go again"]);
+  expect(screen.queryByText("Here it is.")).toBeNull();
+
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  await waitFor(() => expect(messagePosts(fetch)).toHaveLength(2));
+  expect(messagePosts(fetch)[1]).toEqual({ chat: "c1", mode: "edit" });
+
+  server.record = {
+    id: "c1",
+    title: "go",
+    messages: [corrected, { role: "ai", at: NOW, text: "Shorter." }],
+  };
+  await act(async () => {
+    again.release();
+  });
+  expect(await screen.findByText("Shorter.")).toBeTruthy();
+  expect(questions()).toEqual(["go again"]);
+});
+
+test("a fault the stream said before it dropped is the one the card keeps", async () => {
+  // The turn's own words are the real cause; the drop that followed them is not.
+  const broken = droppingSse(`${CHAT_FRAME}event: error\ndata: {"error":"HTTP 401"}\n\n`);
+  const server = { record: { id: "c1", title: "go", messages: [] } };
+  stubTurn(server, broken.response);
+  render(<App />);
+  const box = await chatOpened();
+  fireEvent.change(box, { target: { value: "go" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+  expect(await screen.findByText("HTTP 401")).toBeTruthy();
+
+  await act(async () => {
+    broken.release();
+  });
+  await waitFor(() => expect(screen.queryByTestId("thinking")).toBeNull());
+  expect(screen.getByText("HTTP 401")).toBeTruthy();
+  expect(screen.queryByText("network error")).toBeNull();
+});
+
+test("a send that never reached the server hands the sentence back, and Try again sends it", async () => {
+  // No first frame, so nothing says the question was written: the road a refusal takes (Madde 349).
+  const fetch = stubRefusingChat((post) =>
+    post === 1
+      ? Promise.reject(new TypeError("Failed to fetch"))
+      : sseResponse(`${CHAT_FRAME}event: done\ndata: {}\n\n`),
+  );
+  render(<App />);
+  const box = await chatOpened();
+  fireEvent.change(box, { target: { value: "hello" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+  await screen.findByText("Failed to fetch");
+  expect(questions()).toEqual([]);
+  expect(box.value).toBe("hello");
+
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  await waitFor(() => expect(messagePosts(fetch)).toHaveLength(2));
+  expect(messagePosts(fetch)[1].text).toBe("hello");
 });
 
 test("a skill picked in a chat does not ride into a chat born in the draft", async () => {
