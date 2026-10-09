@@ -59,7 +59,8 @@ the git.
   costs, what can be lost or broken. The two cost lenses are there because 446 found every Archive
   press reading all projects three times, a cost no review had looked for. When the structure
   itself is in question, the main agent first asks the reviewer for a design, argues it, and takes
-  it to the user before any code.
+  it to the user before any code. A coder shapes new code itself, but asks before it changes a
+  structure already there; the structure is not reworked from week to week.
 - A [qa](.claude/agents/qa.md) agent then checks the items that change the screen or what the tool
   does, as a tester: against the item and its spec, the four suites, and the screen with Playwright.
   It comes once the reviewer's findings are fixed, so it tests the code that is committed. A change

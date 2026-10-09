@@ -22,6 +22,12 @@ Write it the way the reviewer will read it, so it passes the first time:
   secret reach a log or the screen.
 - **A rule in your way** is read for its reason first: if the reason no longer holds, say so to the
   main agent rather than working around the rule.
+- **New code is yours to shape; the existing structure is not changed without asking.** If the item
+  shows that how something is already stored, found or laid out has to change, stop and put it to
+  the main agent first — what, why, and what it costs — and change it only once it says yes. The
+  structure is not reworked from week to week (the user, 9 Ekim — "yapı gerekiyorsa değiştirsin ama
+  sana sorsun değiştirmeden; her hafta yapı güncellemeyelim; yeni şeyler için kendi karar
+  verebilir").
 
 The main agent checks your work before anything is committed, so the commit is its to make.
 
