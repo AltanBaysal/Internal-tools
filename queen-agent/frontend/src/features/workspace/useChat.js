@@ -312,8 +312,9 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
         // Outside that gate, and however the turn ended (Madde 192). The gate guards what draws on
         // the screen; this draws nothing -- it asks the disk. What the turn wrote is written
         // whoever is looking, and a fault is an ending too: what got as far as disk is on it. The
-        // same reason a born file is announced for every screen.
-        ended.current?.();
+        // same reason a born file is announced for every screen. Whether the first frame came goes
+        // with it: only then was the question written, and with it the chat's last activity.
+        ended.current?.(reached);
       }
     },
     [projectId, chatId],

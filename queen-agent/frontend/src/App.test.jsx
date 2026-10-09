@@ -1856,6 +1856,86 @@ test("Refresh asks again with no turn to hang it on", async () => {
   await waitFor(() => expect(screen.getByText("plan.md")).toBeTruthy());
 });
 
+// Madde 452: a turn renews its chat's last activity on the server (Madde 447), and so the order of
+// both lists that read it -- yet only a chat's birth read them again. In a chat already there,
+// leaving the project showed it where it stood, with the time it had. The sidebar is read when the
+// turn ends; the project list when All projects, the one screen that shows it, is entered.
+test("a turn in an existing chat brings the chat up in the sidebar, and leaving brings the project up", async () => {
+  let projects = [
+    { id: "p2", name: "Notes", chats: 1, files: 0, pinned: false, lastActivity: hoursAgo(1) },
+    { id: "p1", name: "Thesis", chats: 2, files: 0, pinned: false, lastActivity: hoursAgo(5) },
+  ];
+  let chats = [
+    { id: "c2", title: "Missing values", lastActivity: hoursAgo(5) },
+    { id: "c1", title: "Write the intro", lastActivity: hoursAgo(6) },
+  ];
+  const { response, release } = gatedSse(
+    CHAT_FRAME +
+      'event: progress\ndata: {"round":1,"of":16,"tokens":0}\n\n' +
+      'event: progress\ndata: {"round":2,"of":16,"tokens":12300}\n\n',
+    "event: done\ndata: {}\n\n",
+  );
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (path.endsWith("/messages") && options?.method === "POST") {
+      // The question is written before the first frame, and its moment is the chat's last activity.
+      const now = new Date().toISOString();
+      projects = [{ ...projects[1], lastActivity: now }, projects[0]];
+      chats = [{ ...chats[1], lastActivity: now }, chats[0]];
+      return Promise.resolve(response);
+    }
+    if (path === "/api/projects") return ok(projects);
+    if (path.endsWith("/chats")) return ok(chats);
+    if (path.endsWith("/chats/c1")) return ok({ id: "c1", title: "Write the intro", messages: [] });
+    return ok([]);
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  const chatReads = () => fetch.mock.calls.filter(([path]) => path === "/api/projects/p1/chats");
+
+  render(<App />);
+  const box = await chatOpened();
+  await waitFor(() => expect(sidebarRows()).toEqual(["Missing values", "Write the intro"]));
+  fireEvent.change(box, { target: { value: "and again" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+  const strip = await screen.findByTestId("live-strip");
+  await waitFor(() => expect(strip.textContent).toContain("round 2/16"));
+  // Not on every frame: once a turn, at its end.
+  expect(chatReads()).toHaveLength(1);
+
+  await act(async () => release());
+  await waitFor(() => expect(sidebarRows()).toEqual(["Write the intro", "Missing values"]));
+  expect(chatReads()).toHaveLength(2);
+  // The project list is on no screen in a chat, so the turn does not read it.
+  expect(listReads(fetch)).toBe(1);
+
+  fireEvent.click(screen.getByRole("button", { name: "Exit project" }));
+  const rowNames = () =>
+    [...document.querySelectorAll(".all-projects__row-name")].map((name) => name.textContent);
+  await waitFor(() => expect(rowNames()).toEqual(["Thesis", "Notes"]));
+  expect(document.querySelector(".all-projects__row-when").textContent).toBe("just now");
+  // Entering All projects reads it once.
+  expect(listReads(fetch)).toBe(2);
+});
+
+// The reviewer of 452: a send that never reached the server -- no first frame -- has changed no
+// chat's last activity, and the server that refused it is likely down: a list read then fails, and
+// the sidebar would trade the rows it holds for "Couldn't load chats.".
+test("a send that never reached the server reads no list, and the sidebar keeps its rows", async () => {
+  const fetch = stubRefusingChat(() => Promise.reject(new TypeError("network error")));
+  const chatReads = () => fetch.mock.calls.filter(([path]) => path === "/api/projects/p1/chats");
+  render(<App />);
+  const box = await chatOpened();
+  await waitFor(() => expect(sidebarRows()).toEqual(["Hi", "Other"]));
+  fireEvent.change(box, { target: { value: "hello" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+  await screen.findByText("Couldn't get a response.");
+  await act(async () => {});
+  expect(chatReads()).toHaveLength(1);
+  expect(listReads(fetch)).toBe(1);
+  expect(sidebarRows()).toEqual(["Hi", "Other"]);
+  expect(screen.queryByText("Couldn't load chats.")).toBeNull();
+});
+
 // Madde 194: everything between the question and the answer used to be three blinking dots, however
 // long the turn took.
 function _turnThatReports() {

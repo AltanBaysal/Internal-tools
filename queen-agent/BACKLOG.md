@@ -98,6 +98,26 @@ gösterir.
 geri gelince soru cevapsız duruyor ve ekranda Try again yok — yalnız yeniden yazmak cevaplatıyor.
 Sunucu sorunun cevap beklediğini biliyor (`is_owed_an_answer`).
 
+## Geç gelen sohbet listesi başka projenin kenar çubuğuna çiziliyor
+
+*(Claude, 10 Ekim — v10'un 452'sini okuyan reviewer'ın bulduğu; 452'den önce de vardı.)* `useList.js`
+gelen cevabın hangi yola ait olduğuna bakmıyor. A projesinde bir okuma sürerken B projesi açılır ve
+A'nın cevabı B'ninkinden sonra gelirse, B'nin kenar çubuğunda A'nın sohbetleri görünüyor; birine
+tıklamak "chat missing" diyor. Çare: yolu artık geçerli olmayan cevabı yok saymak.
+
+## Sürüm değiştirmek kenar çubuğunun sırasını güncellemiyor
+
+*(Claude, 10 Ekim — 452'nin reviewer'ı.)* Sürüm değiştirmek sohbetin son kullanımını değiştirebiliyor
+— etkin satırın son mesajı başka olur *(447)* —, sunucuda kenar çubuğunun sırası da değişiyor; ekran
+yalnız sohbeti yeniden okuyor, sıra bir sonraki tura kadar eski kalıyor. Continue here sırayı
+değiştirmiyor: kırpma yalnız mesajı işaretliyor *(452'nin QA'sı denedi)*.
+
+## Proje açılınca sohbet listesi iki kez okunuyor
+
+*(Claude, 10 Ekim — 452'nin QA'sı gördü; 452'den önce de vardı.)* All projects'ten bir proje açınca
+`GET …/chats` iki kez gidiyor. İkisi de bellekten cevaplanıyor, diske gidilmiyor; Drive'ın tünelinde
+bir gidiş-dönüş fazla.
+
 ## Bir frontend testi arada düşüyor
 
 *(Claude, 9 Ekim — Queen Editor v9'un 439'unda görüldü.)* `src/features/workspace/ChatScreen.test.jsx`'in

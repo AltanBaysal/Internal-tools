@@ -1,7 +1,7 @@
 import "./shared/app.css";
 import "./features/workspace/workspace.css";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import AllProjectsScreen from "./features/workspace/AllProjectsScreen.jsx";
 import Bar from "./features/workspace/Bar.jsx";
@@ -107,8 +107,8 @@ export default function App() {
   // they stale differently -- a late list hides a name, a late panel shows the wrong text under the
   // right one. One button rather than two, so the user never has to work out which they are fixing.
   //
-  // reloadProjects is not in here: what moves a project card's count is a file being born, and
-  // onFileCreated below already answers that.
+  // reloadProjects is not in here: a project card's count is seen only on All projects, which reads
+  // the list when it is entered (Madde 452).
   const refresh = () => Promise.all([reloadFiles(), reading.reload()]);
   // A step, and pushed; OpenProject writes the chat it opens over it.
   const openProject = (id) => navigate(`/p/${id}`);
@@ -131,21 +131,42 @@ export default function App() {
   const chat = useChat(
     route.projectId,
     drafting ? null : route.chatId,
-    () => Promise.all([reloadFiles(), reloadProjects()]),
+    // The project list's counts are not read here: All projects reads the list when it is entered.
+    reloadFiles,
     // Madde 88: the stream's first frame names its chat. When that is a chat this screen was not
     // on, it has just been born -- the address follows it while the answer is still arriving, and
-    // the lists that count chats are out of date.
+    // the sidebar, which lists it, is out of date.
     (id) => {
       // The skill that governed the birth becomes the newborn's own selection, and the draft lets
       // it go -- Madde 105.
       if (draftSkill) rememberChatSkill(id, draftSkill);
       setDraftSkill("");
       openChat(route.projectId, id, { replace: true });
-      return Promise.all([reloadProjectChats(), reloadProjects()]);
+      return reloadProjectChats();
     },
-    // A turn is the usual writer, so its end is the usual moment for both to be out of date.
-    refresh,
+    // A turn is the usual writer, so its end is the usual moment for what it wrote to be out of
+    // date: the files, however the turn ended (Madde 192), and -- once the question reached the
+    // server, its messages being the chat's last activity (Madde 447) -- the order of the sidebar's
+    // chats (Madde 452). Once a turn, not on every frame. A send that never reached the server
+    // changed no order, and reading the list from a server that is likely down would trade the
+    // rows on screen for a failure.
+    (reached) => {
+      refresh();
+      if (reached) reloadProjectChats();
+    },
   );
+
+  // All projects is the one screen that shows the project list's order, times and counts, so the
+  // list is read when it is entered (Madde 452) -- not after every turn, birth or file while it is
+  // on no screen. That covers whatever changed it from inside a project: a turn, even one still
+  // running when the project was left, a version switch. Not on the first draw:
+  // useProjects reads once by itself. Through the queue, like every other read of it (Madde 450).
+  const viewBefore = useRef(route.view);
+  useEffect(() => {
+    const entered = route.view === "root" && viewBefore.current !== "root";
+    viewBefore.current = route.view;
+    if (entered) reloadProjects();
+  }, [route.view, reloadProjects]);
 
   useEffect(() => {
     // One listener owns the keyboard. Two of them could not agree on an order: they hang off the

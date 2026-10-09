@@ -195,6 +195,40 @@ def test_talking_in_a_project_renews_its_moment_and_brings_it_up(tmp_path):
     )
 
 
+def test_talking_in_an_existing_chat_brings_its_project_and_the_chat_up(tmp_path):
+    # Madde 452: test_talking_in_a_project_renews_its_moment_and_brings_it_up talks in a chat it
+    # creates. Here the chat is already there -- the older of its project's two -- and the project is
+    # the older of two; the times are from 2000, so nothing said in this test can tie with them.
+    store = FileProjectStore(Store(str(tmp_path)))
+    chats = FileChatStore(Store(str(tmp_path)), store)
+    store.add(Project(id="pold", name="pold", created_at="2000-01-01T00:00:00.000+00:00"))
+    store.add(Project(id="pnew", name="pnew", created_at="2000-01-02T00:00:00.000+00:00"))
+    chats.add("pold", _chat("cold", said_at="2000-01-03T00:00:00.000+00:00"))
+    chats.add("pold", _chat("cmid", said_at="2000-01-03T01:00:00.000+00:00"))
+    chats.add("pnew", _chat("cnew", said_at="2000-01-04T00:00:00.000+00:00"))
+    store.flush()
+    client = _client(tmp_path)
+    assert _order(client) == ["pnew", "pold"], "En son kullanılan proje önde değil"
+
+    def chat_ids():
+        return [row["id"] for row in client.get("/api/projects/pold/chats").get_json()]
+
+    assert chat_ids() == ["cmid", "cold"], "En son kullanılan sohbet önde değil"
+
+    client.post("/api/projects/pold/messages", json={"chat": "cold", "text": "Again"}).get_data()
+
+    rows = client.get("/api/projects").get_json()
+    assert [row["id"] for row in rows] == ["pold", "pnew"], (
+        "Var olan sohbette konuşulan proje listenin önüne geçmedi"
+    )
+    assert rows[0]["lastActivity"] > "2000-01-04T00:00:00.000+00:00", (
+        "Var olan sohbette konuşulunca projenin son kullanımı yenilenmedi"
+    )
+    assert chat_ids() == ["cold", "cmid"], (
+        "Konuşulan sohbet kenar çubuğunun sırasında öne geçmedi"
+    )
+
+
 def test_a_pinned_project_leads_the_newer_ones(tmp_path):
     _made_long_ago(tmp_path, "pold", "pmid", "pnew")
     client = _client(tmp_path)
