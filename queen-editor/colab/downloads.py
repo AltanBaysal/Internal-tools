@@ -2,18 +2,23 @@
 from and how fast.
 
 The lists of what to download stay in the notebook, next to the boxes that choose them -- addresses
-live there (FOUNDATION 9). What is here is how a file comes down, which a cell could not test.
+live there (FOUNDATION 9), and so do how much room each group takes and which folders the summary
+shows. What is here is how a file comes down, and the models cell's run around it -- hf_xet, the disk
+check, the downloads, the folders and the table -- which a cell could not test (madde 438).
 
 The Hugging Face token is here too: the notebook reads it once through use_hf_token, before anything
 downloads, and every download and upload hands it over (madde 437).
 """
+import glob
 import json
 import os
+import shutil
 import struct
 import subprocess
 import time
 
 from colab.console import head_text, human, log, run
+from colab.vault import read_secret
 
 # hf_hub_download writes the repo's folders and its own .cache under local_dir. Neither belongs among
 # ComfyUI's models, so a file lands here and is moved into place: a rename on one disk, not a copy.
@@ -118,6 +123,8 @@ def fetch(url, target_dir, filename, label, *, parallel, headers=None, floor=Non
     if os.path.exists(target):
         log(f"{label}: zaten var ({_settled(target, label, floor)})")
         return
+    # curl and aria2c write the .part straight into it.
+    os.makedirs(target_dir, exist_ok=True)
 
     resume = False
     if os.path.exists(part):
@@ -170,13 +177,9 @@ def use_hf_token(read):
 
     Without a token the run goes on, and a line says so with what the read raised: the public files
     come down without one, and civitai_fetch already takes a file the mirror refuses from Civitai."""
-    try:
-        token = (read("HF_TOKEN") or "").strip()
-    except Exception as e:
-        _without_token(f"HF_TOKEN okunamadı — {type(e).__name__}: {e}")
-        return
-    if not token:
-        _without_token("HF_TOKEN boş")
+    token, problem = read_secret(read, "HF_TOKEN")
+    if problem:
+        _without_token(problem)
         return
     os.environ["HF_TOKEN"] = token
     log("HF_TOKEN okundu — Hugging Face'e token'la gidilecek", "OK")
@@ -274,6 +277,7 @@ def hf_fetch(repo, path, target_dir, filename, label, *, floor=None):
             log(f"{where} — {WAIT} sn sonra yeniden\n{_raw(e)}", "WARN")
         time.sleep(WAIT)
     msg = _settled(got, label, floor)
+    os.makedirs(target_dir, exist_ok=True)
     os.replace(got, target)
     return _landed(label, "HF", os.path.getsize(target), time.perf_counter() - start, msg)
 
@@ -364,6 +368,53 @@ def civitai_probe(version_id, label, cookie):
         return
     raise RuntimeError(f"❌ {label}: HTTP {code} — Civitai yanıtı: "
                        f"{body.decode('utf-8', 'replace').strip() or '(boş gövde — binary değil)'}")
+
+
+def install_hf_xet():
+    """hf_xet, behind hf_fetch: without it huggingface_hub goes back to HF's bridge with nothing but a
+    log line."""
+    run(["pip", "install", "-q", "-U", "hf_xet"], "pip install hf_xet")
+
+
+# GiB the disk check asks to stay free past the models themselves.
+HEADROOM = 5
+
+
+def check_disk(sizes):
+    """The choice and the free disk on one line, and the run stopped before anything downloads when
+    the chosen groups and HEADROOM do not fit. `sizes` is the notebook's (ticked, GiB, name) rows."""
+    need = sum(gib for on, gib, _ in sizes if on)
+    free = shutil.disk_usage("/content").free / 1024**3
+    log(f"Seçim: {', '.join(name for on, _, name in sizes if on)} — ~{need} GiB "
+        f"| Diskte boş: {free:.1f} GiB")
+    if free < need + HEADROOM:
+        raise RuntimeError(
+            f"❌ Disk yetmiyor: ~{need} GiB model + {HEADROOM} GiB pay gerekiyor, "
+            f"{free:.1f} GiB boş. Daha az üretici ya da daha az foto modeli seç, ya da diski daha "
+            f"büyük bir runtime aç."
+        )
+
+
+def download_models(hf_jobs, civitai_jobs, mirror, cookie):
+    """The Hugging Face files, then the Civitai ones. Every file's row, in that order, for
+    download_summary."""
+    rows = []
+    for repo, path, folder, filename, label, floor in hf_jobs:
+        rows.append(hf_fetch(repo, path, folder, filename, label, floor=floor))
+    for version_id, folder, filename, label in civitai_jobs:
+        rows.append(civitai_fetch(mirror, version_id, folder, filename, label, cookie))
+    return rows
+
+
+def show_folders(folders):
+    """What each ticked folder holds, with sizes: the notebook's (ticked, title, folder, pattern)
+    rows."""
+    for on, title, folder, pattern in folders:
+        if not on:
+            continue
+        print(f"\n📂 {title}/")
+        for path in sorted(glob.glob(f"{folder}/{pattern}", recursive=True)):
+            print(f"   {human(os.path.getsize(path))}  {os.path.relpath(path, folder)}")
 
 
 def _duration(seconds):

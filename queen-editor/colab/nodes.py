@@ -2,7 +2,8 @@
 requirements installed, save the lines in SKIPPED.
 
 The list of nodes stays in the notebook, where it is counted against the heading over it; what is here
-is how one node comes in, which a cell could not test (madde 314).
+is how the nodes come in, which a cell could not test (madde 314, and the loop over the list since
+madde 438).
 """
 import os
 
@@ -29,6 +30,13 @@ def _kept(req, name):
     with open(kept, "w", encoding="utf-8") as f:
         f.write("".join(f"{line}\n" for line in lines if line.strip() not in SKIPPED))
     return kept
+
+
+def install_nodes(nodes, folder):
+    """The notebook's (name, url) list into folder, in its order, and a line counting them."""
+    for name, url in nodes:
+        install_node(name, url, folder)
+    log(f"{len(nodes)} custom node hazır", "OK")
 
 
 def install_node(name, url, folder):

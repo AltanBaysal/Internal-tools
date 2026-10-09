@@ -1,16 +1,22 @@
-"""ComfyUI's start for the notebook: the old one stopped, the new one started, and hazır said only for
-the process this call started, once it answers (madde 433).
+"""ComfyUI for the notebook: its install (madde 438), and its start -- the old one stopped, the new one
+started, and hazır said only for the process this call started, once it answers (madde 433).
 
-This was the ComfyUI cell's own code, where no test could run it. It looked at the port and never at
-its process, so an old ComfyUI still on the port could answer for a new one that had already ended.
+Both were the notebook's own cells, where no test could run them. The start looked at the port and
+never at its process, so an old ComfyUI still on the port could answer for a new one that had already
+ended. Its custom nodes come in through nodes.py.
 """
+import os
 import socket
 import subprocess
 import time
 import urllib.request
 from collections import deque
 
-from colab.console import log
+from colab.console import log, run
+
+REPO = "https://github.com/comfyanonymous/ComfyUI.git"
+# Packages pip puts into ComfyUI's environment next to its own requirements.
+EXTRAS = ["opencv-python", "imageio", "imageio-ffmpeg"]
 
 # The 90 seconds the cell has always given ComfyUI to start, in looks two seconds apart.
 LOOKS = 45
@@ -18,6 +24,24 @@ STEP = 2
 # Seconds an old ComfyUI is given to let go of the port, after each of the two signals.
 FREE = 30
 LOG_LINES = 30
+
+
+def install_comfy(root):
+    """ComfyUI into `root`: cloned when it is not there, brought up to date, and its requirements
+    installed. Each command's output reaches the cell as it comes, and a failure stops the cell with
+    the command's own last lines.
+
+    The one exception is the pull. It only runs on a ComfyUI that is already there and works, and a
+    second Run all can find that clone in a state git will not pull into -- a detached HEAD, local
+    changes. What git said is printed, and the install goes on with the ComfyUI it has."""
+    if not os.path.isdir(root):
+        run(["git", "clone", REPO, root], "clone ComfyUI")
+    try:
+        run(["git", "pull", "-q"], "git pull ComfyUI", cwd=root)
+    except RuntimeError as e:
+        log(f"{e}\nComfyUI güncellenemedi — yerindeki ComfyUI'yle devam ediliyor", "WARN")
+    run(["pip", "install", "-q", "-r", "requirements.txt"], "pip install ComfyUI", cwd=root)
+    run(["pip", "install", "-q", *EXTRAS], "pip install ComfyUI extras", cwd=root)
 
 
 def start_comfy(root, port, log_path):

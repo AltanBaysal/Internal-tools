@@ -139,6 +139,23 @@ def test_a_clone_that_leaves_nothing_stops_the_run(nodes, monkeypatch, tmp_path)
     assert "ComfyMath" in str(failure.value), f"Hata hangi node olduğunu söylemiyor: {failure.value}"
 
 
+def test_the_list_is_installed_in_its_order_and_counted(nodes, monkeypatch, tmp_path, capsys):
+    """Every node of the cell's list, in its order, then one line counting them; the list itself
+    stays in the cell."""
+    installed = []
+    monkeypatch.setattr(nodes, "install_node", lambda name, url, folder:
+                        installed.append((name, url, folder)))
+
+    nodes.install_nodes([("ComfyMath", MATH), ("ComfyUI-DaSiWa-Nodes", DASIWA)], str(tmp_path))
+
+    assert installed == [("ComfyMath", MATH, str(tmp_path)),
+                         ("ComfyUI-DaSiWa-Nodes", DASIWA, str(tmp_path))], \
+        f"Node'lar böyle kurulmadı: {installed}"
+    last = capsys.readouterr().out.splitlines()[-1]
+    assert last.startswith("✅") and last.endswith("2 custom node hazır"), \
+        f"Konsol kaç node'un hazır olduğunu söylemedi: {last}"
+
+
 def test_a_node_is_cloned_shallow_with_its_submodules_into_its_own_folder(
         nodes, monkeypatch, tmp_path, capsys):
     """Only the latest tree is needed, and some packs carry submodules. The line a node starts with

@@ -179,6 +179,77 @@ def test_a_comfyui_that_ends_while_starting_fails_the_cell_at_once_with_its_own_
     assert "comfy satırı 10\n" not in said
 
 
+def _commands(monkeypatch, comfy, fails=None):
+    """console.run, faked: each command remembered with the folder it ran in. The command whose
+    subcommand is `fails` raises the way console.run does, with the command's own last line."""
+    commands = []
+
+    def run(cmd, label, cwd=None, timeout=3600):
+        commands.append((cmd, cwd))
+        if cmd[1] == fails:
+            raise RuntimeError(f"{label}: exit 1\nfatal: git said no")
+
+    monkeypatch.setattr(comfy, "run", run)
+    return commands
+
+
+def test_comfyui_is_cloned_when_it_is_not_there_and_then_set_up(comfy, monkeypatch, tmp_path):
+    """Cloned, pulled, and its requirements and the extras installed, in that order, each in
+    ComfyUI's own folder but the clone."""
+    root = str(tmp_path / "ComfyUI")
+    commands = _commands(monkeypatch, comfy)
+
+    comfy.install_comfy(root)
+
+    assert commands == [
+        (["git", "clone", "https://github.com/comfyanonymous/ComfyUI.git", root], None),
+        (["git", "pull", "-q"], root),
+        (["pip", "install", "-q", "-r", "requirements.txt"], root),
+        (["pip", "install", "-q", "opencv-python", "imageio", "imageio-ffmpeg"], root),
+    ], f"ComfyUI böyle kurulmadı: {commands}"
+
+
+def test_a_comfyui_already_there_is_pulled_rather_than_cloned(comfy, monkeypatch, tmp_path):
+    """Run all twice in one session: the second pass takes the new commits and clones nothing."""
+    root = tmp_path / "ComfyUI"
+    root.mkdir()
+    commands = _commands(monkeypatch, comfy)
+
+    comfy.install_comfy(str(root))
+
+    assert [cmd[:2] for cmd, _ in commands] == [["git", "pull"], ["pip", "install"],
+                                                ["pip", "install"]], \
+        f"Yerinde duran ComfyUI yeniden klonlandı: {commands}"
+
+
+def test_a_pull_that_fails_says_what_git_said_and_the_install_goes_on(comfy, monkeypatch, tmp_path,
+                                                                      capsys):
+    """A second Run all can find the clone where git will not pull -- a detached HEAD, local changes
+    -- and the ComfyUI already there still works."""
+    root = tmp_path / "ComfyUI"
+    root.mkdir()
+    commands = _commands(monkeypatch, comfy, fails="pull")
+
+    comfy.install_comfy(str(root))
+
+    out = capsys.readouterr().out
+    assert "git pull ComfyUI: exit 1\nfatal: git said no" in out and "⚠️" in out, \
+        f"Konsol git'in ne dediğini uyarı olarak basmadı:\n{out}"
+    assert [cmd[:2] for cmd, _ in commands][1:] == [["pip", "install"], ["pip", "install"]], \
+        f"Düşen pull'dan sonra kurulum sürmedi: {commands}"
+
+
+def test_a_clone_that_fails_stops_the_cell(comfy, monkeypatch, tmp_path):
+    """Without a clone there is no ComfyUI to go on with."""
+    commands = _commands(monkeypatch, comfy, fails="clone")
+
+    with pytest.raises(RuntimeError) as failure:
+        comfy.install_comfy(str(tmp_path / "ComfyUI"))
+
+    assert str(failure.value).startswith("clone ComfyUI: exit 1"), f"Hata böyle: {failure.value}"
+    assert len(commands) == 1, f"Düşen klondan sonra komut koştu: {commands}"
+
+
 def test_a_comfyui_that_never_answers_fails_after_ninety_seconds_with_what_the_port_said(
         comfy, monkeypatch, tmp_path):
     machine = Machine(monkeypatch, comfy, answers=[REFUSED])

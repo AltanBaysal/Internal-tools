@@ -129,9 +129,7 @@ def test_a_cell_can_ask_how_long_it_has_run_so_far(monkeypatch):
 
 
 def test_the_link_says_how_long_it_took():
-    """The line reads "Link 14 sn'de hazır", right above the link (madde 312)."""
-    flask = _cell("# === Start Flask")
-    said = next((line for line in flask.splitlines() if "cell_elapsed()" in line), "")
-
-    assert "hazır" in said, "Link hücresi süresini söylemiyor"
-    assert -1 < flask.find(said) < flask.find("🔗 Queen Editor"), "Süre linkin üstünde değil"
+    """The line reads "Link 14 sn'de hazır", right above the link (madde 312). show_link prints both
+    (test_colab_server.py); the time it is handed is the timer's."""
+    assert "show_link(link, cell_elapsed())" in _cell("# === Start Flask"), \
+        "Link hücresi süreyi sayaçtan almıyor"

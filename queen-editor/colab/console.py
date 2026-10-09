@@ -11,6 +11,10 @@ import threading
 import time
 
 
+# The lines of a failed command its error carries: the ones before them are on the console already.
+TAIL = 5
+
+
 def log(msg, level="INFO"):
     icons = {"INFO": "ℹ️ ", "OK": "✅", "WARN": "⚠️ ", "ERR": "❌"}
     print(f"{icons.get(level, '·')} [{time.strftime('%H:%M:%S')}] {msg}")
@@ -52,7 +56,7 @@ def run(cmd, label, cwd=None, timeout=3600):
     """
     proc = subprocess.Popen(cmd, shell=isinstance(cmd, str), cwd=cwd, stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, env={**os.environ, "PYTHONUNBUFFERED": "1"})
-    tail = collections.deque(maxlen=5)
+    tail = collections.deque(maxlen=TAIL)
     echo = threading.Thread(target=_echo, args=(proc.stdout, tail), daemon=True)
     echo.start()
     try:

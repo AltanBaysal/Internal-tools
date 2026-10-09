@@ -8,9 +8,11 @@ and the tunnel is opened the way that measured fast.
 
 The notebook is read, never run.
 
-The download machinery left the notebook for colab/ in madde 310, and the custom node install in
-madde 314; both are run in test_colab_*.py. What stays here is the seam: the notebook imports names
-the modules give, finds them in its clone, and defines none of them again.
+The download machinery left the notebook for colab/ in madde 310, the custom node install in madde
+314, and every other cell's code after the clone in madde 438; all of it is run in test_colab_*.py.
+What stays here is the seam: each cell calls the function that does its work, with the notebook's
+own values, and the notebook imports names the modules give, finds them in its clone, and defines
+none of them again.
 """
 import importlib
 import json
@@ -73,6 +75,17 @@ def _imports_from_code():
     """(module, names) for every line the notebook imports its own code with."""
     return [(module, [name.strip() for name in names.split(",")])
             for module, names in re.findall(r"^from (colab\.\w+) import ([\w, ]+)$", _source(), re.M)]
+
+
+def _imported(module):
+    """The names the notebook imports from one of its modules."""
+    return [name for found, names in _imports_from_code() if found == module for name in names]
+
+
+def _in_order(cell, *calls):
+    """Whether every call is in the cell, each after the one before it."""
+    places = [cell.find(call) for call in calls]
+    return -1 not in places and places == sorted(places)
 
 
 def _drawn(cell):
@@ -141,15 +154,29 @@ def test_the_intro_agrees_with_the_custom_node_list():
         f"Giriş hücresindeki sayı listeyle uyuşmuyor: {listed} satır"
 
 
-def test_the_notebook_installs_its_nodes_through_install_node():
-    """The loop left the ComfyUI cell for colab/ in madde 314, where it runs under test. The list
-    stays in the notebook, like the download lists."""
-    imported = [name for module, names in _imports_from_code() if module == "colab.nodes"
-                for name in names]
+def test_the_notebook_installs_its_nodes_through_install_nodes():
+    """How one node comes in left the ComfyUI cell for colab/ in madde 314, and the loop over the
+    list in madde 438; both run under test. The list stays in the notebook, like the download
+    lists."""
+    cell = _cell("CUSTOM_NODES = [")
 
-    assert re.search(r"for name, url in CUSTOM_NODES:\n\s+install_node\(name, url, ",
-                     _cell("CUSTOM_NODES = [")), "Defter node'ları install_node ile kurmuyor"
-    assert "install_node" in imported, "Defter install_node'u klondan import etmiyor"
+    assert _in_order(cell, "CUSTOM_NODES = [",
+                     'install_nodes(CUSTOM_NODES, f"{COMFY_ROOT}/custom_nodes")'), \
+        "Defter node'ları listeden sonra install_nodes ile kurmuyor"
+    assert "install_nodes" in _imported("colab.nodes"), "Defter install_nodes'u klondan import etmiyor"
+
+
+def test_the_comfyui_cell_installs_the_machine_s_packages_then_comfyui():
+    """The machine's packages, then ComfyUI, then its nodes: each a call run under test, and no shell
+    line left in the cell."""
+    cell = _cell("CUSTOM_NODES = [")
+
+    assert _in_order(cell, 'apt_install("aria2", "ffmpeg")', "install_comfy(COMFY_ROOT)",
+                     "install_nodes("), "ComfyUI hücresi paketleri ve ComfyUI'yi bu sırayla kurmuyor"
+    shell = [line for line in cell.splitlines() if line.startswith(("!", "%"))]
+    assert shell == [], f"ComfyUI hücresinde hâlâ kabuk satırı var: {shell}"
+    assert "apt_install" in _imported("colab.system"), "Defter apt_install'u klondan import etmiyor"
+    assert "install_comfy" in _imported("colab.comfy"), "Defter install_comfy'yi klondan import etmiyor"
 
 
 def test_the_notebook_starts_comfyui_through_start_comfy():
@@ -172,6 +199,25 @@ def test_the_notebook_reads_the_hf_token_itself_before_anything_downloads():
     assert "use_hf_token(userdata.get)" in _cell("# === Shared helpers ==="), \
         "Yardımcılar hücresi HF_TOKEN'ı use_hf_token ile okumuyor"
     assert "use_hf_token" in imported, "Defter use_hf_token'ı klondan import etmiyor"
+
+
+def test_the_secrets_after_the_clone_are_read_through_read_secret():
+    """Every secret but the clone's own goes through one function, in the helpers cell: the first one
+    colab/ can be imported in, so the vault is read at the top of Run all, before anything
+    downloads."""
+    helpers = _cell("# === Shared helpers ===")
+
+    for secret in ('COOKIE_VALUE, _ = read_secret(userdata.get, "CIVITAI_COOKIE")',
+                   'DEEPSEEK_API_KEY, _ = read_secret(userdata.get, "DEEPSEEK_API_KEY")'):
+        assert secret in helpers, f"Yardımcılar hücresi bu secret'ı read_secret ile okumuyor: {secret}"
+    assert "read_secret" in _imported("colab.vault"), "Defter read_secret'ı klondan import etmiyor"
+
+
+def test_config_reads_only_the_token_the_clone_needs():
+    """GITHUB_TOKEN is read before the clone, which brings colab/; every other secret waits for it."""
+    asked = re.findall(r'userdata\.get\("(\w+)"\)', _cell("# === CONFIG ==="))
+
+    assert asked == ["GITHUB_TOKEN"], f"CONFIG kasadan bunları okuyor: {asked}"
 
 
 def test_every_producer_has_a_checkbox_of_its_own():
@@ -240,12 +286,13 @@ def test_choosing_nothing_stops_the_notebook():
     assert "assert INSTALL_PHOTO or INSTALL_VIDEO or INSTALL_AUDIO" in _source()
 
 
-def test_civitai_files_come_down_through_the_mirror():
-    """Each gated file is looked up in the user's own Hugging Face repo first (madde 311), and its row
-    is kept for the table (madde 312)."""
-    assert re.search(r"for [^\n]+ in civitai_jobs:\n\s+landed\.append\(civitai_fetch\(HF_MIRROR, ",
-                     _cell("# === Target folders ===")), \
-        "Civitai dosyaları aynadan geçmiyor ya da satırları tutulmuyor"
+def test_the_chosen_files_come_down_through_download_models_with_the_mirror_and_the_cookie():
+    """Each gated file is looked up in the user's own Hugging Face repo first (madde 311), each row is
+    kept for the table (madde 312), and the loops run under test since madde 438."""
+    assert "landed = download_models(hf_jobs, civitai_jobs, HF_MIRROR, COOKIE_VALUE)" in \
+        _cell("# === Target folders ==="), "Seçilen dosyalar download_models ile inmiyor"
+    assert "download_models" in _imported("colab.downloads"), \
+        "Defter download_models'ı klondan import etmiyor"
 
 
 def test_the_mirror_is_named_once_in_config():
@@ -409,53 +456,27 @@ def test_every_file_the_app_renders_with_is_one_the_notebook_can_fetch():
 
 def test_the_disk_is_measured_before_the_download_starts():
     """All three together are ~54 GiB. Finding out the disk was too small halfway through leaves
-    half-written files and no explanation."""
-    assert "shutil.disk_usage" in _source()
+    half-written files and no explanation. The sizes are the notebook's, next to the boxes; the check
+    runs under test (madde 438)."""
+    assert _in_order(_cell("# === Target folders ==="), "SIZES = [", "check_disk(SIZES)",
+                     "download_models("), "Disk indirmeden önce ölçülmüyor"
+    assert "check_disk" in _imported("colab.downloads"), "Defter check_disk'i klondan import etmiyor"
 
 
-def test_the_sound_box_installs_the_library_not_just_a_weight_file():
+def test_the_sound_box_installs_the_library_and_its_weights():
     """MMAudio runs inside the app's process, so `import mmaudio` has to work there -- a weight
     file with no library is not a producer. The base weights come with it: warming them here is
-    what keeps the first sound job from stalling on a ~7 GiB download."""
-    source = _source()
+    what keeps the first sound job from stalling on a ~7 GiB download. Both behind the sound box;
+    how each comes down runs under test since madde 438 (test_colab_sound.py)."""
+    library = _cell("# === Ses motoru — MMAudio kütüphanesi ===")
+    weights = _cell("# === Ses motoru — MMAudio'nun kendi ağırlıkları")
 
-    assert "hkchengrex/MMAudio" in source, "Ses kutusu kütüphaneyi kurmuyor"
-    assert "download_if_needed" in source, "MMAudio'nun kendi ağırlıkları öne alınmamış"
-
-
-def test_the_sound_weights_land_where_the_app_will_look():
-    """MMAudio resolves ./weights and ./ext_weights against the working directory, and the app is
-    started from APP_DIR. Downloading them anywhere else means the app fetches them again."""
-    assert "os.chdir(APP_DIR)" in _source()
-
-
-def test_the_freshly_installed_library_is_reachable_from_the_running_kernel():
-    """`pip install -e .` registers the package with a .pth file, and .pth files are read when a
-    Python process starts -- the Colab kernel started long before. Without the clone on sys.path
-    the very next line dies with ModuleNotFoundError, which is what happened on 2026-08-13."""
-    assert "sys.path.insert(0, MMAUDIO_DIR)" in _source()
-
-
-def test_the_sound_engine_cell_says_each_stage_as_it_starts():
-    """The user's words (madde 398): "burda takıldı, output'ta bir şey de yok". A line as each stage
-    starts -- the clone, the pip install -- says which one the cell is in, and its time says since
-    when."""
-    cell = _cell("# === Ses motoru — MMAudio kütüphanesi ===")
-    lines = [line.strip() for line in cell.splitlines() if line.strip()]
-    stages = [i for i, line in enumerate(lines) if line.startswith("run(")]
-
-    assert stages, "Ses motoru hücresi hiçbir komut çalıştırmıyor"
-    for i in stages:
-        assert lines[i - 1].startswith("log("), f"Bu aşama başlarken bir satır yazılmıyor: {lines[i]}"
-
-
-def test_the_sound_engine_s_pip_is_not_silenced():
-    """pip -q hides every line up to an error, and the install can take thirty minutes (madde 398)."""
-    pip = re.search(r'run\(\["pip", "install"[^\]]*\]',
-                    _cell("# === Ses motoru — MMAudio kütüphanesi ==="))
-
-    assert pip, "Ses motoru hücresi MMAudio'yu pip ile kurmuyor"
-    assert '"-q"' not in pip.group(0), f"Ses motorunun pip'i susturulmuş: {pip.group(0)}"
+    assert re.search(r"if INSTALL_AUDIO:\n\s+install_mmaudio\(MMAUDIO_DIR\)", library), \
+        "Ses kutusu kütüphaneyi install_mmaudio ile kurmuyor"
+    assert re.search(r"if INSTALL_AUDIO:\n\s+fetch_mmaudio_weights\(MMAUDIO_DIR, APP_DIR\)",
+                     weights), "Ses kutusu ağırlıkları fetch_mmaudio_weights ile, uygulamanın klasörüne indirmiyor"
+    for name in ("install_mmaudio", "fetch_mmaudio_weights"):
+        assert name in _imported("colab.sound"), f"Defter {name}'ı klondan import etmiyor"
 
 
 def test_the_app_is_told_where_the_notebook_installed():
@@ -464,15 +485,9 @@ def test_the_app_is_told_where_the_notebook_installed():
     assert '"QE_COMFY_ROOT": COMFY_ROOT' in _source()
 
 
-def test_the_deepseek_key_is_read_from_secrets_and_trimmed():
-    """Madde 400: Queen AI writes H3's prompt. The secret is QueenAgent's own name, so the owner
-    keeps one secret for both tools -- trimmed where it is pasted, because the paste is what carries
-    the newline."""
-    assert 'DEEPSEEK_API_KEY = (userdata.get("DEEPSEEK_API_KEY") or "").strip()' in _source(), \
-        "DeepSeek anahtarı Secrets'tan kırpılarak okunmuyor"
-
-
 def test_the_deepseek_key_travels_to_the_app():
+    """Madde 400: Queen AI writes H3's prompt. The secret is QueenAgent's own name, so the owner keeps
+    one secret for both tools. It is read, and trimmed, in the helpers cell."""
     assert '"QE_DEEPSEEK_API_KEY": DEEPSEEK_API_KEY' in _cell("# === Start Flask"), \
         "Defter DeepSeek anahtarını uygulamaya geçirmiyor"
 
@@ -612,28 +627,26 @@ def test_no_huggingface_file_is_fetched_by_its_address():
     assert "huggingface.co" not in cell, "İndirme hücresinde hâlâ HF adresi var"
 
 
-def test_huggingface_files_come_down_through_hf_fetch():
+def test_hf_xet_is_installed_before_anything_downloads():
     """hf_fetch is the path around HF's bridge. Without hf_xet installed, huggingface_hub goes back to
-    the bridge with nothing but a log line, so installing it is half of the rule. Each download's row
-    is kept for the table the cell ends with (madde 312)."""
-    assert re.search(r"for [^\n]+ in hf_jobs:\n\s+landed\.append\(hf_fetch\(",
-                     _cell("# === Target folders ===")), \
-        "HF dosyaları hf_fetch ile inmiyor ya da satırları tutulmuyor"
-    assert re.search(r"pip install[^\n]*hf_xet", _source()), "Defter hf_xet'i kurmuyor"
+    the bridge with nothing but a log line, so installing it is half of the rule. It moved from the
+    end of the ComfyUI cell to the top of the models cell (madde 438): nothing runs between the two."""
+    assert _in_order(_cell("# === Target folders ==="), "install_hf_xet()", "check_disk(",
+                     "download_models("), "hf_xet indirmelerden önce kurulmuyor"
+    assert "install_hf_xet" in _imported("colab.downloads"), \
+        "Defter install_hf_xet'i klondan import etmiyor"
 
 
-def test_the_models_cell_ends_with_the_download_summary():
-    """The rows the downloads hand back are collected in one list and printed as a table once
-    everything is down (madde 312)."""
+def test_the_models_cell_ends_with_the_folders_and_the_download_summary():
+    """The rows the downloads hand back are printed as a table once everything is down (madde 312),
+    under what each ticked folder holds. Which folders a group shows is the notebook's, next to the
+    boxes."""
     cell = _cell("# === Target folders ===")
-    imported = [name for module, names in _imports_from_code() if module == "colab.downloads"
-                for name in names]
 
-    assert -1 < cell.find("landed = []") < cell.find("in hf_jobs:"), \
-        "Satır listesi döngülerden önce açılmıyor"
-    assert cell.find("download_summary(landed)") > cell.find("in civitai_jobs:") > -1, \
-        "Özet tablosu indirmelerden sonra basılmıyor"
-    assert "download_summary" in imported, "Defter özet tablosunu klondan import etmiyor"
+    assert _in_order(cell, "FOLDERS = [", "landed = download_models(", "show_folders(FOLDERS)",
+                     "download_summary(landed)"), "Klasörler ve özet indirmelerden sonra basılmıyor"
+    for name in ("show_folders", "download_summary"):
+        assert name in _imported("colab.downloads"), f"Defter {name}'ı klondan import etmiyor"
 
 
 def test_every_name_the_notebook_imports_from_its_code_exists():
@@ -702,12 +715,13 @@ def test_the_clone_looks_for_the_graphs_under_assets():
         "Klon grafikleri assets/ altında aramıyor"
 
 
-def test_the_tunnel_is_opened_over_tcp_rather_than_quic():
-    """cloudflared speaks QUIC by default, and QUIC rides on UDP. Colab's network throttles UDP and
-    leaves TCP alone: on 2026-08-24 the same photo took 17.74 s over the default tunnel and 0.18 s
-    over one started with this flag -- same machine, same minute, ninety times apart. Without it a
-    gallery of 81 photos is unusable and nothing in the app explains why."""
-    flask_cell = _cell("# === Start Flask")
+def test_the_last_cell_serves_the_app_shows_its_link_and_follows_its_log():
+    """The server, the tunnel -- over http2, since Colab throttles QUIC's UDP -- and the live log run
+    under test since madde 438 (test_colab_server.py). What the app is told stays in the cell."""
+    cell = _cell("# === Start Flask")
 
-    assert '"--protocol", "http2"' in flask_cell, \
-        "cloudflared varsayılan QUIC ile açılıyor — Colab'ın ağı UDP'yi kısıyor"
+    assert _in_order(cell, "link = serve(APP_DIR, APP_PORT, FLASK_LOG, {",
+                     "show_link(link, cell_elapsed())", "follow(FLASK_LOG)"), \
+        "Son hücre sunucuyu açıp linki göstermiyor ya da log'u izlemiyor"
+    for name in ("serve", "show_link", "follow"):
+        assert name in _imported("colab.server"), f"Defter {name}'ı klondan import etmiyor"

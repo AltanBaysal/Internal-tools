@@ -867,3 +867,127 @@ def test_mystic_xxx_is_kept_out_of_the_mirror(downloads):
     under the name the notebook downloads it by."""
     assert "MysticXXX_MMH3-V4.safetensors" in downloads.MIRRORLESS, \
         f"Mystic XXX aynasız listede değil: {downloads.MIRRORLESS}"
+
+
+# The models cell's run around the downloads: hf_xet, the disk, the two lists, the folders.
+
+def test_hf_xet_is_installed_for_hugging_face_s_downloader(downloads, monkeypatch):
+    """Without hf_xet, huggingface_hub goes back to HF's bridge with nothing but a log line, and the
+    bridge cuts a plain download to 8.7 MB/s (xet-core #821)."""
+    commands = []
+    monkeypatch.setattr(downloads, "run", lambda cmd, label, cwd=None, timeout=3600:
+                        commands.append(cmd))
+
+    downloads.install_hf_xet()
+
+    assert commands == [["pip", "install", "-q", "-U", "hf_xet"]], f"hf_xet böyle kurulmadı: {commands}"
+
+
+GIB = 1024 ** 3
+# Photo and sound ticked, video not: 10 + 9 GiB, and 5 GiB of headroom.
+SIZES = [(True, 10, "fotoğraf"), (False, 37, "video (H3)"), (True, 9, "ses")]
+
+
+def _free(monkeypatch, downloads, free):
+    asked = []
+    monkeypatch.setattr(downloads.shutil, "disk_usage",
+                        lambda path: asked.append(path) or types.SimpleNamespace(free=free))
+    return asked
+
+
+def test_the_disk_check_says_what_was_chosen_and_what_is_free(downloads, monkeypatch, capsys):
+    asked = _free(monkeypatch, downloads, 30 * GIB)
+
+    downloads.check_disk(SIZES)
+
+    assert asked == ["/content"], f"Disk böyle ölçülmedi: {asked}"
+    assert "Seçim: fotoğraf, ses — ~19 GiB | Diskte boş: 30.0 GiB" in capsys.readouterr().out, \
+        "Konsol seçimi ve boş yeri söylemedi"
+
+
+def test_a_disk_with_room_for_the_headroom_too_lets_the_run_go_on(downloads, monkeypatch):
+    _free(monkeypatch, downloads, 24 * GIB)
+
+    downloads.check_disk(SIZES)
+
+
+def test_a_disk_short_of_the_headroom_stops_the_run_before_anything_downloads(downloads,
+                                                                              monkeypatch):
+    """All three together are ~54 GiB. Finding out the disk was too small halfway through leaves
+    half-written files and no explanation."""
+    _free(monkeypatch, downloads, 24 * GIB - 1)
+
+    with pytest.raises(RuntimeError) as failure:
+        downloads.check_disk(SIZES)
+
+    assert str(failure.value).startswith(
+        "❌ Disk yetmiyor: ~19 GiB model + 5 GiB pay gerekiyor, 24.0 GiB boş."), \
+        f"Hata böyle: {failure.value}"
+
+
+def test_the_chosen_files_come_down_huggingface_first_then_civitai(downloads, monkeypatch,
+                                                                   tmp_path):
+    """Each file through its own fetcher, with the mirror and the cookie for the Civitai ones, and
+    every row handed back in order for the table."""
+    calls = []
+
+    def hf_fetch(repo, path, target_dir, filename, label, *, floor=None):
+        calls.append(("hf", repo, path, target_dir, filename, floor))
+        return label, 1, 1.0
+
+    def civitai_fetch(mirror, version_id, target_dir, filename, label, cookie):
+        calls.append(("civitai", mirror, version_id, target_dir, filename, cookie))
+        return None
+
+    monkeypatch.setattr(downloads, "hf_fetch", hf_fetch)
+    monkeypatch.setattr(downloads, "civitai_fetch", civitai_fetch)
+    upsc, lora = str(tmp_path / "upscale_models"), str(tmp_path / "loras")
+
+    rows = downloads.download_models(
+        [("FacehugmanIII/4x_foolhardy_Remacri", "4x.pth", upsc, "4x.pth", "Remacri", 50_000_000)],
+        [(1552087, lora, "USNR.safetensors", "USNR")], MIRROR, COOKIE)
+
+    assert calls == [
+        ("hf", "FacehugmanIII/4x_foolhardy_Remacri", "4x.pth", upsc, "4x.pth", 50_000_000),
+        ("civitai", MIRROR, 1552087, lora, "USNR.safetensors", COOKIE)], \
+        f"Dosyalar böyle inmedi: {calls}"
+    assert rows == [("Remacri", 1, 1.0), None], f"Satırlar böyle döndü: {rows}"
+
+
+def test_a_huggingface_file_makes_the_folder_it_lands_in(downloads, monkeypatch, tmp_path):
+    """A folder is made as its first file comes down, so an unticked group's folders are not made
+    at all."""
+    _hub(monkeypatch, _safetensors())
+    folder = tmp_path / "models" / "vae" / "MiniMaxH3"
+
+    downloads.hf_fetch("Kijai/MiniMax-H3-TAE", "taeh3.safetensors", str(folder), "taeh3.safetensors",
+                       "H3 TAE")
+
+    assert (folder / "taeh3.safetensors").read_bytes() == _safetensors(), "Dosya klasörüne inmedi"
+
+
+def test_an_addressed_file_makes_the_folder_its_part_is_written_in(downloads, monkeypatch, tmp_path):
+    """curl writes the .part straight into the folder, so it has to be there first."""
+    _transfer(monkeypatch, downloads, _safetensors())
+    folder = tmp_path / "models" / "loras"
+
+    downloads.fetch("https://civitai.red/api/download/models/1", str(folder), "m.safetensors", "M",
+                    parallel=False)
+
+    assert (folder / "m.safetensors").read_bytes() == _safetensors(), "Dosya klasörüne inmedi"
+
+
+def test_the_folders_of_the_chosen_groups_are_listed_with_their_files(downloads, tmp_path, capsys):
+    """Subfolders too: H3's files sit under MiniMaxH3/."""
+    diff, mmau = tmp_path / "diffusion_models", tmp_path / "mmaudio"
+    (diff / "MiniMaxH3").mkdir(parents=True)
+    (diff / "MiniMaxH3" / "eros.safetensors").write_bytes(b"\0" * 2048)
+    mmau.mkdir()
+    (mmau / "nsfw.safetensors").write_bytes(b"\0" * 8)
+
+    downloads.show_folders([(True, "diffusion_models", str(diff), "**/*.safetensors"),
+                            (False, "mmaudio", str(mmau), "*.safetensors")])
+
+    out = capsys.readouterr().out
+    eros = os.path.join("MiniMaxH3", "eros.safetensors")
+    assert out == f"\n📂 diffusion_models/\n   2.0KB  {eros}\n", f"Klasörler böyle listelendi:\n{out}"
