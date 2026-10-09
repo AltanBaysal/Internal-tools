@@ -25,18 +25,18 @@ function Section({ label, projects, row }) {
   );
 }
 
-function ProjectList({ any, shown, archivedTab, query, row }) {
+function ProjectList({ any, found, archivedTab, query, row }) {
   // Asked first: with nothing to search, "no match" would be the wrong news -- and on either tab.
   if (!any) return <p className="all-projects__empty">No projects yet.</p>;
   const asked = query.trim();
-  const found = shown.filter((project) => matches(project.name, query));
   if (!found.length) {
     let none = archivedTab ? "No archived projects." : "Every project is archived.";
     if (asked) none = `No projects match "${asked}".`;
     return <p className="all-projects__empty">{none}</p>;
   }
-  // The archive is one list with no heading, as the design draws it: pinning sorts the projects in
-  // use, and nothing archived is in use.
+  // The archive is one list with no heading, as the design draws it (190, 191): the server never
+  // lists an archived project as pinned (Madde 384), and a row still on its way keeps its place in
+  // that order.
   if (archivedTab) return <div className="all-projects__list">{found.map(row)}</div>;
   return (
     <>
@@ -79,6 +79,16 @@ export default function AllProjectsScreen({
   const archived = listed.filter((project) => project.archived);
   const open = listed.filter((project) => !project.archived);
   const shown = tab === "archived" ? archived : open;
+  // What the list draws, and what the search's Enter opens the first of (the design's 218): one
+  // reckoning, so the two cannot part. The server lists the pinned first, so the first found is the
+  // first row drawn on either tab.
+  const found = shown.filter((project) => matches(project.name, query));
+  // An archived project opens as any other (Madde 443), so Enter is the same on both tabs. While the
+  // list loads the spinner stands in its place, and there is no first row to open.
+  const openFirst = (event) => {
+    if (event.key !== "Enter" || loading || !found.length) return;
+    onOpenProject?.(found[0].id);
+  };
 
   // The pressed ⋯ leaves with its row, so the keyboard goes to the ⋯ that comes to stand in its
   // place -- the next one down the list as drawn, searched or not -- or to the search where none
@@ -146,6 +156,7 @@ export default function AllProjectsScreen({
             aria-label="Search projects"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={openFirst}
             autoFocus
           />
           <div className="all-projects__tabs">
@@ -174,7 +185,7 @@ export default function AllProjectsScreen({
         ) : (
           <ProjectList
             any={projects.length > 0}
-            shown={shown}
+            found={found}
             archivedTab={tab === "archived"}
             query={query}
             row={row}

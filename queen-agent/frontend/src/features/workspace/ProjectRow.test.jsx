@@ -5,7 +5,7 @@ import ProjectRow from "./ProjectRow.jsx";
 
 // Madde 360: an All projects row and its ⋯ (the design's items 135, 161, 167). Rename, Pin, Archive
 // and Delete live here and nowhere inside a project. Madde 363 (the design's 190, 191): an archived
-// row opens nothing, and its ⋯ brings the project back.
+// row's ⋯ brings the project back; Madde 443 (the design's 218): the row opens it, as any row does.
 
 const PROJECT = {
   id: "p2",
@@ -64,18 +64,18 @@ test("Archive asks for the project to be archived", () => {
   expect(onArchive).toHaveBeenCalledWith("p2", true);
 });
 
-test("an archived row is not a way into its project", () => {
-  // The design's kit.css: the same three columns, but an archived project does not open.
+test("an archived row opens its project, as any row does", () => {
+  // Madde 443 (the design's 218): the only difference is the list it stands in -- and its ⋯.
   const onOpen = vi.fn();
   const { container } = render(<ProjectRow project={SHELVED} onOpen={onOpen} />);
-  expect(container.querySelector(".all-projects__row-open")).toBeNull();
-  const text = container.querySelector(".all-projects__row-text");
-  expect(text.tagName).not.toBe("BUTTON");
-  expect(text.querySelector(".all-projects__row-name").textContent).toBe("Night market");
-  expect(text.querySelector(".all-projects__row-meta").textContent).toBe("1 chat · 1 file");
-  expect(text.querySelector(".all-projects__row-when")).toBeTruthy();
-  fireEvent.click(text);
-  expect(onOpen).not.toHaveBeenCalled();
+  const open = container.querySelector(".all-projects__row-open");
+  expect(open.tagName).toBe("BUTTON");
+  expect(open.title).toBe("Night market");
+  expect(open.querySelector(".all-projects__row-name").textContent).toBe("Night market");
+  expect(open.querySelector(".all-projects__row-meta").textContent).toBe("1 chat · 1 file");
+  expect(open.querySelector(".all-projects__row-when")).toBeTruthy();
+  fireEvent.click(open);
+  expect(onOpen).toHaveBeenCalledWith("p2");
   expect(screen.getByRole("button", { name: "Actions for Night market" })).toBeTruthy();
 });
 

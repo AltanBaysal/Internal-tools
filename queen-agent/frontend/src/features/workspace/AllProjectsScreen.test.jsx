@@ -209,14 +209,12 @@ test("Projects leaves the archived out", () => {
   expect(names(container)).toEqual(["Harbour at dusk", "Night market", "Old pier"]);
 });
 
-test("Archived lists only the archived, in one list with no heading, and none of them opens", () => {
+test("Archived lists only the archived, in one list with no heading", () => {
   const { container } = render(<AllProjectsScreen projects={[PINNED, SHELVED, RECENT, OLDER]} />);
   fireEvent.click(tab("Archived"));
   expect(names(container)).toEqual(["Shelved reel"]);
   expect(labels(container)).toEqual([]);
   expect(container.querySelectorAll(".all-projects__list").length).toBe(1);
-  expect(container.querySelectorAll(".all-projects__row-text").length).toBe(1);
-  expect(container.querySelector(".all-projects__row-open")).toBeNull();
   expect(tab("Archived").classList.contains("is-on")).toBe(true);
   expect(tab("Projects").classList.contains("is-on")).toBe(false);
 
@@ -406,6 +404,68 @@ test("Unarchive asks for the project back", () => {
   fireEvent.click(tab("Archived"));
   fireEvent.click(screen.getByRole("button", { name: "Unarchive" }));
   expect(onArchiveProject).toHaveBeenCalledWith("p5", false);
+});
+
+// --- Madde 443: an archived project opens, and Enter opens the first match (the design's 218) -----
+
+test("pressing an archived row opens that project, as any row does", () => {
+  const onOpenProject = vi.fn();
+  render(<AllProjectsScreen projects={[PINNED, SHELVED]} onOpenProject={onOpenProject} />);
+  fireEvent.click(tab("Archived"));
+  fireEvent.click(screen.getByRole("button", { name: /^Shelved reel/ }));
+  expect(onOpenProject).toHaveBeenCalledWith("p5");
+});
+
+const enter = () => fireEvent.keyDown(search(), { key: "Enter" });
+
+test("on Projects, Enter opens the first row the search left, the pinned before the recent", () => {
+  const NIGHT_PIN = { ...PINNED, id: "p6", name: "Night shift" };
+  const onOpenProject = vi.fn();
+  render(
+    <AllProjectsScreen projects={[NIGHT_PIN, PINNED, RECENT, OLDER]} onOpenProject={onOpenProject} />,
+  );
+  type("night");
+  enter();
+  expect(onOpenProject.mock.calls).toEqual([["p6"]]);
+  type("pier");
+  enter();
+  expect(onOpenProject).toHaveBeenLastCalledWith("p3");
+});
+
+test("on Archived, Enter opens the first archived row the search left", () => {
+  const DUSTY = { ...SHELVED, id: "p7", name: "Dusty reel", lastActivity: ago(40) };
+  const onOpenProject = vi.fn();
+  render(
+    <AllProjectsScreen projects={[PINNED, SHELVED, RECENT, DUSTY]} onOpenProject={onOpenProject} />,
+  );
+  fireEvent.click(tab("Archived"));
+  type("dusty");
+  enter();
+  expect(onOpenProject.mock.calls).toEqual([["p7"]]);
+});
+
+test("with the box empty, Enter opens the tab's first row", () => {
+  const onOpenProject = vi.fn();
+  render(<AllProjectsScreen projects={[PINNED, SHELVED, RECENT]} onOpenProject={onOpenProject} />);
+  enter();
+  expect(onOpenProject).toHaveBeenLastCalledWith("p1");
+  fireEvent.click(tab("Archived"));
+  enter();
+  expect(onOpenProject).toHaveBeenLastCalledWith("p5");
+});
+
+test("with no match, and while the list loads, Enter opens nothing", () => {
+  const onOpenProject = vi.fn();
+  const { rerender } = render(
+    <AllProjectsScreen projects={[PINNED, RECENT]} onOpenProject={onOpenProject} />,
+  );
+  type("zzz");
+  enter();
+  // Try again after a failed read waits with the list it last had: the spinner stands, and no row.
+  rerender(<AllProjectsScreen projects={[PINNED, RECENT]} loading onOpenProject={onOpenProject} />);
+  type("");
+  enter();
+  expect(onOpenProject).not.toHaveBeenCalled();
 });
 
 // --- Madde 364: while the list loads, and when it cannot be read (the design's 172, 173) ---------

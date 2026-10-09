@@ -333,3 +333,32 @@ def test_a_pin_an_older_archive_left_neither_orders_nor_survives_unarchive(tmp_p
     back = client.patch("/api/projects/pa", json={"archived": False}).get_json()
     assert back["pinned"] is False, "Unarchive eski sabitlemeyi geri getirdi"
     assert not Store(str(tmp_path)).exists("pa/pinned"), "Unarchive eski pinned dosyasını silmedi"
+
+
+def test_an_archived_project_is_used_as_any_other_and_stays_archived(tmp_path):
+    # Madde 443, the owner's words: the only difference between an archived project and another is
+    # the list it stands in. Nothing on the server reads the mark but the list's order and the pin,
+    # so an archived project is talked in and read like any other -- and using it does not unarchive.
+    client = _client(tmp_path)
+    pid = client.post("/api/projects", json={"name": "Thesis"}).get_json()["id"]
+    FileFileStore(Store(str(tmp_path))).write(pid, "plan.md", "the body")
+    client.patch(f"/api/projects/{pid}", json={"archived": True})
+
+    sent = client.post(f"/api/projects/{pid}/messages", json={"text": "hello"})
+    assert sent.status_code == 200, "Arşivdeki projede mesaj reddedildi"
+    sent.get_data()
+    chats = client.get(f"/api/projects/{pid}/chats").get_json()
+    assert len(chats) == 1, "Arşivdeki projenin sohbeti listelenmedi"
+    record = client.get(f"/api/projects/{pid}/chats/{chats[0]['id']}").get_json()
+    assert [m["text"] for m in record["messages"]] == ["hello", "Done."], (
+        "Arşivdeki projede mesaj ya da cevabı kayda yazılmadı"
+    )
+    assert [f["name"] for f in client.get(f"/api/projects/{pid}/files").get_json()] == ["plan.md"], (
+        "Arşivdeki projenin dosyası listelenmedi"
+    )
+    assert client.get(f"/api/projects/{pid}/files/plan.md").get_json()["text"] == "the body", (
+        "Arşivdeki projenin dosyası okunmadı"
+    )
+    assert client.get("/api/projects").get_json()[0]["archived"] is True, (
+        "Arşivdeki projeyi kullanmak onu arşivden çıkardı"
+    )

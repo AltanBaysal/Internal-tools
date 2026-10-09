@@ -1008,12 +1008,6 @@ test("the tabs are the design's quiet buttons, the open one lit", () => {
   expect(count).toContain("font-size: 11px");
 });
 
-test("an archived row's text takes the opener's room", () => {
-  const text = rule(".all-projects__row-text");
-  expect(text).toContain("flex: 1");
-  expect(text).toContain("min-width: 0");
-});
-
 // Madde 357 (the design's items 147 and 182, kit.css's .trimmed). jsdom lays nothing out, so the
 // hold at the chat's lower edge is locked here as the rule that makes it; the browser shows it.
 test("the trim's line holds at the chat's lower edge on the page's own ground", () => {

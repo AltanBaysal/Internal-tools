@@ -740,8 +740,11 @@ test("a pinned project archived and then unarchived comes back under Recent", as
   ]);
 });
 
+// Notes, archived.
+const SHELVED = { ...ROWS[1], archived: true };
+
 test("an archived project stands only under Archived, and Unarchive brings it back", async () => {
-  const fetch = serverForRows([ROWS[0], { ...ROWS[1], archived: true }]);
+  const fetch = serverForRows([ROWS[0], SHELVED]);
   const { container } = render(<App />);
   await onAllProjects();
   expect(sections(container)).toEqual({ Recent: ["Thesis"] });
@@ -758,7 +761,7 @@ test("an archived project stands only under Archived, and Unarchive brings it ba
 });
 
 test("an archived project's Delete asks the same question", async () => {
-  const fetch = serverForRows([ROWS[0], { ...ROWS[1], archived: true }]);
+  const fetch = serverForRows([ROWS[0], SHELVED]);
   render(<App />);
   await onAllProjects();
   fireEvent.click(tab("Archived"));
@@ -770,6 +773,52 @@ test("an archived project's Delete asks the same question", async () => {
   expect(await screen.findByText("No archived projects.")).toBeTruthy();
   const deletes = fetch.mock.calls.filter(([, options]) => options?.method === "DELETE");
   expect(deletes.map(([path]) => path)).toEqual(["/api/projects/p2"]);
+});
+
+// Madde 443 (the design's 218): an archived project opens and is talked in as any other; the only
+// difference is the list it stands in, and opening it does not take it out of that list.
+
+test("an archived row opens the project's latest chat, is talked in, and stays archived", async () => {
+  const fetch = serverWithProjects([ROWS[0], SHELVED], {
+    p2: [
+      { id: "c2", title: "Newest", lastActivity: NOW },
+      { id: "c1", title: "Older", lastActivity: NOW },
+    ],
+  });
+  render(<App />);
+  await onAllProjects();
+  fireEvent.click(tab("Archived"));
+  fireEvent.click(screen.getByRole("button", { name: /^Notes/ }));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p2/c/c2"));
+  expect(screen.getByText("Notes", { selector: ".bar__project" })).toBeTruthy();
+
+  const box = await chatOpened();
+  fireEvent.change(box, { target: { value: "Go on" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+  await waitFor(() =>
+    expect(
+      fetch.mock.calls.some(
+        ([path, options]) => path === "/api/projects/p2/messages" && options?.method === "POST",
+      ),
+    ).toBe(true),
+  );
+  expect(patches(fetch)).toEqual([]);
+
+  fireEvent.click(screen.getByRole("button", { name: "Exit project" }));
+  await onAllProjects();
+  expect(screen.queryByText("Notes", { selector: ".all-projects__row-name" })).toBeNull();
+  fireEvent.click(tab("Archived"));
+  expect(screen.getByText("Notes", { selector: ".all-projects__row-name" })).toBeTruthy();
+});
+
+test("an archived project with no chats opens on its draft", async () => {
+  serverWithProjects([ROWS[0], SHELVED]);
+  render(<App />);
+  await onAllProjects();
+  fireEvent.click(tab("Archived"));
+  fireEvent.click(screen.getByRole("button", { name: /^Notes/ }));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p2/c/new"));
+  expect(screen.getByText("New chat", { selector: ".chat__title" })).toBeTruthy();
 });
 
 test("with every project archived, the naming screen still counts them", async () => {

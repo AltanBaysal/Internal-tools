@@ -1885,17 +1885,6 @@
   cursor: pointer;
 }
 
-/* An archived row: the opener's three columns, but not a button, since an archived project does
-   not open. */
-.all-projects__row-text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: baseline;
-  gap: 14px;
-  font-size: 14.5px;
-}
-
 .all-projects__row-name {
   flex: 1;
   min-width: 0;

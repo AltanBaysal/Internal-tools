@@ -9,20 +9,8 @@ import { countOf } from "./countOf.js";
 // Whether the menu is open is App's, whose one listener owns Escape; whether the name is being
 // edited is the row's own, since nothing else closes it.
 //
-// An archived row (the design's 190, 191) shows the same columns but opens nothing: its ⋯ is the
-// way back.
-
-function Columns({ project }) {
-  return (
-    <>
-      <span className="all-projects__row-name">{project.name}</span>
-      <span className="all-projects__row-meta">
-        {`${countOf(project.chats ?? 0, "chat")} · ${countOf(project.files ?? 0, "file")}`}
-      </span>
-      <span className="all-projects__row-when">{relativeTime(project.lastActivity)}</span>
-    </>
-  );
-}
+// An archived row (the design's 190, 191, 218) opens its project as any row does: the only
+// difference is the list it stands in (Madde 443), and its ⋯, which holds the way back.
 
 // The name corrected in the row's own place rather than in the browser's box (the design's 170).
 // The draft is the field's, as a message edit's is (EditMessage): only the finished name leaves.
@@ -98,37 +86,28 @@ export default function ProjectRow({
         remove,
       ];
 
-  let body;
-  if (renaming) {
-    body = (
-      <RenameField
-        name={project.name}
-        onSave={(name) => onRename?.(project.id, name)}
-        onClose={() => setRenaming(false)}
-      />
-    );
-  } else if (project.archived) {
-    body = (
-      <div className="all-projects__row-text">
-        <Columns project={project} />
-      </div>
-    );
-  } else {
-    body = (
-      <button
-        type="button"
-        className="all-projects__row-open"
-        title={project.name}
-        onClick={() => onOpen?.(project.id)}
-      >
-        <Columns project={project} />
-      </button>
-    );
-  }
-
   return (
     <div className="all-projects__row">
-      {body}
+      {renaming ? (
+        <RenameField
+          name={project.name}
+          onSave={(name) => onRename?.(project.id, name)}
+          onClose={() => setRenaming(false)}
+        />
+      ) : (
+        <button
+          type="button"
+          className="all-projects__row-open"
+          title={project.name}
+          onClick={() => onOpen?.(project.id)}
+        >
+          <span className="all-projects__row-name">{project.name}</span>
+          <span className="all-projects__row-meta">
+            {`${countOf(project.chats ?? 0, "chat")} · ${countOf(project.files ?? 0, "file")}`}
+          </span>
+          <span className="all-projects__row-when">{relativeTime(project.lastActivity)}</span>
+        </button>
+      )}
       <button
         ref={more}
         type="button"
