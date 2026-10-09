@@ -29,7 +29,7 @@ def _texts_named_by(module):
 def _descriptions_in(properties):
     """Every description under a parameter map, following arrays into their items.
 
-    add_scene's scenes is a list of objects and those objects carry descriptions of their own. A
+    add_frame's frames is a list of objects and those objects carry descriptions of their own. A
     walk that stopped at the first level would leave the deepest texts unwatched, which is where a
     forgotten one would sit.
     """

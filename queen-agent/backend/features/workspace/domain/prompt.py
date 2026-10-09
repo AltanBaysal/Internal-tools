@@ -823,37 +823,37 @@ REMOVE_LOCATION = (
 )
 REMOVE_LOCATION_NAME = "Which location to remove."
 
-ADD_SCENE = (
+ADD_FRAME = (
     "Add scenes to a structure file, one frame each, in the order they happen.\n"
     "- The frames go at the end, unless before names a frame to go in front of.\n"
     "- A frame's number is not yours to give. It is the frame's place in the list, and every "
     "frame after an insertion moves up.\n"
-    "- Every name a scene uses must already be in the file. A name nobody knows is refused, and "
-    "the whole call is refused with it: nothing is written unless every scene in the call is "
+    "- Every name a frame uses must already be in the file. A name nobody knows is refused, and "
+    "the whole call is refused with it: nothing is written unless every frame in the call is "
     "good.\n"
     "- The answer names the frames it made, which is how you say which frame you mean next.\n"
     "- A frame is born without its action. Write the action afterwards with update_frame."
 )
-ADD_SCENE_BEFORE = (
+ADD_FRAME_BEFORE = (
     "Go in front of this frame, by its number, rather than at the end. The "
     "frames from there on move up and keep everything they carry, their "
     "actions included. This is how a scene goes into the middle of a "
     "scenario; taking the tail out and adding it again is not. One past the "
     "last frame means the end."
 )
-ADD_SCENE_SCENES = "The scenes to add. A list even when there is one of them."
-ADD_SCENE_SCENE = (
+ADD_FRAME_FRAMES = "The frames to add. A list even when there is one of them."
+ADD_FRAME_SCENE = (
     "What happens, in English. The scene becomes the video of "
     "the frame, and the action of the frame is written from "
     "the scene. Never tags."
 )
-ADD_SCENE_CHARACTERS = (
+ADD_FRAME_CHARACTERS = (
     "Who is in the frame: each name from the file's "
     "characters, with the list of outfits they wear. Whoever "
     "is written first leads the frame's prompt. Left out for a "
     "frame with nobody in it."
 )
-ADD_SCENE_LOCATION = (
+ADD_FRAME_LOCATION = (
     "Where it happens, named as the file's locations name it. "
     "Left out for a frame that shows no place of its own."
 )

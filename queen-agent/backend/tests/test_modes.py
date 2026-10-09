@@ -13,7 +13,7 @@ WRITES = (
     "build_prompts",
     # Madde 128 and 173. It takes neither a position nor a shape from the model, but it still
     # changes the user's file, so the quieter modes keep their gate in front of it.
-    "add_scene",
+    "add_frame",
     # Madde 167. It writes no text of the model's own -- four empty maps the code knows -- but a
     # file appears in the project, and a file appearing is what the quieter modes gate.
     "start_scenario",
@@ -50,13 +50,17 @@ def test_ask_mode_asks_before_it_writes():
 
 
 def test_no_mode_lists_a_tool_that_is_gone():
-    # Madde 127 took the listing tool away. A name left in this module's own list would read as a
-    # tool that exists and is simply never asked about -- the one thing this file is about.
-    from backend.features.workspace.domain.modes import READS
+    # Every mode's list names only tools the model is given. A name left behind when a tool goes or
+    # is renamed -- list_files, write_plan, add_scene and the rest -- would read as a tool that exists
+    # and is simply never asked about, the one thing this file is about. Read off the lists rather
+    # than asked of needs_permission: that answers False for a tool nobody knows, so a leftover
+    # entry claims nothing there and passes green.
+    from backend.features.workspace.domain.modes import _WITHOUT_ASKING
     from backend.features.workspace.domain.tools import TOOL_SPECS
 
-    assert set(READS) <= {spec["function"]["name"] for spec in TOOL_SPECS}
-    assert "list_files" not in READS
+    known = {spec["function"]["name"] for spec in TOOL_SPECS}
+    for mode, allowed in _WITHOUT_ASKING.items():
+        assert set(allowed) <= known, mode
 
 
 def test_ask_mode_reads_without_asking():
@@ -78,16 +82,6 @@ def test_reading_a_file_is_the_only_call_no_mode_asks_about():
         assert not _asks(mode, "read_file"), mode
 
 
-def test_no_mode_lets_the_character_preview_through():
-    # Madde 206. Read off the lists rather than asked of needs_permission: that one answers False
-    # for a tool nobody knows, so an entry left behind after the tool is gone claims nothing and
-    # passes green -- which is the trap 205 recorded, one file over.
-    from backend.features.workspace.domain.modes import _WITHOUT_ASKING
-
-    for mode, allowed in _WITHOUT_ASKING.items():
-        assert "build_character_prompts" not in allowed, mode
-
-
 def test_edit_mode_asks_for_nothing():
     # The mode's whole meaning. Asked of every tool there is rather than of a list written here --
     # a ninth tool must join this claim by existing, not by somebody remembering to add it.
@@ -102,46 +96,7 @@ def test_plan_mode_writes_one_file_without_asking():
     # ends the turn, one line below this.
     assert not _asks("plan", "create_file")
     assert _asks("plan", "edit_file")
-    assert _asks("plan", "add_scene")
-
-
-def test_no_mode_lets_the_plan_tool_through():
-    # Madde 207, read off the lists for 206's reason: needs_permission answers False for a tool
-    # nobody knows, so a leftover entry claims nothing and passes green.
-    from backend.features.workspace.domain.modes import _WITHOUT_ASKING
-
-    for mode, allowed in _WITHOUT_ASKING.items():
-        assert "write_plan" not in allowed, mode
-
-
-def test_no_mode_lets_the_single_frame_tool_through():
-    # Madde 208, read off the lists for 206's reason: needs_permission answers False for a tool
-    # nobody knows, so a leftover entry claims nothing and passes green.
-    from backend.features.workspace.domain.modes import _WITHOUT_ASKING
-
-    for mode, allowed in _WITHOUT_ASKING.items():
-        assert "write_frame_prompt" not in allowed, mode
-
-
-def test_no_mode_lets_the_bulk_writer_through():
-    # Madde 395 (the owner, 30 September: the main model writes each action itself), read off the
-    # lists for 206's reason: needs_permission answers False for a tool nobody knows.
-    from backend.features.workspace.domain.modes import _WITHOUT_ASKING
-
-    for mode, allowed in _WITHOUT_ASKING.items():
-        assert "write_missing_actions" not in allowed, mode
-
-
-def test_no_mode_lets_the_step_ticking_tool_through():
-    # Madde 203, read off the lists for 206's reason: needs_permission answers False for a tool
-    # nobody knows, so a leftover entry claims nothing and passes green.
-    #
-    # Its gate was never the interesting part -- edit mode ran it and the quieter two asked, the
-    # same as every other write. What went with it is the turn that called it.
-    from backend.features.workspace.domain.modes import _WITHOUT_ASKING
-
-    for mode, allowed in _WITHOUT_ASKING.items():
-        assert "mark_step_done" not in allowed, mode
+    assert _asks("plan", "add_frame")
 
 
 def test_a_mode_nobody_knows_is_the_default_one():

@@ -277,37 +277,37 @@ TOOL_SPECS = [
     {
         "type": "function",
         "function": {
-            "name": "add_scene",
-            "description": prompt.ADD_SCENE,
+            "name": "add_frame",
+            "description": prompt.ADD_FRAME,
             "parameters": {
                 "type": "object",
                 "properties": {
                     "file": {"type": "string", "description": prompt.THE_STRUCTURES_FILE},
-                    "before": {"type": "integer", "description": prompt.ADD_SCENE_BEFORE},
-                    "scenes": {
+                    "before": {"type": "integer", "description": prompt.ADD_FRAME_BEFORE},
+                    "frames": {
                         "type": "array",
-                        "description": prompt.ADD_SCENE_SCENES,
+                        "description": prompt.ADD_FRAME_FRAMES,
                         "items": {
                             "type": "object",
                             "properties": {
                                 "scene": {
                                     "type": "string",
-                                    "description": prompt.ADD_SCENE_SCENE,
+                                    "description": prompt.ADD_FRAME_SCENE,
                                 },
                                 "characters": {
                                     "type": "object",
-                                    "description": prompt.ADD_SCENE_CHARACTERS,
+                                    "description": prompt.ADD_FRAME_CHARACTERS,
                                 },
                                 "location": {
                                     "type": "string",
-                                    "description": prompt.ADD_SCENE_LOCATION,
+                                    "description": prompt.ADD_FRAME_LOCATION,
                                 },
                             },
                             "required": ["scene"],
                         },
                     },
                 },
-                "required": ["file", "scenes"],
+                "required": ["file", "frames"],
             },
         },
     },
@@ -508,8 +508,8 @@ def run_tool(file_store, project_id, name, arguments):
     if name == "remove_location":
         return _remove_entry(file_store, project_id, args, "locations")
 
-    if name == "add_scene":
-        return _add_scene(file_store, project_id, args)
+    if name == "add_frame":
+        return _add_frame(file_store, project_id, args)
 
     if name == "update_frame":
         return _update_frame(file_store, project_id, args)
@@ -902,7 +902,7 @@ def _remove_entry(file_store, project_id, args, which):
     return ToolResult(f"Removed {key} from {which}.", None, source, "Removed")
 
 
-def _add_scene(file_store, project_id, args):
+def _add_frame(file_store, project_id, args):
     """A frame is born with its scene, its cast and its place, and none of them is text (Madde 173).
 
     Madde 128 took the position out of the model's hands: appending through edit_file meant quoting
@@ -918,10 +918,10 @@ def _add_scene(file_store, project_id, args):
     if refused is not None:
         return refused
 
-    coming = args.get("scenes")
+    coming = args.get("frames")
     if not isinstance(coming, list):
         return ToolResult(
-            "add_scene takes a list of scenes, even when there is one of them.",
+            "add_frame takes a list of frames, even when there is one of them.",
             None,
             source,
             "Refused",
@@ -932,7 +932,7 @@ def _add_scene(file_store, project_id, args):
         # Nothing to do is not a failure, and writing the file to say so would touch a document for
         # no reason at all.
         return ToolResult(
-            f"No scenes were given, so {source} is unchanged.", None, source, "Nothing to add"
+            f"No frames were given, so {source} is unchanged.", None, source, "Nothing to add"
         )
 
     # Where they go (Madde 180). The end unless a frame is named to go in front of, and one past the
@@ -946,16 +946,16 @@ def _add_scene(file_store, project_id, args):
             return missing
 
     born, problems = [], []
-    for offset, scene in enumerate(coming):
+    for offset, given in enumerate(coming):
         # The number it is going to get, not where it sits in the argument: a complaint carrying the
         # latter would name a frame that already exists and send the model to the wrong one.
-        made = _frame_from(scene, place + offset, structure, problems)
+        made = _frame_from(given, place + offset, structure, problems)
         if made is not None:
             born.append(made)
 
     if problems:
         # Every one of them at once, and nothing written -- build_prompts' rule one step earlier.
-        # The whole call falls, including the scenes that were fine: half a batch on disk would
+        # The whole call falls, including the frames that were fine: half a batch on disk would
         # leave the model working out which half, and the numbers it was told would be wrong.
         return ToolResult("\n".join(problems + ["Nothing was added."]), None, source, "Refused")
 
@@ -988,34 +988,34 @@ def _renumbered(frames):
         frame["number"] = place
 
 
-def _frame_from(scene, number, structure, problems):
-    """One scene as one frame, with whatever is wrong about it left in `problems`.
+def _frame_from(given, number, structure, problems):
+    """One frame as given, as it will be written, with whatever is wrong about it left in `problems`.
 
     Goes on building after it finds a problem, and hands the frame back either way: the caller
     throws the whole batch away when anything is wrong, and what is wanted here is every problem
     rather than the first. The one thing it will not do is look inside something that is not an
     object.
     """
-    if not isinstance(scene, dict):
+    if not isinstance(given, dict):
         problems.append(
-            f"frame {number}: a scene is an object with scene, characters and location."
+            f"frame {number}: a frame is an object with scene, characters and location."
         )
         return None
 
-    said = str(scene.get("scene") or "").strip()
+    said = str(given.get("scene") or "").strip()
     if not said:
         # The one required field. A frame with a cast and no scene is a frame there is nothing to
         # write a prompt from, and a space is not a brief.
         problems.append(f"frame {number}: a scene needs a sentence saying what happens.")
     frame = {"number": number, "scene": said}
 
-    people = scene.get("characters")
+    people = given.get("characters")
     if people is not None:
         cast = _cast_checked(people, number, structure, problems)
         if cast is not None:
             frame["characters"] = cast
 
-    place = scene.get("location")
+    place = given.get("location")
     if place is not None:
         checked = _place_checked(place, number, structure, problems)
         if checked:
@@ -1086,7 +1086,7 @@ def _numbered(wanted, source, many, ceiling=None):
 
     Both frame tools start here, so a number that is not one reads the same whichever was called.
 
-    `ceiling` is how high a number may go when that is not how many frames there are: add_scene's
+    `ceiling` is how high a number may go when that is not how many frames there are: add_frame's
     `before` may name the place after the last one (Madde 180), and the sentence still has to say
     how many frames the file holds rather than how many places they leave between them.
     """
@@ -1144,7 +1144,7 @@ def _update_frame(file_store, project_id, args):
         said = str(given["scene"] or "").strip()
         if not said:
             # Required at birth, so it cannot be emptied later: the two together would leave a
-            # frame add_scene refuses to write sitting in the file anyway.
+            # frame add_frame refuses to write sitting in the file anyway.
             problems.append(f"frame {number}: a scene needs a sentence saying what happens.")
         changing["scene"] = said
     if "characters" in given:

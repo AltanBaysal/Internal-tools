@@ -271,15 +271,15 @@ def test_the_scenes_are_written_in_english_with_the_words_in_quotes():
     # K33 and K40 wrote a scene as one sentence in the user's language. The owner, 30 September: the
     # video prompt is written from the scene, so the scene is English, and it can carry what a
     # character says -- in quotes, translated into good English -- which one sentence could not.
-    from backend.features.workspace.domain.prompt import ADD_SCENE_SCENE
+    from backend.features.workspace.domain.prompt import ADD_FRAME_SCENE
 
     said = _step(4)
     assert "- Write each scene in English.\n" in said
     assert "inside quotes, in natural, well-written English" in said
     assert "one sentence" not in said
     # The field the scene is written into says the same, or the two would disagree.
-    assert "in English" in ADD_SCENE_SCENE
-    assert "one sentence" not in ADD_SCENE_SCENE
+    assert "in English" in ADD_FRAME_SCENE
+    assert "one sentence" not in ADD_FRAME_SCENE
 
 
 def test_the_scenario_is_opened_once_with_the_characters():
@@ -322,12 +322,12 @@ def test_the_flow_hands_off_to_nobody():
 def test_the_frames_cast_is_asked_for_by_the_tool_that_writes_one():
     # The frame is born with its cast (Madde 173), so somebody has to ask who is in it: a scene
     # written without one builds into a prompt with nobody in the picture. Correction 14: the step
-    # used to repeat all three fields -- who, what they wear, where -- and add_scene's own signature
+    # used to repeat all three fields -- who, what they wear, where -- and add_frame's own signature
     # already asks for them. Two texts describing one call is the shape every drift in this app has
     # had, so the repetition goes and the signature keeps the claim.
-    from backend.features.workspace.domain.prompt import ADD_SCENE_CHARACTERS
+    from backend.features.workspace.domain.prompt import ADD_FRAME_CHARACTERS
 
-    assert "who is in the frame" in ADD_SCENE_CHARACTERS.lower()
+    assert "who is in the frame" in ADD_FRAME_CHARACTERS.lower()
     assert "who is in it" not in _flow()
 
 
@@ -842,10 +842,10 @@ def test_the_editor_writes_no_frames_at_all():
     # Madde 128 put add_frames in this text; Madde 173 replaced the tool and Madde 178 moved the
     # job. The frames arrive written -- what this skill does to a file is correct it. A text still
     # naming the adding tools would have two skills writing frames into one file, each from a
-    # different idea of what is already there.
+    # different idea of what is already there. add_frame is the adding tool's name since Madde 454,
+    # and looking for it finds add_frames too.
     said = _edit()
-    assert "add_scene" not in said
-    assert "add_frames" not in said
+    assert "add_frame" not in said
 
 
 def test_a_complaint_is_told_apart_by_where_the_fault_lives():
