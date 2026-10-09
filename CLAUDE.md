@@ -79,6 +79,12 @@ The designer works in `D:\Github\queen-design` (`AltanBaysal/queen-design`), a f
 `projects/`. Its `main` is what the tools already build; each round arrives on a branch the user names,
 per tool. Fetch, diff that branch against `main`, and each difference becomes a roadmap item.
 
+## Tools
+
+Where a dedicated tool does the job (Read, Edit, Write, Grep, Glob), it is used rather than the shell:
+the user follows the work through those calls, and a file edited by a script or `sed` is harder to
+check. The shell is for what has no tool: git, the suites, builds, processes.
+
 ## Git and memory
 
 - Commit messages go through a PowerShell here-string, which a double quote breaks, so they carry none.
