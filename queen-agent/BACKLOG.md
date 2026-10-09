@@ -69,6 +69,35 @@ projeleri her açılışta bir kerelik `projects.json`'a taşıyor ve eski dosya
 `project.json`, `pinned`, `archived` — dokunmuyor. Kullanıcı taşımanın çalıştığını gördükten sonra bir
 sonraki QueenAgent roadmap'inde taşıma kodu ve bu eski dosyalar kalkar.
 
+## Bir sohbette aynı anda iki tur koşabiliyor
+
+*(Claude, 9 Ekim — v10'un 449'unu okuyan reviewer'ın bulduğu; 449'dan önce de vardı.)* Bağlantı kopunca
+sunucu bunu ancak akışa bir sonraki yazışında öğreniyor; o arada Try again'e basılırsa aynı sohbette
+ikinci bir tur başlıyor. Birinci tur bitince `finally`'si ikincinin Stop'unu ve bekleyen izin kartını
+siliyor (`memory_stops.py`, `memory_permissions.py`, `stream_answer.py`): Stop ikinci turun o anki
+isteğini kesmiyor, arada verilen Allow kayboluyor. Tünel birinci turu yaşatırsa sohbete iki cevap
+yazılıyor. Çare: sohbet başına tek tur — ikinci isteği reddetmek ya da eskisini durdurmak, kullanıcının
+seçimi — ve her turun yalnız kendi kaydını silmesi.
+
+## Her turda sohbet dosyası iki kez okunuyor
+
+*(Claude, 9 Ekim — 449'un reviewer'ı.)* Route sohbeti okuyor (`routes.py`'nin `existing`'i), sonra
+`stream_answer` aynı dosyayı yeniden okuyor; metinli istekte `append_message` bir kez daha. Route'un
+elindeki sohbet `stream_answer`'a verilirse her turda Drive'a bir gidiş-dönüş eksilir.
+
+## Cevap zaten yazılmışken Try again döngüye giriyor
+
+*(Claude, 9 Ekim — 449'un reviewer'ı.)* Bağlantı `done`'dan hemen önce koptuysa ya da tünel turu
+yaşattıysa cevap diske yazılmış oluyor; Try again *"this chat has already been answered"* alıyor, kart
+yerinde kalıyor ve cevap sohbet yeniden açılana kadar görünmüyor. O dalda kaydı bir kez okumak cevabı
+gösterir.
+
+## Cevap bekleyen soru için sonradan Try again yok
+
+*(Claude, 9 Ekim — 449'un reviewer'ı.)* Kopan tur bir şey kaydetmiyor; sayfa yenilenince ya da sohbete
+geri gelince soru cevapsız duruyor ve ekranda Try again yok — yalnız yeniden yazmak cevaplatıyor.
+Sunucu sorunun cevap beklediğini biliyor (`is_owed_an_answer`).
+
 ## Bir frontend testi arada düşüyor
 
 *(Claude, 9 Ekim — Queen Editor v9'un 439'unda görüldü.)* `src/features/workspace/ChatScreen.test.jsx`'in
