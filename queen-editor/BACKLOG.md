@@ -182,6 +182,16 @@ sonra içidne export bulmak lazım", "Exporltar ve projeler iki klasöre ayrıls
 tarhi ve proje adı olarak adlandırılsa bulması oldukça kolaylaşırdı".)* **Ayrıntılar kullanıcıyla
 konuşulacak.**
 
+### Harcanan token görünecek: ne kadarı önbellekten, ne kadarı değil
+
+*(Kullanıcı, 9 Ekim — "queen editor backlgounda queen eagetn gibi harcanan token ne kadar miss ne
+kadar chacne vs gibi bir ksıım ekleyleim olur mu".)* QueenAgent bunu her cevabın altında gösteriyor
+*(madde 354, `queen-agent/frontend/src/features/workspace/Stamp.jsx`)*: DeepSeek'e gidenin önbellekte
+olan kısmı ve olmayan kısmı, iki ayrı sayı — önbellekteki token yaklaşık ellide bir fiyata. Queen
+Editor'de DeepSeek'e Queen AI'ın prompt'ları ve agent gidiyor. **Ayrıntılar kullanıcıyla
+konuşulacak:** nerede görüneceği — agent'ın cevabında, prompt'un kartında, projenin toplamında —, ve
+kontrol isteklerinin (418) de sayılıp sayılmayacağı.
+
 ---
 
 ## Hedefler
