@@ -847,22 +847,14 @@ def test_the_build_tool_says_each_frame_goes_out_with_its_scene():
 #
 # Half of it had to live. The shape became the code's; the tag text is still the model's, and no
 # signature can make it leave the quality chain out or put the count in the right entry. That half
-# rides with these six tools.
-
-TAG_TOOLS = (
-    "add_character",
-    "update_character",
-    "add_outfit",
-    "update_outfit",
-    "add_location",
-    "update_location",
-)
+# rode with the six tools that take tags until Madde 453 gathered it into one document, sent behind
+# the system prompt in every request.
 
 
 def _rules():
-    from backend.features.workspace.domain.prompt import SDXL_PROMPT_RULES
+    from backend.features.workspace.domain.prompt import SDXL_DOCUMENT
 
-    return SDXL_PROMPT_RULES
+    return SDXL_DOCUMENT
 
 
 def test_the_schema_tool_is_gone(tmp_path):
@@ -1033,27 +1025,35 @@ def test_a_result_carries_no_bill():
     assert "spent" not in ToolResult._fields
 
 
-@pytest.mark.parametrize("tool", TAG_TOOLS)
-def test_the_rules_ride_with_every_tool_that_takes_tags(tool):
-    spec = next(s for s in TOOL_SPECS if s["function"]["name"] == tool)
-    assert _rules() in spec["function"]["description"]
+def test_the_document_gives_the_photos_size_and_no_models_name():
+    # The size of Queen Editor's workflow, 1024 by 1536: without the shape a frame's shot was chosen
+    # blind. No model's name, since Queen Editor lets its user pick one (the user, 10 October:
+    # "Model adı olmasın").
+    said = _rules()
+    assert "1024" in said
+    assert "1536" in said
+    assert "nova" not in said.lower()
+    assert "dasiwa" not in said.lower()
 
 
-def test_the_rules_ride_with_nothing_else():
-    # Six copies is what this costs on every request. A seventh, on a tool that writes no tags,
-    # would be paid for and read by nobody.
-    carrying = {
-        spec["function"]["name"]
-        for spec in TOOL_SPECS
-        if _rules() in spec["function"]["description"]
-    }
-    assert carrying == set(TAG_TOOLS)
+def test_the_document_keeps_a_mirror_out_unless_the_user_asks():
+    # The user, 29 September: a mirror goes in only when the user asks for one.
+    said = _rules().lower()
+    assert "mirror" in said
+    assert "user asks" in said
 
 
-# Correction 34 split the shared text: what is really shared stayed on the six tools, and what
-# ruled on one field went down to that field. A rule riding on six tools while ruling on one is read
-# six times per request by five readers it does not concern -- and it sits away from the parameter
-# it governs, which is where a rule is actually applied.
+def test_the_frames_action_points_at_the_document_by_its_title():
+    # The action used to say "the same rules as the entries", which pointed at the six tools the
+    # rules rode with. They ride in the document now, so the pointer names it.
+    from backend.features.workspace.domain.prompt import UPDATE_FRAME_ACTION
+
+    assert _rules().splitlines()[0] in UPDATE_FRAME_ACTION
+
+
+# Correction 34 split the shared text: what is really shared stayed with all six tools, and what
+# ruled on one field went down to that field. Madde 453 moved the shared half into the document and
+# left the fields theirs: a rule about one field is read while that field is being written.
 
 
 def test_the_count_lands_in_the_characters_own_entry():
@@ -1105,8 +1105,12 @@ def test_the_rules_carry_nothing_that_belongs_to_one_field():
     # The other half of correction 34, and the half that would go unnoticed: a rule left behind here
     # after its copy went down to a field is the same rule in two places, which is the shape every
     # drift in this app has had.
+    #
+    # Asked of the field rules themselves rather than of the words outfit and location: since
+    # Madde 453 the document carries Start a scenario's camera-angle rules, which name an outfit's
+    # entries (the user, 10 October: "Evet, kopyası belgeye de girsin").
     said = _rules().lower()
-    for moved in ("solo", "pov_", "outfit", "location"):
+    for moved in ("solo", "pov_", "nowhere else", "after the clothes", "nobody is in it"):
         assert moved not in said, moved
 
 
@@ -2319,15 +2323,12 @@ def test_the_character_field_names_no_pov_entry():
 
 
 def test_the_map_tools_never_carry_a_frames_anatomy():
-    # Madde 181. SDXL_PROMPT_RULES rides with the tools that take tags, and an anatomy word in a
-    # character's entry is drawn into every frame that character is in -- which is the leak the
-    # user avoided by hand in Deneme 4.
-    from backend.features.workspace.domain.prompt import SDXL_PROMPT_RULES
-
-    # The rules are really reaching the model here, so a text gone empty cannot pass this quietly.
-    assert SDXL_PROMPT_RULES in _said_by("add_character")
+    # Madde 181. An anatomy word in a character's entry is drawn into every frame that character is
+    # in -- which is the leak the user avoided by hand in Deneme 4.
     for tool in ("add_character", "add_outfit", "add_location"):
         said = _said_by(tool).lower()
+        # A text gone empty cannot pass the absences below quietly.
+        assert said.strip(), tool
         assert "penis" not in said, tool
         assert "vagina" not in said, tool
         assert "expression" not in said, tool
@@ -2338,18 +2339,14 @@ def test_the_rules_say_which_vocabulary_the_tags_come_from():
     # -- and never the vocabulary. The anime SDXL checkpoints were trained on Danbooru's own tag
     # strings as their captions, so a tag that is in it is a string the model has seen half a million
     # times, and a paraphrase of the same thing is one it has never seen at all.
-    from backend.features.workspace.domain.prompt import SDXL_PROMPT_RULES
-
-    assert "danbooru" in SDXL_PROMPT_RULES.lower()
-    assert "rather than a description" in SDXL_PROMPT_RULES
+    assert "danbooru" in _rules().lower()
+    assert "rather than a description" in _rules()
 
 
 def test_the_rules_ask_for_spaces_where_the_site_writes_underscores():
     # The site writes looking_at_viewer and these models were trained with the underscores taken out.
     # A model that knows the site will bring its spelling along unless it is told.
-    from backend.features.workspace.domain.prompt import SDXL_PROMPT_RULES
-
-    assert "underscores" in SDXL_PROMPT_RULES.lower()
+    assert "underscores" in _rules().lower()
 
 
 def test_the_rules_put_one_thing_in_each_tag():
@@ -2357,9 +2354,7 @@ def test_the_rules_put_one_thing_in_each_tag():
     # black hair, and it has nothing that is the two of them written together -- so the joined-up
     # version falls outside it exactly as a description does. The example went with correction 30;
     # the rule says the same thing without offering a sentence to copy.
-    from backend.features.workspace.domain.prompt import SDXL_PROMPT_RULES
-
-    said = SDXL_PROMPT_RULES.lower()
+    said = _rules().lower()
     assert "put one thing in each tag" in said
     assert "do not join two tags" in said
     assert "long black hair" not in said
@@ -2368,9 +2363,7 @@ def test_the_rules_put_one_thing_in_each_tag():
 def test_the_rules_say_what_to_do_when_the_vocabulary_has_nothing():
     # It is large but not everything, and a rule that stopped at "use the vocabulary" would leave the
     # model to invent a form for whatever is not in it -- which is where the sentences come back.
-    from backend.features.workspace.domain.prompt import SDXL_PROMPT_RULES
-
-    assert "no tag for it" in SDXL_PROMPT_RULES
+    assert "no tag for it" in _rules()
 
 
 def test_the_character_field_says_which_categories_to_write():

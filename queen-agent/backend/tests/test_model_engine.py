@@ -1,7 +1,7 @@
 import inspect
 
 from backend.features.workspace.data.model_engine import ModelEngine
-from backend.features.workspace.domain.prompt import SYSTEM_PROMPT
+from backend.features.workspace.domain.prompt import SDXL_DOCUMENT, SYSTEM_PROMPT
 
 CONVERSATION = [{"role": "user", "content": "a"}, {"role": "ai", "content": "b"}]
 
@@ -40,8 +40,30 @@ def test_the_system_prompt_leads_and_the_roles_are_translated():
     # this app's own page is what comes first. Pinning the whole string would put this test in the
     # way of the one thing that madde exists for -- somebody writing that part.
     assert client.seen[0]["content"].startswith(SYSTEM_PROMPT)
-    # Disk keeps the design's own word; the model is told OpenAI's.
-    assert [message["role"] for message in client.seen] == ["system", "user", "assistant"]
+    # Disk keeps the design's own word; the model is told OpenAI's. The second system message is the
+    # SDXL document (Madde 453).
+    assert [message["role"] for message in client.seen] == ["system", "system", "user", "assistant"]
+
+
+# --- the SDXL document, right behind the system prompt (Madde 453) -------------------------------
+
+
+def test_the_sdxl_document_rides_right_behind_the_system_prompt():
+    # Its own message rather than inside the system prompt -- the user, 9 October: "system promptu
+    # karıştırmayalım" -- and in front of the conversation, so it joins the fixed head.
+    client = FakeClient()
+    list(_engine(client).stream(CONVERSATION))
+    assert client.seen[1] == {"role": "system", "content": SDXL_DOCUMENT}
+    assert SDXL_DOCUMENT not in client.seen[0]["content"]
+
+
+def test_every_request_opens_with_the_same_two_messages():
+    # Byte for byte, whatever the conversation: that is what keeps the document in the cached
+    # prefix after the one request that first put it there.
+    first, second = FakeClient(), FakeClient()
+    list(_engine(first).stream(CONVERSATION))
+    list(_engine(second).stream([{"role": "user", "content": "something else entirely"}]))
+    assert first.seen[:2] == second.seen[:2]
 
 
 def test_the_fixed_part_leads_and_the_last_word_stays_last():
@@ -155,6 +177,7 @@ def test_the_second_part_reaches_the_system_message_and_nothing_else(monkeypatch
     client = FakeClient()
     list(_engine(client).stream(CONVERSATION))
     assert client.seen[1:] == [
+        {"role": "system", "content": SDXL_DOCUMENT},
         {"role": "user", "content": "a"},
         {"role": "assistant", "content": "b"},
     ]

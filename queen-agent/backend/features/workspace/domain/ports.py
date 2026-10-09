@@ -77,8 +77,9 @@ class Engine(Protocol):
     def stream_alone(self, system: str, text: str, on_open=None):
         """One instruction and one text in a request of their own, answered like `stream`.
 
-        No conversation, no tools, and none of QueenAgent's system prompt: `system` is the whole of
-        what the model is told and `text` the whole of what it reads. The black box's check asks
+        No conversation, no tools, and none of the fixed head -- QueenAgent's system prompt and the
+        SDXL document (Madde 453): `system` is the whole of what the model is told and `text` the
+        whole of what it reads. The black box's check asks
         this (Madde 445) -- QueenAgent's page is about tools, files and chats, in front of a model
         whose whole job is one word. A stream rather than one piece so that a stop cuts it like any
         other request: `on_open` is the same as `stream`'s.

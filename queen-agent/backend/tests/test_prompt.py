@@ -57,6 +57,26 @@ def test_every_text_a_tool_carries_comes_from_the_prompt_module():
             assert said in known, function["name"]
 
 
+def test_no_tool_carries_the_sdxl_document():
+    # Madde 453. It rides once, behind the system prompt, where its rules used to ride six times --
+    # once on each tool that takes tags. A copy back on a tool is paid for on every request.
+    #
+    # Line by line as well as whole: a copy of one rule, or of the document with a line changed,
+    # is the same rule said twice and would slip past a search for the whole text.
+    from backend.features.workspace.domain.prompt import SDXL_DOCUMENT
+    from backend.features.workspace.domain.tools import TOOL_SPECS
+
+    rules = [line[2:] for line in SDXL_DOCUMENT.splitlines() if line.startswith("- ")]
+    # Before the loop: an empty document would let it pass over nothing.
+    assert len(rules) > 10
+    for spec in TOOL_SPECS:
+        function = spec["function"]
+        said = [function["description"], *_descriptions_in(function["parameters"]["properties"])]
+        for text in said:
+            for rule in rules:
+                assert rule not in text, (function["name"], rule)
+
+
 @pytest.mark.parametrize(
     "module,name",
     [
@@ -85,7 +105,7 @@ def test_no_text_is_still_written_down_where_it_used_to_live(module, name):
 MUST_BE_FULL = (
     "SYSTEM_PROMPT",
     "LAST_ROUND",
-    "SDXL_PROMPT_RULES",
+    "SDXL_DOCUMENT",
     "START_A_SCENARIO",
     "EDIT_PROMPTS",
     "IMPROVE",

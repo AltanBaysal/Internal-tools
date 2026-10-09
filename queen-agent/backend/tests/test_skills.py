@@ -204,13 +204,22 @@ def test_no_instruction_opens_a_pov_entry():
 
 def test_no_instruction_carries_the_prompt_rules():
     # It was one text with two readers until Madde 94 took the checking skill away, and one reader
-    # until Madde 96 moved it out of the texts entirely. Madde 172 moved it once more -- to the six
-    # tools that take tags, where it sits beside the parameter it governs and is read while the tool
-    # is being chosen. A copy back here would be paid for by every turn, including the ones writing
-    # no tags at all.
-    from backend.features.workspace.domain.prompt import SDXL_PROMPT_RULES
+    # until Madde 96 moved it out of the texts entirely. Madde 172 moved it to the six tools that
+    # take tags, and Madde 453 into one document sent behind the system prompt in every request.
+    # That document carries a copy of the flow's image-model rules, and the skills keep theirs on
+    # purpose -- the model is weak (the user, 10 October: "Evet, kopyası belgeye de girsin"). The
+    # whole document copied back into a skill would be a second one in the same request.
+    from backend.features.workspace.domain.prompt import SDXL_DOCUMENT
 
-    assert not [skill for skill in INSTRUCTIONS if SDXL_PROMPT_RULES in INSTRUCTIONS[skill]]
+    assert not [skill for skill in INSTRUCTIONS if SDXL_DOCUMENT in INSTRUCTIONS[skill]]
+
+
+def test_a_place_gets_a_mirror_only_when_the_user_asks():
+    # Madde 453 gives Step 3 the same exception the SDXL document has, so the two texts agree (the
+    # user, 29 September: a mirror goes in only when the user asks for one).
+    said = _step(3).lower()
+    assert "mirror" in said
+    assert "user asks" in said
 
 
 # --- the flow that walks the user through it (Madde 101) -----------------------------------------

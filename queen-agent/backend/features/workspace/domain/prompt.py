@@ -18,7 +18,7 @@ would be a cycle waiting for its first line.
 
 The interface is English because its design was written in English. That is a rule about labels and
 was never a reason to answer a Turkish question in English -- the answer follows whoever is asking.
-What must stay English is what an image model reads, and SDXL_PROMPT_RULES says so itself.
+What must stay English is what an image model reads, and SDXL_DOCUMENT says so itself.
 """
 
 # --- what QueenAgent is told about itself ---------------------------------------------------------
@@ -270,7 +270,7 @@ START_A_SCENARIO = (
     "Step 3 -- write the places\n"
     "- Ask where the scenario happens.\n"
     "- Write each place as an entry.\n"
-    "- Do not add a mirror to a place. A mirror breaks the image.\n"
+    "- Do not add a mirror to a place unless the user asks for one. A mirror breaks the image.\n"
     "\n"
     "Step 4 -- write the scenes\n"
     "- Ask the user for the number of scenes and the important moments.\n"
@@ -571,20 +571,37 @@ IMPROVE = (
 # form it is no longer allowed to type. Nothing about the shape belongs here, or the dead half comes
 # back in a text that rides in every request.
 #
-# Correction 34 split the other half, by reader. What is left here is what all six tools
-# share; a rule that ruled on one field -- the count, solo, naming an outfit, nobody in a
-# location -- went down to that field's own description, where it is read while the value is
-# being written rather than six times over by five tools it says nothing to.
+# Correction 34 split the other half, by reader. What is left here is what every tag shares; a
+# rule that ruled on one tool's field -- the count, solo, naming an outfit, nobody in a location --
+# went down to that field's own description, where it is read while the value is being written.
 #
-# Not in SYSTEM_PROMPT, where every chat would carry it including the ones writing no tags -- Madde
-# 94 pruned the skill texts for exactly that. Its cost is paid all the same, because a tool's
-# description travels every turn as well: six copies of it ride in every request. What is bought is
-# where the attention falls -- the rule sits beside the parameter it governs and is read while the
-# tool is being chosen -- and a round, since nothing is fetched.
+# One document since Madde 453, sent in every request as a message of its own right behind the
+# system prompt -- model_engine's _for_model puts it there. It rode on the six tools that take tags
+# until then, six copies in every request. What it holds is the rules that were already written,
+# gathered (the user, 9 October: "SDXL için yeni bir prompt rule ekleme, bizde olan kuralları kullan
+# sadece, yapılı olarak tek bir yere yaz"): the shared rules from those tools; the mirror (the user,
+# 29 September: only when the user asks for one); the photo's size from Queen Editor's workflow,
+# with no model's name, since Queen Editor lets its user pick one (the user, 10 October: "Model adı
+# olmasın"); and a copy of the image-model rules of Start a scenario's Step 5 and Step 10, as
+# Improve repeats them (the user, 10 October: "Evet, kopyası belgeye de girsin"). The skills keep
+# their own copies, because the model is weak -- so a change to one of those rules is made in all
+# three texts by hand.
+#
+# Not inside SYSTEM_PROMPT (the user: "system promptu karıştırmayalım"), and a constant rather than
+# a function: there is no owner's part to read at request time, so it is the same bytes in every
+# request and stays in the cached prefix. The title is the name UPDATE_FRAME_ACTION points at.
 
-SDXL_PROMPT_RULES = (
-    "An SDXL-family image model reads these tags, and it was trained on Danbooru's own tags.\n"
+SDXL_DOCUMENT = (
+    "SDXL prompt rules\n"
     "\n"
+    "The image model\n"
+    "- The photo of each frame is made by an SDXL-family image model trained on Danbooru's own "
+    "tags, at 1024 x 1536: portrait, 2:3.\n"
+    "- The image model reads the tags of every entry and of every frame's action.\n"
+    "- The image model is weak and draws every tag in the prompt. A complex prompt breaks the "
+    "image.\n"
+    "\n"
+    "Writing a tag\n"
     "- Write tags, never sentences. An article is not a tag either.\n"
     "- Use a tag that the Danbooru vocabulary already has, rather than a description of the same "
     "thing. The model has seen a real tag many times, and has never seen a paraphrase of it.\n"
@@ -592,10 +609,48 @@ SDXL_PROMPT_RULES = (
     "- Put one thing in each tag, split the way the vocabulary splits it. Do not join two tags "
     "into one longer phrase.\n"
     "- When the vocabulary has no tag for it, write a few plain words in the same short form.\n"
+    "\n"
+    "What is left out\n"
     "- Never write quality tags. The code already puts them at the front of every prompt, so "
     "yours would be printed twice.\n"
     "- Never write the word or inside a tag. The model draws one picture and cannot toss a coin "
-    "between two choices, so pick one and write only that."
+    "between two choices, so pick one and write only that.\n"
+    "- Never add a mirror unless the user asks for one. A mirror breaks the image.\n"
+    "\n"
+    "The prompt of a frame\n"
+    "- The prompt of a frame describes one photo: the first moment of the scene.\n"
+    "- Some tags are not visible from some camera angles. So a character, an outfit or a place "
+    "can have more than one entry, for different camera angles.\n"
+    "- The most common mistake: a tag hidden by the camera angle goes onto another character. "
+    "For example, the hair of a hidden head ends up on another character.\n"
+    "- Rule 1: If one of the character's entries fits the camera angle, use the entry. "
+    "An entry fits when every tag of the entry is meant to be in the photo. "
+    "If no entry fits, add a new entry with only the tags meant to be in the photo.\n"
+    "- Rule 2: If one of the outfit's entries fits the camera angle, use the entry. "
+    "An entry fits when every tag of the entry is meant to be in the photo. "
+    "If no entry fits, add a new entry with only the tags meant to be in the photo.\n"
+    "- Rule 3: If one of the place's entries fits the camera angle, use the entry. "
+    "An entry fits when every tag of the entry is meant to be in the photo. "
+    "If no entry fits, add a new entry with only the tags meant to be in the photo.\n"
+    "- Rule 4: The image model draws one photo. The whole prompt of the frame must describe "
+    "only one photo. If the prompt describes more than one photo, remove the extra part.\n"
+    "- Rule 5: The whole prompt of the frame must be simple enough for the weak image model. "
+    "If a part of the prompt is too hard, make the part simpler, and keep the same moment.\n"
+    "- Rule 6: If the scene is NSFW, name each visible body part directly, as in penis or "
+    "vagina. Never use a euphemism.\n"
+    "\n"
+    "The negative list\n"
+    "- The negative list is for the image model, not the video model. The negative list tells the "
+    "image model what not to draw in the photo.\n"
+    "- The scenario has one negative list, for every frame. A tag in the negative list works on "
+    "the whole photo, not on one character.\n"
+    "- The biggest problem is the features of the characters mixing, as in the hair of one "
+    "character on another character. Focus the negative list on keeping the features of each "
+    "character apart.\n"
+    "- Never write a feature of a character into the negative list. For example, dark skin in the "
+    "negative list made a dark-skinned man come out white.\n"
+    "- To keep a feature of a character, write the opposite tags instead. For example, pale male "
+    "and white man for a dark-skinned man."
 )
 
 
@@ -674,8 +729,7 @@ ADD_CHARACTER = (
     "Write a new character into a scenario: the tags an image model draws them from.\n"
     "- The entry is written once here, and every frame that holds this character names it.\n"
     "- This tool refuses a name that is already there. To change a character that exists, use "
-    "update_character.\n"
-    "\n" + SDXL_PROMPT_RULES
+    "update_character."
 )
 ADD_CHARACTER_NAME = (
     "What this character is called in this scenario, as in young man. Frames name them by it."
@@ -693,8 +747,7 @@ UPDATE_CHARACTER = (
     "- Only what you give changes.\n"
     "- Renaming reaches every frame that names this character, so the scenario still builds "
     "afterwards.\n"
-    "- This tool refuses a name that is not there.\n"
-    "\n" + SDXL_PROMPT_RULES
+    "- This tool refuses a name that is not there."
 )
 UPDATE_CHARACTER_NAME = "Which character to change."
 UPDATE_CHARACTER_TAGS = f"{ADD_CHARACTER_TAGS} {AN_ENTRYS_NEW_TAGS}"
@@ -714,8 +767,7 @@ ADD_OUTFIT = (
     "across the frames, and the same clothes can be worn by more than one person.\n"
     "- Name an outfit after the clothes, not after the person wearing them, because two "
     "characters can wear the same outfit.\n"
-    "- This tool refuses a name that is already there.\n"
-    "\n" + SDXL_PROMPT_RULES
+    "- This tool refuses a name that is already there."
 )
 ADD_OUTFIT_NAME = "What this outfit is called, as in nightgown."
 ADD_OUTFIT_TAGS = (
@@ -731,8 +783,7 @@ UPDATE_OUTFIT = (
     "- Renaming reaches every frame wearing this outfit.\n"
     "- Name an outfit after the clothes, not after the person wearing them, because two "
     "characters can wear the same outfit.\n"
-    "- This tool refuses a name that is not there.\n"
-    "\n" + SDXL_PROMPT_RULES
+    "- This tool refuses a name that is not there."
 )
 UPDATE_OUTFIT_NAME = "Which outfit to change."
 UPDATE_OUTFIT_TAGS = f"{ADD_OUTFIT_TAGS} {AN_ENTRYS_NEW_TAGS}"
@@ -746,8 +797,7 @@ REMOVE_OUTFIT_NAME = "Which outfit to remove."
 
 ADD_LOCATION = (
     "Write a new location into a scenario: a place a frame can be set in.\n"
-    "- This tool refuses a name that is already there.\n"
-    "\n" + SDXL_PROMPT_RULES
+    "- This tool refuses a name that is already there."
 )
 ADD_LOCATION_NAME = "What this place is called, as in bedroom."
 ADD_LOCATION_TAGS = (
@@ -761,8 +811,7 @@ UPDATE_LOCATION = (
     "Change a location that is already in a scenario: its tags, its name, or both.\n"
     "- Only what you give changes.\n"
     "- Renaming reaches every frame set in this place.\n"
-    "- This tool refuses a name that is not there.\n"
-    "\n" + SDXL_PROMPT_RULES
+    "- This tool refuses a name that is not there."
 )
 UPDATE_LOCATION_NAME = "Which location to change."
 UPDATE_LOCATION_TAGS = f"{ADD_LOCATION_TAGS} {AN_ENTRYS_NEW_TAGS}"
@@ -829,9 +878,8 @@ UPDATE_FRAME_LOCATION = (
 )
 UPDATE_FRAME_ACTION = (
     "The action of the frame as tags: what the photo shows, and the shot. "
-    "The photo is the first frame of the video. Written by the same rules "
-    "as the entries. Replaces the action there. Empty takes the action off "
-    "the frame."
+    "The photo is the first frame of the video. Written by the SDXL prompt "
+    "rules. Replaces the action there. Empty takes the action off the frame."
 )
 
 REMOVE_FRAME = (
