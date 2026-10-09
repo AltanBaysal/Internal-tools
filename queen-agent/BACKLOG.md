@@ -52,3 +52,10 @@ konuşurz".)* **Ayrıntılar kullanıcıyla konuşulacak.**
 
 *(Kullanıcı, 2 Ekim — "queen agent backloga elbiselerde karışıyor ekler misin".)* **Ayrıntılar
 kullanıcıyla konuşulacak.**
+
+## Bir frontend testi arada düşüyor
+
+*(Claude, 9 Ekim — Queen Editor v9'un 439'unda görüldü.)* `src/features/workspace/ChatScreen.test.jsx`'in
+"a stored answer keeps the calls it made, behind one card" testi bütün suite'te bir koşuda düştü; aynı
+gün QA'nın koşusunda da bir test düşmüştü, adı yakalanmadı. Tek başına üç kez ve suite'le bir kez
+geçti. Makine yükteyken vitest'in 5000 ms'lik süresini aşıyor olabilir — sebep gösterilmedi.
