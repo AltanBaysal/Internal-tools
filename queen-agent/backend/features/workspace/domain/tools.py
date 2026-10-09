@@ -133,30 +133,14 @@ TOOL_SPECS = [
     {
         "type": "function",
         "function": {
-            "name": "add_character",
-            "description": prompt.ADD_CHARACTER,
+            "name": "set_character",
+            "description": prompt.SET_CHARACTER,
             "parameters": {
                 "type": "object",
                 "properties": {
                     "file": {"type": "string", "description": prompt.THE_SCENARIOS_FILE},
-                    "name": {"type": "string", "description": prompt.ADD_CHARACTER_NAME},
-                    "tags": {"type": "string", "description": prompt.ADD_CHARACTER_TAGS},
-                },
-                "required": ["file", "name", "tags"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "update_character",
-            "description": prompt.UPDATE_CHARACTER,
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "file": {"type": "string", "description": prompt.THE_SCENARIOS_FILE},
-                    "name": {"type": "string", "description": prompt.UPDATE_CHARACTER_NAME},
-                    "tags": {"type": "string", "description": prompt.UPDATE_CHARACTER_TAGS},
+                    "name": {"type": "string", "description": prompt.SET_CHARACTER_NAME},
+                    "tags": {"type": "string", "description": prompt.SET_CHARACTER_TAGS},
                     "new_name": {"type": "string", "description": prompt.AN_ENTRYS_NEW_NAME},
                 },
                 "required": ["file", "name"],
@@ -181,30 +165,14 @@ TOOL_SPECS = [
     {
         "type": "function",
         "function": {
-            "name": "add_outfit",
-            "description": prompt.ADD_OUTFIT,
+            "name": "set_outfit",
+            "description": prompt.SET_OUTFIT,
             "parameters": {
                 "type": "object",
                 "properties": {
                     "file": {"type": "string", "description": prompt.THE_SCENARIOS_FILE},
-                    "name": {"type": "string", "description": prompt.ADD_OUTFIT_NAME},
-                    "tags": {"type": "string", "description": prompt.ADD_OUTFIT_TAGS},
-                },
-                "required": ["file", "name", "tags"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "update_outfit",
-            "description": prompt.UPDATE_OUTFIT,
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "file": {"type": "string", "description": prompt.THE_SCENARIOS_FILE},
-                    "name": {"type": "string", "description": prompt.UPDATE_OUTFIT_NAME},
-                    "tags": {"type": "string", "description": prompt.UPDATE_OUTFIT_TAGS},
+                    "name": {"type": "string", "description": prompt.SET_OUTFIT_NAME},
+                    "tags": {"type": "string", "description": prompt.SET_OUTFIT_TAGS},
                     "new_name": {"type": "string", "description": prompt.AN_ENTRYS_NEW_NAME},
                 },
                 "required": ["file", "name"],
@@ -229,30 +197,14 @@ TOOL_SPECS = [
     {
         "type": "function",
         "function": {
-            "name": "add_location",
-            "description": prompt.ADD_LOCATION,
+            "name": "set_location",
+            "description": prompt.SET_LOCATION,
             "parameters": {
                 "type": "object",
                 "properties": {
                     "file": {"type": "string", "description": prompt.THE_SCENARIOS_FILE},
-                    "name": {"type": "string", "description": prompt.ADD_LOCATION_NAME},
-                    "tags": {"type": "string", "description": prompt.ADD_LOCATION_TAGS},
-                },
-                "required": ["file", "name", "tags"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "update_location",
-            "description": prompt.UPDATE_LOCATION,
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "file": {"type": "string", "description": prompt.THE_SCENARIOS_FILE},
-                    "name": {"type": "string", "description": prompt.UPDATE_LOCATION_NAME},
-                    "tags": {"type": "string", "description": prompt.UPDATE_LOCATION_TAGS},
+                    "name": {"type": "string", "description": prompt.SET_LOCATION_NAME},
+                    "tags": {"type": "string", "description": prompt.SET_LOCATION_TAGS},
                     "new_name": {"type": "string", "description": prompt.AN_ENTRYS_NEW_NAME},
                 },
                 "required": ["file", "name"],
@@ -481,29 +433,20 @@ def run_tool(file_store, project_id, name, arguments):
     if name == "edit_file":
         return _edit(file_store, project_id, args)
 
-    if name == "add_character":
-        return _add_entry(file_store, project_id, args, "characters")
-
-    if name == "update_character":
-        return _update_entry(file_store, project_id, args, "characters")
+    if name == "set_character":
+        return _set_entry(file_store, project_id, args, "characters")
 
     if name == "remove_character":
         return _remove_entry(file_store, project_id, args, "characters")
 
-    if name == "add_outfit":
-        return _add_entry(file_store, project_id, args, "outfits")
-
-    if name == "update_outfit":
-        return _update_entry(file_store, project_id, args, "outfits")
+    if name == "set_outfit":
+        return _set_entry(file_store, project_id, args, "outfits")
 
     if name == "remove_outfit":
         return _remove_entry(file_store, project_id, args, "outfits")
 
-    if name == "add_location":
-        return _add_entry(file_store, project_id, args, "locations")
-
-    if name == "update_location":
-        return _update_entry(file_store, project_id, args, "locations")
+    if name == "set_location":
+        return _set_entry(file_store, project_id, args, "locations")
 
     if name == "remove_location":
         return _remove_entry(file_store, project_id, args, "locations")
@@ -637,7 +580,7 @@ def _shut(wanted):
         return None
     return ToolResult(
         f"{wanted} is a structure file; it is not written or changed as text. Use start_scenario "
-        "to open one, and the add_, update_ and remove_ tools to change it.",
+        "to open one, and the set_, add_, update_ and remove_ tools to change it.",
         None,
         wanted,
         "Not as text",
@@ -672,9 +615,9 @@ _STILL_USED_IN = {
 def _frames_naming(frames, which, key):
     """Which frames stand on this entry, by number, one-based as the model counts them.
 
-    One reading of the cast answers it for both maps: a character is a name in it, an outfit is a
-    name inside what that name wears. Locations are not here at all -- a frame names its place in a
-    field of its own, and Madde 170 brings that branch with its own tests.
+    A character is a name in the frame's cast and an outfit is a name inside what that name wears,
+    both read through one reading of the cast. A location comes from the frame's own field, since a
+    frame names its one place there rather than in the cast.
     """
     standing = []
     for number, frame in enumerate(frames, start=1):
@@ -753,53 +696,31 @@ def _outfit_renamed(frame, people, key, moving):
     return 1 if wearing else 0
 
 
-def _add_entry(file_store, project_id, args, which):
-    """One name and its tags into one map. Refuses a name that is already there (Madde 168).
+def _not_a_map(source, which):
+    """The refusal a map that is not one gets, from both map tools.
 
-    create_file's rule, one level down: a second entry of the same name would replace the first in
-    silence, and every frame naming it would change without anybody asking.
+    Missing or empty is a map with nothing in it yet. Anything else came from a hand, since these
+    tools only write maps: replacing it to make room for one name would wipe what was written, and
+    looking a name up in it would crash the turn.
     """
-    source, structure, refused = _opened(file_store, project_id, args)
-    if refused is not None:
-        return refused
-
-    single = which[:-1]
-    key = str(args.get("name") or "").strip()
-    if not key:
-        return ToolResult(
-            f"{_article(single).capitalize()} {single} needs a name.", None, source, "Refused"
-        )
-
-    tags = args.get("tags")
-    if not str(tags or "").strip():
-        # An entry with no text is one every frame naming it builds nothing from. Refused at birth
-        # rather than found later in a prompt.
-        return ToolResult(f"A new {single} needs tags.", None, source, "Refused")
-
-    entries = structure.get(which)
-    if not isinstance(entries, dict):
-        entries = {}
-        structure[which] = entries
-    if key in entries:
-        return ToolResult(
-            f"There is already {_article(single)} {single} called {key}.",
-            None,
-            source,
-            "Already there",
-        )
-
-    entries[key] = tags
-    _saved(file_store, project_id, source, structure)
-    return ToolResult(f"Added {key} to {which}.", None, source, "Added")
+    return ToolResult(
+        f"{which} in {source} is not a map of names to tags, so nothing was written.",
+        None,
+        source,
+        "Refused",
+    )
 
 
-def _update_entry(file_store, project_id, args, which):
-    """One name's text, or the name itself, or both (Madde 168).
+def _set_entry(file_store, project_id, args, which):
+    """One name in one map: added when it is not there, changed or renamed when it is (Madde 456).
 
-    Renaming lives here rather than in a rename_ tool of its own: putting several actions behind one
-    tool is for actions on one resource, and a rename is an action on the entry itself. It has to
-    reach the frames -- a name changed in the map and left alone in the frames is a structure that
-    will not build.
+    A set can write over a name, so it says so: a change names the frames it reaches and quotes the
+    text it replaced, and an addition lists the names already there, so a second spelling of one
+    name shows up beside the first.
+
+    A rename reaches the frames -- a name changed in the map and left alone in them is a structure
+    that will not build. Every refusal is answered before anything is written, and a call that would
+    change nothing writes nothing.
     """
     source, structure, refused = _opened(file_store, project_id, args)
     if refused is not None:
@@ -813,20 +734,45 @@ def _update_entry(file_store, project_id, args, which):
         )
 
     entries = structure.get(which) or {}
-    if key not in entries:
-        return ToolResult(_unknown(key, entries, which), None, source, "Not there")
+    if not isinstance(entries, dict):
+        return _not_a_map(source, which)
 
-    # `in` rather than .get(), because an empty string is a value: it is the only way the model can
-    # clear a text it wrote before, and .get() would read that as nothing having been given.
-    tags = args["tags"] if args.get("tags") is not None else None
+    # Given means present and not null: an empty string is a value, the only way the model can
+    # clear a text it wrote before.
+    tags = args.get("tags")
     moving = str(args.get("new_name") or "").strip()
+    if moving == key:
+        # Read as no rename before anything else, so a model that fills both fields while adding
+        # still adds.
+        moving = ""
+
+    if key not in entries:
+        if moving:
+            # Never opened under the new name. Renaming something that is not there means the old
+            # name is wrong, and an entry born here would hide that.
+            return ToolResult(_unknown(key, entries, which), None, source, "Not there")
+        if not str(tags or "").strip():
+            # An entry with no text is one every frame naming it builds nothing from. Refused at
+            # birth rather than found later in a prompt.
+            return ToolResult(f"A new {single} needs tags.", None, source, "Refused")
+        known = ", ".join(sorted(entries)) or "nothing"
+        entries[key] = tags
+        structure[which] = entries
+        _saved(file_store, project_id, source, structure)
+        return ToolResult(
+            f"Added {key} to {which} as a new {single}; known before it: {known}.",
+            None,
+            source,
+            "Added",
+        )
+
+    old = entries[key]
+    if tags == old:
+        # The text it already has is no change, and "Changed" would claim one.
+        tags = None
     if tags is None and not moving:
         # No silent success: a model told nothing happened moves on believing it did.
-        return ToolResult(
-            f"Nothing was given to change about {key}.", None, source, "Nothing to change"
-        )
-    if moving == key:
-        return ToolResult(f"{key} is already called that.", None, source, "Nothing to change")
+        return ToolResult(f"Nothing would change about {key}.", None, source, "Nothing to change")
     if moving and moving in entries:
         # Two entries folded into one is the one thing here that calling again cannot undo.
         return ToolResult(
@@ -838,12 +784,14 @@ def _update_entry(file_store, project_id, args, which):
 
     if tags is not None:
         entries[key] = tags
+    was = f' Its text was "{old}".' if tags is not None else ""
     frames = structure["frames"]
     if not moving:
-        touched = len(_frames_naming(frames, which, key))
+        # The numbers rather than a count: what the change reaches is the model's to check.
+        naming = ", ".join(str(number) for number in _frames_naming(frames, which, key))
         _saved(file_store, project_id, source, structure)
         return ToolResult(
-            f"Changed {key} in {which}; {counted(touched, 'frame')} name it.",
+            f"Changed {key} in {which}; frames naming it: {naming or 'none'}.{was}",
             None,
             source,
             "Changed",
@@ -856,7 +804,7 @@ def _update_entry(file_store, project_id, args, which):
     _saved(file_store, project_id, source, structure)
     also = " and changed its text" if tags is not None else ""
     return ToolResult(
-        f"Renamed {key} to {moving} in {which}{also}; {counted(followed, 'frame')} followed.",
+        f"Renamed {key} to {moving} in {which}{also}; {counted(followed, 'frame')} followed.{was}",
         None,
         source,
         "Renamed",
@@ -866,9 +814,9 @@ def _update_entry(file_store, project_id, args, which):
 def _remove_entry(file_store, project_id, args, which):
     """One name out of one map, if nothing is standing on it (Madde 168).
 
-    Not an update with the value left out. An empty value meaning delete would let a model that
-    simply failed to fill a field wipe the entry in silence, and nothing here can be undone by
-    calling it again.
+    Not a set with the value left out. An empty value meaning delete would let a model that simply
+    failed to fill a field wipe the entry in silence, and nothing here can be undone by calling it
+    again.
     """
     source, structure, refused = _opened(file_store, project_id, args)
     if refused is not None:
@@ -882,6 +830,8 @@ def _remove_entry(file_store, project_id, args, which):
         )
 
     entries = structure.get(which) or {}
+    if not isinstance(entries, dict):
+        return _not_a_map(source, which)
     if key not in entries:
         return ToolResult(_unknown(key, entries, which), None, source, "Not there")
 

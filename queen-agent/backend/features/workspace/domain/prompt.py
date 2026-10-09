@@ -566,7 +566,7 @@ IMPROVE = (
 # spellings of it compete. This is a rule about the model at the far end, not a house style.
 #
 # read_prompt_structure_schema handed back two halves. The half describing the file's shape died as
-# the tools took the shape over: start_scenario opens the file, the add_ and update_ and remove_
+# the tools took the shape over: start_scenario opens the file, the set_, add_, update_ and remove_
 # tools build it, and create_file cannot touch it -- so the model was studying a JSON example of a
 # form it is no longer allowed to type. Nothing about the shape belongs here, or the dead half comes
 # back in a text that rides in every request.
@@ -656,7 +656,7 @@ SDXL_DOCUMENT = (
 
 # --- what more than one tool says -----------------------------------------------------------------
 #
-# Nine tools ask for a scenario's file and five for a structure's, in the same words each time. One
+# Six tools ask for a scenario's file and four for a structure's, in the same words each time. One
 # constant per tool would put the copies inside the very file this madde gathered them into, which
 # is a new way of making a rule said twice invisible rather than the end of one.
 
@@ -665,19 +665,28 @@ THE_SCENARIOS_FILE = "The scenario's file name."
 THE_STRUCTURES_FILE = "The structure file's name."
 WHICH_FRAME = "Which frame, by its number, counting from 1."
 
-AN_ENTRYS_NEW_TAGS = (
-    "Give the whole entry as it should now read: this replaces the text rather than adding to it. "
-    "Leave it out to change only the name."
+SETTING_AN_ENTRY = (
+    "- A name that is not there is added. A name that is there is changed, and the answer gives "
+    "the text it had. To add a second entry beside one that is there, give it a name of its own.\n"
+    "- Only what you give changes. A new name renames the entry in every frame that names it, so "
+    "the scenario still builds afterwards."
 )
-"""The tail every update_ tool's tags field ends with.
+"""What every set_ tool's description closes with (Madde 456): one tool both adds and changes, so
+the model is told which a call will do and how a change it did not mean shows itself."""
+
+AN_ENTRYS_NEW_TAGS = (
+    "The whole entry as it should read: it replaces the text there rather than adding to it. A "
+    "new entry needs them; leave them out to change only the name."
+)
+"""The tail every set_ tool's tags field ends with.
 
 Not a field's whole description since correction 34: each of the three now names its own map's
-categories first and closes with this. Written once because it is one sentence in all three -- and
-because the broken half of it, a phrase with no verb hanging off the end of the categories, is what
-correction 35 was written to fix.
+categories first and closes with this. Written once because it is the same words in all three --
+and because the broken half of it, a phrase with no verb hanging off the end of the categories, is
+what correction 35 was written to fix.
 """
 
-AN_ENTRYS_NEW_NAME = "What to call it from now on. Leave it out to change only the tags."
+AN_ENTRYS_NEW_NAME = "A new name for an entry that is already there. Leave it out to keep the name."
 
 
 # --- the tools, in the order TOOL_SPECS lists them ------------------------------------------------
@@ -716,7 +725,7 @@ EDIT_FILE = (
     "in front of you.\n"
     "- Include enough of the surrounding text to be sure you have the right place.\n"
     "- Pass replace_all when you mean every occurrence rather than one, instead of growing the "
-    "text. Renaming an entry through all the frames that name it is the usual case."
+    "text."
 )
 EDIT_FILE_OLD = "The exact text to replace."
 EDIT_FILE_NEW = "What takes its place. Empty takes the text out."
@@ -725,32 +734,21 @@ EDIT_FILE_REPLACE_ALL = (
     "is refused rather than guessed at."
 )
 
-ADD_CHARACTER = (
-    "Write a new character into a scenario: the tags an image model draws them from.\n"
+SET_CHARACTER = (
+    "Add or change a character in a scenario: the tags an image model draws them from.\n"
     "- The entry is written once here, and every frame that holds this character names it.\n"
-    "- This tool refuses a name that is already there. To change a character that exists, use "
-    "update_character."
+    f"{SETTING_AN_ENTRY}"
 )
-ADD_CHARACTER_NAME = (
+SET_CHARACTER_NAME = (
     "What this character is called in this scenario, as in young man. Frames name them by it."
 )
-ADD_CHARACTER_TAGS = (
+SET_CHARACTER_TAGS = (
     "Write the character as tags: how many people this entry draws, their age, body, hair and "
     "face. The count goes here and nowhere else, because this is the one place a count sits next "
     "to the person it counts. Do not write solo: the same character stands alone in one frame "
     "and next to somebody in the next, so an entry claiming solo is wrong in half of them. Do not "
-    "write clothes here -- those are outfits."
+    f"write clothes here -- those are outfits. {AN_ENTRYS_NEW_TAGS}"
 )
-
-UPDATE_CHARACTER = (
-    "Change a character that is already in a scenario: its tags, its name, or both.\n"
-    "- Only what you give changes.\n"
-    "- Renaming reaches every frame that names this character, so the scenario still builds "
-    "afterwards.\n"
-    "- This tool refuses a name that is not there."
-)
-UPDATE_CHARACTER_NAME = "Which character to change."
-UPDATE_CHARACTER_TAGS = f"{ADD_CHARACTER_TAGS} {AN_ENTRYS_NEW_TAGS}"
 
 REMOVE_CHARACTER = (
     "Take a character out of a scenario.\n"
@@ -760,33 +758,22 @@ REMOVE_CHARACTER = (
 )
 REMOVE_CHARACTER_NAME = "Which character to remove."
 
-ADD_OUTFIT = (
-    "Write a new outfit into a scenario: a set of clothes with a name, worn by whoever a frame "
+SET_OUTFIT = (
+    "Add or change an outfit in a scenario: a set of clothes with a name, worn by whoever a frame "
     "puts it on.\n"
     "- An outfit is kept apart from the character because the same person wears different things "
     "across the frames, and the same clothes can be worn by more than one person.\n"
     "- Name an outfit after the clothes, not after the person wearing them, because two "
     "characters can wear the same outfit.\n"
-    "- This tool refuses a name that is already there."
+    f"{SETTING_AN_ENTRY}"
 )
-ADD_OUTFIT_NAME = "What this outfit is called, as in nightgown."
-ADD_OUTFIT_TAGS = (
+SET_OUTFIT_NAME = "What this outfit is called, as in nightgown."
+SET_OUTFIT_TAGS = (
     "Write the clothes as tags and nothing else: the garments, their colour, their material, and "
     "what they leave bare. Do not write a person here: no count, no body, no hair. One entry "
     "dresses one person. Its text is handed whole to whoever wears it, so an entry covering two "
-    "people would put the man in the dress."
+    f"people would put the man in the dress. {AN_ENTRYS_NEW_TAGS}"
 )
-
-UPDATE_OUTFIT = (
-    "Change an outfit that is already in a scenario: its tags, its name, or both.\n"
-    "- Only what you give changes.\n"
-    "- Renaming reaches every frame wearing this outfit.\n"
-    "- Name an outfit after the clothes, not after the person wearing them, because two "
-    "characters can wear the same outfit.\n"
-    "- This tool refuses a name that is not there."
-)
-UPDATE_OUTFIT_NAME = "Which outfit to change."
-UPDATE_OUTFIT_TAGS = f"{ADD_OUTFIT_TAGS} {AN_ENTRYS_NEW_TAGS}"
 
 REMOVE_OUTFIT = (
     "Take an outfit out of a scenario.\n"
@@ -795,26 +782,17 @@ REMOVE_OUTFIT = (
 )
 REMOVE_OUTFIT_NAME = "Which outfit to remove."
 
-ADD_LOCATION = (
-    "Write a new location into a scenario: a place a frame can be set in.\n"
-    "- This tool refuses a name that is already there."
+SET_LOCATION = (
+    "Add or change a location in a scenario: a place a frame can be set in.\n"
+    f"{SETTING_AN_ENTRY}"
 )
-ADD_LOCATION_NAME = "What this place is called, as in bedroom."
-ADD_LOCATION_TAGS = (
+SET_LOCATION_NAME = "What this place is called, as in bedroom."
+SET_LOCATION_TAGS = (
     "Write the place as tags: what kind of place it is, whether it is indoors or out, what "
     "stands in it, and the light. Nobody is in it and it carries no count. Who is in the frame "
     "is decided elsewhere, and a person written here would be drawn into every frame set in this "
-    "place."
+    f"place. {AN_ENTRYS_NEW_TAGS}"
 )
-
-UPDATE_LOCATION = (
-    "Change a location that is already in a scenario: its tags, its name, or both.\n"
-    "- Only what you give changes.\n"
-    "- Renaming reaches every frame set in this place.\n"
-    "- This tool refuses a name that is not there."
-)
-UPDATE_LOCATION_NAME = "Which location to change."
-UPDATE_LOCATION_TAGS = f"{ADD_LOCATION_TAGS} {AN_ENTRYS_NEW_TAGS}"
 
 REMOVE_LOCATION = (
     "Take a location out of a scenario.\n"

@@ -37,18 +37,16 @@ _WITHOUT_ASKING = {
     + (
         "create_file",
         "start_scenario",
-        # Madde 168. A rename is the widest edit any tool here makes -- the map entry and every
-        # frame naming it, in one call -- so the quieter modes keep their gate in front of all three.
-        "add_character",
-        "update_character",
+        # Madde 168, and 456. A rename is the widest edit any tool here makes -- the map entry and
+        # every frame naming it, in one call -- so the quieter modes keep their gate in front of
+        # both.
+        "set_character",
         "remove_character",
         # Madde 169. Same reason, second map.
-        "add_outfit",
-        "update_outfit",
+        "set_outfit",
         "remove_outfit",
         # Madde 170, third map.
-        "add_location",
-        "update_location",
+        "set_location",
         "remove_location",
         "edit_file",
         "build_prompts",

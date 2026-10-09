@@ -9,6 +9,7 @@ from backend.features.workspace.domain.naming import unique_name
 from backend.features.workspace.domain.project import Project
 from backend.features.workspace.domain.tools import (
     DEFAULT_NAME,
+    EMPTY_SCENARIO,
     MAX_ROUNDS,
     TOOL_SPECS,
     numbered,
@@ -122,7 +123,7 @@ def _started(files, name="bar-scene"):
 
 def test_start_scenario_writes_the_empty_maps_and_no_frames(tmp_path):
     # Exactly these four, and every one of them empty. A fifth key would be a shape the model never
-    # asked for, and a missing one would have the first add_ call inventing it.
+    # asked for, and a missing one would have the first set_ call inventing it.
     files = _files(tmp_path)
     assert _started(files) == {"characters": {}, "outfits": {}, "locations": {}, "frames": []}
 
@@ -173,10 +174,12 @@ def test_start_scenario_writes_the_file_for_a_person_to_read(tmp_path):
     assert '\n  "characters": {}' in files.read("p1", "bar-scene.json")
 
 
-# --- character management (Madde 168) -------------------------------------------------------------
+# --- character management (Madde 168, and 456) ----------------------------------------------------
 #
-# Three tools rather than one, by the rule create_file already keeps: add refuses a name that is
-# there, update refuses one that is not, and so overwriting in silence stops being possible. The
+# Two tools a map since Madde 456: set_ opens a name that is not there and changes one that is, and
+# remove_ takes one out. add_ and update_ were split so that a name could not be written over in
+# silence; set_ keeps that by saying it -- a change quotes the text it replaced, and an addition
+# names what was already there, so a second spelling of one name shows up beside the first. The
 # file's parameter is `file` and the entry's is `name` -- the subject of these sentences is the
 # character, and the file is only where it lives.
 #
@@ -223,78 +226,94 @@ def _read_back(files, key="characters"):
     return json.loads(files.read("p1", "bar-scene.json"))[key]
 
 
-def test_add_character_writes_the_name_and_its_tags(tmp_path):
+def _set(files, tool="set_character", **arguments):
+    return run_tool(files, "p1", tool, json.dumps({"file": "bar-scene.json", **arguments}))
+
+
+def test_set_character_adds_a_name_that_is_not_there(tmp_path):
     files = _cast(tmp_path)
-    _call(files, "add_character", file="bar-scene.json", name="lara", tags="1girl, red hair")
+    _call(files, "set_character", file="bar-scene.json", name="lara", tags="1girl, red hair")
     assert _read_back(files)["lara"] == "1girl, red hair"
 
 
-def test_add_character_says_what_it_added(tmp_path):
-    files = _cast(tmp_path)
-    made = run_tool(
-        files,
-        "p1",
-        "add_character",
-        json.dumps({"file": "bar-scene.json", "name": "lara", "tags": "1girl"}),
+def test_an_addition_names_what_was_known_before_it(tmp_path):
+    # The overwrite add_ refused is gone, so the other half of its job lands in the answer: a second
+    # spelling of a name that is there -- Aylin beside aylin -- is a new entry, and the names it was
+    # opened beside are where the model sees the twin.
+    made = _set(_cast(tmp_path), name="Aylin", tags="1girl")
+    assert made.text == (
+        "Added Aylin to characters as a new character; known before it: aylin, deniz, eda."
     )
-    assert made.text == "Added lara to characters."
     assert made.outcome == "Added"
 
 
-def test_add_character_refuses_a_name_that_is_already_there(tmp_path):
-    # Madde 69's rule, one level down. A second aylin would silently replace the first, and every
-    # frame naming her would change without anybody asking for it.
-    files = _cast(tmp_path)
-    said = _call(files, "add_character", file="bar-scene.json", name="aylin", tags="1girl, new")
-    assert said == "There is already a character called aylin."
-    assert _read_back(files)["aylin"] == "1girl, long teal hair"
-
-
-def test_add_character_needs_a_name(tmp_path):
-    files = _cast(tmp_path)
-    assert _call(files, "add_character", file="bar-scene.json", tags="1girl") == (
-        "A character needs a name."
+def test_an_addition_to_an_empty_map_says_nothing_was_known(tmp_path):
+    files = _with(tmp_path, "bar-scene.json", json.dumps(EMPTY_SCENARIO))
+    assert _set(files, name="aylin", tags="1girl").text == (
+        "Added aylin to characters as a new character; known before it: nothing."
     )
 
 
-def test_add_character_needs_tags(tmp_path):
+def test_an_addition_opens_a_map_the_file_does_not_have(tmp_path):
+    # Absent is not broken: a file with no characters yet takes its first one, as add_ always did.
+    files = _with(tmp_path, "bar-scene.json", json.dumps({"frames": []}))
+    _set(files, name="aylin", tags="1girl")
+    assert _read_back(files) == {"aylin": "1girl"}
+
+
+def test_a_character_needs_a_name(tmp_path):
+    files = _cast(tmp_path)
+    made = _set(files, tags="1girl")
+    assert made.text == "A character needs a name."
+    assert made.outcome == "Refused"
+
+
+@pytest.mark.parametrize("tags", [None, "", "   "])
+def test_a_new_character_needs_tags(tmp_path, tags):
     # An entry with no text is an entry every frame naming it builds nothing from. Refused at birth
     # rather than found in the prompt.
     files = _cast(tmp_path)
-    assert _call(files, "add_character", file="bar-scene.json", name="lara") == (
-        "A new character needs tags."
-    )
+    given = {} if tags is None else {"tags": tags}
+    made = _set(files, name="lara", **given)
+    assert made.text == "A new character needs tags."
+    assert made.outcome == "Refused"
+    assert files.read("p1", "bar-scene.json") == CAST
 
 
-def test_add_character_leaves_the_other_maps_alone(tmp_path):
+def test_set_character_changes_a_name_that_is_there(tmp_path):
     files = _cast(tmp_path)
-    _call(files, "add_character", file="bar-scene.json", name="lara", tags="1girl")
-    # Asserted first, and not for company: without it everything below is vacuously true on a call
-    # that did nothing at all.
-    assert "lara" in _read_back(files)
-    before = json.loads(CAST)
-    for key in ("outfits", "locations", "frames"):
-        assert _read_back(files, key) == before[key]
-
-
-def test_update_character_changes_the_tags(tmp_path):
-    files = _cast(tmp_path)
-    _call(files, "update_character", file="bar-scene.json", name="aylin", tags="1girl, red hair")
+    _set(files, name="aylin", tags="1girl, red hair")
     assert _read_back(files)["aylin"] == "1girl, red hair"
 
 
-def test_update_character_refuses_a_name_nobody_knows(tmp_path):
-    # _looked_up's sentence, so a name that is not there reads the same wherever it is met.
-    files = _cast(tmp_path)
-    said = _call(files, "update_character", file="bar-scene.json", name="lara", tags="1girl")
-    assert said == "lara is not in characters; known: aylin, deniz, eda."
+def test_a_change_says_which_frames_name_it_and_what_it_replaced(tmp_path):
+    # The overwrite made visible: the frames this change reaches, by number, and the text that is
+    # gone -- quoted, so a model that meant to add can put it back.
+    made = _set(_cast(tmp_path), name="aylin", tags="1girl, red hair")
+    assert made.text == (
+        "Changed aylin in characters; frames naming it: 1, 3. "
+        'Its text was "1girl, long teal hair".'
+    )
+    assert made.outcome == "Changed"
 
 
-def test_update_character_renames_and_the_frames_follow(tmp_path):
-    # The whole reason renaming lives in this tool rather than in one of its own: a name changed in
-    # the map and left alone in the frames is a structure that will not build.
+def test_a_change_nobody_stands_on_says_none(tmp_path):
+    assert _set(_cast(tmp_path), name="eda", tags="1girl").text == (
+        'Changed eda in characters; frames naming it: none. Its text was "1girl, freckles".'
+    )
+
+
+def test_empty_tags_clear_the_text_of_a_name_that_is_there(tmp_path):
+    # An empty string is a value: the one way to clear a text written before, as update_ allowed.
     files = _cast(tmp_path)
-    _call(files, "update_character", file="bar-scene.json", name="aylin", new_name="ayla")
+    assert _set(files, name="aylin", tags="").outcome == "Changed"
+    assert _read_back(files)["aylin"] == ""
+
+
+def test_set_character_renames_and_the_frames_follow(tmp_path):
+    # A name changed in the map and left alone in the frames is a structure that will not build.
+    files = _cast(tmp_path)
+    _set(files, name="aylin", new_name="ayla")
     assert "aylin" not in _read_back(files)
     assert _read_back(files)["ayla"] == "1girl, long teal hair"
     frames = _read_back(files, "frames")
@@ -303,57 +322,164 @@ def test_update_character_renames_and_the_frames_follow(tmp_path):
     assert frames[2]["characters"] == {"ayla": ["gecelik"], "deniz": []}
 
 
-def test_update_character_says_how_many_frames_followed(tmp_path):
-    files = _cast(tmp_path)
-    said = _call(files, "update_character", file="bar-scene.json", name="aylin", new_name="ayla")
-    assert said == "Renamed aylin to ayla in characters; 2 frames followed."
+def test_a_rename_says_how_many_frames_followed(tmp_path):
+    made = _set(_cast(tmp_path), name="aylin", new_name="ayla")
+    assert made.text == "Renamed aylin to ayla in characters; 2 frames followed."
+    assert made.outcome == "Renamed"
 
 
-def test_update_character_can_do_both_at_once(tmp_path):
+def test_a_rename_with_tags_quotes_the_old_text(tmp_path):
     files = _cast(tmp_path)
-    said = _call(
-        files,
-        "update_character",
-        file="bar-scene.json",
-        name="aylin",
-        new_name="ayla",
-        tags="1girl, red hair",
+    made = _set(files, name="aylin", new_name="ayla", tags="1girl, red hair")
+    assert made.text == (
+        "Renamed aylin to ayla in characters and changed its text; 2 frames followed. "
+        'Its text was "1girl, long teal hair".'
     )
-    assert said == "Renamed aylin to ayla in characters and changed its text; 2 frames followed."
+    assert made.outcome == "Renamed"
     assert _read_back(files)["ayla"] == "1girl, red hair"
 
 
-def test_update_character_refuses_a_name_that_is_taken(tmp_path):
-    # Two entries folded into one is the one thing here that cannot be undone by calling again.
+def test_a_new_name_for_a_name_that_is_not_there_is_refused(tmp_path):
+    # Never an entry opened under the new name, even with tags: a model renaming something that is
+    # not there has the old name wrong, and opening one would hide that.
     files = _cast(tmp_path)
-    said = _call(files, "update_character", file="bar-scene.json", name="aylin", new_name="deniz")
-    assert said == "There is already a character called deniz."
-    assert _read_back(files)["deniz"] == "1boy, short black hair"
+    made = _set(files, name="lara", new_name="ayla", tags="1girl")
+    assert made.text == "lara is not in characters; known: aylin, deniz, eda."
+    assert made.outcome == "Not there"
+    assert files.read("p1", "bar-scene.json") == CAST
 
 
-def test_update_character_needs_something_to_change(tmp_path):
+def test_the_same_tags_change_nothing(tmp_path):
+    # No "Changed" for a text that did not change, and no write: the file the user is reading is
+    # not touched to say nothing.
+    files = _cast(tmp_path)
+    made = _set(files, name="aylin", tags="1girl, long teal hair")
+    assert made.text == "Nothing would change about aylin."
+    assert made.outcome == "Nothing to change"
+    assert files.read("p1", "bar-scene.json") == CAST
+
+
+def test_a_name_that_is_there_with_nothing_else_changes_nothing(tmp_path):
     # No silent success. A model told nothing happened moves on believing it did.
     files = _cast(tmp_path)
-    assert _call(files, "update_character", file="bar-scene.json", name="aylin") == (
-        "Nothing was given to change about aylin."
-    )
+    assert _set(files, name="aylin").text == "Nothing would change about aylin."
+    assert _set(files, name="aylin", new_name="aylin").text == "Nothing would change about aylin."
 
 
-def test_update_character_refuses_renaming_to_the_same_name(tmp_path):
+def test_a_new_name_that_is_the_name_is_no_rename(tmp_path):
     files = _cast(tmp_path)
-    assert _call(
-        files, "update_character", file="bar-scene.json", name="aylin", new_name="aylin"
-    ) == "aylin is already called that."
+    made = _set(files, name="aylin", new_name="aylin", tags="1girl, red hair")
+    assert made.outcome == "Changed"
+    assert _read_back(files)["aylin"] == "1girl, red hair"
 
 
-def test_update_character_reads_the_old_list_form_when_it_renames(tmp_path):
+def test_a_new_name_that_is_taken_is_refused(tmp_path):
+    # Two entries folded into one is the one thing here that cannot be undone by calling again.
+    files = _cast(tmp_path)
+    made = _set(files, name="aylin", new_name="deniz", tags="1girl, red hair")
+    assert made.text == "There is already a character called deniz."
+    assert made.outcome == "Already there"
+    assert files.read("p1", "bar-scene.json") == CAST
+
+
+@pytest.mark.parametrize("tool", ["set_character", "remove_character"])
+@pytest.mark.parametrize("broken", [["aylin"], "aylin"])
+def test_a_map_that_is_not_a_map_is_refused_and_left_as_it_is(tmp_path, broken, tool):
+    # add_ used to put an empty map in its place and write the file: a hand-written list wiped to
+    # make room for one name. The user's work comes first, so the file stays as they wrote it. And
+    # remove_ looked the name up in it and crashed the turn.
+    written = json.dumps({"characters": broken, "frames": []})
+    files = _with(tmp_path, "bar-scene.json", written)
+    made = _set(files, tool, name="aylin", tags="1girl")
+    assert made.text == (
+        "characters in bar-scene.json is not a map of names to tags, so nothing was written."
+    )
+    assert made.outcome == "Refused"
+    assert files.read("p1", "bar-scene.json") == written
+
+
+def test_a_null_map_takes_its_first_entry(tmp_path):
+    # Null holds nothing a hand wrote, so it is a map with nothing in it yet, as a missing one is.
+    files = _with(tmp_path, "bar-scene.json", json.dumps({"characters": None, "frames": []}))
+    assert _set(files, name="aylin", tags="1girl").outcome == "Added"
+    assert _read_back(files) == {"aylin": "1girl"}
+
+
+def test_a_new_name_that_is_the_name_still_adds(tmp_path):
+    # A weak model fills both fields while adding. The same name twice is no rename, so it is not
+    # refused as renaming something that is not there.
+    files = _cast(tmp_path)
+    assert _set(files, name="lara", new_name="lara", tags="1girl").outcome == "Added"
+    assert _read_back(files)["lara"] == "1girl"
+
+
+def test_set_character_reads_the_old_list_form_when_it_renames(tmp_path):
     # Files written before outfits existed carry a plain list of names, and a rename cannot turn
     # what is already on the user's disk into rubbish.
     old = json.loads(CAST)
     old["frames"] = [{"characters": ["aylin", "deniz"], "location": "bedroom", "action": "one"}]
     files = _with(tmp_path, "bar-scene.json", json.dumps(old))
-    _call(files, "update_character", file="bar-scene.json", name="aylin", new_name="ayla")
+    _set(files, name="aylin", new_name="ayla")
     assert _read_back(files, "frames")[0]["characters"] == ["ayla", "deniz"]
+
+
+def test_set_character_leaves_the_other_maps_alone(tmp_path):
+    files = _cast(tmp_path)
+    _set(files, name="lara", tags="1girl")
+    # Asserted first, and not for company: without it everything below is vacuously true on a call
+    # that did nothing at all.
+    assert "lara" in _read_back(files)
+    before = json.loads(CAST)
+    for key in ("outfits", "locations", "frames"):
+        assert _read_back(files, key) == before[key]
+
+
+class _Counting:
+    """The file store, counting what the tool asks of it: each call is a round trip on Drive."""
+
+    def __init__(self, files):
+        self._files = files
+        self.calls = []
+
+    def __getattr__(self, name):
+        real = getattr(self._files, name)
+
+        def counted(*args):
+            self.calls.append(name)
+            return real(*args)
+
+        return counted
+
+
+@pytest.mark.parametrize(
+    "given",
+    [
+        {"name": "lara", "tags": "1girl"},
+        {"name": "aylin", "tags": "1girl, red hair"},
+        {"name": "aylin", "new_name": "ayla"},
+    ],
+)
+def test_a_set_is_one_read_and_one_write(tmp_path, given):
+    counting = _Counting(_cast(tmp_path))
+    _set(counting, **given)
+    assert counting.calls == ["read", "write"]
+
+
+@pytest.mark.parametrize(
+    "given",
+    [
+        {"tags": "1girl"},
+        {"name": "lara"},
+        {"name": "lara", "new_name": "ayla"},
+        {"name": "aylin", "new_name": "deniz"},
+        {"name": "aylin"},
+        {"name": "aylin", "tags": "1girl, long teal hair"},
+    ],
+)
+def test_a_set_that_changes_nothing_reads_once_and_writes_nothing(tmp_path, given):
+    counting = _Counting(_cast(tmp_path))
+    _set(counting, **given)
+    assert counting.calls == ["read"]
 
 
 def test_remove_character_takes_the_name_out(tmp_path):
@@ -387,7 +513,7 @@ def test_remove_character_leaves_the_frames_alone(tmp_path):
     assert _read_back(files, "frames") == json.loads(CAST)["frames"]
 
 
-CHARACTER_TOOLS = ("add_character", "update_character", "remove_character")
+CHARACTER_TOOLS = ("set_character", "remove_character")
 
 
 @pytest.mark.parametrize("tool", CHARACTER_TOOLS)
@@ -433,68 +559,52 @@ def test_the_cast_of_a_frame_is_read_the_same_way_everywhere():
 
 # --- outfit management (Madde 169) ----------------------------------------------------------------
 #
-# The same three tools over a second map, and the shared bodies carry most of it. What does not come
+# The same two tools over a second map, and the shared bodies carry most of it. What does not come
 # free is everything touching a frame: a character is a key in the frame's cast, an outfit is a name
 # inside that key's list. So "which frames stand on this" and "carry the rename through" both need
 # their own answer here -- and so does the refusal's verb, because an outfit is worn rather than
 # merely present.
 
 
-def test_add_outfit_writes_the_name_and_its_tags(tmp_path):
+def test_set_outfit_adds_a_name_that_is_not_there(tmp_path):
     files = _cast(tmp_path)
-    _call(files, "add_outfit", file="bar-scene.json", name="palto", tags="long wool coat")
+    made = _set(files, "set_outfit", name="palto", tags="long wool coat")
+    assert made.text == (
+        "Added palto to outfits as a new outfit; known before it: atki, gecelik, takim."
+    )
     assert _read_back(files, "outfits")["palto"] == "long wool coat"
 
 
-def test_add_outfit_says_what_it_added(tmp_path):
+def test_an_outfit_needs_a_name_and_a_new_one_needs_tags(tmp_path):
     files = _cast(tmp_path)
-    assert _call(files, "add_outfit", file="bar-scene.json", name="palto", tags="coat") == (
-        "Added palto to outfits."
+    assert _set(files, "set_outfit", tags="coat").text == "An outfit needs a name."
+    assert _set(files, "set_outfit", name="palto").text == "A new outfit needs tags."
+
+
+def test_set_outfit_changes_a_name_that_is_there(tmp_path):
+    # Worn in frames 1 and 3: an outfit's frames are read inside whoever wears it.
+    files = _cast(tmp_path)
+    assert _set(files, "set_outfit", name="gecelik", tags="black slip").text == (
+        'Changed gecelik in outfits; frames naming it: 1, 3. Its text was "white nightgown".'
     )
-
-
-def test_add_outfit_refuses_a_name_that_is_already_there(tmp_path):
-    files = _cast(tmp_path)
-    said = _call(files, "add_outfit", file="bar-scene.json", name="gecelik", tags="something")
-    assert said == "There is already an outfit called gecelik."
-    assert _read_back(files, "outfits")["gecelik"] == "white nightgown"
-
-
-def test_add_outfit_needs_a_name(tmp_path):
-    # The singular comes off the plural, so one sentence serves three maps. This is where that is
-    # measured on a second one.
-    files = _cast(tmp_path)
-    assert _call(files, "add_outfit", file="bar-scene.json", tags="coat") == (
-        "An outfit needs a name."
-    )
-
-
-def test_add_outfit_needs_tags(tmp_path):
-    files = _cast(tmp_path)
-    assert _call(files, "add_outfit", file="bar-scene.json", name="palto") == (
-        "A new outfit needs tags."
-    )
-
-
-def test_update_outfit_changes_the_tags(tmp_path):
-    files = _cast(tmp_path)
-    _call(files, "update_outfit", file="bar-scene.json", name="gecelik", tags="black slip")
     assert _read_back(files, "outfits")["gecelik"] == "black slip"
 
 
-def test_update_outfit_refuses_a_name_nobody_knows(tmp_path):
+def test_a_new_name_for_an_outfit_that_is_not_there_is_refused(tmp_path):
     # This map's names only. A character's name is no help to somebody looking for an outfit.
     files = _cast(tmp_path)
-    assert _call(files, "update_outfit", file="bar-scene.json", name="palto", tags="coat") == (
+    assert _set(files, "set_outfit", name="palto", new_name="coat").text == (
         "palto is not in outfits; known: atki, gecelik, takim."
     )
 
 
-def test_update_outfit_renames_and_the_frames_follow(tmp_path):
+def test_set_outfit_renames_and_the_frames_follow(tmp_path):
     # An outfit lives inside a character's list, not as a key of the cast. The rename has to reach
     # in there and leave the character's own name exactly where it was.
     files = _cast(tmp_path)
-    _call(files, "update_outfit", file="bar-scene.json", name="gecelik", new_name="pijama")
+    assert _set(files, "set_outfit", name="gecelik", new_name="pijama").text == (
+        "Renamed gecelik to pijama in outfits; 2 frames followed."
+    )
     frames = _read_back(files, "frames")
     assert frames[0]["characters"] == {"aylin": ["pijama"]}
     assert frames[2]["characters"] == {"aylin": ["pijama"], "deniz": []}
@@ -502,21 +612,22 @@ def test_update_outfit_renames_and_the_frames_follow(tmp_path):
     assert frames[1]["characters"] == {"deniz": ["takim"]}
 
 
-def test_update_outfit_says_how_many_frames_followed(tmp_path):
-    files = _cast(tmp_path)
-    assert _call(
-        files, "update_outfit", file="bar-scene.json", name="gecelik", new_name="pijama"
-    ) == "Renamed gecelik to pijama in outfits; 2 frames followed."
-
-
-def test_update_outfit_renames_inside_the_short_form_too(tmp_path):
+def test_set_outfit_renames_inside_the_short_form_too(tmp_path):
     # One outfit written without its list is still that outfit, and a rename that skipped it would
     # leave a frame naming something the map no longer has.
     short = json.loads(CAST)
     short["frames"] = [{"characters": {"aylin": "gecelik"}, "location": "bedroom", "action": "one"}]
     files = _with(tmp_path, "bar-scene.json", json.dumps(short))
-    _call(files, "update_outfit", file="bar-scene.json", name="gecelik", new_name="pijama")
+    _set(files, "set_outfit", name="gecelik", new_name="pijama")
     assert _read_back(files, "frames")[0]["characters"] == {"aylin": "pijama"}
+
+
+def test_a_new_outfit_name_that_is_taken_is_refused(tmp_path):
+    files = _cast(tmp_path)
+    assert _set(files, "set_outfit", name="gecelik", new_name="takim").text == (
+        "There is already an outfit called takim."
+    )
+    assert files.read("p1", "bar-scene.json") == CAST
 
 
 def test_remove_outfit_takes_the_name_out(tmp_path):
@@ -544,7 +655,7 @@ def test_remove_outfit_leaves_the_characters_alone(tmp_path):
     assert _read_back(files) == json.loads(CAST)["characters"]
 
 
-OUTFIT_TOOLS = ("add_outfit", "update_outfit", "remove_outfit")
+OUTFIT_TOOLS = ("set_outfit", "remove_outfit")
 
 
 @pytest.mark.parametrize("tool", OUTFIT_TOOLS)
@@ -575,62 +686,55 @@ def test_an_outfit_tool_opens_the_file_the_same_way(tmp_path, tool):
 # arrive as a branch and a row, not as another loosening of the middle.
 
 
-def test_add_location_writes_the_name_and_its_tags(tmp_path):
+def test_set_location_adds_a_name_that_is_not_there(tmp_path):
     files = _cast(tmp_path)
-    _call(files, "add_location", file="bar-scene.json", name="balkon", tags="balcony, night")
+    made = _set(files, "set_location", name="balkon", tags="balcony, night")
+    assert made.text == (
+        "Added balkon to locations as a new location; known before it: bedroom, kapi_onu."
+    )
     assert _read_back(files, "locations")["balkon"] == "balcony, night"
 
 
-def test_add_location_says_what_it_added(tmp_path):
-    files = _cast(tmp_path)
-    assert _call(files, "add_location", file="bar-scene.json", name="balkon", tags="balcony") == (
-        "Added balkon to locations."
-    )
-
-
-def test_add_location_refuses_a_name_that_is_already_there(tmp_path):
+def test_a_location_needs_a_name(tmp_path):
     # The article goes back to "a" here: one rule over three singulars, and this is the third.
     files = _cast(tmp_path)
-    said = _call(files, "add_location", file="bar-scene.json", name="bedroom", tags="something")
-    assert said == "There is already a location called bedroom."
-    assert _read_back(files, "locations")["bedroom"] == "sunlit bedroom"
+    assert _set(files, "set_location", tags="balcony").text == "A location needs a name."
 
 
-def test_add_location_needs_a_name(tmp_path):
+def test_set_location_changes_a_name_that_is_there(tmp_path):
+    # A frame names its place in a field of its own, so the frames come from there.
     files = _cast(tmp_path)
-    assert _call(files, "add_location", file="bar-scene.json", tags="balcony") == (
-        "A location needs a name."
+    assert _set(files, "set_location", name="bedroom", tags="dark bedroom").text == (
+        'Changed bedroom in locations; frames naming it: 1, 2, 3. Its text was "sunlit bedroom".'
     )
-
-
-def test_update_location_changes_the_tags(tmp_path):
-    files = _cast(tmp_path)
-    _call(files, "update_location", file="bar-scene.json", name="bedroom", tags="dark bedroom")
     assert _read_back(files, "locations")["bedroom"] == "dark bedroom"
 
 
-def test_update_location_refuses_a_name_nobody_knows(tmp_path):
+def test_a_new_name_for_a_location_that_is_not_there_is_refused(tmp_path):
     files = _cast(tmp_path)
-    assert _call(files, "update_location", file="bar-scene.json", name="balkon", tags="x") == (
+    assert _set(files, "set_location", name="balkon", new_name="teras").text == (
         "balkon is not in locations; known: bedroom, kapi_onu."
     )
 
 
-def test_update_location_renames_and_the_frames_follow(tmp_path):
+def test_set_location_renames_and_the_frames_follow(tmp_path):
     # A frame names its place in a field of its own, so the rename writes there and leaves the cast
     # entirely alone.
     files = _cast(tmp_path)
-    _call(files, "update_location", file="bar-scene.json", name="bedroom", new_name="yatak")
+    assert _set(files, "set_location", name="bedroom", new_name="yatak").text == (
+        "Renamed bedroom to yatak in locations; 3 frames followed."
+    )
     frames = _read_back(files, "frames")
     assert [frame["location"] for frame in frames] == ["yatak", "yatak", "yatak"]
     assert frames[0]["characters"] == {"aylin": ["gecelik"]}
 
 
-def test_update_location_says_how_many_frames_followed(tmp_path):
+def test_a_new_location_name_that_is_taken_is_refused(tmp_path):
     files = _cast(tmp_path)
-    assert _call(
-        files, "update_location", file="bar-scene.json", name="bedroom", new_name="yatak"
-    ) == "Renamed bedroom to yatak in locations; 3 frames followed."
+    assert _set(files, "set_location", name="bedroom", new_name="kapi_onu").text == (
+        "There is already a location called kapi_onu."
+    )
+    assert files.read("p1", "bar-scene.json") == CAST
 
 
 def test_remove_location_takes_the_name_out(tmp_path):
@@ -658,7 +762,7 @@ def test_remove_location_leaves_the_frames_alone(tmp_path):
     assert _read_back(files, "frames") == json.loads(CAST)["frames"]
 
 
-LOCATION_TOOLS = ("add_location", "update_location", "remove_location")
+LOCATION_TOOLS = ("set_location", "remove_location")
 
 
 @pytest.mark.parametrize("tool", LOCATION_TOOLS)
@@ -676,26 +780,47 @@ def test_a_location_tool_opens_the_file_the_same_way(tmp_path, tool):
     )
 
 
-def test_the_three_maps_are_managed_by_the_same_nine_tools():
+def test_the_three_maps_are_managed_by_the_same_six_tools():
     # The one place that says the pattern is a pattern. A later madde adding a parameter to one of
-    # the nine, or naming a tenth differently, is caught here rather than by a reader noticing.
+    # the six, or naming a seventh differently, is caught here rather than by a reader noticing.
     declared = {spec["function"]["name"]: spec["function"] for spec in TOOL_SPECS}
     for which in ("character", "outfit", "location"):
-        assert set(declared[f"add_{which}"]["parameters"]["required"]) == {"file", "name", "tags"}
-        assert set(declared[f"update_{which}"]["parameters"]["required"]) == {"file", "name"}
-        assert set(declared[f"update_{which}"]["parameters"]["properties"]) == {
-            "file",
-            "name",
-            "tags",
-            "new_name",
-        }
-        assert set(declared[f"remove_{which}"]["parameters"]["properties"]) == {"file", "name"}
+        setting = declared[f"set_{which}"]["parameters"]
+        # Tags are not required: a rename gives none, and a new name without them is refused in
+        # words rather than by the schema.
+        assert set(setting["properties"]) == {"file", "name", "tags", "new_name"}
+        assert set(setting["required"]) == {"file", "name"}
+        removing = declared[f"remove_{which}"]["parameters"]
+        assert set(removing["properties"]) == {"file", "name"}
+        assert set(removing["required"]) == {"file", "name"}
+
+
+@pytest.mark.parametrize(
+    "gone",
+    [
+        "add_character",
+        "update_character",
+        "add_outfit",
+        "update_outfit",
+        "add_location",
+        "update_location",
+    ],
+)
+def test_no_text_points_at_an_old_add_or_update_tool(gone):
+    # Madde 456. That the names are gone and a call to one is answered is the tool list's equality
+    # and the runner's one road for every gone tool; what neither sees is a description or a skill
+    # still sending the model to the old name.
+    from backend.features.workspace.domain.skills import INSTRUCTIONS
+
+    assert gone not in json.dumps(TOOL_SPECS)
+    for skill, text in INSTRUCTIONS.items():
+        assert gone not in text, skill
 
 
 # --- the door on a structure file (Madde 171) -----------------------------------------------------
 #
 # Shut only now, and not a madde earlier. A door with nothing behind it leaves the model unable to
-# start anything at all; by here there is start_scenario and there are nine map tools, so a scenario
+# start anything at all; by here there is start_scenario and there are the map tools, so a scenario
 # can be opened, filled, corrected and emptied without one line of JSON being typed.
 #
 # No exception, by the user's decision of 5 Sep. A broken structure file cannot have come from these
@@ -705,7 +830,7 @@ def test_the_three_maps_are_managed_by_the_same_nine_tools():
 
 SHUT = (
     "bar-scene.json is a structure file; it is not written or changed as text. Use start_scenario "
-    "to open one, and the add_, update_ and remove_ tools to change it."
+    "to open one, and the set_, add_, update_ and remove_ tools to change it."
 )
 
 
@@ -758,8 +883,8 @@ def test_the_tool_that_opens_a_scenario_lands_where_the_door_is(tmp_path):
     born = run_tool(files, "p1", "start_scenario", json.dumps({"name": "bar-scene.md"}))
     assert born.target.endswith(".json")
     assert _call(files, "edit_file", name=born.target, old="{", new="[").endswith(
-        "it is not written or changed as text. Use start_scenario to open one, and the add_, "
-        "update_ and remove_ tools to change it."
+        "it is not written or changed as text. Use start_scenario to open one, and the set_, "
+        "add_, update_ and remove_ tools to change it."
     )
 
 
@@ -1059,9 +1184,9 @@ def test_the_frames_action_points_at_the_document_by_its_title():
 def test_the_count_lands_in_the_characters_own_entry():
     # Madde 166 inverted the schema's sixth rule: the count used to belong to the frame's people
     # field, and that field is gone. This is the only place the new home is written down.
-    from backend.features.workspace.domain.prompt import ADD_CHARACTER_TAGS
+    from backend.features.workspace.domain.prompt import SET_CHARACTER_TAGS
 
-    said = ADD_CHARACTER_TAGS.lower()
+    said = SET_CHARACTER_TAGS.lower()
     assert "the count goes here and nowhere else" in said
     # The example went with correction 30: it was read as the whole of what an entry may hold.
     assert "1girl" not in said
@@ -1070,35 +1195,62 @@ def test_the_count_lands_in_the_characters_own_entry():
 def test_solo_is_kept_out_of_a_character():
     # The count travels with the person; solo does not. The same character stands alone in one frame
     # and beside somebody in the next, so an entry claiming solo is wrong in half of them.
-    from backend.features.workspace.domain.prompt import ADD_CHARACTER_TAGS
+    from backend.features.workspace.domain.prompt import SET_CHARACTER_TAGS
 
-    assert "do not write solo" in ADD_CHARACTER_TAGS.lower()
+    assert "do not write solo" in SET_CHARACTER_TAGS.lower()
 
 
 def test_clothes_are_kept_out_of_a_character():
-    from backend.features.workspace.domain.prompt import ADD_CHARACTER_TAGS
+    from backend.features.workspace.domain.prompt import SET_CHARACTER_TAGS
 
-    assert "those are outfits" in ADD_CHARACTER_TAGS.lower()
+    assert "those are outfits" in SET_CHARACTER_TAGS.lower()
 
 
-@pytest.mark.parametrize("name", ["ADD_OUTFIT", "UPDATE_OUTFIT"])
-def test_an_outfit_is_named_after_the_clothes(name):
+def test_an_outfit_is_named_after_the_clothes():
     # Corrections 16 and 34. An outfit named after its wearer cannot be worn by the other one, which
-    # is the whole reason outfits are their own map. Written on both tools rather than in the shared
-    # rules: it governs a name, and the name is asked for by these two.
-    from backend.features.workspace.domain import prompt
+    # is the whole reason outfits are their own map. Written on the tool rather than in the shared
+    # rules: it governs a name, and the name is asked for here.
+    from backend.features.workspace.domain.prompt import SET_OUTFIT
 
-    said = getattr(prompt, name).lower()
+    said = SET_OUTFIT.lower()
     assert "name an outfit after the clothes" in said
     assert "not after the person wearing them" in said
 
 
 def test_people_are_kept_out_of_a_location():
-    from backend.features.workspace.domain.prompt import ADD_LOCATION_TAGS
+    from backend.features.workspace.domain.prompt import SET_LOCATION_TAGS
 
-    said = ADD_LOCATION_TAGS.lower()
+    said = SET_LOCATION_TAGS.lower()
     assert "nobody is in it" in said
     assert "it carries no count" in said
+
+
+@pytest.mark.parametrize("which", ["character", "outfit", "location"])
+def test_each_set_tool_closes_on_the_shared_texts(which):
+    # Madde 456. The description closes on how a set lands, and the tags on the same words in all
+    # three: written once each, so the three tools cannot drift apart.
+    from backend.features.workspace.domain import prompt
+
+    spec = next(s for s in TOOL_SPECS if s["function"]["name"] == f"set_{which}")["function"]
+    fields = spec["parameters"]["properties"]
+    assert spec["description"].endswith(prompt.SETTING_AN_ENTRY)
+    assert fields["tags"]["description"].endswith(prompt.AN_ENTRYS_NEW_TAGS)
+    assert fields["new_name"]["description"] == prompt.AN_ENTRYS_NEW_NAME
+
+
+def test_a_set_tells_the_model_how_an_overwrite_shows_and_what_a_new_entry_needs():
+    # One tool both adds and changes: the model is told the answer to a change quotes what it
+    # replaced, and that tags are what a new entry cannot do without.
+    from backend.features.workspace.domain import prompt
+
+    assert "the answer gives the text it had" in prompt.SETTING_AN_ENTRY
+    assert "a new entry needs them" in prompt.AN_ENTRYS_NEW_TAGS.lower()
+
+
+def test_the_edit_tool_no_longer_offers_to_rename_an_entry():
+    # Madde 171 shut a scenario to edit_file, and a rename is set_'s now: the sentence pointed at a
+    # call that comes back refused.
+    assert "renaming an entry" not in _said_by("edit_file").lower()
 
 
 def test_the_rules_carry_nothing_that_belongs_to_one_field():
@@ -1183,21 +1335,18 @@ def test_every_tool_is_declared_to_the_model():
         # content, because the shape is the code's. It has to exist before Madde 171 shuts .json to
         # create_file, or the model would be left with no way to start a scenario at all.
         "start_scenario",
-        # Madde 168. Three rather than one: add refuses a name that is there, update refuses one
-        # that is not, and remove refuses while a frame stands on it. Overwriting in silence is not
-        # a thing the signatures allow.
-        "add_character",
-        "update_character",
+        # Madde 168, and 456. Two a map: set opens a name that is not there and changes one that
+        # is, saying which and quoting what it replaced, and remove refuses while a frame stands on
+        # it. Overwriting in silence is not a thing the answers allow.
+        "set_character",
         "remove_character",
-        # Madde 169. The same three over a second map. What is not the same is everything touching
+        # Madde 169. The same two over a second map. What is not the same is everything touching
         # a frame: an outfit lives inside a character's list, and it is worn rather than present.
-        "add_outfit",
-        "update_outfit",
+        "set_outfit",
         "remove_outfit",
         # Madde 170. The third and narrowest map: a frame names its place in a field of its own,
         # there is one of it, and it is always a plain string.
-        "add_location",
-        "update_location",
+        "set_location",
         "remove_location",
         # Madde 174. The frame's own two, which complete the three every map has. Between 171 and
         # here a frame already in the file could not be touched at all.
@@ -1353,7 +1502,7 @@ def test_building_again_writes_over_its_own_output(tmp_path):
     # the only way left to change a character.
     _call(
         files,
-        "update_character",
+        "set_character",
         file="intro-frames.json",
         name="aylin",
         tags="1girl, short red hair",
@@ -2054,8 +2203,7 @@ def test_update_frame_straightens_a_lone_outfit_the_way_add_frame_does(tmp_path)
 
 
 def test_update_frame_refuses_when_nothing_was_given(tmp_path):
-    # No silent success: a model told nothing happened moves on believing it did. _update_entry's
-    # sentence, one level along.
+    # No silent success: a model told nothing happened moves on believing it did.
     files = _with(tmp_path, "scene.json", WITH_ACTION)
     assert "Nothing was given to change about frame 1." in _call(
         files, "update_frame", file="scene.json", frame=1
@@ -2339,17 +2487,17 @@ def test_the_character_field_names_no_pov_entry():
     # Madde 182 wrote the pov_ entry's exception here, beside the count rule. Madde 393 takes pov_
     # away: an entry for what a camera angle shows is Start a scenario's Step 5 rule now, for every
     # kind of entry, and the count rule stands alone.
-    from backend.features.workspace.domain.prompt import ADD_CHARACTER_TAGS
+    from backend.features.workspace.domain.prompt import SET_CHARACTER_TAGS
 
-    assert "the count goes here and nowhere else" in ADD_CHARACTER_TAGS.lower()
+    assert "the count goes here and nowhere else" in SET_CHARACTER_TAGS.lower()
     # Asked after the presence above, so the absence cannot pass on a text nobody wrote.
-    assert "pov_" not in ADD_CHARACTER_TAGS
+    assert "pov_" not in SET_CHARACTER_TAGS
 
 
 def test_the_map_tools_never_carry_a_frames_anatomy():
     # Madde 181. An anatomy word in a character's entry is drawn into every frame that character is
     # in -- which is the leak the user avoided by hand in Deneme 4.
-    for tool in ("add_character", "add_outfit", "add_location"):
+    for tool in ("set_character", "set_outfit", "set_location"):
         said = _said_by(tool).lower()
         # A text gone empty cannot pass the absences below quietly.
         assert said.strip(), tool
@@ -2394,9 +2542,9 @@ def test_the_character_field_says_which_categories_to_write():
     # The examples were read more closely than the rule was: Deneme 4 came back with entries that
     # were the example with two words changed. Correction 30 took them out of every text and 35 put
     # the detail back the way the rest of this file carries it -- by naming the categories.
-    from backend.features.workspace.domain.prompt import ADD_CHARACTER_TAGS
+    from backend.features.workspace.domain.prompt import SET_CHARACTER_TAGS
 
-    said = ADD_CHARACTER_TAGS.lower()
+    said = SET_CHARACTER_TAGS.lower()
     for category in ("age", "body", "hair", "face"):
         assert category in said, category
     assert "long hair, black" not in said
@@ -2406,9 +2554,9 @@ def test_the_character_field_says_which_categories_to_write():
 def test_the_place_field_says_which_categories_to_write():
     # The same, on the field correction 35 found standing with no detail at all: it said the place
     # as tags and stopped, so what a place entry holds was the example's to decide.
-    from backend.features.workspace.domain.prompt import ADD_LOCATION_TAGS
+    from backend.features.workspace.domain.prompt import SET_LOCATION_TAGS
 
-    said = ADD_LOCATION_TAGS.lower()
+    said = SET_LOCATION_TAGS.lower()
     assert "indoors" in said
     assert "the light" in said
     assert "bedroom, indoors, curtains" not in said
