@@ -53,6 +53,13 @@ konuşurz".)* **Ayrıntılar kullanıcıyla konuşulacak.**
 *(Kullanıcı, 2 Ekim — "queen agent backloga elbiselerde karışıyor ekler misin".)* **Ayrıntılar
 kullanıcıyla konuşulacak.**
 
+## Bağlantı koptuktan sonra Try again soruyu iki kez yazıyor
+
+*(Claude, 9 Ekim — v10'un 440'ını deneyen QA'da görüldü; 440'tan önce de vardı.)* Tur sürerken sunucu
+kapandı, ekranda *"network error"* kartı çıktı, ve kartın Try again'i soruyu metniyle yeniden gönderdi:
+kayıtta soru iki kez duruyor. `useChat.js`'in `catch`'i, sunucu soruyu yazdıktan sonra kopan bir akışı
+"daha bir bayt gelmeden reddedildi" gibi okuyup `refusedReply`'i kuruyor. Mod doğru gidiyordu.
+
 ## Bir frontend testi arada düşüyor
 
 *(Claude, 9 Ekim — Queen Editor v9'un 439'unda görüldü.)* `src/features/workspace/ChatScreen.test.jsx`'in
