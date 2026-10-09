@@ -60,6 +60,19 @@ kapandı, ekranda *"network error"* kartı çıktı, ve kartın Try again'i soru
 kayıtta soru iki kez duruyor. `useChat.js`'in `catch`'i, sunucu soruyu yazdıktan sonra kopan bir akışı
 "daha bir bayt gelmeden reddedildi" gibi okuyup `refusedReply`'i kuruyor. Mod doğru gidiyordu.
 
+## Arşivlenirken Unarchive'a basılırsa sıra karışabilir
+
+*(Claude, 9 Ekim — v10'un 441'ini okuyan reviewer'da görüldü; Undo'da da vardı.)* Arşivin cevabı
+gelmeden Unarchive'a basılırsa ekran projeyi arşivin kendi cevabı gelene kadar arşivli çizer, Unarchive
+daha önce cevaplasa bile. Sunucu iki PATCH'i aynı anda işlerse ikisi ters sırayla da yazılabilir. Pencere
+arşivleme sürdükçe açık — arşivlemenin yavaşlığı v10'un 446'sında araştırılıyor.
+
+## Unarchive'dan sonra odak kayboluyor
+
+*(Claude, 9 Ekim — v10'un 441'ini deneyen QA'da görüldü.)* Archived sekmesinde Unarchive'a basınca
+basılan ⋯ satırıyla gider ve odak sayfanın gövdesine düşer. 441'de Archive'dan sonra odak sıradaki
+satırın ⋯'sine geçiyor; Unarchive'da aynısı istenirse buradan.
+
 ## Bir frontend testi arada düşüyor
 
 *(Claude, 9 Ekim — Queen Editor v9'un 439'unda görüldü.)* `src/features/workspace/ChatScreen.test.jsx`'in
