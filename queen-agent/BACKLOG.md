@@ -95,6 +95,13 @@ dosyalar değişince yeniden okuyor, var olan sohbette tur bitince değil.
 tasarımda cümleyle düğmeler arası 12 px, altta boşluk yok; uygulamada 10 px ve altta 10 px. 444 yalnız
 Copy'nin görünüşünü aldı.
 
+## Araç çağrısının yanındaki sözler son cevaba bitişik yazılıyor
+
+*(Claude, 9 Ekim — v10'un 445'ini deneyen QA'da görüldü; 445'ten gelmiyor.)* Bir round araç
+çağrısıyla birlikte söz de söylerse, o söz son cevabın başına boşluksuz ekleniyor: ekranda *"Let me
+write that file for you.Answer to …"*. `stream_answer.py`'de roundların sözleri `"".join(said)` ile
+birleşiyor.
+
 ## Bir frontend testi arada düşüyor
 
 *(Claude, 9 Ekim — Queen Editor v9'un 439'unda görüldü.)* `src/features/workspace/ChatScreen.test.jsx`'in
