@@ -53,33 +53,6 @@ konuşurz".)* **Ayrıntılar kullanıcıyla konuşulacak.**
 *(Kullanıcı, 2 Ekim — "queen agent backloga elbiselerde karışıyor ekler misin".)* **Ayrıntılar
 kullanıcıyla konuşulacak.**
 
-## Bağlantı koptuktan sonra Try again soruyu iki kez yazıyor
-
-*(Claude, 9 Ekim — v10'un 440'ını deneyen QA'da görüldü; 440'tan önce de vardı.)* Tur sürerken sunucu
-kapandı, ekranda *"network error"* kartı çıktı, ve kartın Try again'i soruyu metniyle yeniden gönderdi:
-kayıtta soru iki kez duruyor. `useChat.js`'in `catch`'i, sunucu soruyu yazdıktan sonra kopan bir akışı
-"daha bir bayt gelmeden reddedildi" gibi okuyup `refusedReply`'i kuruyor. Mod doğru gidiyordu.
-
-## Arşivlenirken Unarchive'a basılırsa sıra karışabilir
-
-*(Claude, 9 Ekim — v10'un 441'ini okuyan reviewer'da görüldü; Undo'da da vardı.)* Arşivin cevabı
-gelmeden Unarchive'a basılırsa ekran projeyi arşivin kendi cevabı gelene kadar arşivli çizer, Unarchive
-daha önce cevaplasa bile. Sunucu iki PATCH'i aynı anda işlerse ikisi ters sırayla da yazılabilir. Pencere
-arşivleme sürdükçe açık — arşivlemenin yavaşlığı v10'un 446'sında araştırılıyor.
-
-## Unarchive'dan sonra odak kayboluyor
-
-*(Claude, 9 Ekim — v10'un 441'ini deneyen QA'da görüldü.)* Archived sekmesinde Unarchive'a basınca
-basılan ⋯ satırıyla gider ve odak sayfanın gövdesine düşer. 441'de Archive'dan sonra odak sıradaki
-satırın ⋯'sine geçiyor; Unarchive'da aynısı istenirse buradan.
-
-## Var olan bir sohbette konuşunca proje listesinin sırası güncellenmiyor
-
-*(Claude, 9 Ekim — v10'un 443'ünü deneyen QA'da görüldü; bütün projelerde, 443'ten gelmiyor.)* Var olan
-bir sohbette mesaj gönderip projeden çıkınca All projects proje satırını eski yerinde ve eski
-zamanıyla gösteriyor; sunucu onu çoktan en yeni sayıyor. `App.jsx` listeyi yalnız sohbet doğunca ya da
-dosyalar değişince yeniden okuyor, var olan sohbette tur bitince değil.
-
 ## Kenar çubuğunun "Couldn't load chats." hali tasarımdan iki yerde ayrı
 
 *(Claude, 9 Ekim — v10'un 444'ünü yapan coder'ın karşılaştırması; tasarım `queen-design`'ın
@@ -93,7 +66,9 @@ Copy'nin görünüşünü aldı.
 *(Claude, 9 Ekim — v10'un 445'ini deneyen QA'da görüldü; 445'ten gelmiyor.)* Bir round araç
 çağrısıyla birlikte söz de söylerse, o söz son cevabın başına boşluksuz ekleniyor: ekranda *"Let me
 write that file for you.Answer to …"*. `stream_answer.py`'de roundların sözleri `"".join(said)` ile
-birleşiyor.
+birleşiyor. **Gerçek modelle doğrulanmadı** *(kullanıcı, 9 Ekim — "gerçek kullanımda görünen bir problem
+yok, bunu kontrol edilmedi diye işaretleyelim")*: QA sahte bir DeepSeek'le gördü; gerçek DeepSeek bir
+araç çağırırken aynı cevapta söz söylüyor mu, bilinmiyor. Gerçek kullanımda görülürse ele alınır.
 
 ## 448'in taşıma kodu ve eski proje dosyaları silinecek
 
