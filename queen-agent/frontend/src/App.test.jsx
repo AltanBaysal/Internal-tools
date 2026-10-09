@@ -691,72 +691,30 @@ test("Unpin puts the project back where the server lists it", async () => {
 // (Madde 384).
 
 const tab = (name) => screen.getByRole("button", { name: new RegExp(`^${name}\\b`) });
-const rowsOf = (section) =>
-  [...section.querySelectorAll(".all-projects__row")].map((row) => row.textContent);
 const PIER = { id: "p3", name: "Old pier", chats: 0, files: 0, pinned: true, lastActivity: hoursAgo(30) };
+// How many times the list was read: the first draw, then once after each write that landed.
+const listReads = (fetch) => fetch.mock.calls.filter(([path]) => path === "/api/projects").length;
 
-test("Archive asks nothing and leaves Undo where the project stood", async () => {
+test("Archive asks nothing and takes the project out at once, to Archived, with no Undo", async () => {
+  // Madde 441 (the design's 217): out before the server has answered, and nothing in its place.
   const fetch = serverForRows(ROWS);
   const { container } = render(<App />);
   await onAllProjects();
   actionsFor("Notes");
   fireEvent.click(screen.getByRole("button", { name: "Archive" }));
   expect(container.querySelector(".dialog")).toBeNull();
-  await screen.findByRole("button", { name: "Archived 1" });
+  expect(sections(container)).toEqual({ Recent: ["Thesis"] });
   expect(screen.getByRole("button", { name: "Projects 1" })).toBeTruthy();
-  const recent = container.querySelector(".all-projects__section");
-  expect(rowsOf(recent)).toEqual([expect.stringContaining("Thesis"), "Notes archived · Undo"]);
+  expect(screen.getByRole("button", { name: "Archived 1" })).toBeTruthy();
+  // The keyboard goes to the row that now stands where Notes stood -- none, so to the search.
+  expect(document.activeElement).toBe(screen.getByRole("textbox", { name: "Search projects" }));
+  await waitFor(() => expect(listReads(fetch)).toBe(2));
+  expect(sections(container)).toEqual({ Recent: ["Thesis"] });
+  expect(screen.queryByText(/Undo/)).toBeNull();
+  fireEvent.click(tab("Archived"));
+  expect(screen.getByText("Notes", { selector: ".all-projects__row-name" })).toBeTruthy();
   expect(patches(fetch).map(([path, options]) => [path, JSON.parse(options.body)])).toEqual([
     ["/api/projects/p2", { archived: true }],
-  ]);
-});
-
-test("Undo puts the project back where it was", async () => {
-  const fetch = serverForRows(ROWS);
-  const { container } = render(<App />);
-  await onAllProjects();
-  actionsFor("Notes");
-  fireEvent.click(screen.getByRole("button", { name: "Archive" }));
-  await screen.findByRole("button", { name: "Archived 1" });
-  fireEvent.click(screen.getByRole("button", { name: "Undo" }));
-  await screen.findByRole("button", { name: "Archived 0" });
-  await waitFor(() => expect(screen.queryByRole("button", { name: "Undo" })).toBeNull());
-  expect(sections(container)).toEqual({ Recent: ["Thesis", "Notes"] });
-  expect(screen.getByRole("button", { name: "Projects 2" })).toBeTruthy();
-  expect(patches(fetch).map(([path, options]) => [path, JSON.parse(options.body)])).toEqual([
-    ["/api/projects/p2", { archived: true }],
-    ["/api/projects/p2", { archived: false }],
-  ]);
-});
-
-test("a pinned project's Undo stands in Recent, and Undo brings it back unpinned", async () => {
-  // Madde 384: the server takes the pin away with the archive, and Undo asks only for the archive
-  // back -- the owner's choice over the design's restoreProject, which gave the pin back too.
-  const HARBOUR = { id: "p4", name: "Harbour", chats: 0, files: 0, pinned: true, lastActivity: hoursAgo(40) };
-  const fetch = serverForRows([PIER, HARBOUR, ...ROWS]);
-  const { container } = render(<App />);
-  await onAllProjects();
-  expect(sections(container)).toEqual({ Pinned: ["Old pier", "Harbour"], Recent: ["Thesis", "Notes"] });
-  actionsFor("Old pier");
-  fireEvent.click(screen.getByRole("button", { name: "Archive" }));
-  await screen.findByRole("button", { name: "Archived 1" });
-  const [pinned, recent] = container.querySelectorAll(".all-projects__section");
-  expect(rowsOf(pinned)).toEqual([expect.stringContaining("Harbour")]);
-  expect(rowsOf(recent)).toEqual([
-    expect.stringContaining("Thesis"),
-    expect.stringContaining("Notes"),
-    "Old pier archived · Undo",
-  ]);
-  fireEvent.click(screen.getByRole("button", { name: "Undo" }));
-  await waitFor(() =>
-    expect(sections(container)).toEqual({
-      Pinned: ["Harbour"],
-      Recent: ["Thesis", "Notes", "Old pier"],
-    }),
-  );
-  expect(patches(fetch).map(([path, options]) => [path, JSON.parse(options.body)])).toEqual([
-    ["/api/projects/p3", { archived: true }],
-    ["/api/projects/p3", { archived: false }],
   ]);
 });
 
@@ -768,7 +726,8 @@ test("a pinned project archived and then unarchived comes back under Recent", as
   await onAllProjects();
   actionsFor("Old pier");
   fireEvent.click(screen.getByRole("button", { name: "Archive" }));
-  await screen.findByRole("button", { name: "Archived 1" });
+  // Archived 1 shows before the server answers (Madde 441): the list read again is the answer.
+  await waitFor(() => expect(listReads(fetch)).toBe(2));
   fireEvent.click(tab("Archived"));
   actionsFor("Old pier");
   fireEvent.click(screen.getByRole("button", { name: "Unarchive" }));
@@ -874,7 +833,7 @@ test("on the naming screen a list that did not come offers Try again, and no way
   expect(await screen.findByLabelText("Name your project")).toBe(await nameField());
 });
 
-// serverForRows, with its first rename, pin or delete refused in the server's own words.
+// serverForRows, with its first rename, pin, archive or delete refused in the server's own words.
 function refusingFirstWrite(projects) {
   const fetch = serverForRows(projects);
   const keep = fetch.getMockImplementation();
@@ -941,6 +900,19 @@ test("a delete the server refuses leaves the project where it was", async () => 
   fireEvent.click(screen.getByRole("button", { name: "Delete" }));
   expect((await screen.findByText("the store is unreachable")).className).toBe("list-error");
   expect(sections(container)).toEqual({ Recent: ["Thesis", "Notes"] });
+});
+
+test("an archive the server refuses brings the project back to Projects, with the server's words", async () => {
+  // It left at once (Madde 441); the refusal puts it back where the server still lists it.
+  refusingFirstWrite(ROWS);
+  const { container } = render(<App />);
+  await onAllProjects();
+  actionsFor("Notes");
+  fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+  expect(sections(container)).toEqual({ Recent: ["Thesis"] });
+  expect((await screen.findByText("the store is unreachable")).className).toBe("list-error");
+  await waitFor(() => expect(sections(container)).toEqual({ Recent: ["Thesis", "Notes"] }));
+  expect(screen.getByRole("button", { name: "Archived 0" })).toBeTruthy();
 });
 
 test("the next write that lands takes the refusal's line away", async () => {

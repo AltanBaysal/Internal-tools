@@ -24,23 +24,6 @@ function Columns({ project }) {
   );
 }
 
-// What Archive leaves in the project's place, so taking it back is one press where the project
-// was (the design's 135: an archive is undone, never confirmed).
-export function UndoRow({ name, onUndo }) {
-  return (
-    <div className="all-projects__row all-projects__undo">
-      <span>
-        <strong>{name}</strong> archived
-      </span>
-      {" · "}
-      {/* The row the user just acted on keeps the keyboard, on its one action. */}
-      <button type="button" autoFocus onClick={onUndo}>
-        Undo
-      </button>
-    </div>
-  );
-}
-
 // The name corrected in the row's own place rather than in the browser's box (the design's 170).
 // The draft is the field's, as a message edit's is (EditMessage): only the finished name leaves.
 // The field stays until the server has answered, and a refusal leaves the name where it was typed,
@@ -151,6 +134,9 @@ export default function ProjectRow({
         type="button"
         className="all-projects__row-more"
         aria-label={`Actions for ${project.name}`}
+        // Whose ⋯ this is: All projects finds by it the one that takes the keyboard once a row
+        // has left (the design's 217).
+        data-project={project.id}
         onClick={() => onOpenMenu?.(project.id)}
       >
         ⋯

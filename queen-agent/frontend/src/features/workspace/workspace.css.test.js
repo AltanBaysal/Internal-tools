@@ -1014,11 +1014,6 @@ test("an archived row's text takes the opener's room", () => {
   expect(text).toContain("min-width: 0");
 });
 
-test("the Undo row is a quiet line whose one action is Undo", () => {
-  expect(rule(".all-projects__undo")).toContain("color: #6b6259");
-  expect(rule(".all-projects__undo button")).toContain("color: var(--accent)");
-});
-
 // Madde 357 (the design's items 147 and 182, kit.css's .trimmed). jsdom lays nothing out, so the
 // hold at the chat's lower edge is locked here as the rule that makes it; the browser shows it.
 test("the trim's line holds at the chat's lower edge on the page's own ground", () => {

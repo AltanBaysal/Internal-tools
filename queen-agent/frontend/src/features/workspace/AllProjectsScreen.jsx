@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
-import ProjectRow, { UndoRow } from "./ProjectRow.jsx";
+import ProjectRow from "./ProjectRow.jsx";
 import ProjectsFailure from "./ProjectsFailure.jsx";
 import Spinner from "./Spinner.jsx";
 import { matches } from "./matches.js";
@@ -64,56 +64,59 @@ export default function AllProjectsScreen({
 }) {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("projects");
-  // The project Archive has just taken, while its Undo is on offer. It stands where the server
-  // lists it: the archive took its pin away (Madde 384), so that is Recent, by its last use.
-  const [undoing, setUndoing] = useState(null);
+  // The projects Archive has taken while the server is still asked: they leave Projects at once
+  // (the design's 217), since an archive takes its time (Madde 446). Each is drawn archived until
+  // its own answer, the list read again, says where it stands -- on Archived, or back on Projects
+  // with the refusal's words over the list. Until then it keeps its place in the server's order,
+  // so a project that was pinned stands at the top of Archived and moves once the answer comes.
+  const [leaving, setLeaving] = useState([]);
+  const column = useRef(null);
+  const search = useRef(null);
 
-  const archived = projects.filter((project) => project.archived);
-  const open = projects.filter((project) => !project.archived);
-  const shown =
-    tab === "archived"
-      ? archived
-      : projects.filter((project) => !project.archived || project.id === undoing);
+  const listed = projects.map((project) =>
+    leaving.includes(project.id) ? { ...project, archived: true } : project,
+  );
+  const archived = listed.filter((project) => project.archived);
+  const open = listed.filter((project) => !project.archived);
+  const shown = tab === "archived" ? archived : open;
 
-  // The offer lasts until the next thing is done, as the design's settleUndoing reads it: every
-  // action on a row starts from its ⋯, and so does another Archive.
-  const openMenu = (id) => {
-    setUndoing(null);
-    onOpenMenu?.(id);
+  // The pressed ⋯ leaves with its row, so the keyboard goes to the ⋯ that comes to stand in its
+  // place -- the next one down the list as drawn, searched or not -- or to the search where none
+  // does (the design's 217). Handed over before the row goes, while the next one is still drawn.
+  const handOverFrom = (id) => {
+    const mores = [...column.current.querySelectorAll("[data-project]")];
+    const next = mores[mores.findIndex((more) => more.dataset.project === id) + 1];
+    // The next ⋯ moves into the place being looked at, so the window stays; the search may be
+    // far above a long list's last row, and the keyboard is not left off the screen.
+    if (next) next.focus({ preventScroll: true });
+    else search.current.focus();
   };
-  const archive = (id, toArchive) => {
-    if (toArchive) setUndoing(id);
-    onArchiveProject?.(id, toArchive);
-  };
-  const undo = async (id) => {
-    // Held until the list has come back: let go sooner, the project would vanish for a moment.
-    await onArchiveProject?.(id, false);
-    // Unless another project's offer began meanwhile.
-    setUndoing((current) => (current === id ? null : current));
-  };
-  const switchTab = (next) => {
-    setUndoing(null);
-    setTab(next);
+  const archive = async (id, toArchive) => {
+    if (!toArchive) {
+      onArchiveProject?.(id, false);
+      return;
+    }
+    handOverFrom(id);
+    setLeaving((ids) => [...ids, id]);
+    await onArchiveProject?.(id, true);
+    setLeaving((ids) => ids.filter((one) => one !== id));
   };
 
   // Built once here rather than handed down as eight props through the list and its sections.
-  const row = (project) =>
-    project.id === undoing ? (
-      <UndoRow key={project.id} name={project.name} onUndo={() => undo(project.id)} />
-    ) : (
-      <ProjectRow
-        key={project.id}
-        project={project}
-        menuOpen={menuFor === project.id}
-        onOpen={onOpenProject}
-        onOpenMenu={openMenu}
-        onCloseMenu={onCloseMenu}
-        onRename={onRenameProject}
-        onPin={onPinProject}
-        onArchive={archive}
-        onDelete={onDeleteProject}
-      />
-    );
+  const row = (project) => (
+    <ProjectRow
+      key={project.id}
+      project={project}
+      menuOpen={menuFor === project.id}
+      onOpen={onOpenProject}
+      onOpenMenu={onOpenMenu}
+      onCloseMenu={onCloseMenu}
+      onRename={onRenameProject}
+      onPin={onPinProject}
+      onArchive={archive}
+      onDelete={onDeleteProject}
+    />
+  );
 
   // A wait comes first: Try again shows the frame and its ring again (the design's 173).
   if (error && !loading) return <ProjectsFailure error={error} onRetry={onRetry} />;
@@ -125,7 +128,7 @@ export default function AllProjectsScreen({
 
   return (
     <div className="screen">
-      <div className="screen__column">
+      <div className="screen__column" ref={column}>
         <div className="all-projects__head">
           <h1 className="screen__title">All projects</h1>
           <button type="button" className="empty__action" onClick={onNewProject}>
@@ -136,6 +139,7 @@ export default function AllProjectsScreen({
           {/* Focused as the screen opens (the design's 142), even while the list is on its way:
               handing it over again once the list comes could pull it from where the user went. */}
           <input
+            ref={search}
             type="text"
             className="all-projects__search"
             placeholder="Search projects"
@@ -150,7 +154,7 @@ export default function AllProjectsScreen({
                 key={name}
                 type="button"
                 className={`all-projects__tab${tab === name ? " is-on" : ""}`}
-                onClick={() => switchTab(name)}
+                onClick={() => setTab(name)}
               >
                 {/* Until the list has come, a count would be a guess and not a fact. */}
                 {label} <span className="all-projects__count">{loading ? "" : count}</span>

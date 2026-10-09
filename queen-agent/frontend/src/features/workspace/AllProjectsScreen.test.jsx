@@ -189,7 +189,6 @@ const SHELVED = {
 const tab = (name) => screen.getByRole("button", { name: new RegExp(`^${name}\\b`) });
 const counts = (container) =>
   [...container.querySelectorAll(".all-projects__count")].map((count) => count.textContent);
-const undoRow = (container) => container.querySelector(".all-projects__undo");
 
 test("the tabs stand beside the search, each with its count", () => {
   const { container } = render(<AllProjectsScreen projects={[PINNED, SHELVED, RECENT, OLDER]} />);
@@ -277,104 +276,126 @@ test("while the list loads the tabs stand, and count nothing yet", () => {
   expect(counts(container)).toEqual(["", ""]);
 });
 
-// The menu is open on the row, as App opens it; Archive then asks App for the change.
-function archiving(projects, id, extra = {}) {
-  const props = { onCloseMenu: () => {}, onArchiveProject: vi.fn(), ...extra };
-  const view = render(<AllProjectsScreen projects={projects} menuFor={id} {...props} />);
-  fireEvent.click(screen.getByRole("button", { name: "Archive" }));
-  // Once chosen, App closes the menu; the list the server sends back comes as new props.
-  const answer = (next) => view.rerender(<AllProjectsScreen projects={next} {...props} />);
-  answer(projects);
-  return { ...view, props, answer };
-}
+// --- Madde 441: Archive takes the row out at once (the design's 217) -----------------------------
 
-test("Archive asks nothing, and leaves Undo in the project's place", () => {
-  const { container, props } = archiving([PINNED, RECENT, OLDER], "p2");
-  expect(props.onArchiveProject).toHaveBeenCalledWith("p2", true);
-  // No question: the archive is undone, not confirmed (the design's 135).
-  expect(container.querySelector(".dialog")).toBeNull();
-  const [, recent] = container.querySelectorAll(".all-projects__section");
-  const rows = recent.querySelectorAll(".all-projects__row");
-  expect(rows[0].classList.contains("all-projects__undo")).toBe(true);
-  expect(rows[0].textContent).toBe("Night market archived · Undo");
-  expect(rows[0].querySelector("strong").textContent).toBe("Night market");
-  expect(rows[1].textContent).toContain("Old pier");
-  // The row the user just acted on keeps the keyboard, on its one action.
-  expect(document.activeElement).toBe(screen.getByRole("button", { name: "Undo" }));
-});
-
-test("once the server says it is archived, Undo still holds its place and the counts move", () => {
-  const { container, answer } = archiving([PINNED, RECENT, OLDER], "p2");
-  answer([PINNED, { ...RECENT, archived: true }, OLDER]);
-  const [, recent] = container.querySelectorAll(".all-projects__section");
-  expect(recent.querySelector(".all-projects__row").textContent).toBe("Night market archived · Undo");
-  expect(counts(container)).toEqual(["2", "1"]);
-});
-
-test("a pinned project's Undo stands in Recent, where its last use puts it", () => {
-  // Madde 384: the server takes the pin away with the archive and lists the project by its last
-  // use, so its Undo line stands in Recent; the screen draws no order of its own.
-  const SECOND = { id: "p6", name: "Second pin", chats: 0, files: 0, pinned: true, lastActivity: ago(40) };
-  const { container, answer } = archiving([PINNED, SECOND, RECENT], "p1");
-  answer([SECOND, { ...PINNED, pinned: false, archived: true }, RECENT]);
-  const [pinned, recent] = container.querySelectorAll(".all-projects__section");
-  expect(names(pinned)).toEqual(["Second pin"]);
-  expect(recent.querySelector(".all-projects__label").textContent).toBe("Recent");
-  const rows = [...recent.querySelectorAll(".all-projects__row")].map((row) => row.textContent);
-  expect(rows).toEqual(["Harbour at dusk archived · Undo", expect.stringContaining("Night market")]);
-});
-
-test("a pinned project's Undo asks only for the archive back", () => {
-  // Madde 384, the owner's choice: the pin went with the archive, and Undo does not ask for it.
-  const { props, answer } = archiving([PINNED, RECENT], "p1");
-  answer([{ ...PINNED, pinned: false, archived: true }, RECENT]);
-  fireEvent.click(screen.getByRole("button", { name: "Undo" }));
-  expect(props.onArchiveProject.mock.calls).toEqual([
-    ["p1", true],
-    ["p1", false],
-  ]);
-});
-
-test("Undo brings it back, and its line holds until the list does", async () => {
-  let settle;
+// The screen as App draws it. `archive` presses a row's Archive from its ⋯, which App opens and,
+// once chosen, closes. The server takes its time (Madde 446), so its answer waits for `answer`:
+// the list editProject reads again, then the hand-back.
+function onScreen(projects, extra = {}) {
+  const answers = [];
   const onArchiveProject = vi.fn((id, archived) =>
-    archived ? undefined : new Promise((resolve) => (settle = resolve)),
+    archived ? new Promise((resolve) => answers.push(resolve)) : undefined,
   );
-  const { container, answer } = archiving([PINNED, RECENT, OLDER], "p2", { onArchiveProject });
-  answer([PINNED, { ...RECENT, archived: true }, OLDER]);
-  fireEvent.click(screen.getByRole("button", { name: "Undo" }));
-  expect(onArchiveProject).toHaveBeenLastCalledWith("p2", false);
-  // Let go before the list comes back, the project would vanish for a moment and then return.
-  expect(undoRow(container)).toBeTruthy();
+  const props = { onCloseMenu: () => {}, onArchiveProject, ...extra };
+  let listed = projects;
+  const view = render(<AllProjectsScreen projects={listed} {...props} />);
+  const archive = (id) => {
+    view.rerender(<AllProjectsScreen projects={listed} menuFor={id} {...props} />);
+    fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+    view.rerender(<AllProjectsScreen projects={listed} {...props} />);
+  };
+  const answer = async (next) => {
+    listed = next;
+    view.rerender(<AllProjectsScreen projects={listed} {...props} />);
+    await act(async () => answers.shift()());
+  };
+  return { ...view, props, archive, answer };
+}
+const moreOf = (name) => screen.getByRole("button", { name: `Actions for ${name}` });
 
-  answer([PINNED, RECENT, OLDER]);
-  await act(async () => settle());
-  expect(undoRow(container)).toBeNull();
-  expect(names(container)).toEqual(["Harbour at dusk", "Night market", "Old pier"]);
-});
-
-test("opening another row's menu settles the offer", () => {
-  const onOpenMenu = vi.fn();
-  const { container, answer } = archiving([PINNED, RECENT, OLDER], "p2", { onOpenMenu });
-  answer([PINNED, { ...RECENT, archived: true }, OLDER]);
-  fireEvent.click(screen.getByRole("button", { name: "Actions for Old pier" }));
-  expect(onOpenMenu).toHaveBeenCalledWith("p3");
-  expect(undoRow(container)).toBeNull();
+test("Archive asks nothing, and the project leaves Projects for Archived before the server answers", () => {
+  const { container, props, archive } = onScreen([PINNED, RECENT, OLDER]);
+  archive("p2");
+  expect(props.onArchiveProject).toHaveBeenCalledWith("p2", true);
+  expect(container.querySelector(".dialog")).toBeNull();
+  // Nothing is drawn in its place: no Undo, anywhere.
   expect(names(container)).toEqual(["Harbour at dusk", "Old pier"]);
-});
-
-test("changing the tab settles the offer", () => {
-  const { container, answer } = archiving([PINNED, RECENT, OLDER], "p2");
-  answer([PINNED, { ...RECENT, archived: true }, OLDER]);
+  expect(screen.queryByText(/Undo/)).toBeNull();
+  expect(counts(container)).toEqual(["2", "1"]);
   fireEvent.click(tab("Archived"));
-  fireEvent.click(tab("Projects"));
-  expect(undoRow(container)).toBeNull();
-  expect(names(container)).toEqual(["Harbour at dusk", "Old pier"]);
+  expect(names(container)).toEqual(["Night market"]);
 });
 
-test("Unarchive asks for the project back, and leaves no Undo", () => {
+test("the keyboard goes to the ⋯ of the row that now stands where it stood", () => {
+  const { archive } = onScreen([PINNED, RECENT, OLDER]);
+  const focus = vi.spyOn(moreOf("Old pier"), "focus");
+  archive("p2");
+  expect(document.activeElement).toBe(moreOf("Old pier"));
+  // It moves into the place being looked at, so the window stays where it is.
+  expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+});
+
+test("from the last pinned row the keyboard goes on to the first recent one", () => {
+  const { archive } = onScreen([PINNED, RECENT, OLDER]);
+  archive("p1");
+  expect(document.activeElement).toBe(moreOf("Night market"));
+});
+
+test("searched, the keyboard goes to the next row the search left", () => {
+  const OWL = { ...OLDER, id: "p4", name: "Night owl", lastActivity: ago(50) };
+  const { archive } = onScreen([PINNED, RECENT, OLDER, OWL]);
+  type("night");
+  archive("p2");
+  expect(document.activeElement).toBe(moreOf("Night owl"));
+});
+
+test("with no row after it, the keyboard goes to the search", () => {
+  const { archive } = onScreen([PINNED, RECENT, OLDER]);
+  moreOf("Night market").focus();
+  const focus = vi.spyOn(search(), "focus");
+  archive("p3");
+  expect(document.activeElement).toBe(search());
+  // The search may be far above a long list's last row: it is scrolled into view, not left off it.
+  expect(focus).toHaveBeenCalledWith();
+});
+
+test("the last project archived, Projects says every project is archived at once", () => {
+  const { container, archive } = onScreen([RECENT]);
+  archive("p2");
+  expect(screen.getByText("Every project is archived.", { selector: ".all-projects__empty" })).toBeTruthy();
+  expect(counts(container)).toEqual(["0", "1"]);
+  expect(document.activeElement).toBe(search());
+});
+
+test("once the server has answered, the list it sends stands, and only the archive was asked", async () => {
+  // Madde 384: the server takes the pin away with the archive; the screen asks for nothing else and
+  // draws where the server lists the project.
+  const { container, props, archive, answer } = onScreen([PINNED, RECENT, OLDER]);
+  archive("p1");
+  await answer([RECENT, { ...PINNED, pinned: false, archived: true }, OLDER]);
+  expect(labels(container)).toEqual(["Recent"]);
+  expect(names(container)).toEqual(["Night market", "Old pier"]);
+  expect(counts(container)).toEqual(["2", "1"]);
+  expect(props.onArchiveProject.mock.calls).toEqual([["p1", true]]);
+});
+
+test("an archive the server refused brings the project back to Projects", async () => {
+  // editProject keeps the refusal's words for the line over the list, and hands back the list as
+  // the server still has it.
+  const { container, archive, answer } = onScreen([PINNED, RECENT, OLDER]);
+  archive("p2");
+  await answer([PINNED, RECENT, OLDER]);
+  expect(names(container)).toEqual(["Harbour at dusk", "Night market", "Old pier"]);
+  expect(counts(container)).toEqual(["3", "0"]);
+});
+
+test("two archives in a row each leave at once, and each waits for its own answer", async () => {
+  const { container, archive, answer } = onScreen([PINNED, RECENT, OLDER]);
+  archive("p2");
+  archive("p3");
+  expect(names(container)).toEqual(["Harbour at dusk"]);
+  expect(counts(container)).toEqual(["1", "2"]);
+  // The first answer's list does not have the second archive yet.
+  await answer([PINNED, { ...RECENT, archived: true }, OLDER]);
+  expect(names(container)).toEqual(["Harbour at dusk"]);
+  await answer([PINNED, { ...RECENT, archived: true }, { ...OLDER, archived: true }]);
+  expect(names(container)).toEqual(["Harbour at dusk"]);
+  expect(counts(container)).toEqual(["1", "2"]);
+});
+
+test("Unarchive asks for the project back", () => {
   const onArchiveProject = vi.fn();
-  const { container } = render(
+  render(
     <AllProjectsScreen
       projects={[PINNED, SHELVED]}
       menuFor="p5"
@@ -385,7 +406,6 @@ test("Unarchive asks for the project back, and leaves no Undo", () => {
   fireEvent.click(tab("Archived"));
   fireEvent.click(screen.getByRole("button", { name: "Unarchive" }));
   expect(onArchiveProject).toHaveBeenCalledWith("p5", false);
-  expect(undoRow(container)).toBeNull();
 });
 
 // --- Madde 364: while the list loads, and when it cannot be read (the design's 172, 173) ---------

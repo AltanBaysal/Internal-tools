@@ -1964,28 +1964,6 @@
   color: var(--ink);
 }
 
-/* The row Archive leaves in the project's place: a quiet line whose one action is Undo. */
-.all-projects__undo {
-  font-size: 13.5px;
-  color: #6b6259;
-}
-
-.all-projects__undo button {
-  border: none;
-  background: none;
-  padding: 4px;
-  border-radius: 6px;
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--accent);
-  cursor: pointer;
-}
-
-.all-projects__undo button:hover {
-  color: var(--accent-link-hover);
-}
-
 .all-projects__empty {
   padding: 18px 12px;
   margin: 0;

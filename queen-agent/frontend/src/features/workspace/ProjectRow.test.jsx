@@ -35,6 +35,8 @@ test("the row carries a ⋯ that asks for its menu and opens nothing", () => {
   const more = screen.getByRole("button", { name: "Actions for Night market" });
   expect(more.className).toBe("all-projects__row-more");
   expect(more.textContent).toBe("⋯");
+  // Whose ⋯ it is, so the screen can find the one that comes next once a row leaves (Madde 441).
+  expect(more.dataset.project).toBe("p2");
   fireEvent.click(more);
   expect(onOpenMenu).toHaveBeenCalledWith("p2");
   expect(onOpen).not.toHaveBeenCalled();

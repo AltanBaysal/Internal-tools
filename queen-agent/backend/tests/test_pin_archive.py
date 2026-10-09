@@ -290,10 +290,10 @@ def test_archive_deletes_the_pin_and_unarchive_does_not_bring_it_back(tmp_path):
     )
 
 
-def test_undo_brings_a_pinned_project_back_into_recent_unpinned(tmp_path):
-    # Madde 384, the owner's choice over the design's restoreProject: Undo only takes the archive
-    # back. The pin went with the archive, so the project -- and its Undo line before it -- stands
-    # in Recent, where its own last use puts it.
+def test_unarchive_brings_a_pinned_project_back_into_recent_unpinned(tmp_path):
+    # Madde 384, the owner's choice over the design's restoreProject: Unarchive only takes the
+    # archive back. The pin went with the archive, so the project stands in Recent, where its own
+    # last use puts it (the design's 217).
     projects = FileProjectStore(Store(str(tmp_path)))
     for day, pid in enumerate(("pa", "pb", "pc"), start=1):
         projects.add(Project(id=pid, name=pid, created_at=f"2000-01-{day:02d}T00:00:00.000+00:00"))
@@ -308,12 +308,12 @@ def test_undo_brings_a_pinned_project_back_into_recent_unpinned(tmp_path):
     assert rows[2]["pinned"] is False, "Arşivdeki proje listede sabitli"
     back = client.patch("/api/projects/pa", json={"archived": False}).get_json()
     assert (back["pinned"], back["archived"]) == (False, False), (
-        "Undo projeyi sabitli ya da arşivde bıraktı"
+        "Unarchive projeyi sabitli ya da arşivde bıraktı"
     )
     assert [row["id"] for row in client.get("/api/projects").get_json()] == ["pb", "pc", "pa"], (
-        "Undo'dan sonra proje Recent'te son kullanımının yerinde değil"
+        "Unarchive'dan sonra proje Recent'te son kullanımının yerinde değil"
     )
-    assert not Store(str(tmp_path)).exists("pa/pinned"), "Undo'dan sonra pinned dosyası duruyor"
+    assert not Store(str(tmp_path)).exists("pa/pinned"), "Unarchive'dan sonra pinned dosyası duruyor"
 
 
 def test_a_pin_an_older_archive_left_neither_orders_nor_survives_unarchive(tmp_path):
