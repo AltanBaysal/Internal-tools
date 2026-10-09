@@ -9,7 +9,7 @@ const PROJECT = { id: "p1", name: "Thesis research", chats: 3, files: 3 };
 test("the name and the run number read as one line", () => {
   // Madde 209 put the version under the name, where it read as a footnote. The user's call (v9-2,
   // and the design's 159): beside it, as Queen Editor writes "Queen Editor 1.4.2". Asked of the
-  // constant rather than of "V8", for the reason version.test.js gives.
+  // constant rather than of a literal, for the reason version.test.js gives.
   const { container } = render(<Bar project={null} onExit={vi.fn()} />);
   expect(container.querySelector(".bar__name").textContent).toBe(`QueenAgent ${VERSION}`);
 });
