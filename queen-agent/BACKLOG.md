@@ -80,6 +80,13 @@ bakılmadı.)* 400 px genişlikte kenar çubuğu kapalıyken Project files panel
 kenar çubuğu açılınca panel ince bir şerit oluyor, ama hata kartının yazısı harf harf alt satıra
 kayıyor. Ekran görüntüleri `tmp/qa442-narrow-folded.png` ve `tmp/qa442-narrow-open.png`'de.
 
+## Var olan bir sohbette konuşunca proje listesinin sırası güncellenmiyor
+
+*(Claude, 9 Ekim — v10'un 443'ünü deneyen QA'da görüldü; bütün projelerde, 443'ten gelmiyor.)* Var olan
+bir sohbette mesaj gönderip projeden çıkınca All projects proje satırını eski yerinde ve eski
+zamanıyla gösteriyor; sunucu onu çoktan en yeni sayıyor. `App.jsx` listeyi yalnız sohbet doğunca ya da
+dosyalar değişince yeniden okuyor, var olan sohbette tur bitince değil.
+
 ## Bir frontend testi arada düşüyor
 
 *(Claude, 9 Ekim — Queen Editor v9'un 439'unda görüldü.)* `src/features/workspace/ChatScreen.test.jsx`'in
