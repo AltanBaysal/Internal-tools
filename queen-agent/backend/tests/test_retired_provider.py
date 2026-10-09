@@ -17,6 +17,8 @@ RETIRED = re.compile(r"grok|xai|x\.ai", re.IGNORECASE)
 _SKIPPED_DIRS = {"dist", "node_modules", "__pycache__"}
 # An integrity hash, where the letters meet by chance.
 _SKIPPED_FILES = {"package-lock.json"}
+# Documents: tests test only code (madde 431).
+_SKIPPED_SUFFIX = ".md"
 
 
 def _written():
@@ -24,7 +26,8 @@ def _written():
         dirs[:] = [name for name in dirs if name not in _SKIPPED_DIRS and not name.startswith(".")]
         for name in files:
             path = os.path.join(folder, name)
-            if name not in _SKIPPED_FILES and os.path.abspath(path) != _THIS:
+            if (name not in _SKIPPED_FILES and not name.endswith(_SKIPPED_SUFFIX)
+                    and os.path.abspath(path) != _THIS):
                 yield path
 
 

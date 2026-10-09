@@ -37,7 +37,7 @@ class BatchGenerator(FakeGenerator):
 
     def __init__(self, fits=26, fail_on=(), clock=None, seconds=0.0, stop=None):
         super().__init__(fail_on)
-        self.fits, self.clock, self.seconds, self.stop = fits, clock, seconds, stop
+        self.fits, self.clock, self.works, self.stop = fits, clock, seconds, stop
         self.asked = []
         self.batches = []
 
@@ -48,7 +48,7 @@ class BatchGenerator(FakeGenerator):
     def generate_batch(self, prompt, negative, seed, count, model="", lora=""):
         self.batches.append((prompt, negative, seed, count, model, lora))
         if self.clock is not None:
-            self.clock.passes(self.seconds)
+            self.clock.passes(self.works)
         if self.stop is not None:
             runner, self.stop = self.stop, None
             runner.request_stop()

@@ -11,16 +11,12 @@ A row says nothing about installing, because the app does not install: the model
 Colab notebook, before the app starts (FOUNDATION 9). Reading the disk is the whole of what this
 answer is, so it cannot go stale while nobody is installing anything.
 """
-from backend.features.producers.domain.model_groups import video_model_name
-from backend.features.producers.domain.producers import NAMES, ORDER, VIDEO
+from backend.features.producers.domain.producers import NAMES, ORDER, VIDEO, VIDEO_MODEL
 
 
-def list_producers(groups, files, video_model=""):
-    """`video_model` is the notebook's pick. The video row names it, because the panel cannot know
-    which model the notebook installed any other way (madde 247). It also says whether that model
-    makes video from the reference pool: only H3 has such a mode (madde 302), and the video panel
-    says so before the press (madde 324) -- read from here, not from the name, which is a word for
-    the box."""
+def list_producers(groups, files):
+    """The video row names its model too, for the video panel's Model box (madde 247): H3, the one
+    video model there is (madde 435)."""
     rows = []
     for kind in ORDER:
         group = groups.get(kind) or []
@@ -30,7 +26,6 @@ def list_producers(groups, files, video_model=""):
             for spec in group)
         row = {"id": kind, "name": NAMES[kind], "installed": installed}
         if kind == VIDEO:
-            row["model"] = video_model_name(video_model)
-            row["reads_references"] = video_model == "h3"
+            row["model"] = VIDEO_MODEL
         rows.append(row)
     return rows

@@ -2,15 +2,23 @@
 from and how fast.
 
 The lists of what to download stay in the notebook, next to the boxes that choose them -- addresses
-live there (FOUNDATION 9). What is here is how a file comes down, which a cell could not test.
+live there (FOUNDATION 9), and so do how much room each group takes and which folders the summary
+shows. What is here is how a file comes down, and the models cell's run around it -- hf_xet, the disk
+check, the downloads, the folders and the table -- which a cell could not test (madde 438).
+
+The Hugging Face token is here too: the notebook reads it once through use_hf_token, before anything
+downloads, and every download and upload hands it over (madde 437).
 """
+import glob
 import json
 import os
+import shutil
 import struct
 import subprocess
 import time
 
 from colab.console import head_text, human, log, run
+from colab.vault import read_secret
 
 # hf_hub_download writes the repo's folders and its own .cache under local_dir. Neither belongs among
 # ComfyUI's models, so a file lands here and is moved into place: a rename on one disk, not a copy.
@@ -33,7 +41,7 @@ def check_safetensors(path):
         try:
             header = json.loads(f.read(header_len).decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as e:
-            return "invalid", f"header parse failed ({type(e).__name__}, {human(size)})"
+            return "invalid", f"header parse failed ({type(e).__name__}: {e}, {human(size)})"
 
     ends = [v["data_offsets"][1] for k, v in header.items()
             if k != "__metadata__" and isinstance(v, dict) and "data_offsets" in v]
@@ -115,6 +123,8 @@ def fetch(url, target_dir, filename, label, *, parallel, headers=None, floor=Non
     if os.path.exists(target):
         log(f"{label}: zaten var ({_settled(target, label, floor)})")
         return
+    # curl and aria2c write the .part straight into it.
+    os.makedirs(target_dir, exist_ok=True)
 
     resume = False
     if os.path.exists(part):
@@ -161,11 +171,90 @@ def fetch(url, target_dir, filename, label, *, parallel, headers=None, floor=Non
                    time.perf_counter() - start, msg)
 
 
+def use_hf_token(read):
+    """HF_TOKEN read with `read` -- the notebook's userdata.get -- trimmed, and put in the environment,
+    where _token finds it.
+
+    Without a token the run goes on, and a line says so with what the read raised: the public files
+    come down without one, and civitai_fetch already takes a file the mirror refuses from Civitai."""
+    token, problem = read_secret(read, "HF_TOKEN")
+    if problem:
+        _without_token(problem)
+        return
+    os.environ["HF_TOKEN"] = token
+    log("HF_TOKEN okundu — Hugging Face'e token'la gidilecek", "OK")
+
+
+def _without_token(said):
+    """A token an earlier run of this kernel left in the environment goes, so the line saying the run
+    goes without one holds."""
+    os.environ.pop("HF_TOKEN", None)
+    log(f"{said}\nHugging Face'e token'sız gidilecek: açık dosyalar iner ama HF 429 dönebilir; aynadan "
+        "alma ve aynaya yükleme olmaz — Civitai dosyaları çerezle Civitai'den iner. Colab 🔑 "
+        "Secrets'a 'HF_TOKEN' adıyla ekle.", "WARN")
+
+
+def _token():
+    """The token use_hf_token put in the environment, handed to huggingface_hub outright -- or False,
+    its word for going without one (madde 437).
+
+    Handed neither, huggingface_hub looks for a token itself, and in Colab it asks the vault first and
+    keeps the answer for the session. On 9 Ekim that ask came mid-download and timed out, and H3 came
+    down unauthenticated into a 429. A token handed over is used as it is, and nothing is asked."""
+    return os.environ.get("HF_TOKEN") or False
+
+
+# A download from HF sometimes drops halfway -- H3 Eros Max beta5 at 97%, a request to its chunk store
+# failing (madde 432) -- and is tried again: three attempts in all, thirty seconds before each retry.
+ATTEMPTS = 3
+WAIT = 30
+# HF's answer about the file itself: missing, or not ours. Asked again, HF answers the same, and the
+# mirror's 404 is how civitai_fetch learns a file is not there (madde 311), which stays instant.
+FINAL = (401, 403, 404)
+
+
+def _chain(error):
+    """The error and those it was raised from, the raised one first, linked the way Python prints
+    them. huggingface_hub puts some of HF's answers under a sentence of its own, which carries no
+    response; the answer is underneath. A chain that loops back ends there, and none runs past five."""
+    chain = []
+    while error is not None and error not in chain and len(chain) < 5:
+        chain.append(error)
+        error = error.__cause__ or (None if error.__suppress_context__ else error.__context__)
+    return chain
+
+
+def _response(error):
+    """HF's response: the first one riding on an error of the chain, or None."""
+    return next((e.response for e in _chain(error) if getattr(e, "response", None) is not None), None)
+
+
+def _raw(error):
+    """Each error of the chain as it was raised, its type and its whole message, and under them HF's
+    response when one came: the status and the body, as sent (madde 432). A streamed body nobody read
+    raises when asked for, and what it raised stands in its place: raised here, it would stop the
+    cell with the reader's error instead of the drop's."""
+    text = "\n".join(f"{type(e).__name__}: {e}" for e in _chain(error))
+    response = _response(error)
+    if response is not None:
+        try:
+            body = response.text or "(boş gövde)"
+        except Exception as e:
+            body = f"(gövde okunamadı — {type(e).__name__}: {e})"
+        text += f"\n--- response: HTTP {response.status_code} ---\n{body}"
+    return text
+
+
 def hf_fetch(repo, path, target_dir, filename, label, *, floor=None):
     """A file by its repo and path, through Hugging Face's own downloader. With hf_xet behind it the
     file's Xet chunks come straight from storage in parallel; an address went through HF's bridge,
     which cuts a plain download to 8.7 MB/s on most of its servers (xet-core #821). Its row for the
-    summary, or None when the file was already in place."""
+    summary, or None when the file was already in place.
+
+    A download that drops is tried again, up to ATTEMPTS, and each drop prints what was raised.
+    Neither HF's answer about the file (FINAL) nor a file that came down whole but bad is asked for
+    again: both would come back the same. The error that stops the cell carries what the last attempt
+    raised, and HF's response with it."""
     # Imported here: Colab ships it, and this module has to import where it is not installed.
     from huggingface_hub import hf_hub_download
 
@@ -176,11 +265,19 @@ def hf_fetch(repo, path, target_dir, filename, label, *, floor=None):
 
     log(f"{label}: iniyor (HF)")
     start = time.perf_counter()
-    try:
-        got = hf_hub_download(repo, path, local_dir=STAGE)
-    except Exception as e:
-        raise RuntimeError(f"{label}: HF {repo}/{path} — {type(e).__name__}: {e}") from None
+    for attempt in range(1, ATTEMPTS + 1):
+        try:
+            got = hf_hub_download(repo, path, local_dir=STAGE, token=_token())
+            break
+        except Exception as e:
+            where = f"{label}: HF {repo}/{path}, deneme {attempt}/{ATTEMPTS}"
+            answer = getattr(_response(e), "status_code", None)
+            if answer in FINAL or attempt == ATTEMPTS:
+                raise RuntimeError(f"{where}\n{_raw(e)}") from None
+            log(f"{where} — {WAIT} sn sonra yeniden\n{_raw(e)}", "WARN")
+        time.sleep(WAIT)
     msg = _settled(got, label, floor)
+    os.makedirs(target_dir, exist_ok=True)
     os.replace(got, target)
     return _landed(label, "HF", os.path.getsize(target), time.perf_counter() - start, msg)
 
@@ -201,7 +298,7 @@ def _upload(mirror, path, target, label):
     start = time.perf_counter()
     try:
         HfApi().upload_file(path_or_fileobj=target, path_in_repo=path, repo_id=mirror,
-                            commit_message=f"{label} (Civitai {path})")
+                            commit_message=f"{label} (Civitai {path})", token=_token())
     except Exception as e:
         log(f"{label}: aynaya yüklenemedi — {type(e).__name__}: {e}", "WARN")
         return
@@ -251,26 +348,80 @@ def civitai_fetch(mirror, version_id, target_dir, filename, label, cookie):
     return row
 
 
+PROBE = "/content/_probe.bin"
+
+
 def civitai_probe(version_id, label, cookie):
-    out = "/content/_probe.bin"
+    """The first KB of a Civitai file, asked with the cookie before the file comes down. -sS keeps
+    curl's progress off and its error on: a failure stops the cell with all curl said, and a refusal
+    with Civitai's whole answer (madde 439).
+
+    Exit 28 is curl's timeout, which --limit-rate and --max-time can bring on a good probe too. When
+    nothing good came back, what curl said comes under Civitai's answer: often it is all there is."""
     done = subprocess.run(
-        ["curl", "-sL", "--max-time", "20", "--limit-rate", "200k", "-r", "0-1023",
-         "-H", cookie_header(cookie), "-w", "%{http_code}", "-o", out, civitai_url(version_id)],
+        ["curl", "-sS", "-L", "--max-time", "20", "--limit-rate", "200k", "-r", "0-1023",
+         "-H", cookie_header(cookie), "-w", "%{http_code}", "-o", PROBE, civitai_url(version_id)],
         capture_output=True, text=True)
     if done.returncode not in (0, 28):
-        tail = "\n".join((done.stderr or done.stdout or "").strip().splitlines()[-5:])
-        raise RuntimeError(f"❌ probe {label}: curl exit {done.returncode}\n{tail}")
+        raise RuntimeError(f"❌ probe {label}: curl exit {done.returncode}\n{done.stderr}")
     code = (done.stdout or "").strip()[-3:]
-    body = b""
-    if os.path.exists(out):
-        with open(out, "rb") as f:
-            body = f.read(512)
-        os.remove(out)
-    if code.startswith("2") and not body.startswith(b"<") and not body.startswith(b'{"'):
+    body = ""
+    if os.path.exists(PROBE):
+        body = head_text(PROBE)
+        os.remove(PROBE)
+    if code.startswith("2") and not body.startswith("<") and not body.startswith('{"'):
         log(f"{label}: erişim OK", "OK")
         return
     raise RuntimeError(f"❌ {label}: HTTP {code} — Civitai yanıtı: "
-                       f"{body.decode('utf-8', 'replace').strip() or '(boş gövde — binary değil)'}")
+                       f"{body.strip() or '(boş gövde — binary değil)'}"
+                       + (f"\n{done.stderr}" if done.stderr else ""))
+
+
+def install_hf_xet():
+    """hf_xet, behind hf_fetch: without it huggingface_hub goes back to HF's bridge with nothing but a
+    log line."""
+    run(["pip", "install", "--progress-bar", "on", "-U", "hf_xet"], "pip install hf_xet")
+
+
+# GiB the disk check asks to stay free past the models themselves.
+HEADROOM = 5
+
+
+def check_disk(sizes):
+    """The choice and the free disk on one line, and the run stopped before anything downloads when
+    the chosen groups and HEADROOM do not fit. `sizes` is the notebook's (ticked, GiB, name) rows."""
+    need = sum(gib for on, gib, _ in sizes if on)
+    free = shutil.disk_usage("/content").free / 1024**3
+    log(f"Seçim: {', '.join(name for on, _, name in sizes if on)} — ~{need} GiB "
+        f"| Diskte boş: {free:.1f} GiB")
+    if free < need + HEADROOM:
+        raise RuntimeError(
+            f"❌ Disk yetmiyor: ~{need} GiB model + {HEADROOM} GiB pay gerekiyor, "
+            f"{free:.1f} GiB boş. Daha az üretici ya da daha az foto modeli seç, ya da diski daha "
+            f"büyük bir runtime aç."
+        )
+
+
+def download_models(hf_jobs, civitai_jobs, mirror, cookie):
+    """The Hugging Face files, then the Civitai ones. Every file's row, in that order, for
+    download_summary."""
+    rows = []
+    for repo, path, folder, filename, label, floor in hf_jobs:
+        rows.append(hf_fetch(repo, path, folder, filename, label, floor=floor))
+    for version_id, folder, filename, label in civitai_jobs:
+        rows.append(civitai_fetch(mirror, version_id, folder, filename, label, cookie))
+    return rows
+
+
+def show_folders(folders):
+    """What each ticked folder holds, with sizes: the notebook's (ticked, title, folder, pattern)
+    rows."""
+    for on, title, folder, pattern in folders:
+        if not on:
+            continue
+        print(f"\n📂 {title}/")
+        for path in sorted(glob.glob(f"{folder}/{pattern}", recursive=True)):
+            print(f"   {human(os.path.getsize(path))}  {os.path.relpath(path, folder)}")
 
 
 def _duration(seconds):

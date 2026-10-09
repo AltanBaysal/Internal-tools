@@ -44,4 +44,4 @@ The test command lives in [CLAUDE.md](../CLAUDE.md), once.
 Principles and stack decisions: [FOUNDATION.md](FOUNDATION.md).
 Layering and structure: [CODE-STANDARD.md](CODE-STANDARD.md).
 What gets built and in what order: the roadmaps under
-[`docs/superpowers/plans/`](../docs/superpowers/plans/) — the highest `vN` is the current one.
+[`docs/roadmaps/`](../docs/roadmaps/) — the highest `vN` is the current one.

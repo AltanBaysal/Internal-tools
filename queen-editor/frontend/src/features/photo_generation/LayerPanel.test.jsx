@@ -1,14 +1,20 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getReferenceSettings, saveReferenceSettings } from "../../shared/api.js";
+import { getHappyEnding, getReferenceSettings, getVideoLength, saveHappyEnding,
+         saveReferenceSettings, saveVideoLength } from "../../shared/api.js";
 import LayerPanel from "./LayerPanel.jsx";
 
-// Referanstan's record is the server's; everything else the panel needs arrives as props.
+// Referanstan's record, the project's video length and its Mutlu son are the server's; everything
+// else the panel needs arrives as props.
 vi.mock("../../shared/api.js", async (importOriginal) => ({
   ...(await importOriginal()),
+  getHappyEnding: vi.fn(),
   getReferenceSettings: vi.fn(),
+  getVideoLength: vi.fn(),
+  saveHappyEnding: vi.fn(),
   saveReferenceSettings: vi.fn(),
+  saveVideoLength: vi.fn(),
 }));
 
 const done = (file, layers = {}) => ({ id: file.replace(".png", ""), file, status: "done", layers,
@@ -32,6 +38,12 @@ beforeEach(() => {
   vi.clearAllMocks();
   getReferenceSettings.mockResolvedValue({ prompts: "", variants: null });
   saveReferenceSettings.mockResolvedValue(null);
+  // The project's length as the server says it when nothing is saved.
+  getVideoLength.mockResolvedValue(8);
+  saveVideoLength.mockResolvedValue(null);
+  // Off, as the server says it when nothing is saved (madde 426).
+  getHappyEnding.mockResolvedValue(false);
+  saveHappyEnding.mockResolvedValue(null);
 });
 
 const tab = (name) => screen.getByRole("button", { name });
@@ -289,25 +301,19 @@ describe("LayerPanel — the panel's own shape", () => {
   const offered = () => [...screen.getByRole("combobox").options].map((one) => one.textContent);
 
   it("offers the model in the same box the photo panel uses", () => {
-    // One option, because one video model is installed per session -- a box that opens and shows
-    // the only thing there is. The name is the server's (madde 247): the notebook picked it.
+    // One option, because H3 is the one video model (madde 435) -- a box that opens and shows the
+    // only thing there is. The name is the server's (madde 247).
     renderPanel({ producer: { ...VIDEO_ROW, model: "MiniMax H3" } });
 
     expect(screen.getByRole("combobox").className).toContain("wf-input");
     expect(offered()).toEqual(["MiniMax H3"]);
   });
 
-  it("offers WAN when the server says WAN", () => {
-    renderPanel({ producer: { ...VIDEO_ROW, model: "WAN 2.2 I2V" } });
-
-    expect(offered()).toEqual(["WAN 2.2 I2V"]);
-  });
-
   it("names no model before the server has said which", () => {
-    // A name made up here is what showed WAN over an H3 session.
+    // Empty rather than a name made up here: a guess once showed one model over another's session.
     renderPanel();
 
-    expect(offered()).not.toContain("WAN 2.2 I2V");
+    expect(offered()).toEqual([""]);
   });
 
   it("has no block of its own for the length", () => {
@@ -798,7 +804,7 @@ describe("LayerPanel — producing from the reference pool", () => {
     fireEvent.change(promptBox(), { target: { value: '["gotik kız", "dans"]' } });
     fireEvent.change(variantBox(), { target: { value: "3" } });
 
-    expect(screen.getByText("2 prompt × 3 varyant = 6 kart")).toBeTruthy();
+    expect(screen.getByText("2 prompt × 3 varyant = 6 kart.")).toBeTruthy();
   });
 
   it("reads a Python list with a name in front, the way the photo panel does", () => {
@@ -808,7 +814,7 @@ describe("LayerPanel — producing from the reference pool", () => {
 
     fireEvent.change(promptBox(), { target: { value: "PROMPTS = ['a', 'b']" } });
 
-    expect(screen.getByText("2 prompt × 1 varyant = 2 kart")).toBeTruthy();
+    expect(screen.getByText("2 prompt × 1 varyant = 2 kart.")).toBeTruthy();
   });
 
   it("reads a tuple, in either quote", () => {
@@ -816,7 +822,7 @@ describe("LayerPanel — producing from the reference pool", () => {
 
     fireEvent.change(promptBox(), { target: { value: `("gotik kız", 'dans')` } });
 
-    expect(screen.getByText("2 prompt × 1 varyant = 2 kart")).toBeTruthy();
+    expect(screen.getByText("2 prompt × 1 varyant = 2 kart.")).toBeTruthy();
   });
 
   it("leaves the blank items out of the count", () => {
@@ -825,7 +831,7 @@ describe("LayerPanel — producing from the reference pool", () => {
 
     fireEvent.change(promptBox(), { target: { value: '["gotik kız", "", "  ", "dans"]' } });
 
-    expect(screen.getByText("2 prompt × 1 varyant = 2 kart")).toBeTruthy();
+    expect(screen.getByText("2 prompt × 1 varyant = 2 kart.")).toBeTruthy();
   });
 
   it("says nothing under the button while the box is empty or its list cannot be read", () => {
@@ -1051,7 +1057,8 @@ describe("LayerPanel — the pool's one button", () => {
 });
 
 describe("LayerPanel — what stops a run from the pool (madde 324)", () => {
-  // The design's own sentences (V2-UPDATE §1); the second is the server's too.
+  // The design's own sentence (V2-UPDATE §1), and the server's too. The one before it -- that the
+  // session's video model was not H3 -- went with WAN (madde 435).
   const H3_ONLY =
     "Referanstan üretim için H3 gerekiyor — bu oturumda başka bir video modeli kurulu.";
   const NO_REFERENCES = "Havuzda referans yok — önce en az bir referans ekle.";
@@ -1060,11 +1067,9 @@ describe("LayerPanel — what stops a run from the pool (madde 324)", () => {
   const pool = (references) => ({ references, limits: LIMITS });
   const EMPTY = pool([]);
   const KEDI = pool([{ name: "kedi.png", kind: "picture", seconds: null, slot: 1 }]);
-  // The video row as the server gives it: whether its model reads references is the server's to say.
-  const H3 = { id: "video", name: "Video üreticisi", installed: true, model: "MiniMax H3",
-               reads_references: true };
-  const WAN = { ...H3, model: "WAN 2.2 I2V", reads_references: false };
-  const MISSING = { ...WAN, installed: false };
+  // The video row as the server gives it: H3's, the one video model, which reads the pool.
+  const H3 = { id: "video", name: "Video üreticisi", installed: true, model: "MiniMax H3" };
+  const MISSING = { ...H3, installed: false };
 
   const promptBox = () => screen.getByLabelText("Prompt listesi");
   const addButton = () => screen.getByText("Kuyruğa ekle").closest("button");
@@ -1109,24 +1114,18 @@ describe("LayerPanel — what stops a run from the pool (madde 324)", () => {
     expect(addButton().disabled).toBe(false);
   });
 
-  it("says H3 is needed on a session with another video model, and keeps the button closed",
-     async () => {
-    await openReference({ producer: WAN, pool: KEDI });
+  it("never says another video model is in the way, and opens the button", async () => {
+    // H3 is the one video model there is (madde 435): the row says nothing about the pool, and
+    // nothing on Referanstan waits on it.
+    await openReference({ producer: H3, pool: KEDI });
     write('["gotik kız"]');
 
-    expect(screen.getByText(H3_ONLY)).toBeTruthy();
-    expect(addButton().disabled).toBe(true);
+    expect(screen.queryByText(H3_ONLY)).toBeNull();
+    expect(addButton().disabled).toBe(false);
   });
 
-  it("says one thing at a time, in the app's order: the model before the pool", async () => {
-    await openReference({ producer: WAN, pool: EMPTY });
-
-    expect(screen.getByText(H3_ONLY)).toBeTruthy();
-    expect(screen.queryByText(NO_REFERENCES)).toBeNull();
-  });
-
-  it("leaves the model to the install card while the video producer is missing", async () => {
-    // With no video model there is no wrong one: the card at the top says what is missing.
+  it("says an empty pool while the video producer is missing", async () => {
+    // The card at the top says what is missing; the line says what the pool lacks.
     await openReference({ producer: MISSING, pool: EMPTY });
 
     expect(screen.queryByText(H3_ONLY)).toBeNull();
@@ -1153,5 +1152,385 @@ describe("LayerPanel — what stops a run from the pool (madde 324)", () => {
     // The frame form is as it was: nothing it lacks locks it before the press (Fark 27).
     expect(screen.queryByText(NO_REFERENCES)).toBeNull();
     expect(addButton().disabled).toBe(false);
+  });
+});
+
+describe("LayerPanel — the H3 video length (madde 424)", () => {
+  // The video row the way the server gives it. H3 is the one video model (madde 435), so the row
+  // says nothing about which: once it is read, the length is drawn.
+  const H3 = { id: "video", name: "Video üreticisi", installed: true, model: "MiniMax H3" };
+  const AUDIO = { id: "audio", name: "Ses üreticisi", installed: true, model: "MMAudio v2" };
+  const PLAIN = ["Model", "Kapsam", "Üretim modu", "Varyant"];
+  const LOOP_LINE = "2 loop video üretilecek — her video kendine döner.";
+
+  const lengthButton = (seconds) => screen.getByRole("button", { name: `${seconds} saniye` });
+  const chosen = () => [4, 8, 12].map((one) => lengthButton(one).className.includes("is-on"));
+
+  // The video row read, unless told otherwise, and the project's length with it.
+  async function renderReady(props) {
+    const view = renderPanel({ producer: H3, ...props });
+    await act(async () => {});
+    return view;
+  }
+
+  it("sits right under the Model box, the project's 8 chosen", async () => {
+    const project = freshProject();
+    const view = await renderReady({ project });
+
+    expect(labels(view)).toEqual(["Model", "Video uzunluğu", "Mutlu son", "Kapsam", "Üretim modu",
+                                  "Varyant"]);
+    // One segment, in the design's order; the number and its unit never part.
+    const segment = lengthButton(8).parentElement;
+    expect(segment.className).toContain("wf-segment");
+    expect([...segment.children].map((one) => one.textContent))
+      .toEqual(["4\u00a0sn", "8\u00a0sn", "12\u00a0sn"]);
+    expect(chosen()).toEqual([false, true, false]);
+    expect(getVideoLength).toHaveBeenCalledWith(project);
+  });
+
+  it("stands in the same place on Referanstan", async () => {
+    const view = await renderReady();
+
+    await act(async () => { fireEvent.click(tab("Referanstan")); });
+
+    expect(labels(view))
+      .toEqual(["Model", "Video uzunluğu", "Mutlu son", "Referanslar", "Prompt listesi", "Varyant"]);
+  });
+
+  it("opens on the length the project saved", async () => {
+    getVideoLength.mockResolvedValue(12);
+    await renderReady();
+
+    expect(chosen()).toEqual([false, false, true]);
+  });
+
+  it("marks the pressed length at once and writes it to the project", async () => {
+    saveVideoLength.mockReturnValue(new Promise(() => {}));
+    const project = freshProject();
+    await renderReady({ project });
+
+    fireEvent.click(lengthButton(12));
+
+    expect(chosen()).toEqual([false, false, true]);
+    expect(saveVideoLength).toHaveBeenCalledWith(project, 12);
+  });
+
+  it("stays where it is, with its choice, when the tab changes", async () => {
+    await renderReady();
+    await act(async () => { fireEvent.click(lengthButton(12)); });
+
+    await act(async () => { fireEvent.click(tab("Referanstan")); });
+    expect(chosen()).toEqual([false, false, true]);
+    await act(async () => { fireEvent.click(tab("Kareden")); });
+    expect(chosen()).toEqual([false, false, true]);
+  });
+
+  it("leaves every other box as it was", async () => {
+    await renderReady();
+    fireEvent.click(screen.getByText("Standart").closest("button"));
+    fireEvent.change(variantBox(), { target: { value: "3" } });
+
+    await act(async () => { fireEvent.click(lengthButton(12)); });
+
+    expect(variantBox().value).toBe("3");
+    expect(screen.getByText("6 video üretilecek — her kare kendi videosunu alır. 12 sn."))
+      .toBeTruthy();
+  });
+
+  it("opens a rebuilt panel on the length it knew, and the server's answer stands", async () => {
+    getVideoLength.mockResolvedValue(12);
+    (await renderReady({ project: "uzunluk-a" })).unmount();
+    let answer;
+    getVideoLength.mockReturnValue(new Promise((resolve) => { answer = resolve; }));
+
+    await renderReady({ project: "uzunluk-a" });
+    // Drawn at once: a block that came in a beat after every opening would push the panel down.
+    expect(chosen()).toEqual([false, false, true]);
+
+    await act(async () => { answer(4); });
+    expect(chosen()).toEqual([true, false, false]);
+  });
+
+  it("keeps a length pressed while the read is on its way", async () => {
+    (await renderReady({ project: "uzunluk-b" })).unmount();
+    let answer;
+    getVideoLength.mockReturnValue(new Promise((resolve) => { answer = resolve; }));
+    await renderReady({ project: "uzunluk-b" });
+
+    await act(async () => { fireEvent.click(lengthButton(4)); });
+    await act(async () => { answer(12); });
+
+    expect(chosen()).toEqual([true, false, false]);
+  });
+
+  it("is not drawn while the model is not read yet", async () => {
+    const view = await renderReady({ producer: null });
+
+    expect(labels(view)).toEqual(PLAIN);
+    expect(screen.getByText(LOOP_LINE)).toBeTruthy();
+    expect(getVideoLength).not.toHaveBeenCalled();
+  });
+
+  it("is drawn while the video producer is not installed yet", async () => {
+    // The Model box names H3 either way, and the length is the project's, not the producer's.
+    const view = await renderReady({ producer: { ...H3, installed: false } });
+
+    expect(labels(view)).toContain("Video uzunluğu");
+  });
+
+  it("waits for the project's length before it draws the choice or says the length", async () => {
+    getVideoLength.mockReturnValue(new Promise(() => {}));
+    getHappyEnding.mockReturnValue(new Promise(() => {}));
+    const view = await renderReady();
+
+    expect(labels(view)).toEqual(PLAIN);
+    expect(screen.getByText(LOOP_LINE)).toBeTruthy();
+  });
+
+  it("leaves the choice out, and says nothing of its own, when the length cannot be read",
+     async () => {
+    getVideoLength.mockRejectedValue(new Error("Sunucuya ulaşılamadı — bağlantıyı kontrol et."));
+    getHappyEnding.mockRejectedValue(new Error("Sunucuya ulaşılamadı — bağlantıyı kontrol et."));
+    const view = await renderReady();
+
+    expect(labels(view)).toEqual(PLAIN);
+    expect(screen.getByText(LOOP_LINE)).toBeTruthy();
+    expect(screen.queryByText("Sunucuya ulaşılamadı — bağlantıyı kontrol et.")).toBeNull();
+  });
+
+  it("has no length on the sound panel", async () => {
+    const view = await renderReady({ layer: "audio", producer: AUDIO,
+                                     frames: [done("0_a.png", { video: "0_a_V1_0.mp4" })] });
+
+    expect(labels(view)).toEqual(["Model", "Kapsam", "Varyant"]);
+    expect(screen.getByText("1 ses üretilecek — her kare kendi sesini alır.")).toBeTruthy();
+    expect(getVideoLength).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["Loop", "2 loop video üretilecek — her video kendine döner. 8 sn."],
+    ["Sonrakine bağla", "2 bağlı video üretilecek — her video sıradaki karede biter. 8 sn."],
+    ["Standart", "2 video üretilecek — her kare kendi videosunu alır. 8 sn."],
+  ])("ends the line under the button with the length on %s", async (mode, line) => {
+    await renderReady();
+
+    fireEvent.click(screen.getByText(mode).closest("button"));
+
+    // The space is unbreakable: the number never ends a line with its unit alone on the next.
+    expect(screen.getByText(line).textContent.endsWith(" 8\u00a0sn.")).toBe(true);
+  });
+
+  it("ends the copy warning with the length too", async () => {
+    await renderReady({ selected: ["1_a"] });
+
+    expect(screen.getByText("1 loop video üretilecek — videolu 1 kare için yeniler kopya kare "
+                            + "olur, eskisi durur. 8 sn.")).toBeTruthy();
+  });
+
+  it("says the length that was chosen", async () => {
+    await renderReady();
+
+    await act(async () => { fireEvent.click(lengthButton(12)); });
+
+    expect(screen.getByText(`${LOOP_LINE} 12 sn.`)).toBeTruthy();
+  });
+
+  it("ends Referanstan's line with the length", async () => {
+    await renderReady();
+    await act(async () => { fireEvent.click(tab("Referanstan")); });
+
+    fireEvent.change(screen.getByLabelText("Prompt listesi"),
+                     { target: { value: '["gotik kız", "dans"]' } });
+    fireEvent.change(variantBox(), { target: { value: "3" } });
+
+    expect(screen.getByText("2 prompt × 3 varyant = 6 kart. 8 sn.")).toBeTruthy();
+  });
+
+  it("puts no length on the card that says what the queue took", async () => {
+    await renderReady({ onQueue: () => Promise.resolve({ added: 2 }) });
+
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    expect(screen.getByText("2 loop video kuyruğa eklendi")).toBeTruthy();
+  });
+
+  it("says the server's sentence when the length cannot be written, and goes back to the saved one",
+     async () => {
+    saveVideoLength.mockRejectedValue(new Error("Proje yok: düğün"));
+    await renderReady();
+
+    await act(async () => { fireEvent.click(lengthButton(12)); });
+
+    // The panel's own red card under the button, where its other failures are said.
+    const card = screen.getByText("Proje yok: düğün");
+    expect(card.closest(".wf-stroke").style.borderColor).toBe("var(--danger)");
+    expect(screen.getByText("Kuyruğa ekle").compareDocumentPosition(card)
+           & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(chosen()).toEqual([false, true, false]);
+  });
+
+  it("takes the card away with the next press that is written", async () => {
+    saveVideoLength.mockRejectedValueOnce(new Error("Proje yok: düğün"));
+    await renderReady();
+    await act(async () => { fireEvent.click(lengthButton(12)); });
+
+    await act(async () => { fireEvent.click(lengthButton(4)); });
+
+    expect(screen.queryByText("Proje yok: düğün")).toBeNull();
+    expect(chosen()).toEqual([true, false, false]);
+  });
+});
+
+describe("LayerPanel — Mutlu son (madde 426)", () => {
+  const H3 = { id: "video", name: "Video üreticisi", installed: true, model: "MiniMax H3" };
+  const AUDIO = { id: "audio", name: "Ses üreticisi", installed: true, model: "MMAudio v2" };
+  const LOOP_LINE = "2 loop video üretilecek — her video kendine döner.";
+
+  const off = () => screen.getByRole("button", { name: "Mutlu son kapalı" });
+  const on = () => screen.getByRole("button", { name: "Mutlu son açık" });
+  const chosen = () => [off(), on()].map((one) => one.className.includes("is-on"));
+
+  async function renderReady(props) {
+    const view = renderPanel({ producer: H3, ...props });
+    await act(async () => {});
+    return view;
+  }
+
+  it("sits right under the length, off for a project that saved nothing", async () => {
+    const project = freshProject();
+    const view = await renderReady({ project });
+
+    const order = labels(view);
+    expect(order.indexOf("Mutlu son")).toBe(order.indexOf("Video uzunluğu") + 1);
+    // The length's own segment, with two buttons: what the panel's neighbours already look like.
+    const segment = off().parentElement;
+    expect(segment.className).toContain("wf-segment");
+    expect([...segment.children].map((one) => one.textContent)).toEqual(["Kapalı", "Açık"]);
+    expect(chosen()).toEqual([true, false]);
+    expect(getHappyEnding).toHaveBeenCalledWith(project);
+  });
+
+  it("stands in the same place on Referanstan", async () => {
+    const view = await renderReady();
+
+    await act(async () => { fireEvent.click(tab("Referanstan")); });
+
+    const order = labels(view);
+    expect(order.indexOf("Mutlu son")).toBe(order.indexOf("Video uzunluğu") + 1);
+  });
+
+  it("opens on what the project saved", async () => {
+    getHappyEnding.mockResolvedValue(true);
+    await renderReady();
+
+    expect(chosen()).toEqual([false, true]);
+  });
+
+  it("turns on at once and writes it to the project", async () => {
+    saveHappyEnding.mockReturnValue(new Promise(() => {}));
+    const project = freshProject();
+    await renderReady({ project });
+
+    fireEvent.click(on());
+
+    expect(chosen()).toEqual([false, true]);
+    expect(saveHappyEnding).toHaveBeenCalledWith(project, true);
+  });
+
+  it("keeps its choice when the tab changes", async () => {
+    await renderReady();
+    await act(async () => { fireEvent.click(on()); });
+
+    await act(async () => { fireEvent.click(tab("Referanstan")); });
+    expect(chosen()).toEqual([false, true]);
+    await act(async () => { fireEvent.click(tab("Kareden")); });
+    expect(chosen()).toEqual([false, true]);
+  });
+
+  it("opens a rebuilt panel on what it knew", async () => {
+    getHappyEnding.mockResolvedValue(true);
+    (await renderReady({ project: "mutlu-a" })).unmount();
+    getHappyEnding.mockReturnValue(new Promise(() => {}));
+
+    await renderReady({ project: "mutlu-a" });
+
+    expect(chosen()).toEqual([false, true]);
+  });
+
+  it("leaves the length's choice alone, and the length its", async () => {
+    await renderReady();
+
+    await act(async () => { fireEvent.click(on()); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "12 saniye" })); });
+
+    expect(chosen()).toEqual([false, true]);
+    expect(saveHappyEnding).toHaveBeenCalledTimes(1);
+    expect(saveVideoLength).toHaveBeenCalledWith(expect.any(String), 12);
+  });
+
+  it("says the server's sentence when it cannot be written, and goes back to the saved one",
+     async () => {
+    saveHappyEnding.mockRejectedValue(new Error("Proje yok: düğün"));
+    await renderReady();
+
+    await act(async () => { fireEvent.click(on()); });
+
+    const card = screen.getByText("Proje yok: düğün");
+    expect(card.closest(".wf-stroke").style.borderColor).toBe("var(--danger)");
+    expect(chosen()).toEqual([true, false]);
+  });
+
+  it("is not drawn while the model is not read yet", async () => {
+    const view = await renderReady({ producer: null });
+
+    expect(labels(view)).not.toContain("Mutlu son");
+    expect(getHappyEnding).not.toHaveBeenCalled();
+  });
+
+  it("is not drawn, and says nothing, when it cannot be read", async () => {
+    getHappyEnding.mockRejectedValue(new Error("Sunucuya ulaşılamadı — bağlantıyı kontrol et."));
+    const view = await renderReady();
+
+    expect(labels(view)).not.toContain("Mutlu son");
+    expect(screen.getByText(`${LOOP_LINE} 8 sn.`)).toBeTruthy();
+  });
+
+  it("is not on the sound panel", async () => {
+    const view = await renderReady({ layer: "audio", producer: AUDIO,
+                                     frames: [done("0_a.png", { video: "0_a_V1_0.mp4" })] });
+
+    expect(labels(view)).not.toContain("Mutlu son");
+    expect(getHappyEnding).not.toHaveBeenCalled();
+  });
+
+  it("is said after the length once it is on", async () => {
+    await renderReady();
+
+    await act(async () => { fireEvent.click(on()); });
+
+    expect(screen.getByText(`${LOOP_LINE} 8 sn, mutlu son.`)).toBeTruthy();
+  });
+
+  it("is said alone when the length cannot be read", async () => {
+    getVideoLength.mockRejectedValue(new Error("Sunucuya ulaşılamadı — bağlantıyı kontrol et."));
+    getHappyEnding.mockResolvedValue(true);
+    await renderReady();
+
+    expect(screen.getByText(`${LOOP_LINE} Mutlu son.`)).toBeTruthy();
+  });
+
+  it("ends the copy warning and Referanstan's line too", async () => {
+    getHappyEnding.mockResolvedValue(true);
+    await renderReady({ selected: ["1_a"] });
+
+    expect(screen.getByText("1 loop video üretilecek — videolu 1 kare için yeniler kopya kare "
+                            + "olur, eskisi durur. 8 sn, mutlu son.")).toBeTruthy();
+
+    await act(async () => { fireEvent.click(tab("Referanstan")); });
+    fireEvent.change(screen.getByLabelText("Prompt listesi"),
+                     { target: { value: '["gotik kız", "dans"]' } });
+    fireEvent.change(variantBox(), { target: { value: "3" } });
+
+    expect(screen.getByText("2 prompt × 3 varyant = 6 kart. 8 sn, mutlu son.")).toBeTruthy();
   });
 });

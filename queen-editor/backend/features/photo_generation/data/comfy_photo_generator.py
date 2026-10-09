@@ -5,7 +5,7 @@ Node ids come from our own export (queen-editor/workflow_api.json):
   "4"  ImpactWildcardProcessor, _meta.title "NEGATIVE"
   "23" easy int "Batch Size" -> EmptyLatentImage's batch_size: how many pictures one job makes
   "27" Power Lora Loader (rgthree) -> which loras are switched on, and how strongly
-  "40" Seed (rgthree) -> KSampler, FaceDetailer and both wildcard processors read it
+  "40" Seed (rgthree) -> KSampler and both wildcard processors read it
   "45" CheckpointLoaderSimple -> which model renders the frame
 
 A new export can renumber these; then this file changes and nothing else does.
@@ -43,10 +43,10 @@ class ComfyPhotoGenerator:
         self._timeout = timeout
 
     def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                 references=()):
-        """`source` and `end` are nobody's business here: a picture is made from its words alone and
-        arrives nowhere. Both are taken because the queue has one call shape for every producer --
-        see ports.PhotoGenerator.
+                 references=(), seconds=None, happy_ending=False):
+        """`source`, `end`, `seconds` and `happy_ending` are nobody's business here: a picture is
+        made from its words alone, arrives nowhere, runs no length and has no ending. They are taken
+        because the queue has one call shape for every producer -- see ports.PhotoGenerator.
         """
         workflow = self._graph(prompt, negative, seed, model, lora)
         prompt_id = self._client.submit(workflow)

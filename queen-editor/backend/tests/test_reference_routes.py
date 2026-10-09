@@ -33,6 +33,9 @@ class FakeGenerator:
     def generate(self, *_args, **_kwargs):
         return b"MP4"
 
+    def seconds(self, asked=None):
+        return 4 if asked is None else asked
+
 
 def fixed_length(seconds=4.0):
     """ffprobe's answer, without ffprobe: the test machine has no such tool, and how long a clip
@@ -41,7 +44,7 @@ def fixed_length(seconds=4.0):
         "Done", (), {"returncode": 0, "stdout": f"{seconds}\n", "stderr": ""})())
 
 
-def client_over(drive, dist, clips=None, has_h3=True):
+def client_over(drive, dist, clips=None):
     """A server over this Drive folder. A second one is what a restart looks like from here: the
     pool is a folder, not a session."""
     storage = DriveStorage(str(drive))
@@ -60,7 +63,7 @@ def client_over(drive, dist, clips=None, has_h3=True):
         save_reference_order=partial(save_reference_order, store, pool, orders),
         queue_references=partial(queue_references, runner, store, record, plan_store, gallery,
                                  pool, orders, {layers.VIDEO: FakeGenerator()}, lambda: 7,
-                                 lambda: "t", has_h3),
+                                 lambda: "t"),
         reference_dir=pool.dir_path)
     return create_app(dist_dir=str(dist), blueprints=[blueprint]).test_client()
 
@@ -84,6 +87,18 @@ def names_of(body):
     return [row["name"] for row in body["references"]]
 
 
+def slots_of(body):
+    return [(row["name"], row["slot"]) for row in body["references"]]
+
+
+def pick(client, name, data=b"PNG", kind="picture"):
+    """One file through a row's Ekle card, the way the screen sends it: one file, and the row it was
+    picked into (madde 320)."""
+    return client.post("/api/projects/düğün/references",
+                       data={"files": [(BytesIO(data), name)], "kind": kind},
+                       content_type="multipart/form-data")
+
+
 def test_two_references_are_uploaded_listed_and_one_is_deleted(tmp_path):
     """Madde 297 end to end, over a real folder: the pool is what is on the disk, and nothing about
     it lives in the process."""
@@ -92,9 +107,7 @@ def test_two_references_are_uploaded_listed_and_one_is_deleted(tmp_path):
     added = upload(client, ("kedi.png", b"PNG"), ("dans.mp4", b"MP4"))
 
     assert added.status_code == 200
-    # A row at a time, and by name inside a row while nobody has dragged anything: the order they
-    # were picked in is not on the disk to be read back (madde 297), and a slot is a place inside
-    # one kind's row (madde 300).
+    # A row at a time: a slot is a place inside one kind's row (madde 300).
     assert names_of(added.get_json()) == ["kedi.png", "dans.mp4"]
     assert (drive / "düğün" / "referans" / "kedi.png").read_bytes() == b"PNG"
 
@@ -181,6 +194,54 @@ def test_a_deleted_reference_leaves_no_hole_after_a_restart(tmp_path):
     again = client_over(drive, dist).get("/api/projects/düğün/references")
     assert [(row["name"], row["slot"]) for row in again.get_json()["references"]] == [
         ("bir.png", 1), ("üç.png", 2)]
+
+
+def test_a_picture_picked_after_the_first_lands_in_slot_two(tmp_path):
+    """Madde 414, the user's own steps: one photo in the row, and a second one picked through the
+    Ekle card after it. The new one sorts first by name, and still goes where it was picked."""
+    client, drive, dist = make_client(tmp_path)
+    pick(client, "zeynep.png", b"ONE")
+
+    added = pick(client, "ayse.png", b"TWO")
+
+    assert added.status_code == 200
+    assert slots_of(added.get_json()) == [("zeynep.png", 1), ("ayse.png", 2)]
+    # The restart: the place is on the disk, not in the process.
+    again = client_over(drive, dist).get("/api/projects/düğün/references")
+    assert slots_of(again.get_json()) == [("zeynep.png", 1), ("ayse.png", 2)]
+
+
+def test_the_same_picture_picked_again_lands_in_slot_two(tmp_path):
+    """The second kadin.png is stored as kadin-2.png, and "-" sorts before ".": read by name, the
+    copy would stand in front of the first every time."""
+    client, _drive, _dist = make_client(tmp_path)
+    pick(client, "kadin.png", b"ONE")
+
+    added = pick(client, "kadin.png", b"TWO")
+
+    assert slots_of(added.get_json()) == [("kadin.png", 1), ("kadin-2.png", 2)]
+
+
+def test_dragging_the_videos_leaves_the_pictures_where_they_stood(tmp_path):
+    """Madde 427, the user's path: photos whose saved order is not their name order -- the second
+    one sorts first -- and then a drag in the videos row. The screen sends the dragged row alone, and
+    the photos stay where they stood."""
+    client, drive, dist = make_client(tmp_path)
+    pick(client, "zeynep.png", b"ONE")
+    pick(client, "ayse.png", b"TWO")
+    pick(client, "bir.mp4", b"MP4", kind="video")
+    pick(client, "iki.mp4", b"MP4", kind="video")
+
+    dragged = client.put("/api/projects/düğün/references/order",
+                         json={"order": {"video": ["iki.mp4", "bir.mp4"]}})
+
+    assert dragged.status_code == 200
+    assert slots_of(dragged.get_json()) == [
+        ("zeynep.png", 1), ("ayse.png", 2), ("iki.mp4", 1), ("bir.mp4", 2)]
+    # The restart: the order is on the disk, not in the process.
+    again = client_over(drive, dist).get("/api/projects/düğün/references")
+    assert slots_of(again.get_json()) == [
+        ("zeynep.png", 1), ("ayse.png", 2), ("iki.mp4", 1), ("bir.mp4", 2)]
 
 
 def test_a_reference_that_passes_a_limit_is_a_400(tmp_path):

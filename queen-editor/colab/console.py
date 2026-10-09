@@ -11,6 +11,13 @@ import threading
 import time
 
 
+# The lines of a failed command its error carries: the ones before them are on the console already.
+TAIL = 5
+# The lines of a server's log the error carries when the server does not come up: the log is not on
+# the console.
+LOG_LINES = 30
+
+
 def log(msg, level="INFO"):
     icons = {"INFO": "ℹ️ ", "OK": "✅", "WARN": "⚠️ ", "ERR": "❌"}
     print(f"{icons.get(level, '·')} [{time.strftime('%H:%M:%S')}] {msg}")
@@ -35,6 +42,14 @@ def head_text(path, limit=4000):
     return text + (f"\n… (+{human(size - limit)})" if size > limit else "")
 
 
+def log_tail(path):
+    """The last lines of a server's own log under its name, the one place that says why it did not
+    come up."""
+    with open(path, encoding="utf-8", errors="replace") as handle:
+        tail = collections.deque(handle, maxlen=LOG_LINES)
+    return f"--- {path} · son {LOG_LINES} satır ---\n" + "".join(tail).rstrip("\n")
+
+
 def run(cmd, label, cwd=None, timeout=3600):
     """A shell call whose output reaches the cell as it comes, and that fails loud with the command's
     own last lines rather than a guessed cause.
@@ -46,13 +61,17 @@ def run(cmd, label, cwd=None, timeout=3600):
     stopped by the user -- kill leaves nothing running behind the cell; a command that has ended is
     not signalled.
 
+    Seeing no terminal, git and pip draw no progress of their own, so the calls ask for it:
+    `git clone --progress` and `pip install --progress-bar on`. pip goes without -q, which hides the
+    lines saying which package it is on (madde 439).
+
     The reader is waited for only when the command ended by itself. A killed pip can leave a child
     of its own holding the pipe, and waiting for that pipe to close would turn a timeout, or a
     stopped cell, into a cell that never returns.
     """
     proc = subprocess.Popen(cmd, shell=isinstance(cmd, str), cwd=cwd, stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, env={**os.environ, "PYTHONUNBUFFERED": "1"})
-    tail = collections.deque(maxlen=5)
+    tail = collections.deque(maxlen=TAIL)
     echo = threading.Thread(target=_echo, args=(proc.stdout, tail), daemon=True)
     echo.start()
     try:

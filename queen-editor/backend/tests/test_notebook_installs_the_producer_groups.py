@@ -8,9 +8,11 @@ and the tunnel is opened the way that measured fast.
 
 The notebook is read, never run.
 
-The download machinery left the notebook for colab/ in madde 310, and the custom node install in
-madde 314; both are run in test_colab_*.py. What stays here is the seam: the notebook imports names
-the modules give, finds them in its clone, and defines none of them again.
+The download machinery left the notebook for colab/ in madde 310, the custom node install in madde
+314, and every other cell's code after the clone in madde 438; all of it is run in test_colab_*.py.
+What stays here is the seam: each cell calls the function that does its work, with the notebook's
+own values, and the notebook imports names the modules give, finds them in its clone, and defines
+none of them again.
 """
 import importlib
 import json
@@ -75,6 +77,17 @@ def _imports_from_code():
             for module, names in re.findall(r"^from (colab\.\w+) import ([\w, ]+)$", _source(), re.M)]
 
 
+def _imported(module):
+    """The names the notebook imports from one of its modules."""
+    return [name for found, names in _imports_from_code() if found == module for name in names]
+
+
+def _in_order(cell, *calls):
+    """Whether every call is in the cell, each after the one before it."""
+    places = [cell.find(call) for call in calls]
+    return -1 not in places and places == sorted(places)
+
+
 def _drawn(cell):
     """The part of a CONFIG cell Colab draws into the form: #@markdown lines only.
 
@@ -99,9 +112,13 @@ def test_the_notebook_carries_the_tool_s_own_name():
 def test_every_file_the_panel_counts_is_fetched_by_the_notebook():
     """A row naming a kind rather than a file is skipped here and covered by
     test_the_notebook_offers_every_checkpoint_a_model_asks_for instead, which pins the checkpoint by
-    name and by version id -- a tighter guard than this one, not a looser one."""
+    name and by version id -- a tighter guard than this one, not a looser one.
+
+    Asked by the file's own name: the video group names H3's files the way the graph loads them,
+    MiniMaxH3/ included, and the notebook names the file itself and puts it in that folder."""
+    source = _source()
     missing = [row["name"] for group in GROUPS.values() for row in group
-               if "name" in row and row["name"] not in _source()]
+               if "name" in row and os.path.basename(row["name"]) not in source]
 
     assert missing == [], f"Defter bu dosyaları indirmiyor: {missing}"
 
@@ -137,47 +154,81 @@ def test_the_intro_agrees_with_the_custom_node_list():
         f"Giriş hücresindeki sayı listeyle uyuşmuyor: {listed} satır"
 
 
-def test_the_notebook_installs_its_nodes_through_install_node():
-    """The loop left the ComfyUI cell for colab/ in madde 314, where it runs under test. The list
-    stays in the notebook, like the download lists."""
-    imported = [name for module, names in _imports_from_code() if module == "colab.nodes"
+def test_the_notebook_installs_its_nodes_through_install_nodes():
+    """How one node comes in left the ComfyUI cell for colab/ in madde 314, and the loop over the
+    list in madde 438; both run under test. The list stays in the notebook, like the download
+    lists."""
+    cell = _cell("CUSTOM_NODES = [")
+
+    assert _in_order(cell, "CUSTOM_NODES = [",
+                     'install_nodes(CUSTOM_NODES, f"{COMFY_ROOT}/custom_nodes")'), \
+        "Defter node'ları listeden sonra install_nodes ile kurmuyor"
+    assert "install_nodes" in _imported("colab.nodes"), "Defter install_nodes'u klondan import etmiyor"
+
+
+def test_the_comfyui_cell_installs_the_machine_s_packages_then_comfyui():
+    """The machine's packages, then ComfyUI, then its nodes: each a call run under test, and no shell
+    line left in the cell."""
+    cell = _cell("CUSTOM_NODES = [")
+
+    assert _in_order(cell, 'apt_install("aria2", "ffmpeg")', "install_comfy(COMFY_ROOT)",
+                     "install_nodes("), "ComfyUI hücresi paketleri ve ComfyUI'yi bu sırayla kurmuyor"
+    shell = [line for line in cell.splitlines() if line.startswith(("!", "%"))]
+    assert shell == [], f"ComfyUI hücresinde hâlâ kabuk satırı var: {shell}"
+    assert "apt_install" in _imported("colab.system"), "Defter apt_install'u klondan import etmiyor"
+    assert "install_comfy" in _imported("colab.comfy"), "Defter install_comfy'yi klondan import etmiyor"
+
+
+def test_the_notebook_starts_comfyui_through_start_comfy():
+    """The start left the ComfyUI cell for colab/ in madde 433, where it runs under test: the old one
+    gone before the new one starts, and hazır only for the process the cell started."""
+    imported = [name for module, names in _imports_from_code() if module == "colab.comfy"
                 for name in names]
 
-    assert re.search(r"for name, url in CUSTOM_NODES:\n\s+install_node\(name, url, ",
-                     _cell("CUSTOM_NODES = [")), "Defter node'ları install_node ile kurmuyor"
-    assert "install_node" in imported, "Defter install_node'u klondan import etmiyor"
+    assert "start_comfy(COMFY_ROOT, COMFY_PORT, COMFY_LOG)" in _cell("# === Start ComfyUI ==="), \
+        "ComfyUI hücresi ComfyUI'yi start_comfy ile başlatmıyor"
+    assert "start_comfy" in imported, "Defter start_comfy'yi klondan import etmiyor"
+
+
+def test_the_notebook_reads_the_hf_token_itself_before_anything_downloads():
+    """Madde 437: in the helpers cell, the first one after the clone, ahead of every download; CONFIG
+    runs before the clone and cannot import colab/."""
+    imported = [name for module, names in _imports_from_code() if module == "colab.downloads"
+                for name in names]
+
+    assert "use_hf_token(userdata.get)" in _cell("# === Shared helpers ==="), \
+        "Yardımcılar hücresi HF_TOKEN'ı use_hf_token ile okumuyor"
+    assert "use_hf_token" in imported, "Defter use_hf_token'ı klondan import etmiyor"
+
+
+def test_the_secrets_after_the_clone_are_read_through_read_secret():
+    """Every secret but the clone's own goes through one function, in the helpers cell: the first one
+    colab/ can be imported in, so the vault is read at the top of Run all, before anything
+    downloads."""
+    helpers = _cell("# === Shared helpers ===")
+
+    for secret in ('COOKIE_VALUE, _ = read_secret(userdata.get, "CIVITAI_COOKIE")',
+                   'DEEPSEEK_API_KEY, _ = read_secret(userdata.get, "DEEPSEEK_API_KEY")'):
+        assert secret in helpers, f"Yardımcılar hücresi bu secret'ı read_secret ile okumuyor: {secret}"
+    assert "read_secret" in _imported("colab.vault"), "Defter read_secret'ı klondan import etmiyor"
+
+
+def test_config_reads_only_the_token_the_clone_needs():
+    """GITHUB_TOKEN is read before the clone, which brings colab/; every other secret waits for it."""
+    asked = re.findall(r'userdata\.get\("(\w+)"\)', _cell("# === CONFIG ==="))
+
+    assert asked == ["GITHUB_TOKEN"], f"CONFIG kasadan bunları okuyor: {asked}"
 
 
 def test_every_producer_has_a_checkbox_of_its_own():
     """Colab draws a `#@param {type:"boolean"}` line as a checkbox: that is how the user picks.
-    Default False, so nothing heavy starts by accident. Video went back to a box in madde 244, its
-    model picked below it the way the photo's is."""
+    Default False, so nothing heavy starts by accident. Video's box installs H3, the one video model
+    since madde 435."""
     source = _source()
 
     for kind in GROUPS:
         assert f'{SWITCH[kind]} = False  #@param {{type:"boolean"}}' in source, \
             f"{kind}: CONFIG'de kapalı gelen bir onay kutusu yok"
-
-
-def test_every_video_model_has_a_checkbox_of_its_own():
-    """The photo's pattern, one level down: the producer's box, then its models' boxes, all off."""
-    config = _cell("# === CONFIG ===")
-
-    for box in ("VIDEO_WAN", "VIDEO_H3"):
-        assert f'{box} = False  #@param {{type:"boolean"}}' in config, \
-            f"{box}: CONFIG'de kapalı gelen bir kutu yok"
-
-
-def test_choosing_video_without_a_model_stops_the_notebook():
-    """Video ticked and no model is a producer with nothing to render with -- asked in CONFIG, like
-    the photo's, where it costs a second rather than an install."""
-    assert "assert not INSTALL_VIDEO or VIDEO_WAN or VIDEO_H3" in _cell("# === CONFIG ===")
-
-
-def test_choosing_both_video_models_stops_the_notebook():
-    """WAN and H3 never share a session (user's call, madde 243). Colab's boxes cannot be tied to
-    each other, so the form cannot prevent it -- CONFIG stops it before a byte comes down."""
-    assert "assert not (VIDEO_WAN and VIDEO_H3)" in _cell("# === CONFIG ===")
 
 
 def test_the_form_names_the_producer_boxes_too():
@@ -225,23 +276,8 @@ def test_the_form_leaves_the_model_section_at_its_heading():
     assert "#@markdown ---" in drawn, "Formda iki grubu ayıran çizgi yok"
     tail = drawn[drawn.index("#@markdown ---"):]
 
-    assert tail == ["#@markdown ---", "#@markdown ### Fotoğraf modelleri",
-                    "#@markdown ---", "#@markdown ### Video modelleri"], \
+    assert tail == ["#@markdown ---", "#@markdown ### Fotoğraf modelleri"], \
         f"Model bölümleri başlıklarından ibaret değil: {tail}"
-
-
-def test_the_form_gives_video_models_a_section_of_their_own():
-    """Pinned by position, like the photo's: the video boxes come after the photo models, under
-    their own divider and heading."""
-    config = _cell("# === CONFIG ===")
-    photo_box = config.find("PHOTO_DASIWA = ")
-    heading = config.find("#@markdown ### Video modelleri")
-    divider = config.rfind("#@markdown ---", 0, heading)
-    first_box = config.find("VIDEO_WAN = ")
-
-    assert heading != -1, "Video modelleri başlığı yok"
-    assert photo_box < divider < heading < first_box, \
-        "Video modelleri kendi ayracı ve başlığıyla fotoğraf modellerinin altında değil"
 
 
 def test_choosing_nothing_stops_the_notebook():
@@ -250,12 +286,13 @@ def test_choosing_nothing_stops_the_notebook():
     assert "assert INSTALL_PHOTO or INSTALL_VIDEO or INSTALL_AUDIO" in _source()
 
 
-def test_civitai_files_come_down_through_the_mirror():
-    """Each gated file is looked up in the user's own Hugging Face repo first (madde 311), and its row
-    is kept for the table (madde 312)."""
-    assert re.search(r"for [^\n]+ in civitai_jobs:\n\s+landed\.append\(civitai_fetch\(HF_MIRROR, ",
-                     _cell("# === Target folders ===")), \
-        "Civitai dosyaları aynadan geçmiyor ya da satırları tutulmuyor"
+def test_the_chosen_files_come_down_through_download_models_with_the_mirror_and_the_cookie():
+    """Each gated file is looked up in the user's own Hugging Face repo first (madde 311), each row is
+    kept for the table (madde 312), and the loops run under test since madde 438."""
+    assert "landed = download_models(hf_jobs, civitai_jobs, HF_MIRROR, COOKIE_VALUE)" in \
+        _cell("# === Target folders ==="), "Seçilen dosyalar download_models ile inmiyor"
+    assert "download_models" in _imported("colab.downloads"), \
+        "Defter download_models'ı klondan import etmiyor"
 
 
 def test_the_mirror_is_named_once_in_config():
@@ -276,9 +313,8 @@ def test_an_unticked_group_costs_no_bytes():
     """The whole point of the checkboxes: a group's list is only reached through its own switch."""
     source = _source()
 
-    for names, switch in ((("CIVITAI_PHOTO", "OPEN_PHOTO", "HF_PHOTO"), SWITCH["photo"]),
-                          (("CIVITAI_VIDEO", "HF_VIDEO"), 'VIDEO_MODEL == "wan"'),
-                          (("CIVITAI_H3", "HF_H3"), 'VIDEO_MODEL == "h3"'),
+    for names, switch in ((("CIVITAI_PHOTO", "HF_PHOTO"), SWITCH["photo"]),
+                          (("CIVITAI_H3", "HF_H3"), SWITCH["video"]),
                           (("HF_AUDIO",), SWITCH["audio"])):
         for name in names:
             assert f"{name} if {switch} else []" in source, \
@@ -370,8 +406,8 @@ def test_an_unticked_model_costs_no_bytes():
 
 
 def test_the_photo_estimate_counts_only_what_the_group_always_takes():
-    """The base is the files every photo run takes whatever was ticked -- both loras, the upscaler,
-    the detector, the SAM. The checkpoints come from the model boxes, so counting one of them into
+    """The base is the files every photo run takes whatever was ticked -- both loras and the
+    upscaler. The checkpoints come from the model boxes, so counting one of them into
     the base would warn a single-model run about disk it was never going to use."""
     assert "(INSTALL_PHOTO, PHOTO_GIB," in _cell("SIZES = ["), \
         "SIZES foto için hâlâ sabit bir sayı taşıyor"
@@ -420,53 +456,27 @@ def test_every_file_the_app_renders_with_is_one_the_notebook_can_fetch():
 
 def test_the_disk_is_measured_before_the_download_starts():
     """All three together are ~54 GiB. Finding out the disk was too small halfway through leaves
-    half-written files and no explanation."""
-    assert "shutil.disk_usage" in _source()
+    half-written files and no explanation. The sizes are the notebook's, next to the boxes; the check
+    runs under test (madde 438)."""
+    assert _in_order(_cell("# === Target folders ==="), "SIZES = [", "check_disk(SIZES)",
+                     "download_models("), "Disk indirmeden önce ölçülmüyor"
+    assert "check_disk" in _imported("colab.downloads"), "Defter check_disk'i klondan import etmiyor"
 
 
-def test_the_sound_box_installs_the_library_not_just_a_weight_file():
+def test_the_sound_box_installs_the_library_and_its_weights():
     """MMAudio runs inside the app's process, so `import mmaudio` has to work there -- a weight
     file with no library is not a producer. The base weights come with it: warming them here is
-    what keeps the first sound job from stalling on a ~7 GiB download."""
-    source = _source()
+    what keeps the first sound job from stalling on a ~7 GiB download. Both behind the sound box;
+    how each comes down runs under test since madde 438 (test_colab_sound.py)."""
+    library = _cell("# === Ses motoru — MMAudio kütüphanesi ===")
+    weights = _cell("# === Ses motoru — MMAudio'nun kendi ağırlıkları")
 
-    assert "hkchengrex/MMAudio" in source, "Ses kutusu kütüphaneyi kurmuyor"
-    assert "download_if_needed" in source, "MMAudio'nun kendi ağırlıkları öne alınmamış"
-
-
-def test_the_sound_weights_land_where_the_app_will_look():
-    """MMAudio resolves ./weights and ./ext_weights against the working directory, and the app is
-    started from APP_DIR. Downloading them anywhere else means the app fetches them again."""
-    assert "os.chdir(APP_DIR)" in _source()
-
-
-def test_the_freshly_installed_library_is_reachable_from_the_running_kernel():
-    """`pip install -e .` registers the package with a .pth file, and .pth files are read when a
-    Python process starts -- the Colab kernel started long before. Without the clone on sys.path
-    the very next line dies with ModuleNotFoundError, which is what happened on 2026-08-13."""
-    assert "sys.path.insert(0, MMAUDIO_DIR)" in _source()
-
-
-def test_the_sound_engine_cell_says_each_stage_as_it_starts():
-    """The user's words (madde 398): "burda takıldı, output'ta bir şey de yok". A line as each stage
-    starts -- the clone, the pip install -- says which one the cell is in, and its time says since
-    when."""
-    cell = _cell("# === Ses motoru — MMAudio kütüphanesi ===")
-    lines = [line.strip() for line in cell.splitlines() if line.strip()]
-    stages = [i for i, line in enumerate(lines) if line.startswith("run(")]
-
-    assert stages, "Ses motoru hücresi hiçbir komut çalıştırmıyor"
-    for i in stages:
-        assert lines[i - 1].startswith("log("), f"Bu aşama başlarken bir satır yazılmıyor: {lines[i]}"
-
-
-def test_the_sound_engine_s_pip_is_not_silenced():
-    """pip -q hides every line up to an error, and the install can take thirty minutes (madde 398)."""
-    pip = re.search(r'run\(\["pip", "install"[^\]]*\]',
-                    _cell("# === Ses motoru — MMAudio kütüphanesi ==="))
-
-    assert pip, "Ses motoru hücresi MMAudio'yu pip ile kurmuyor"
-    assert '"-q"' not in pip.group(0), f"Ses motorunun pip'i susturulmuş: {pip.group(0)}"
+    assert re.search(r"if INSTALL_AUDIO:\n\s+install_mmaudio\(MMAUDIO_DIR\)", library), \
+        "Ses kutusu kütüphaneyi install_mmaudio ile kurmuyor"
+    assert re.search(r"if INSTALL_AUDIO:\n\s+fetch_mmaudio_weights\(MMAUDIO_DIR, APP_DIR\)",
+                     weights), "Ses kutusu ağırlıkları fetch_mmaudio_weights ile, uygulamanın klasörüne indirmiyor"
+    for name in ("install_mmaudio", "fetch_mmaudio_weights"):
+        assert name in _imported("colab.sound"), f"Defter {name}'ı klondan import etmiyor"
 
 
 def test_the_app_is_told_where_the_notebook_installed():
@@ -475,15 +485,9 @@ def test_the_app_is_told_where_the_notebook_installed():
     assert '"QE_COMFY_ROOT": COMFY_ROOT' in _source()
 
 
-def test_the_deepseek_key_is_read_from_secrets_and_trimmed():
-    """Madde 400: Queen AI writes H3's prompt. The secret is QueenAgent's own name, so the owner
-    keeps one secret for both tools -- trimmed where it is pasted, because the paste is what carries
-    the newline."""
-    assert 'DEEPSEEK_API_KEY = (userdata.get("DEEPSEEK_API_KEY") or "").strip()' in _source(), \
-        "DeepSeek anahtarı Secrets'tan kırpılarak okunmuyor"
-
-
 def test_the_deepseek_key_travels_to_the_app():
+    """Madde 400: Queen AI writes H3's prompt. The secret is QueenAgent's own name, so the owner keeps
+    one secret for both tools. It is read, and trimmed, in the helpers cell."""
     assert '"QE_DEEPSEEK_API_KEY": DEEPSEEK_API_KEY' in _cell("# === Start Flask"), \
         "Defter DeepSeek anahtarını uygulamaya geçirmiyor"
 
@@ -495,17 +499,6 @@ def test_the_setup_names_the_deepseek_secret():
         "Kurulum anlatımı DeepSeek secret'ını saymıyor"
 
 
-def test_every_file_the_h3_group_counts_is_fetched_by_the_notebook():
-    """The group names a file the way the graph loads it, MiniMaxH3/ included; the notebook names
-    the file itself and puts it in that folder."""
-    from backend.features.producers.domain.model_groups import H3_VIDEO
-    source = _source()
-
-    missing = [row["name"] for row in H3_VIDEO if os.path.basename(row["name"]) not in source]
-
-    assert missing == [], f"Defter bu H3 dosyalarını indirmiyor: {missing}"
-
-
 def test_the_notebook_fetches_motion_booster_by_its_version():
     """Named rather than derived, like the photo checkpoints: the one lora the user kept from 213's
     trial."""
@@ -515,7 +508,7 @@ def test_the_notebook_fetches_motion_booster_by_its_version():
 def test_the_notebook_fetches_eros_max_from_its_author_s_repo_into_the_h3_diffusion_models():
     """Madde 333, the user's pick after trying both (329, 332): the file the author says to use by
     default (TURBO-hybrid int8), from the Hugging Face repo the Civitai page points at -- Civitai's
-    own version link hands out a different, w4a8 file. A row of HF_H3: only an H3 run reaches it
+    own version link hands out a different, w4a8 file. A row of HF_H3: only a video run reaches it
     (test_an_unticked_group_costs_no_bytes), and hf_fetch uploads nothing, so the file never touches
     the mirror. H3DIFF is where the graph's MiniMaxH3/ prefix looks."""
     cell = _cell("HF_H3 = [")
@@ -539,11 +532,63 @@ def test_the_retired_dasiwa_h3_checkpoint_is_gone_from_the_notebook():
         assert leftover not in source, f"Defterde DaSiWa H3'ten iz kaldı: {leftover}"
 
 
+def test_the_face_detailer_s_files_are_gone_from_the_notebook():
+    """The photo graph runs no detailer since madde 430. A row left behind would still bring the
+    detector and SAM down on every photo run, and the Subpack's install with them -- the package
+    gives the graph nothing but the detector node. The folders go too: a cell making them and a
+    summary listing them would be the same leftover. SAM was the one file fetched by a plain
+    address, so the list of those and its loop go with it."""
+    source = _source()
+
+    for leftover in ("face_yolov9c.pt", "sam_vit_b_01ec64.pth", "Bingsu/adetailer",
+                     "ComfyUI-Impact-Subpack", "ultralytics", "models/sams", "OPEN_PHOTO",
+                     "open_jobs"):
+        assert leftover not in source, f"Defterde yüz detailer'ından iz kaldı: {leftover}"
+
+
+# What only WAN's graphs used (madde 435): the nodes of none of the three graphs left come from these
+# packages -- they came with WAN's own notebook, wan22-arbuzai, and the photo's and H3's do not have
+# them.
+WAN_PACKAGES = ("melMass/comfy_mtb", "Kosinkadink/ComfyUI-VideoHelperSuite",
+                "kijai/ComfyUI-WanVideoWrapper", "city96/ComfyUI-GGUF", "evanspearman/ComfyMath",
+                "Fannovel16/ComfyUI-Frame-Interpolation", "GACLove/ComfyUI-VFI",
+                "Suzie1/ComfyUI_Comfyroll_CustomNodes", "Smirnov75/ComfyUI-mxToolkit",
+                "scottmudge/ComfyUI-NAG", "Alectriciti/comfyui-adaptiveprompts")
+
+
+def test_wan_is_gone_from_the_notebook():
+    """Madde 435, the user's words: "wan modelini kaldıralım queen editorden direkt kullanımıyor
+    zaten". Its box, the pick it made and the name it handed the app; its files, the folder only its
+    CLIP vision used, and its two graphs; and the packages only its graphs read. A row left behind
+    would still bring ~39 GiB or a clone down for a producer the app no longer has."""
+    source = _source()
+
+    for leftover in ("VIDEO_WAN", "VIDEO_H3", "VIDEO_MODEL", "Wan2_1_VAE_fp32", "umt5_xxl",
+                     "lightx2v", "SmoothMix", "clip_vision", "Comfy-Org/Wan_2",
+                     "workflow_video_api.json", "workflow_video_first_last_api.json",
+                     *WAN_PACKAGES):
+        assert leftover not in source, f"Defterde WAN'dan iz kaldı: {leftover}"
+
+
+def test_the_notebook_keeps_the_packages_the_photo_and_h3_graphs_read():
+    """The other half of the same cut: the nine that stay. Photo's graph reads Impact-Pack, ppm,
+    rgthree and Easy-Use; H3's reads DaSiWa and KJNodes; Manager, Custom-Scripts and Ultimate SD
+    Upscale came with the photo's own notebook."""
+    nodes = _cell("CUSTOM_NODES = [")
+
+    for kept in ("ltdrdata/ComfyUI-Manager", "rgthree/rgthree-comfy", "ltdrdata/ComfyUI-Impact-Pack",
+                 "yolain/ComfyUI-Easy-Use", "pythongosssss/ComfyUI-Custom-Scripts",
+                 "ssitu/ComfyUI_UltimateSDUpscale", "kijai/ComfyUI-KJNodes",
+                 "pamparamm/ComfyUI-ppm", "darksidewalker/ComfyUI-DaSiWa-Nodes"):
+        assert kept in nodes, f"Defter bu paketi kurmuyor: {kept}"
+    assert nodes.count('.git"),') == 9, "Defter dokuz paketten fazlasını kuruyor"
+
+
 def test_the_notebook_fetches_mystic_xxx_by_its_version_into_the_loras():
     """Madde 328: the address is the user's -- Civitai version 3266628, "v4.0 (FL2VA & REF2VA)" -- and
     the file lands in loras/ under the name the lora stack would load it by. Madde 330 took it out of
     the stack and kept this row: the file stays on the disk, so turning it back on is a graph edit
-    and no notebook change. A row of CIVITAI_H3, which only an H3 run reaches
+    and no notebook change. A row of CIVITAI_H3, which only a video run reaches
     (test_an_unticked_group_costs_no_bytes)."""
     cell = _cell("CIVITAI_H3 = [")
     listing = cell[cell.find("CIVITAI_H3 = ["):]
@@ -551,6 +596,25 @@ def test_the_notebook_fetches_mystic_xxx_by_its_version_into_the_loras():
 
     assert re.search(r'\(3266628,\s*LORA,\s*"MysticXXX_MMH3-V4\.safetensors",', listing), \
         f"CIVITAI_H3'te Mystic XXX satırı yok:\n{listing}"
+
+
+def test_the_notebook_fetches_hmcumshot_by_its_version_into_the_loras():
+    """Madde 426: Mutlu son's lora, v1.0 -- Civitai version 3329529 -- landing in loras/ under the name
+    the producer puts in the stack. A row of CIVITAI_H3, so it comes down with H3's other files and
+    only on a video run (test_an_unticked_group_costs_no_bytes)."""
+    cell = _cell("CIVITAI_H3 = [")
+    listing = cell[cell.find("CIVITAI_H3 = ["):]
+    listing = listing[:listing.find("\n]")]
+
+    assert re.search(r'\(3329529,\s*LORA,\s*"HMCumshot_V1\.0\.safetensors",', listing), \
+        f"CIVITAI_H3'te HMCumshot satırı yok:\n{listing}"
+
+
+def test_hmcumshot_comes_through_the_mirror():
+    """Through civitai_fetch's ordinary road: the HF mirror first, Civitai when it is not there."""
+    from colab.downloads import MIRRORLESS
+
+    assert "HMCumshot_V1.0.safetensors" not in MIRRORLESS
 
 
 def test_no_huggingface_file_is_fetched_by_its_address():
@@ -563,30 +627,26 @@ def test_no_huggingface_file_is_fetched_by_its_address():
     assert "huggingface.co" not in cell, "İndirme hücresinde hâlâ HF adresi var"
 
 
-def test_huggingface_files_come_down_through_hf_fetch():
+def test_hf_xet_is_installed_before_anything_downloads():
     """hf_fetch is the path around HF's bridge. Without hf_xet installed, huggingface_hub goes back to
-    the bridge with nothing but a log line, so installing it is half of the rule. Each download's row
-    is kept for the table the cell ends with (madde 312)."""
-    assert re.search(r"for [^\n]+ in hf_jobs:\n\s+landed\.append\(hf_fetch\(",
-                     _cell("# === Target folders ===")), \
-        "HF dosyaları hf_fetch ile inmiyor ya da satırları tutulmuyor"
-    assert re.search(r"pip install[^\n]*hf_xet", _source()), "Defter hf_xet'i kurmuyor"
+    the bridge with nothing but a log line, so installing it is half of the rule. It moved from the
+    end of the ComfyUI cell to the top of the models cell (madde 438): nothing runs between the two."""
+    assert _in_order(_cell("# === Target folders ==="), "install_hf_xet()", "check_disk(",
+                     "download_models("), "hf_xet indirmelerden önce kurulmuyor"
+    assert "install_hf_xet" in _imported("colab.downloads"), \
+        "Defter install_hf_xet'i klondan import etmiyor"
 
 
-def test_the_models_cell_ends_with_the_download_summary():
-    """The rows the downloads hand back are collected in one list and printed as a table once
-    everything is down (madde 312)."""
+def test_the_models_cell_ends_with_the_folders_and_the_download_summary():
+    """The rows the downloads hand back are printed as a table once everything is down (madde 312),
+    under what each ticked folder holds. Which folders a group shows is the notebook's, next to the
+    boxes."""
     cell = _cell("# === Target folders ===")
-    imported = [name for module, names in _imports_from_code() if module == "colab.downloads"
-                for name in names]
 
-    assert -1 < cell.find("landed = []") < cell.find("in hf_jobs:"), \
-        "Satır listesi döngülerden önce açılmıyor"
-    assert re.search(r"for [^\n]+ in open_jobs:\n\s+landed\.append\(fetch\(", cell), \
-        "Açık adresli indirmelerin satırı tutulmuyor"
-    assert cell.find("download_summary(landed)") > cell.find("in civitai_jobs:") > -1, \
-        "Özet tablosu indirmelerden sonra basılmıyor"
-    assert "download_summary" in imported, "Defter özet tablosunu klondan import etmiyor"
+    assert _in_order(cell, "FOLDERS = [", "landed = download_models(", "show_folders(FOLDERS)",
+                     "download_summary(landed)"), "Klasörler ve özet indirmelerden sonra basılmıyor"
+    for name in ("show_folders", "download_summary"):
+        assert name in _imported("colab.downloads"), f"Defter {name}'ı klondan import etmiyor"
 
 
 def test_every_name_the_notebook_imports_from_its_code_exists():
@@ -634,15 +694,8 @@ def test_the_notebook_installs_the_nodes_the_h3_graph_asks_for():
     assert "darksidewalker/ComfyUI-DaSiWa-Nodes" in _cell("CUSTOM_NODES = [")
 
 
-def test_the_disk_estimate_counts_h3_when_h3_is_picked():
-    assert '(VIDEO_MODEL == "h3", ' in _cell("SIZES = ["), "Disk hesabı H3'ü saymıyor"
-
-
-def test_the_app_is_told_which_video_model_the_notebook_installed():
-    """The disk cannot answer this for the producer to use -- only the notebook knows what was
-    picked."""
-    assert '"QE_VIDEO_MODEL"' in _cell("# === Start Flask"), \
-        "Defter seçilen video modelini uygulamaya geçirmiyor"
+def test_the_disk_estimate_counts_h3_when_video_is_ticked():
+    assert '(INSTALL_VIDEO, 37, "video (H3)")' in _cell("SIZES = ["), "Disk hesabı H3'ü saymıyor"
 
 
 def test_the_clone_checks_for_the_h3_graphs_too():
@@ -662,12 +715,13 @@ def test_the_clone_looks_for_the_graphs_under_assets():
         "Klon grafikleri assets/ altında aramıyor"
 
 
-def test_the_tunnel_is_opened_over_tcp_rather_than_quic():
-    """cloudflared speaks QUIC by default, and QUIC rides on UDP. Colab's network throttles UDP and
-    leaves TCP alone: on 2026-08-24 the same photo took 17.74 s over the default tunnel and 0.18 s
-    over one started with this flag -- same machine, same minute, ninety times apart. Without it a
-    gallery of 81 photos is unusable and nothing in the app explains why."""
-    flask_cell = _cell("# === Start Flask")
+def test_the_last_cell_serves_the_app_shows_its_link_and_follows_its_log():
+    """The server, the tunnel -- over http2, since Colab throttles QUIC's UDP -- and the live log run
+    under test since madde 438 (test_colab_server.py). What the app is told stays in the cell."""
+    cell = _cell("# === Start Flask")
 
-    assert '"--protocol", "http2"' in flask_cell, \
-        "cloudflared varsayılan QUIC ile açılıyor — Colab'ın ağı UDP'yi kısıyor"
+    assert _in_order(cell, "link = serve(APP_DIR, APP_PORT, FLASK_LOG, {",
+                     "show_link(link, cell_elapsed())", "follow(FLASK_LOG)"), \
+        "Son hücre sunucuyu açıp linki göstermiyor ya da log'u izlemiyor"
+    for name in ("serve", "show_link", "follow"):
+        assert name in _imported("colab.server"), f"Defter {name}'ı klondan import etmiyor"

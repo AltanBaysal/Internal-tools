@@ -9,3 +9,5 @@ AUDIO = "audio"
 
 ORDER = (PHOTO, VIDEO, AUDIO)
 NAMES = {PHOTO: "Fotoğraf üreticisi", VIDEO: "Video üreticisi", AUDIO: "Ses üreticisi"}
+# What the video panel's Model box calls the one video model there is (madde 247, 435).
+VIDEO_MODEL = "MiniMax H3"

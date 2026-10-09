@@ -5,7 +5,8 @@ from typing import Protocol
 class PhotoGenerator(Protocol):
     def generate(self, prompt: str, negative: str, seed: int, model: str = "", lora: str = "",
                  source: tuple | None = None, end: tuple | None = None,
-                 references: tuple = ()) -> bytes:
+                 references: tuple = (), seconds: int | None = None,
+                 happy_ending: bool = False) -> bytes:
         """Render one layer and return its bytes -- nothing else, and no name.
 
         `source` is the file this layer is made from as (name, bytes): a video's photo, a sound's
@@ -16,12 +17,20 @@ class PhotoGenerator(Protocol):
         sound take the argument and ignore it, for the same reason `source` is taken by all three.
 
         `references` is the project's reference pool as (name, bytes, kind), in the pool's own
-        order -- only a video made from it has any, and only H3 can read them (madde 304).
+        order -- only a video made from it has any (madde 304).
 
         The file's name is the domain's (photo_name.layer_file), never the producer's.
 
         An empty model means the graph's own default, and an empty lora means the default lora.
         Only a photo has either; a video and a sound take both and ignore them, like `end`.
+
+        `seconds` is how long a video should run, from its job (madde 422). Only a video job
+        carries one; a photo and a sound take it and ignore it, like `end`. None is a job that
+        carries none, and its graph's own length stands. How long the video then runs is the
+        producer's to say (VideoGenerator.seconds).
+
+        `happy_ending` is whether the video ends happily, from its job (madde 426): H3 loads
+        HMCumshot for it. A photo and a sound take it and ignore it, like `seconds`.
         """
         ...
 
@@ -41,9 +50,20 @@ class BatchPhotoGenerator(PhotoGenerator, Protocol):
         ...
 
 
+class VideoGenerator(PhotoGenerator, Protocol):
+    """A video producer: it also says how long the videos it makes run (madde 423). The loop asks it
+    of the video producer alone, and writes the answer on the video's row."""
+
+    def seconds(self, asked: int | None = None) -> float:
+        """How long a video asked to run `asked` seconds comes out. None -- a job that asked for no
+        length -- is the graph's own, which is also what the export summary counts a row that says
+        no length at."""
+        ...
+
+
 class PromptWriter(Protocol):
     def write(self, prompts: dict, mode: str, source: tuple | None = None,
-              end: tuple | None = None, scene: str = "") -> str:
+              end: tuple | None = None, scene: str = "", happy_ending: bool = False) -> str:
         """The prompt a job of this type should be produced with.
 
         `prompts` is what the frame already says: {"photo": …} today, plus the video's own when
@@ -62,6 +82,9 @@ class PromptWriter(Protocol):
         `end` is the picture the video arrives at -- the one its producer is handed as `end` -- or
         None. H3's writer shows it to the model for a linked video (madde 402); the others take it
         and ignore it.
+
+        `happy_ending` is whether the video's job carries Mutlu son (madde 426). H3's writer then asks
+        for the ending; the sound's takes it and ignores it.
         """
         ...
 
@@ -169,11 +192,12 @@ class PhotoRecord(Protocol):
         ...
 
     def slots(self, project: str) -> dict:
-        """{frame: {slot: {"status", "file"[, "error"][, "renderSeconds"]}}} -- the latest line per
-        (frame, slot).
+        """{frame: {slot: {"status", "file"[, "error"][, "renderSeconds"][, "seconds"]}}} -- the
+        latest line per (frame, slot).
 
         "error" is there only where the line carried one, which is only on a failure.
         "renderSeconds" only on a layer produced since madde 405: the seconds the model worked on it.
+        "seconds" on a video produced since madde 423 (an H3 one since 422): how long it runs.
         """
         ...
 
@@ -194,4 +218,30 @@ class OrderStore(Protocol):
 
     def write(self, project: str, order: list) -> None:
         """Replace the project's gallery order."""
+        ...
+
+
+class VideoLengthStore(Protocol):
+    def project_exists(self, project: str) -> bool:
+        ...
+
+    def read(self, project: str) -> int | None:
+        """How long the project's H3 videos run, in seconds; None when nothing usable is saved."""
+        ...
+
+    def write(self, project: str, seconds: int) -> None:
+        """Replace the saved length."""
+        ...
+
+
+class HappyEndingStore(Protocol):
+    def project_exists(self, project: str) -> bool:
+        ...
+
+    def read(self, project: str) -> bool | None:
+        """The project's Mutlu son switch; None when nothing usable is saved."""
+        ...
+
+    def write(self, project: str, on: bool) -> None:
+        """Replace the saved switch."""
         ...

@@ -29,7 +29,7 @@ düşünyor user özellike sorarsa eklensin", "ayna eklenmemesi olucak".)* **Ayr
 
 *(Kullanıcı, 29 Eylül — "queen agentta token kullanımını optimize et", "bunu en son al beraber
 yaoarız"; 30 Eylül — "bunu backloga at şimdilik".)* v9'da 376 olarak hizalandı ve koşulmadı;
-konuşulanlar [v9'un](../docs/superpowers/roadmaps/2026-09-25-queen-agent-v9-roadmap.md) v9-10 bölümünde.
+konuşulanlar [v9'un](../docs/roadmaps/2026-09-25-queen-agent-v9-roadmap.md) v9-10 bölümünde.
 **Ayrıntılar kullanıcıyla konuşulacak.**
 
 ## Suffix system prompt'u güçlendirilecek
@@ -43,36 +43,19 @@ hizalandı ve koşulmadı: suffix'i kullanıcı kendisi yazar. **Ayrıntılar ku
 *(Kullanıcı, 29 Eylül — "bir de start senrayo spicy diye bir ksill açıcaz ama şimdi değil ozaman
 konuşurz".)* **Ayrıntılar kullanıcıyla konuşulacak.**
 
-## Arşivden undo özelliği kalkacak
-
-*(Kullanıcı, 1 Ekim — "arşivden undo özeeliği kaldır".)* **Ayrıntılar kullanıcıyla konuşulacak.**
-
-## Arşivdeki projeler açılır hale gelecek
-
-*(Kullanıcı, 1 Ekim — "arşivdeki projeler açılmıyor açılır hale getir".)* **Ayrıntılar kullanıcıyla
-konuşulacak.**
-
-## Arşivleme hızlanacak: proje yerinden oynamayacak, işaretlenecek
-
-*(Kullanıcı, 1 Ekim — "arşivlenme yavaş oluyor galiba nedeni şu sen drivede yerini değitşriiyrosun
-projenin değiştirme sadece projeyi işaretle pinli gibi".)* **Ayrıntılar kullanıcıyla konuşulacak.**
-
-## Sürüm numarası V9 olacak
-
-*(Kullanıcı, 1 Ekim — "bir de queen agentın numarsını v9 günçelemmişiz galiba dıoğru mu ?", "bunuda
-backloga ekle queen agentın".)* **Ayrıntılar kullanıcıyla konuşulacak.**
-
 ## Yapı basitleşecek
 
 *(Kullanıcı, 1 Ekim — "queen agent backlogun yapıyı basitleştiriceyğimizde ekler msini".)*
 **Ayrıntılar kullanıcıyla konuşulacak.**
 
-## Copy'ye basınca düğme komple yeşil olacak
-
-*(Kullanıcı, 1 Ekim — "bir cpyu basın cpied kırmızı geliyor buton komple yşeil olsun yleişi görmek
-sitiyorum bunlarıda backloga ekle".)* **Ayrıntılar kullanıcıyla konuşulacak.**
-
 ## Elbiselerde karışıyor
 
 *(Kullanıcı, 2 Ekim — "queen agent backloga elbiselerde karışıyor ekler misin".)* **Ayrıntılar
 kullanıcıyla konuşulacak.**
+
+## Bir frontend testi arada düşüyor
+
+*(Claude, 9 Ekim — Queen Editor v9'un 439'unda görüldü.)* `src/features/workspace/ChatScreen.test.jsx`'in
+"a stored answer keeps the calls it made, behind one card" testi bütün suite'te bir koşuda düştü; aynı
+gün QA'nın koşusunda da bir test düşmüştü, adı yakalanmadı. Tek başına üç kez ve suite'le bir kez
+geçti. Makine yükteyken vitest'in 5000 ms'lik süresini aşıyor olabilir — sebep gösterilmedi.

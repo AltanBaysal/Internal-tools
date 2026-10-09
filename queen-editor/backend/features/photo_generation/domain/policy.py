@@ -11,6 +11,21 @@ gone: the only split left is who failed, and that is not a guess about the cause
 
 MAX_ATTEMPTS = 3
 
+# Seconds before the next attempt when the engine gave no answer (madde 433): three tries then span
+# the 90 seconds the notebook gives a starting ComfyUI.
+NO_ANSWER_WAIT = 45
+
+
+def retry_wait(exc):
+    """Seconds to wait before trying the same job again after `exc`.
+
+    Only an engine that gave no answer, or broke while giving one, is waited for: time can bring back
+    a server that is starting. Anything else -- a render that failed, a request it rejected, a writer
+    that did not answer -- is tried again at once, because waiting mends none of it. The engine marks
+    its own exception, read through getattr like frame_level.
+    """
+    return NO_ANSWER_WAIT if getattr(exc, "no_answer", False) else 0
+
 
 def is_frame_fault(exc):
     """Whose failure is this -- the frame's, or the run's?

@@ -115,6 +115,37 @@ export async function saveReferenceSettings(project, { prompts, variants }) {
   });
 }
 
+// How long the project's H3 videos run (madde 422, 424): 4, 8 or 12 seconds. With nothing saved the
+// server answers 8 -- the default is its to say, not the screen's.
+export async function getVideoLength(project) {
+  const body = await request(`/api/projects/${encodeURIComponent(project)}/video-length`);
+  return body.seconds;
+}
+
+// 204 with no body: the screen already shows what it sent.
+export async function saveVideoLength(project, seconds) {
+  return request(`/api/projects/${encodeURIComponent(project)}/video-length`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ seconds }),
+  });
+}
+
+// The project's Mutlu son switch (madde 426): on or off. With nothing saved the server answers off.
+export async function getHappyEnding(project) {
+  const body = await request(`/api/projects/${encodeURIComponent(project)}/happy-ending`);
+  return body.on;
+}
+
+// 204 with no body, like the length's.
+export async function saveHappyEnding(project, on) {
+  return request(`/api/projects/${encodeURIComponent(project)}/happy-ending`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ on }),
+  });
+}
+
 export async function generateBatch(project, { prompts, negative, variants, model, lora }) {
   return request(`/api/projects/${encodeURIComponent(project)}/generate`, {
     method: "POST",
@@ -314,6 +345,44 @@ export async function produceFromReferences(project, prompts, variants) {
 // Plain URL, like fileUrl: the pool's own file area, which the browser loads into a tag.
 export function referenceUrl(project, name) {
   return `/references/${encodeURIComponent(project)}/${encodeURIComponent(name)}`;
+}
+
+// The agent's chats (madde 417, 420): a chat is named by its number inside the project. The empty
+// chat waiting comes back rather than a new one -- the server never makes a second.
+export async function newChat(project) {
+  return request(`/api/projects/${encodeURIComponent(project)}/chats`, { method: "POST" });
+}
+
+// Only the chats with a question, the newest last question first, each first question whole.
+export async function listChats(project) {
+  const body = await request(`/api/projects/${encodeURIComponent(project)}/chats`);
+  return body.chats;
+}
+
+export async function openChat(project, chat) {
+  return request(`/api/projects/${encodeURIComponent(project)}/chats/${chat}`);
+}
+
+// Answers at once with the chat, the question last and no outcome yet: the agent goes on on the
+// server.
+export async function askQuestion(project, chat, text) {
+  return request(`/api/projects/${encodeURIComponent(project)}/chats/${chat}/questions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+}
+
+export async function stopAgent(project, chat) {
+  return request(`/api/projects/${encodeURIComponent(project)}/chats/${chat}/stop`,
+                 { method: "POST" });
+}
+
+// Which chats' agents work now. It lives in the server's memory, not in the chats' record, so it is
+// a door of its own.
+export async function workingChats(project) {
+  const body = await request(`/api/projects/${encodeURIComponent(project)}/chats/working`);
+  return body.working;
 }
 
 // What an export would write: how many videos, how long they run, and the folder they would land

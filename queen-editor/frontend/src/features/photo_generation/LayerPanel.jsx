@@ -14,6 +14,7 @@ import {
   STANDARD,
   nounOf,
 } from "./production_modes.js";
+import { useHappyEnding, useVideoLength, videoSaid } from "./useVideoSettings.js";
 
 const LABEL = { color: "var(--ink-2)", letterSpacing: ".08em", textTransform: "uppercase" };
 // Long enough to be read after the eyes have moved to the gallery (the same number the photo
@@ -28,12 +29,21 @@ const DRAFTS = new Map();
 
 const MAX_VARIANTS = 26;
 
+// The lengths an H3 video can be made at, in seconds (madde 422). The server refuses any other, so
+// this is only what the segment offers.
+const LENGTHS = [4, 8, 12];
+
+// Mutlu son's two buttons (madde 426), the default first.
+const ENDINGS = [
+  { on: false, label: "Kapalı", name: "Mutlu son kapalı" },
+  { on: true, label: "Açık", name: "Mutlu son açık" },
+];
+
 // What each layer calls itself. The panel is one component because the design asks for one --
 // "video panelinin birebir aynısı" -- so only these words and the scope rule differ between them.
 const WORDS = {
   video: {
-    // No model name here: which video model runs is the notebook's pick, and the producers row
-    // carries it (madde 247).
+    // No model name here: the producers row carries it (madde 247), and the box waits for it.
     missing: "Videosu olmayan kareler",
     // The bare noun for counting, and the possessive the estimate line needs -- Turkish does not
     // build one from the other.
@@ -102,9 +112,8 @@ function acceptsVariants(text) {
 // The one reason that belongs to no layer: the box is on both panels and says the same thing.
 const NO_VARIANTS = "Varyant sayısı girilmedi — en az 1 yaz.";
 
-// What stops a run from the pool, said before the press (madde 324). The server's own sentences
+// What stops a run from the pool, said before the press (madde 324). The server's own sentence
 // (queue_references.py), word for word: the line shows the refusal a press would get.
-const H3_ONLY = "Referanstan üretim için H3 gerekiyor — bu oturumda başka bir video modeli kurulu.";
 const NO_REFERENCES = "Havuzda referans yok — önce en az bir referans ekle.";
 
 // A list pasted out of a notebook cell may carry its name in front: prompt_list.py's own pattern.
@@ -164,13 +173,12 @@ function refusalOf(words, can, scope, scoped, variants, fromPool) {
 
 /** What the line above the button says on Referanstan, or null (madde 324).
  *
- * The app's order, one sentence at a time: the model, then the pool. A preview of the server's own
- * refusals, never a rule (FOUNDATION 4): what has not answered yet -- the producers, the pool --
- * says nothing, and the press goes. With no video producer there is no wrong model: the install card
- * at the top says what is missing. One reference of any kind is enough.
+ * A preview of the server's own refusal, never a rule (FOUNDATION 4): a pool that has not answered
+ * yet says nothing, and the press goes. One reference of any kind is enough. Nothing is said about
+ * the model: H3 is the one there is, and it reads the pool (madde 435) -- a missing producer is the
+ * install card's to say.
  */
-function poolRefusal(producer, pool) {
-  if (producer?.installed && !producer.reads_references) return H3_ONLY;
+function poolRefusal(pool) {
   if (pool && !pool.references.length) return NO_REFERENCES;
   return null;
 }
@@ -245,8 +253,8 @@ function ModeRow({ label, active, disabled, onPick }) {
 }
 
 // Artboard: the photo panel's shape with a different subject. What it does not ask for is the
-// point -- the prompt is written by a language model once the job is queued, and the length is
-// fixed, so the only questions left are which frames, and how many of each.
+// point -- the prompt is written by a language model once the job is queued, so the questions left
+// are which frames, how many of each, and -- for an H3 video -- how long.
 // `job`, `busyElsewhere` and `error` are here for one sentence each, the way the photo panel takes
 // them: there is a single worker, so a run started from another project refuses this one, and until
 // madde 215 this panel was told none of it -- the press went out, came back 409, and the answer
@@ -367,10 +375,28 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
   useEffect(() => { setRefused(null); }, [chosen, scope, shownVariants]);
   const missingProducer = Boolean(producer) && !producer.installed;
   // Referanstan's line, and nothing on Kareden: the frame form answers after the press.
-  const missingLine = fromPool ? poolRefusal(producer, pool) : null;
-  // The server's name first -- it knows which model the notebook installed. Until it answers the
-  // box stays empty rather than guessing.
+  const missingLine = fromPool ? poolRefusal(pool) : null;
+  // The server's name first -- it names the one video model there is (madde 435). Until it answers
+  // the box stays empty rather than guessing.
   const model = producer?.model || words.model || "";
+  // The project's settings, not this panel's: they are read and written through the project, and
+  // only a video has them -- the sound panel is handed no video row (madde 424, 426).
+  const videoRow = layer === "video" ? producer : null;
+  const { seconds: length, choose: chooseLength } = useVideoLength(project, videoRow);
+  const { on: ending, choose: chooseEnding } = useHappyEnding(project, videoRow);
+  // What a video will be, said once at the end of whichever sentence is on show.
+  const settingsSaid = videoSaid(length, ending);
+
+  // A press of its own, so its answer takes the slot under the button: nothing when it is written,
+  // the sentence that came back when it is not -- where the panel says its other failures.
+  function handleSetting(choose, value) {
+    setRefused(null);
+    choose(value).catch((err) => {
+      setAdded(null);
+      clearTimeout(fade.current);
+      setRefused(err.message);
+    });
+  }
 
   function handleAdd() {
     const why = refusalOf(words, can, scope, scoped, shownVariants, fromPool);
@@ -437,6 +463,41 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
           <option value={model}>{model}</option>
         </select>
       </div>
+
+      {length !== null && (
+        /* Under the Model box and above everything a tab has of its own, so changing tab leaves it
+           where it is (madde 424). Not drawn until there is a length to show: while the model or
+           the length is not read yet, nothing stands in for it. */
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <Mono size={11} data-label style={LABEL}>Video uzunluğu</Mono>
+          <div className="wf-segment" style={{ display: "flex" }}>
+            {LENGTHS.map((one) => (
+              <button key={one} type="button" aria-label={`${one} saniye`}
+                      className={length === one ? "is-on" : ""} style={{ flex: 1 }}
+                      onClick={() => handleSetting(chooseLength, one)}>
+                {`${one}\u00a0sn`}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {ending !== null && (
+        /* Under the length, in its shape: a segment of two (madde 426). Drawn on the length's rule
+           -- once the model and the switch are read. */
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <Mono size={11} data-label style={LABEL}>Mutlu son</Mono>
+          <div className="wf-segment" style={{ display: "flex" }}>
+            {ENDINGS.map((one) => (
+              <button key={one.label} type="button" aria-label={one.name}
+                      className={ending === one.on ? "is-on" : ""} style={{ flex: 1 }}
+                      onClick={() => handleSetting(chooseEnding, one.on)}>
+                {one.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {!fromPool && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -577,7 +638,7 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
           listed ? (
             <Note size={12} style={{ color: "var(--ink-3)", textAlign: "center" }}>
               {`${listed} prompt × ${Number(shownVariants) || 0} varyant = `
-                + `${listed * (Number(shownVariants) || 0)} kart`}
+                + `${listed * (Number(shownVariants) || 0)} kart.${settingsSaid}`}
             </Note>
           ) : null
         ) : owed ? (
@@ -586,7 +647,7 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
           <Note size={12} style={{ color: "var(--ink-3)", textAlign: "center" }}>
             {owed} {said.noun} üretilecek — {copies
               ? `${words.held} ${copies} kare için yeniler kopya kare olur, eskisi durur.`
-              : said.tail}
+              : said.tail}{settingsSaid}
           </Note>
         ) : null}
       </div>

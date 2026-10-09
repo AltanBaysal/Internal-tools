@@ -25,7 +25,7 @@ class FakeFiles:
 
 GROUPS = {
     "photo": [],
-    "video": [{"folder": "vae", "name": "wan_vae.safetensors"},
+    "video": [{"folder": "vae", "name": "video_vae.safetensors"},
               {"folder": "loras", "name": "high.safetensors"}],
     "audio": [{"folder": "mmaudio", "name": "mm.pth"}],
 }
@@ -45,13 +45,13 @@ def test_all_three_are_listed_in_the_order_the_engine_works_in():
 
 
 def test_a_producer_with_a_group_is_installed_when_every_file_of_it_is_here():
-    files = FakeFiles(present=[("vae", "wan_vae.safetensors"), ("loras", "high.safetensors")])
+    files = FakeFiles(present=[("vae", "video_vae.safetensors"), ("loras", "high.safetensors")])
 
     assert list_producers(GROUPS, files)[1]["installed"] is True
 
 
 def test_one_missing_file_means_not_installed():
-    files = FakeFiles(present=[("vae", "wan_vae.safetensors")])
+    files = FakeFiles(present=[("vae", "video_vae.safetensors")])
 
     assert list_producers(GROUPS, files)[1]["installed"] is False
 
@@ -99,7 +99,8 @@ def test_a_row_says_nothing_about_installing_because_the_app_does_not():
 def test_the_photo_group_carries_everything_the_graph_reads():
     """The checkpoint is the one row naming a kind rather than a file: which model is on the machine
     is the user's pick since Madde 140, and the graph renders with whichever it was handed. The
-    other four are branches of the graph, and each is loaded by its own name."""
+    other three are named by the file itself. The face detector and SAM left with the detailer
+    (madde 430): a group naming them would call the producer uninstalled over files nothing loads."""
     rows = model_groups.GROUPS["photo"]
 
     assert rows[0] == {"folder": "checkpoints", "suffix": ".safetensors"}
@@ -110,8 +111,6 @@ def test_the_photo_group_carries_everything_the_graph_reads():
         # different per machine.
         ("loras", "translucent_penetration_v5.safetensors"),
         ("upscale_models", "4x_foolhardy_Remacri.pth"),
-        ("ultralytics/bbox", "face_yolov9c.pt"),
-        ("sams", "sam_vit_b_01ec64.pth"),
     ]
 
 
@@ -138,7 +137,7 @@ def test_no_group_carries_an_address_the_app_would_have_to_fetch():
             assert set(row) in ({"folder", "name"}, {"folder", "suffix"}), row
 
 
-# MiniMax H3 (madde 243): one video model per session, and the panel judges the one installed.
+# MiniMax H3 (madde 243), the one video model since madde 435.
 
 H3_FILES = [
     ("diffusion_models", "MiniMaxH3/10Eros_Max_h3_TURBO-hybrid_beta5_int8.safetensors"),
@@ -147,51 +146,30 @@ H3_FILES = [
     ("vae", "MiniMaxH3/minimax_h3_audio_vae_fp32.safetensors"),
     ("vae_approx", "taeh3.safetensors"),
     ("loras", "H3_Motion_BoosterV2.safetensors"),
+    # Mutlu son's lora (madde 426): a switched-on video loads it, so the producer is installed only
+    # when it is here.
+    ("loras", "HMCumshot_V1.0.safetensors"),
 ]
 
 
-def test_the_h3_group_names_its_files_the_way_the_graph_loads_them():
-    """MiniMaxH3/ is part of the name, not of the folder: the graph's loaders ask for
-    "MiniMaxH3/<file>", and that is also where the file sits under the folder."""
-    assert [(row["folder"], row["name"]) for row in model_groups.H3_VIDEO] == H3_FILES
+def test_the_video_group_is_h3_s():
+    """Madde 435: H3 is the one video model, so its files are the video group in every session -- a
+    session with no video installed reads "kurulu değil" over them like over any others. MiniMaxH3/
+    is part of the name, not of the folder: the graph's loaders ask for "MiniMaxH3/<file>", and that
+    is also where the file sits under the folder."""
+    assert [(row["folder"], row["name"]) for row in model_groups.GROUPS["video"]] == H3_FILES
 
 
-def test_the_panel_judges_video_by_the_model_the_notebook_installed():
-    groups = model_groups.groups_for("h3")
+def test_the_video_row_names_h3_and_says_nothing_about_references():
+    """The video panel's Model box shows this name (madde 247). With H3 the one video model, the row
+    has nothing to tell apart: every session makes video from the pool (madde 302)."""
+    row = list_producers(GROUPS, FakeFiles())[1]
 
-    assert groups["video"] == model_groups.H3_VIDEO
-    assert groups["photo"] == model_groups.GROUPS["photo"]
-    assert groups["audio"] == model_groups.GROUPS["audio"]
-
-
-def test_wan_and_no_video_at_all_are_judged_by_wan_s_group():
-    """No video model means no video installed, and WAN's files are then absent like any others --
-    the panel reads "kurulu değil" either way."""
-    for model in ("wan", ""):
-        assert model_groups.groups_for(model)["video"] == model_groups.GROUPS["video"]
-
-
-def test_the_video_row_names_the_model_the_notebook_installed():
-    """The video panel's box shows this name (madde 247). The rule is the one the server picks its
-    producer by: h3 is H3, anything else is WAN."""
-    for model, name in (("h3", "MiniMax H3"), ("wan", "WAN 2.2 I2V"), ("", "WAN 2.2 I2V")):
-        assert list_producers(GROUPS, FakeFiles(), model)[1]["model"] == name, model
-
-
-def test_the_video_row_says_whether_its_model_makes_video_from_references():
-    """Only H3 has a mode that reads the pool (madde 302), and the video panel says so before the
-    press (madde 324). It reads it here rather than off the model's name: the name is a word for the
-    box, and the rule is the server's."""
-    for model, reads in (("h3", True), ("wan", False), ("", False)):
-        assert list_producers(GROUPS, FakeFiles(), model)[1]["reads_references"] is reads, model
+    assert set(row) == {"id", "name", "installed", "model"}
+    assert row["model"] == "MiniMax H3"
 
 
 def test_a_machine_with_h3_on_it_has_a_video_producer():
     files = FakeFiles(present=H3_FILES)
 
-    assert list_producers(model_groups.groups_for("h3"), files)[1]["installed"] is True
-
-
-def test_the_h3_group_carries_no_address_either():
-    for row in model_groups.H3_VIDEO:
-        assert set(row) == {"folder", "name"}, row
+    assert list_producers(model_groups.GROUPS, files)[1]["installed"] is True

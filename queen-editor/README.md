@@ -19,12 +19,11 @@ set once, nothing to paste again and nothing to commit.
 | `GITHUB_TOKEN` | Cloning this repo. Make it fine-grained, **this repository only, Contents: read-only** — leaked, it can only read this one repo. |
 | `CIVITAI_COOKIE` | The `__Secure-civ-token` cookie from `civitai.red` (log in → F12 → Application → Cookies). A gated file comes from Civitai with this cookie when the Hugging Face mirror does not hold it yet, or when it is on `MIRRORLESS` in [colab/downloads.py](colab/downloads.py) and skips the mirror; a run that fetches no such file needs none. It expires every ~30 days; re-paste it when an install stops with Civitai's own response. |
 | `HF_TOKEN` | Your private Hugging Face repo that mirrors the Civitai files (`HF_MIRROR` in CONFIG), all but those on `MIRRORLESS` in [colab/downloads.py](colab/downloads.py). A file it holds comes from there, fast; a file it lacks comes from Civitai once and is uploaded to it. Make it fine-grained, **that one repo only, read and write**. |
-| `DEEPSEEK_API_KEY` | Every prompt nobody typed is written by DeepSeek as soon as its layer is queued — before anything else is made: a video's, H3's or WAN's, shown the frame's photo, and a sound's, from its video's prompt. The same secret QueenAgent's notebook reads — turn its notebook access on for this notebook too. Without it photos render until a video or a sound is queued; then the run stops with the client's own sentence. |
+| `DEEPSEEK_API_KEY` | Every prompt nobody typed is written by DeepSeek as soon as its layer is queued — before anything else is made: a video's, shown the frame's photo, and a sound's, from its video's prompt. The same secret QueenAgent's notebook reads — turn its notebook access on for this notebook too. Without it photos render until a video or a sound is queued; then the run stops with the client's own sentence. |
 ## Run
 
-In the **CONFIG** cell tick the producers you want — `INSTALL_PHOTO` (~8 GiB), `INSTALL_VIDEO`,
-`INSTALL_AUDIO` (~9 GiB) — and under them the models: at least one photo model, and exactly one
-video model, `VIDEO_WAN` (~39 GiB) or `VIDEO_H3` (~37 GiB), since the two never share a session.
+In the **CONFIG** cell tick the producers you want — `INSTALL_PHOTO` (~8 GiB), `INSTALL_VIDEO`
+(MiniMax H3, ~37 GiB), `INSTALL_AUDIO` (~9 GiB) — and under them at least one photo model.
 Pick the runtime for what you install: video wants more disk than a T4 has. Everything starts off
 and the notebook stops if nothing is chosen, because an app with no producer opens fine and renders
 nothing.

@@ -19,6 +19,9 @@ vi.mock("../../shared/api.js", () => ({
   generateBatch: vi.fn(),
   getReferenceSettings: vi.fn().mockResolvedValue({ prompts: "", variants: null }),
   getStatus: vi.fn().mockResolvedValue({ status: "idle" }),
+  // The video panel asks for the project's length once a video row is read (madde 424, 435).
+  getVideoLength: vi.fn().mockResolvedValue(8),
+  getHappyEnding: vi.fn().mockResolvedValue(false),
   listFrames: vi.fn().mockResolvedValue([]),
   listModels: vi.fn().mockResolvedValue({
     models: [{ value: "nova3dcg", label: "Nova 3DCG XL" }],
@@ -580,5 +583,94 @@ describe("ProjectScreen — the tiles of a batch show its time (madde 411)", () 
 
     expect(document.getElementById("tile-P0_1").querySelector("[data-pill]").textContent)
       .toContain("0:46");
+  });
+});
+
+// Madde 415. The gallery's own box is what scrolls, and the reference pool stands in the same box --
+// so both halves of the item are seen from the screen, not from the gallery alone.
+describe("ProjectScreen — the gallery scrolls while a card is held at its edge (madde 415)", () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => vi.useRealTimers());
+
+  const done = (file) => ({ id: file.replace(".png", ""), file, status: "done", layers: {},
+                            owed: [], failed: [] });
+  const FRAMES = [done("2_a.png"), done("1_a.png"), done("0_a.png")];
+  const boxOf = () => document.querySelector("[data-scroll]");
+  const tileOf = (id) => document.getElementById(`tile-${id}`);
+
+  async function settle() {
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+  }
+
+  // The gallery open in a box whose top edge stands at 100 and bottom edge at 700, scrolled to 300.
+  // jsdom lays nothing out, so where the box stands on screen is told; the scroll position it keeps
+  // as it is given.
+  async function open(project) {
+    listFrames.mockResolvedValue(FRAMES);
+    renderScreen(project);
+    await settle();
+    boxOf().getBoundingClientRect = () => ({ top: 100, bottom: 700 });
+    boxOf().scrollTop = 300;
+  }
+
+  // jsdom has no DragEvent, and Testing Library's dragOver falls back to a plain Event that drops
+  // clientY. A MouseEvent named dragover carries the pointer's height, and React reads it as a drag.
+  function holdAt(element, clientY) {
+    fireEvent(element, new MouseEvent("dragover", { bubbles: true, cancelable: true, clientY }));
+  }
+
+  it("scrolls down while the card is held near the bottom edge", async () => {
+    await open("kenar-alt");
+    fireEvent.dragStart(tileOf("1_a"));
+
+    holdAt(tileOf("1_a"), 690);
+
+    expect(boxOf().scrollTop).toBeGreaterThan(300);
+  });
+
+  it("scrolls up while the card is held near the top edge", async () => {
+    await open("kenar-üst");
+    fireEvent.dragStart(tileOf("1_a"));
+
+    holdAt(tileOf("1_a"), 110);
+
+    expect(boxOf().scrollTop).toBeLessThan(300);
+  });
+
+  it("goes on scrolling for as long as the card stays at the edge", async () => {
+    // The browser repeats dragover while a drag is held still, so each one is another step.
+    await open("kenar-sürer");
+    fireEvent.dragStart(tileOf("1_a"));
+    holdAt(tileOf("1_a"), 690);
+    const once = boxOf().scrollTop;
+
+    holdAt(tileOf("1_a"), 690);
+
+    expect(once).toBeGreaterThan(300);
+    expect(boxOf().scrollTop).toBeGreaterThan(once);
+  });
+
+  it("stands still while the card is away from both edges", async () => {
+    await open("kenar-orta");
+    fireEvent.dragStart(tileOf("1_a"));
+
+    holdAt(tileOf("1_a"), 400);
+
+    expect(boxOf().scrollTop).toBe(300);
+  });
+
+  it("leaves the reference pool as it is", async () => {
+    // The pool's rows were not part of the ask (the user: "bu promplem değil").
+    poolServer([KEDI]);
+    await open("kenar-havuz");
+    fireEvent.click(screen.getByLabelText("Video üret"));
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Referanstan" })); });
+    await settle();
+    const card = document.querySelector('[data-reference="kedi.png"]');
+    fireEvent.dragStart(card);
+
+    holdAt(card, 690);
+
+    expect(boxOf().scrollTop).toBe(300);
   });
 });

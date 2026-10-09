@@ -16,6 +16,21 @@ import pytest
 
 STAMP = b"L2P_bypass_model.safetensors_1755000000"
 
+# What H3 Eros Max beta5 dropped with at 97% on 2 Ekim (madde 432), its address made long enough to
+# pass 4000 characters: a message cut anywhere on its way to the console shows.
+DROP = ("Data processing error: File reconstruction error: CAS Client Error: Request middleware error: "
+        "error sending request for url (https://us.gcp.cdn.hf.co/xorbs/default/" + "0f" * 32
+        + "?X-Xet-Signed-Range=bytes%3D0-67108863&Signature=" + "A" * 4000 + ")")
+
+
+class HfHubHTTPError(OSError):
+    """What huggingface_hub raises when HF answered with an error: the response rides on it, with its
+    status and its body."""
+
+    def __init__(self, message, status, body=""):
+        super().__init__(message)
+        self.response = types.SimpleNamespace(status_code=status, text=body)
+
 
 @pytest.fixture
 def downloads(monkeypatch, tmp_path):
@@ -26,19 +41,45 @@ def downloads(monkeypatch, tmp_path):
     return module
 
 
+@pytest.fixture(autouse=True)
+def waits(monkeypatch, downloads):
+    """The seconds hf_fetch waited between attempts. The clock is faked in every test, so none waits a
+    real second; a test that asks how long was waited takes this by name."""
+    slept = []
+    monkeypatch.setattr(downloads.time, "sleep", slept.append)
+    return slept
+
+
 def _safetensors(tail=b""):
     """A whole, tiny safetensors file -- one tensor of eight bytes -- and whatever tail is asked for."""
     header = json.dumps({"w": {"dtype": "F32", "shape": [2], "data_offsets": [0, 8]}}).encode()
     return struct.pack("<Q", len(header)) + header + b"\0" * 8 + tail
 
 
-def _hub(monkeypatch, content):
-    """Hugging Face's downloader, faked: `content` lands where the real one would put the file -- under
-    local_dir, at its path in the repo -- and every call is remembered."""
+def test_a_header_that_does_not_parse_says_what_the_parser_said(downloads, tmp_path):
+    """The parser's own words, `Type: message`, and not its type alone (madde 439)."""
+    path = tmp_path / "bad.safetensors"
+    header = b"<html>"
+    path.write_bytes(struct.pack("<Q", len(header)) + header + b"\0" * 8)
+
+    state, msg = downloads.check_safetensors(str(path))
+
+    assert state == "invalid"
+    assert msg == "header parse failed (JSONDecodeError: Expecting value: line 1 column 1 (char 0), " \
+                  "22.0B)", f"Ayrıştırıcının mesajı yok: {msg}"
+
+
+def _hub(monkeypatch, content, *, errors=()):
+    """Hugging Face's downloader, faked: the first calls raise `errors`, one each, in order; after them
+    `content` lands where the real one would put the file -- under local_dir, at its path in the repo.
+    Every call is remembered."""
     calls = []
+    errors = list(errors)
 
     def hf_hub_download(repo_id, filename, *, local_dir=None, **_):
         calls.append((repo_id, filename, local_dir))
+        if errors:
+            raise errors.pop(0)
         path = os.path.join(local_dir, filename)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "wb") as handle:
@@ -129,11 +170,8 @@ def test_a_file_already_in_place_is_not_downloaded_again(downloads, monkeypatch,
 def test_a_failed_huggingface_download_says_what_hugging_face_said(downloads, monkeypatch, tmp_path):
     """Never invent a cause: the error carries the downloader's own sentence, and the label says
     which of a dozen files it was."""
-    def hf_hub_download(repo_id, filename, **_):
-        raise OSError("404 Client Error. Entry Not Found for url: https://huggingface.co/x/resolve/main/y")
-
-    monkeypatch.setitem(sys.modules, "huggingface_hub",
-                        types.SimpleNamespace(hf_hub_download=hf_hub_download))
+    _hub(monkeypatch, b"", errors=[HfHubHTTPError(
+        "404 Client Error. Entry Not Found for url: https://huggingface.co/x/resolve/main/y", 404)])
 
     with pytest.raises(RuntimeError) as failure:
         downloads.hf_fetch("x", "y", str(tmp_path), "y", "H3 video VAE")
@@ -165,6 +203,195 @@ def test_a_file_with_a_floor_is_judged_by_its_size_not_as_safetensors(downloads,
                        "Yuz dedektoru", floor=50)
 
     assert (tmp_path / "face_yolov9c.pt").stat().st_size == 100, "Tabanlı dosya yerine konmadı"
+
+
+def _eros(downloads, tmp_path):
+    return downloads.hf_fetch("TenStrip/10Eros-Max", "eros.safetensors", str(tmp_path),
+                              "eros.safetensors", "H3 Eros Max beta5")
+
+
+def test_a_huggingface_download_that_drops_is_tried_again_and_comes_down(
+        downloads, monkeypatch, tmp_path, waits):
+    """H3 Eros Max beta5 dropped at 97% (madde 432, "arada oluyor"). The next attempt, thirty seconds
+    later, brings the file down, and its row goes to the summary as any other's."""
+    calls = _hub(monkeypatch, _safetensors(), errors=[RuntimeError(DROP)])
+
+    row = _eros(downloads, tmp_path)
+
+    assert len(calls) == 2, f"Düşen indirme yeniden denenmedi: {len(calls)} çağrı"
+    assert waits == [30], f"Yeniden denemeden önce 30 sn beklenmedi: {waits}"
+    assert (tmp_path / "eros.safetensors").read_bytes() == _safetensors(), "Dosya inmedi"
+    assert row and row[0] == "H3 Eros Max beta5", f"Satır bu inişi anlatmıyor: {row}"
+
+
+def test_a_dropped_attempt_prints_the_error_as_it_was_raised(downloads, monkeypatch, tmp_path, capsys):
+    """Not a sentence of ours but the error itself, its type and its whole message (madde 432, "bir
+    uyarı mesajıda değil hatayı yada responsu direky tpaıştır abi görelim olru"). Which file, which
+    attempt and when it is tried again are facts, and stand beside it."""
+    _hub(monkeypatch, _safetensors(), errors=[RuntimeError(DROP)])
+
+    _eros(downloads, tmp_path)
+
+    out = capsys.readouterr().out
+    assert f"RuntimeError: {DROP}" in out, "Konsol hatanın kendisini kısaltmadan basmadı"
+    facts = [line for line in out.splitlines() if "deneme 1/3" in line]
+    assert facts and "H3 Eros Max beta5" in facts[0] and "30 sn" in facts[0], \
+        f"Satır dosyayı, denemeyi ya da yeniden denenecek zamanı söylemiyor: {facts}"
+
+
+BAD_GATEWAY = ("<html>\n<head><title>502 Bad Gateway</title></head>\n"
+               "<body><center><h1>502 Bad Gateway</h1></center></body>\n</html>")
+
+
+def test_a_dropped_attempt_prints_hugging_face_s_response_as_sent(
+        downloads, monkeypatch, tmp_path, capsys):
+    """When HF answered, its answer is printed under the error the way it came: the status and the
+    body (madde 432)."""
+    error = HfHubHTTPError("502 Server Error: Bad Gateway for url: "
+                           "https://huggingface.co/TenStrip/10Eros-Max/resolve/main/eros.safetensors",
+                           502, BAD_GATEWAY)
+    _hub(monkeypatch, _safetensors(), errors=[error])
+
+    _eros(downloads, tmp_path)
+
+    out = capsys.readouterr().out
+    assert f"HfHubHTTPError: {error}" in out, "Konsol hatanın kendisini basmadı"
+    assert "HTTP 502" in out and BAD_GATEWAY in out, f"Konsol HF'nin cevabını basmadı:\n{out}"
+
+
+class ResponseNotRead(RuntimeError):
+    """What httpx raises when a streamed response's body is asked for before it was read."""
+
+
+class _Unread:
+    """A streamed response nobody read: its status is there, and its body raises when asked for."""
+    status_code = 502
+
+    @property
+    def text(self):
+        raise ResponseNotRead("Attempted to access streaming response content, without having called "
+                              "`read()`.")
+
+
+def test_a_body_that_cannot_be_read_does_not_hide_the_drop(downloads, monkeypatch, tmp_path, capsys,
+                                                           waits):
+    """Reading the body is part of printing the drop, and its own error is printed in the body's
+    place: raised, it would stop the cell with the reader's error and the 502 would not be tried
+    again (madde 432)."""
+    error = HfHubHTTPError("502 Server Error: Bad Gateway for url: "
+                           "https://huggingface.co/TenStrip/10Eros-Max/resolve/main/eros.safetensors", 502)
+    error.response = _Unread()
+    calls = _hub(monkeypatch, _safetensors(), errors=[error])
+
+    _eros(downloads, tmp_path)
+
+    out = capsys.readouterr().out
+    assert len(calls) == 2 and waits == [30], \
+        f"Gövdesi okunamayan 502 yeniden denenmedi: {len(calls)} çağrı, beklemeler {waits}"
+    assert f"HfHubHTTPError: {error}" in out and "HTTP 502" in out, \
+        f"Konsol hatayı ya da cevabın kodunu basmadı:\n{out}"
+    assert "ResponseNotRead: Attempted to access streaming response content" in out, \
+        f"Konsol gövdenin neden okunamadığını basmadı:\n{out}"
+
+
+def test_a_download_is_given_up_after_three_attempts(downloads, monkeypatch, tmp_path, waits):
+    """Three attempts in all, thirty seconds before each retry and none after the last (madde 432):
+    once the last one drops there is nothing left to wait for. The error that stops the cell is that
+    attempt's, as it was raised."""
+    calls = _hub(monkeypatch, _safetensors(), errors=[RuntimeError(DROP) for _ in range(3)])
+
+    with pytest.raises(RuntimeError) as failure:
+        _eros(downloads, tmp_path)
+
+    message = str(failure.value)
+    assert len(calls) == 3, f"Üç kez denenmedi: {len(calls)} çağrı"
+    assert waits == [30, 30], f"Denemeler arasında böyle beklenmedi: {waits}"
+    assert "H3 Eros Max beta5" in message and "deneme 3/3" in message, \
+        f"Hata dosyayı ya da denemeyi söylemiyor: {message[:300]}"
+    assert f"RuntimeError: {DROP}" in message, "Hücreyi durduran hata hatanın kendisini taşımıyor"
+
+
+def test_the_error_that_stops_the_cell_carries_hugging_face_s_response(downloads, monkeypatch, tmp_path):
+    """The last attempt's answer from HF stops the cell as it came, status and body (madde 432)."""
+    body = '{"error":"Internal Error - We\'re working hard to fix this as soon as possible!"}'
+    _hub(monkeypatch, _safetensors(), errors=[
+        HfHubHTTPError("500 Server Error: Internal Server Error for url: "
+                       "https://huggingface.co/api/models/TenStrip/10Eros-Max/xet-read-token/main",
+                       500, body)
+        for _ in range(3)])
+
+    with pytest.raises(RuntimeError) as failure:
+        _eros(downloads, tmp_path)
+
+    message = str(failure.value)
+    assert "HTTP 500" in message and body in message, f"Hata HF'nin cevabını taşımıyor:\n{message}"
+
+
+@pytest.mark.parametrize("status, body", [
+    (401, '{"error":"Invalid credentials in Authorization header"}'),
+    (403, '{"error":"Access to model TenStrip/10Eros-Max is restricted."}'),
+    (404, '{"error":"Entry not found"}'),
+])
+def test_hugging_face_s_answer_about_the_file_is_not_asked_again(
+        downloads, monkeypatch, tmp_path, waits, status, body):
+    """401, 403 and 404 say the file is missing or not ours, and HF asked again answers the same
+    (madde 432). The download stops at once, carrying the answer."""
+    calls = _hub(monkeypatch, _safetensors(), errors=[HfHubHTTPError(
+        f"{status} Client Error for url: https://huggingface.co/TenStrip/10Eros-Max/resolve/main/"
+        f"eros.safetensors", status, body)])
+
+    with pytest.raises(RuntimeError) as failure:
+        _eros(downloads, tmp_path)
+
+    message = str(failure.value)
+    assert len(calls) == 1 and waits == [], \
+        f"HF'nin {status} cevabı yeniden soruldu: {len(calls)} çağrı, beklemeler {waits}"
+    assert f"HTTP {status}" in message and body in message, f"Hata HF'nin cevabını taşımıyor:\n{message}"
+
+
+class LocalEntryNotFoundError(OSError):
+    """What huggingface_hub raises when it could not locate the file on the Hub: a sentence of its own,
+    with the error that stopped it -- and HF's response -- underneath, as its __cause__."""
+
+
+def test_an_answer_under_hugging_face_s_own_sentence_is_read_and_printed_too(
+        downloads, monkeypatch, tmp_path, waits):
+    """huggingface_hub puts some of HF's answers under a sentence of its own, which carries no
+    response. The error that stops the cell shows the whole chain, the raised one first, and HF's
+    403 under it -- and the 403 is not asked again (madde 432)."""
+    body = '{"error":"Access to model TenStrip/10Eros-Max is restricted."}'
+    hidden = LocalEntryNotFoundError(
+        "An error happened while trying to locate the file on the Hub and we cannot find the requested "
+        "files in the local cache. Please check your connection and try again or make sure your "
+        "Internet connection is on.")
+    hidden.__cause__ = HfHubHTTPError(
+        "403 Client Error for url: https://huggingface.co/TenStrip/10Eros-Max/resolve/main/"
+        "eros.safetensors", 403, body)
+    calls = _hub(monkeypatch, _safetensors(), errors=[hidden])
+
+    with pytest.raises(RuntimeError) as failure:
+        _eros(downloads, tmp_path)
+
+    message = str(failure.value)
+    outer, inner = f"LocalEntryNotFoundError: {hidden}", f"HfHubHTTPError: {hidden.__cause__}"
+    assert outer in message and inner in message and message.index(outer) < message.index(inner), \
+        f"Hata zinciri atılan hata başta olmak üzere basılmadı:\n{message}"
+    assert "HTTP 403" in message and body in message, f"Hata HF'nin cevabını taşımıyor:\n{message}"
+    assert len(calls) == 1 and waits == [], \
+        f"Zincirdeki 403 yeniden soruldu: {len(calls)} çağrı, beklemeler {waits}"
+
+
+def test_a_file_that_came_down_whole_but_bad_is_not_downloaded_again(
+        downloads, monkeypatch, tmp_path, waits):
+    """The download ended and the size check failed: that is the file HF gave, and asked again it
+    gives the same (madde 432). It stops the run and stays where it landed."""
+    calls = _hub(monkeypatch, _safetensors()[:-4])
+
+    with pytest.raises(RuntimeError):
+        _eros(downloads, tmp_path)
+
+    assert len(calls) == 1 and waits == [], \
+        f"Bozuk inen dosya yeniden indirildi: {len(calls)} çağrı, beklemeler {waits}"
 
 
 def test_an_addressed_download_prints_its_server_and_speed(downloads, monkeypatch, tmp_path, capsys):
@@ -223,20 +450,85 @@ def test_civitai_is_asked_on_its_red_host(downloads):
     assert downloads.civitai_url(3314686) == "https://civitai.red/api/download/models/3314686"
 
 
+def _curl(monkeypatch, downloads, tmp_path, *, exit=0, code="200", body=b"", said=""):
+    """curl for the probe, faked: it writes `body` where it is told, the HTTP code on stdout and
+    `said` on stderr, and exits `exit`. Every command is remembered."""
+    monkeypatch.setattr(downloads, "PROBE", str(tmp_path / "_probe.bin"))
+    commands = []
+
+    def run(cmd, **kwargs):
+        commands.append(cmd)
+        with open(cmd[cmd.index("-o") + 1], "wb") as handle:
+            handle.write(body)
+        return types.SimpleNamespace(returncode=exit, stdout=code, stderr=said)
+
+    monkeypatch.setattr(downloads.subprocess, "run", run)
+    return commands
+
+
+def test_a_probe_curl_cannot_make_stops_with_all_curl_said(downloads, monkeypatch, tmp_path):
+    """-sS: silent, but its error still said, and all of it carried (madde 439)."""
+    said = "".join(f"curl satır {n}\n" for n in range(1, 9)) + "curl: (6) Could not resolve host\n"
+    commands = _curl(monkeypatch, downloads, tmp_path, exit=6, code="000", said=said)
+
+    with pytest.raises(RuntimeError) as failure:
+        downloads.civitai_probe(1, "M", COOKIE)
+
+    assert "-sS" in commands[0], f"curl hatasını söylemiyor: {commands[0]}"
+    assert str(failure.value) == f"❌ probe M: curl exit 6\n{said}", f"Hata böyle: {failure.value}"
+
+
+def test_a_probe_civitai_refuses_stops_with_its_whole_answer(downloads, monkeypatch, tmp_path):
+    """Civitai's error page, as long as it came, rather than its first 512 bytes (madde 439)."""
+    page = "<html>" + "giriş gerekli " * 60 + "</html>"
+    _curl(monkeypatch, downloads, tmp_path, code="401", body=page.encode("utf-8"))
+
+    with pytest.raises(RuntimeError) as failure:
+        downloads.civitai_probe(1, "M", COOKIE)
+
+    assert str(failure.value) == f"❌ M: HTTP 401 — Civitai yanıtı: {page}", \
+        f"Hata Civitai'nin bütün yanıtını taşımıyor: {failure.value}"
+    assert not (tmp_path / "_probe.bin").exists(), "Deneme dosyası silinmedi"
+
+
+@pytest.mark.parametrize("exit", [0, 28])
+def test_a_probe_that_gets_bytes_says_access_is_ok(downloads, monkeypatch, tmp_path, capsys, exit):
+    """28 is curl's timeout: a good probe cut by --limit-rate or --max-time is still good."""
+    _curl(monkeypatch, downloads, tmp_path, exit=exit, code="206", body=b"\x00\x01binary",
+          said="curl: (28) Operation timed out\n" if exit else "")
+
+    downloads.civitai_probe(1, "M", COOKIE)
+
+    assert "M: erişim OK" in capsys.readouterr().out
+
+
+def test_a_probe_that_timed_out_with_nothing_good_says_what_curl_said(downloads, monkeypatch,
+                                                                      tmp_path):
+    """Code 000 and no body: curl's own words are the only thing that says why (madde 439)."""
+    said = "curl: (28) Operation timed out after 20002 milliseconds with 0 bytes received\n"
+    _curl(monkeypatch, downloads, tmp_path, exit=28, code="000", said=said)
+
+    with pytest.raises(RuntimeError) as failure:
+        downloads.civitai_probe(1, "M", COOKIE)
+
+    assert str(failure.value) == f"❌ M: HTTP 000 — Civitai yanıtı: (boş gövde — binary değil)\n{said}", \
+        f"Hata curl'ün dediğini taşımıyor: {failure.value}"
+
+
 MIRROR = "Test468735/queen-editor-models"
 COOKIE = "c" * 420
 
 
 def _mirror(monkeypatch, held, *, upload_error=None):
     """Hugging Face with a mirror repo holding `held` ({path in repo: bytes}). A path it does not hold
-    is answered the way HF answers, with a sentence naming it; uploads are remembered, or refused
-    with `upload_error`."""
+    is answered the way HF answers: a 404, and a sentence naming it. Uploads are remembered, or
+    refused with `upload_error`."""
     uploads = []
 
     def hf_hub_download(repo_id, filename, *, local_dir=None, **_):
         if filename not in held:
-            raise OSError(f"404 Client Error. Entry Not Found for url: "
-                          f"https://huggingface.co/{repo_id}/resolve/main/{filename}")
+            raise HfHubHTTPError(f"404 Client Error. Entry Not Found for url: "
+                                 f"https://huggingface.co/{repo_id}/resolve/main/{filename}", 404)
         path = os.path.join(local_dir, filename)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "wb") as handle:
@@ -346,6 +638,22 @@ def test_a_fallback_is_probed_before_it_comes_down(downloads, monkeypatch, tmp_p
     downloads.civitai_fetch(MIRROR, 3314686, str(tmp_path), "m.safetensors", "DaSiWa H3", COOKIE)
 
     assert asked == [0], f"Yoklama inmeden önce yapılmadı: {asked}"
+
+
+def test_a_file_missing_from_the_mirror_goes_to_civitai_without_waiting(
+        downloads, monkeypatch, tmp_path, capsys, waits):
+    """The mirror's 404 is how civitai_fetch learns a file is not there (madde 311), and asked again
+    the mirror answers the same: Civitai is next at once (madde 432). The console carries the
+    mirror's answer as it came, and a body that came empty is said to be empty, not left blank."""
+    _mirror(monkeypatch, {})
+    commands = _transfer(monkeypatch, downloads, _safetensors())
+    _probe(monkeypatch, downloads, commands)
+
+    downloads.civitai_fetch(MIRROR, 3314686, str(tmp_path), "m.safetensors", "DaSiWa H3", COOKIE)
+
+    out = capsys.readouterr().out
+    assert waits == [], f"Aynada olmayan dosya için beklendi: {waits}"
+    assert "HTTP 404" in out and "(boş gövde)" in out, f"Konsol aynanın cevabını basmadı:\n{out}"
 
 
 def test_hugging_face_s_downloader_is_taken_with_high_performance_left_off(
@@ -531,9 +839,235 @@ def test_turning_one_file_s_mirror_off_leaves_the_others_on_it(downloads, monkey
     assert commands == [] and asked == [], "Aynası açık dosya için Civitai'ye gidildi"
 
 
+TOKEN = "hf_" + "t" * 34
+
+
+class SecretNotFoundError(Exception):
+    """What Colab's userdata.get raises for a secret the vault does not hold."""
+
+
+def test_the_hf_token_is_read_into_the_environment_and_never_printed(downloads, monkeypatch, capsys):
+    """Madde 437: the notebook reads the token itself, before anything downloads -- trimmed, as the
+    paste carries the newline."""
+    monkeypatch.delenv("HF_TOKEN", raising=False)
+    asked = []
+
+    downloads.use_hf_token(lambda name: asked.append(name) or f"{TOKEN}\n")
+
+    out = capsys.readouterr().out
+    assert asked == ["HF_TOKEN"], f"Kasadan böyle okunmadı: {asked}"
+    assert os.environ.get("HF_TOKEN") == TOKEN, "Token ortama kırpılarak konmadı"
+    assert "HF_TOKEN okundu" in out, f"Konsol token'ın okunduğunu söylemedi:\n{out}"
+    assert TOKEN not in out, "Token konsola basıldı"
+
+
+def test_a_token_that_cannot_be_read_says_what_the_read_raised(downloads, monkeypatch, capsys):
+    """Not silence and not a guessed cause: the read's own error, and what the run does without the
+    token. A token left in the environment by an earlier run in the same kernel goes, so the line
+    saying the run goes without one is true."""
+    monkeypatch.setenv("HF_TOKEN", "hf_old")
+
+    def read(name):
+        raise SecretNotFoundError("Secret HF_TOKEN does not exist.")
+
+    downloads.use_hf_token(read)
+
+    out = capsys.readouterr().out
+    assert "HF_TOKEN okunamadı — SecretNotFoundError: Secret HF_TOKEN does not exist." in out, \
+        f"Konsol okumanın attığı hatayı basmadı:\n{out}"
+    assert "token'sız" in out, f"Konsol token'sız gidileceğini söylemedi:\n{out}"
+    assert "HF_TOKEN" not in os.environ, "Önceki koşunun token'ı ortamda kaldı"
+
+
+@pytest.mark.parametrize("value", ["", "  \n", None])
+def test_an_empty_token_is_said_to_be_empty(downloads, monkeypatch, capsys, value):
+    monkeypatch.setenv("HF_TOKEN", "hf_old")
+
+    downloads.use_hf_token(lambda name: value)
+
+    out = capsys.readouterr().out
+    assert "HF_TOKEN boş" in out and "token'sız" in out, f"Konsol token'ın boş olduğunu söylemedi:\n{out}"
+    assert "HF_TOKEN" not in os.environ, "Boş token'da ortamda token kaldı"
+
+
+def _handed(monkeypatch, owner, name):
+    """The fake `owner.name` -- one _hub or _mirror put in place -- wrapped to remember the token each
+    call was handed, and otherwise left to do what it does."""
+    tokens = []
+    fake = getattr(owner, name)
+
+    def recording(*args, **kwargs):
+        tokens.append(kwargs.get("token", "verilmedi"))
+        return fake(*args, **kwargs)
+
+    monkeypatch.setattr(owner, name, recording)
+    return tokens
+
+
+@pytest.mark.parametrize("env, handed", [(TOKEN, TOKEN), (None, False)])
+def test_a_huggingface_download_hands_its_token_over_outright(downloads, monkeypatch, tmp_path,
+                                                              env, handed):
+    """The token in the environment, or False -- huggingface_hub's word for none -- so it looks for
+    no token of its own (madde 437, _token)."""
+    if env:
+        monkeypatch.setenv("HF_TOKEN", env)
+    else:
+        monkeypatch.delenv("HF_TOKEN", raising=False)
+    _hub(monkeypatch, _safetensors())
+    tokens = _handed(monkeypatch, sys.modules["huggingface_hub"], "hf_hub_download")
+
+    _eros(downloads, tmp_path)
+
+    assert tokens == [handed], f"İndirmeye token böyle verildi: {tokens}"
+
+
+@pytest.mark.parametrize("env, handed", [(TOKEN, TOKEN), (None, False)])
+def test_an_upload_to_the_mirror_hands_its_token_over_outright(downloads, monkeypatch, tmp_path,
+                                                               env, handed):
+    """The upload takes the token the way the download does."""
+    if env:
+        monkeypatch.setenv("HF_TOKEN", env)
+    else:
+        monkeypatch.delenv("HF_TOKEN", raising=False)
+    _mirror(monkeypatch, {})
+    tokens = _handed(monkeypatch, sys.modules["huggingface_hub"].HfApi, "upload_file")
+    commands = _transfer(monkeypatch, downloads, _safetensors())
+    _probe(monkeypatch, downloads, commands)
+
+    downloads.civitai_fetch(MIRROR, 3314686, str(tmp_path), "m.safetensors", "DaSiWa H3", COOKIE)
+
+    assert tokens == [handed], f"Yüklemeye token böyle verildi: {tokens}"
+
+
 def test_mystic_xxx_is_kept_out_of_the_mirror(downloads):
     """Madde 328, the list's first entry: the lora is on trial ("şimdilik hugging face gitmesin, önce
     test edeyim"). What the list does is asked by 327's tests above; this asks that the file is on it,
     under the name the notebook downloads it by."""
     assert "MysticXXX_MMH3-V4.safetensors" in downloads.MIRRORLESS, \
         f"Mystic XXX aynasız listede değil: {downloads.MIRRORLESS}"
+
+
+# The models cell's run around the downloads: hf_xet, the disk, the two lists, the folders.
+
+def test_hf_xet_is_installed_for_hugging_face_s_downloader(downloads, monkeypatch):
+    """Without hf_xet, huggingface_hub goes back to HF's bridge with nothing but a log line, and the
+    bridge cuts a plain download to 8.7 MB/s (xet-core #821). pip is asked for its progress, and is
+    not quiet (madde 439)."""
+    commands = []
+    monkeypatch.setattr(downloads, "run", lambda cmd, label, cwd=None, timeout=3600:
+                        commands.append(cmd))
+
+    downloads.install_hf_xet()
+
+    assert commands == [["pip", "install", "--progress-bar", "on", "-U", "hf_xet"]], \
+        f"hf_xet böyle kurulmadı: {commands}"
+
+
+GIB = 1024 ** 3
+# Photo and sound ticked, video not: 10 + 9 GiB, and 5 GiB of headroom.
+SIZES = [(True, 10, "fotoğraf"), (False, 37, "video (H3)"), (True, 9, "ses")]
+
+
+def _free(monkeypatch, downloads, free):
+    asked = []
+    monkeypatch.setattr(downloads.shutil, "disk_usage",
+                        lambda path: asked.append(path) or types.SimpleNamespace(free=free))
+    return asked
+
+
+def test_the_disk_check_says_what_was_chosen_and_what_is_free(downloads, monkeypatch, capsys):
+    asked = _free(monkeypatch, downloads, 30 * GIB)
+
+    downloads.check_disk(SIZES)
+
+    assert asked == ["/content"], f"Disk böyle ölçülmedi: {asked}"
+    assert "Seçim: fotoğraf, ses — ~19 GiB | Diskte boş: 30.0 GiB" in capsys.readouterr().out, \
+        "Konsol seçimi ve boş yeri söylemedi"
+
+
+def test_a_disk_with_room_for_the_headroom_too_lets_the_run_go_on(downloads, monkeypatch):
+    _free(monkeypatch, downloads, 24 * GIB)
+
+    downloads.check_disk(SIZES)
+
+
+def test_a_disk_short_of_the_headroom_stops_the_run_before_anything_downloads(downloads,
+                                                                              monkeypatch):
+    """All three together are ~54 GiB. Finding out the disk was too small halfway through leaves
+    half-written files and no explanation."""
+    _free(monkeypatch, downloads, 24 * GIB - 1)
+
+    with pytest.raises(RuntimeError) as failure:
+        downloads.check_disk(SIZES)
+
+    assert str(failure.value).startswith(
+        "❌ Disk yetmiyor: ~19 GiB model + 5 GiB pay gerekiyor, 24.0 GiB boş."), \
+        f"Hata böyle: {failure.value}"
+
+
+def test_the_chosen_files_come_down_huggingface_first_then_civitai(downloads, monkeypatch,
+                                                                   tmp_path):
+    """Each file through its own fetcher, with the mirror and the cookie for the Civitai ones, and
+    every row handed back in order for the table."""
+    calls = []
+
+    def hf_fetch(repo, path, target_dir, filename, label, *, floor=None):
+        calls.append(("hf", repo, path, target_dir, filename, floor))
+        return label, 1, 1.0
+
+    def civitai_fetch(mirror, version_id, target_dir, filename, label, cookie):
+        calls.append(("civitai", mirror, version_id, target_dir, filename, cookie))
+        return None
+
+    monkeypatch.setattr(downloads, "hf_fetch", hf_fetch)
+    monkeypatch.setattr(downloads, "civitai_fetch", civitai_fetch)
+    upsc, lora = str(tmp_path / "upscale_models"), str(tmp_path / "loras")
+
+    rows = downloads.download_models(
+        [("FacehugmanIII/4x_foolhardy_Remacri", "4x.pth", upsc, "4x.pth", "Remacri", 50_000_000)],
+        [(1552087, lora, "USNR.safetensors", "USNR")], MIRROR, COOKIE)
+
+    assert calls == [
+        ("hf", "FacehugmanIII/4x_foolhardy_Remacri", "4x.pth", upsc, "4x.pth", 50_000_000),
+        ("civitai", MIRROR, 1552087, lora, "USNR.safetensors", COOKIE)], \
+        f"Dosyalar böyle inmedi: {calls}"
+    assert rows == [("Remacri", 1, 1.0), None], f"Satırlar böyle döndü: {rows}"
+
+
+def test_a_huggingface_file_makes_the_folder_it_lands_in(downloads, monkeypatch, tmp_path):
+    """A folder is made as its first file comes down, so an unticked group's folders are not made
+    at all."""
+    _hub(monkeypatch, _safetensors())
+    folder = tmp_path / "models" / "vae" / "MiniMaxH3"
+
+    downloads.hf_fetch("Kijai/MiniMax-H3-TAE", "taeh3.safetensors", str(folder), "taeh3.safetensors",
+                       "H3 TAE")
+
+    assert (folder / "taeh3.safetensors").read_bytes() == _safetensors(), "Dosya klasörüne inmedi"
+
+
+def test_an_addressed_file_makes_the_folder_its_part_is_written_in(downloads, monkeypatch, tmp_path):
+    """curl writes the .part straight into the folder, so it has to be there first."""
+    _transfer(monkeypatch, downloads, _safetensors())
+    folder = tmp_path / "models" / "loras"
+
+    downloads.fetch("https://civitai.red/api/download/models/1", str(folder), "m.safetensors", "M",
+                    parallel=False)
+
+    assert (folder / "m.safetensors").read_bytes() == _safetensors(), "Dosya klasörüne inmedi"
+
+
+def test_the_folders_of_the_chosen_groups_are_listed_with_their_files(downloads, tmp_path, capsys):
+    """Subfolders too: H3's files sit under MiniMaxH3/."""
+    diff, mmau = tmp_path / "diffusion_models", tmp_path / "mmaudio"
+    (diff / "MiniMaxH3").mkdir(parents=True)
+    (diff / "MiniMaxH3" / "eros.safetensors").write_bytes(b"\0" * 2048)
+    mmau.mkdir()
+    (mmau / "nsfw.safetensors").write_bytes(b"\0" * 8)
+
+    downloads.show_folders([(True, "diffusion_models", str(diff), "**/*.safetensors"),
+                            (False, "mmaudio", str(mmau), "*.safetensors")])
+
+    out = capsys.readouterr().out
+    eros = os.path.join("MiniMaxH3", "eros.safetensors")
+    assert out == f"\n📂 diffusion_models/\n   2.0KB  {eros}\n", f"Klasörler böyle listelendi:\n{out}"

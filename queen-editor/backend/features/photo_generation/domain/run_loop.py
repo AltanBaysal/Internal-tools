@@ -23,6 +23,7 @@ from backend.features.photo_generation.domain import (
     scene,
     seed,
     variant_batch,
+    video_settings,
 )
 from backend.features.photo_generation.domain.photo_name import layer_file, photo_file
 
@@ -139,10 +140,11 @@ def _first_frame(stills, video, log):
         return None
 
 
-def _made_with(job, end):
+def _made_with(job, end, kind, producer):
     """What the produced row says about how it was made, beyond its words and its seed.
 
-    The mode, and the name of the picture the video arrived at -- each only when there is one.
+    The mode, the name of the picture the video arrived at, and how long a video runs -- each only
+    when there is one.
 
     Which jobs carry a mode is the queue's rule (queue_layer puts the field on video jobs alone) and
     it is not written a second time here, where the two could drift apart. A photo row saying
@@ -151,10 +153,16 @@ def _made_with(job, end):
     The ending picture is named by the file the render was actually handed, not by the target's
     identity. The detail page prints that name, and an identity resolved later can resolve to
     nothing: the frame a video ends on can be deleted while the video stays.
+
+    A video's length is its producer's answer, not the job's: the job carries the length it was
+    queued with, and the producer says what it made of it -- a job queued with none comes out at
+    the graph's own (madde 423). The export adds these up.
     """
     made = {"mode": production_mode.of(job)} if job.get("mode") else {}
     if end:
         made["endsOn"] = end[0]
+    if kind == layers.VIDEO:
+        made["seconds"] = producer.seconds(job.get("seconds"))
     return made
 
 
@@ -179,9 +187,29 @@ def _files(name, together):
     return [name] + [photo_file(other["id"]) for other in together[1:]]
 
 
+def _attempt_line(name, attempts, wait, exc):
+    """The live log's line for an attempt that fell (madde 433): which layer, which attempt, when the
+    next one comes -- and under it what was raised, its type and its whole message. The last attempt
+    says nothing about what follows: the card does."""
+    head = f"⚠ {name} · deneme {attempts}/{policy.MAX_ATTEMPTS} düştü"
+    if attempts < policy.MAX_ATTEMPTS:
+        head += f" — {wait} sn sonra yeniden denenecek" if wait else " — yeniden deneniyor"
+    return f"{head}\n{type(exc).__name__}: {exc}"
+
+
+def _wait(runner, sleep, seconds):
+    """`seconds` before the next attempt, one at a time: a Durdur pressed meanwhile ends the wait
+    within a second, and the turn it returns to pauses."""
+    for _ in range(seconds):
+        if runner.stop_requested():
+            return
+        sleep(1)
+
+
 def make_job(runner, store, record, plan_store, producers, now, project,
              clock=time.monotonic, log=None, order_store=None, writers=None,
-             new_seed=seed.random_seed, named=None, stills=None, references=None):
+             new_seed=seed.random_seed, named=None, stills=None, references=None,
+             sleep=time.sleep):
     """Returns the callable PhotoRunner.start expects: it drains this project's queue.
 
     `producers` maps a job type to the thing that can do it (see ports.PhotoGenerator). A type with
@@ -206,7 +234,12 @@ def make_job(runner, store, record, plan_store, producers, now, project,
     `log` is where the per-frame timing line goes -- None means nobody asked for one. What the line
     says is decided here; where it lands is main.py's to choose, so the loop can be tested without
     capturing output and the clock can be faked instead of waited on. The render's seconds on that
-    line are the ones written on the produced layer's row, which the card shows (madde 405).
+    line are the ones written on the produced layer's row, which the card shows (madde 405). Every
+    attempt that falls goes there too, with what it raised (madde 433): the card shows only the
+    last of three.
+
+    `sleep` is how the loop waits before trying a job again when the engine gave no answer
+    (policy.retry_wait). Injected like the clock, so no test waits a real second.
 
     `stills` is what pulls a picture out of a video (see ports.Stills). None means no picture is
     pulled at all, which is what the loop did before madde 296 and what a run with no ffmpeg does.
@@ -280,13 +313,15 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                 # once per job rather than once per attempt: all three tries share it, so the row
                 # names the number every one of them used.
                 chosen = current["seed"] if current["seed"] is not None else new_seed()
-            # pending is what the gallery draws as "bekliyor": the queue behind the job being done.
-            # failures names the tiles it draws red, each with its own Tekrar dene. While a prompt
-            # is written nothing is being made and every owed frame waits -- current is set to None
-            # rather than left out, because a report merges into the one before it. startedAt is
-            # cleared for the same reason: no model is working on anything until the render below
-            # says so, and a cleared one is what makes a retried attempt's counter start again. So
-            # is batch: which frames the render makes with this one is the render's to say.
+            # Whether this video ends happily, from its job (madde 426): the writer asks for the
+            # ending and the producer loads the lora that makes it. Only a video job carries one.
+            happy = bool(current.get(video_settings.HAPPY_ENDING))
+            # While a prompt is written nothing is being made and every owed frame waits -- current
+            # is set to None rather than left out, because a report merges into the one before it.
+            # startedAt is cleared for the same reason: no model is working on anything until the
+            # render below says so, and a cleared one is what makes a retried attempt's counter
+            # start again. So is batch: which frames the render makes with this one is the render's
+            # to say.
             progress = {**queue.counts(jobs, slots),
                         "current": None if writing else current,
                         "pending": [photo_file(j["id"])
@@ -315,7 +350,8 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                     words = writers[kind].write(_prompts_of(record, project, fid),
                                                 production_mode.of(current), source=under,
                                                 end=ending,
-                                                scene=scene.of(scene.by_number(jobs), fid))
+                                                scene=scene.of(scene.by_number(jobs), fid),
+                                                happy_ending=happy)
                 else:
                     # The card's prompt when the job carries none of its own. The record is asked
                     # only then, so a job the user wrote for never reaches it.
@@ -346,16 +382,24 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                     else:
                         made = [producer.generate(prompt, current["negative"], chosen,
                                                   current["model"], current.get("lora", ""),
-                                                  source=under, end=ending, references=pool)]
+                                                  source=under, end=ending, references=pool,
+                                                  seconds=current.get("seconds"),
+                                                  happy_ending=happy)]
             except Exception as exc:
                 if runner.stop_requested():
                     # The user's own pause killed this render -- that is not a failure. The job
                     # writes no line, so it stays owed and is done again on resume.
                     return summary("paused")
                 attempts += 1
+                # Nothing to wait for after the last attempt: what follows it does not try again.
+                wait = policy.retry_wait(exc) if attempts < policy.MAX_ATTEMPTS else 0
+                if log:
+                    log(_attempt_line(name, attempts, wait, exc))
                 if attempts < policy.MAX_ATTEMPTS:
                     # Every failure gets the same three tries at the same job (design v3, madde 45);
-                    # what differs is what happens after the third.
+                    # what differs is what happens after the third. An engine that gave no answer is
+                    # given time to come back first (madde 433).
+                    _wait(runner, sleep, wait)
                     continue
                 if policy.is_frame_fault(exc):
                     # The renderer answered three times that this one job is what failed. The queue
@@ -399,7 +443,7 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                                             "prompt": prompt, "negative": current["negative"],
                                             "seed": chosen, "createdAt": now(),
                                             "renderSeconds": seconds,
-                                            **_made_with(current, ending)})
+                                            **_made_with(current, ending, kind, producer)})
                 # The one job that fills two slots: a card whose picture is missing takes the
                 # video's first frame as its own, so the gallery and the export both find one
                 # (madde 296). Under the same gate as the video, for the same reason. Whether the

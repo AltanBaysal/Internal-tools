@@ -1,25 +1,22 @@
 # QueenAgent — Code Standard
 
-Two building blocks, feature-first. Read this before adding code.
+Two building blocks, feature-first.
 The principles and stack decisions these rules serve: [FOUNDATION.md](FOUNDATION.md).
 
 ## Stack
 
-Backend **Flask** (sync) + frontend **React 18** (JSX, built with Vite). The backend is thin: file
-operations, one outbound API call, streaming its result back. Live progress is server-sent events,
-not websockets — the stream is one-way and short-lived.
+Backend Flask (sync) + frontend React 18 (JSX, built with Vite) — why: FOUNDATION, Decision 2. Live
+progress is server-sent events, not websockets — the stream is one-way and short-lived.
 
-`frontend/dist` is committed, in the same commit as the source it was built from — the notebook
-clones this repo and never builds (FOUNDATION, Decision 3). In development the UI runs on Vite's own
-server and proxies `/api` to Flask, so a UI change does not cost a full build; the bundle is rebuilt
-and committed when the change is finished, not on every save.
+`frontend/dist` is committed with its source (FOUNDATION, Decision 3). In development the UI runs on
+Vite's own server and proxies `/api` to Flask, so a UI change does not cost a full build; the bundle
+is rebuilt and committed when the change is finished, not on every save.
 
 ## Independence
 
 QueenAgent depends on nothing under `collab-toolbox/` or `queen-editor/` — no imported module, no
-shared file, no shared store. What it inherits from queen-editor is **documents, not code**: the layering
-rules below, the language split, and the test discipline. The two tools must be able to evolve and
-break independently.
+shared file, no shared store. What it inherits from queen-editor is documents, not code: the
+layering rules below, the language split, and the test discipline.
 
 ## Separation of concerns
 
@@ -37,7 +34,7 @@ The store follows the same rule, and it is why there is no file-index file:
 | `pinned` | is this project pinned, and since when | on pin; removed on unpin, on archive and on unarchive — an archived project is never pinned |
 | `archived` | is this project archived | on archive; removed on unarchive |
 
-**No file repeats another's answer.** The file list is the directory listing itself: the name is the
+No file repeats another's answer. The file list is the directory listing itself: the name is the
 filename, "2h ago" is its mtime, the order is mtime descending. A project's "2h ago" is its newest
 chat file's mtime, or its createdAt while it has none. The count on a sidebar project row is a
 directory count. Before adding a field, ask which question it answers — a field that answers a new
@@ -46,7 +43,7 @@ deleting.
 
 ## Services (`backend/services/`)
 
-A service does one job, lives in its own folder, and knows **no feature**:
+A service does one job, lives in its own folder, and knows no feature:
 
 - `store/` — read / write / list / move under one root. Knows nothing about projects, chats or files.
   Rejects any path that escapes the root.
@@ -71,17 +68,17 @@ Concrete classes are wired only in the composition root (`main.py`).
 ### One feature: `workspace`
 
 `workspace` is one feature and not four. Projects, chats, files and messages cannot be separated,
-because **writing a file in reply to a message touches all of them at once** — splitting them would
+because writing a file in reply to a message touches all of them at once — splitting them would
 break `feature ↛ feature` on the first real use case. They are one aggregate.
 
-And it is the only one. **The app has no feature for its own configuration**: everything it is told
+And it is the only one. The app has no feature for its own configuration: everything it is told
 from outside arrives in the environment and stops at `config.py`. There was a `settings` feature
 once, holding the API key — it was deleted because the endpoint that served the key back was written
 for a machine only its owner could reach, and Colab put the app behind a public address. The next
 setting goes in `config.py` too; a feature is what the user makes things in, not where the app keeps
 what it was told.
 
-A third feature is created on the same test: a genuinely separate bounded context (sharing,
+A second feature is created on the same test: a genuinely separate bounded context (sharing,
 identity). Today there is none.
 
 ## Infrastructure (`backend/web/`)
@@ -97,34 +94,30 @@ router, the clock, and the Markdown parser. Nothing in `shared/` imports a featu
 renders: the parser returns tokens and the component that turns them into elements lives with the
 feature that draws them.
 
-**There is no `vendor/` directory, and the design is a visual specification rather than source code.**
+There is no `vendor/` directory, and the design is a visual specification rather than source code.
 queen-editor copies component files verbatim from its design project; QueenAgent cannot. Its
-prototype is a single monolithic `DCLogic` component with inline style strings and DC-only attributes such as
-`style-hover` — there is no component file to copy. So we write the React ourselves and stay faithful
-to the design's colours, type, measurements and behaviour.
+prototype is a single monolithic `DCLogic` component with inline style strings and DC-only attributes
+such as `style-hover` — there is no component file to copy. So we write the React ourselves and stay
+faithful to the design's colours, type, measurements and behaviour.
 
-`shared/app.css` owns the colour variables, the radii, the focus ring and the two keyframes every
-surface shares: `fadeIn`, an opacity fade, and `blink`, which pulses the three dots. A component
-never writes its own focus outline. `features/workspace/workspace.css` holds
-`msg-spin`, the spinner's turn — on the live row, the loading file list and a chat that is opening —
-and the transitions: the sidebar and the rail fold by their width, and a message's edit pencil fades
-in. The accent `--accent` marks the primary action and nothing else.
+`shared/app.css` owns what every surface shares — the colour variables, the radii, the focus ring and
+the shared keyframes — so a component writes no focus outline of its own. The accent `--accent` marks
+the primary action alone.
 
 ## Language
 
-**Everything is English**: UI text, code, comments, docstrings, test names and commit messages. The
-superpowers specs and plans under `docs/` are Turkish.
+Everything is English — UI text, code, comments, docstrings, test names and commit messages — and
+the specs and plans under `docs/` are Turkish.
 
-This differs from queen-editor deliberately. That tool's rule is "UI text is Turkish"; QueenAgent's UI is
-English because every string in its design was written in English, and translating them would stop
-the design from being the source. Do not carry the neighbouring tool's rule over here.
+The UI differs from queen-editor's Turkish on purpose, so that tool's rule does not carry over here:
+every string in the design was written in English, and translating them would stop the design from
+being the source.
 
 ## Tests
 
 Backend: domain and use cases test with fake ports — no network, no real store.
 
-Frontend: vitest + jsdom. Test files sit next to their source
-as `<name>.test.js(x)`; they are never imported, so they stay out of `dist/`. Network and clock are
-faked (`vi.stubGlobal("fetch", …)`, `vi.useFakeTimers()`) — no test waits a real second, and none of
-them needs a browser or a network. Testing Library's `waitFor` does not understand vitest's fake
-clock: advance it inside `act()` instead.
+Frontend: vitest + jsdom. Test files sit next to their source as `<name>.test.js(x)`; they are never
+imported, so they stay out of `dist/`. Network and clock are faked (`vi.stubGlobal("fetch", …)`,
+`vi.useFakeTimers()`) — no test waits a real second or needs a browser. Testing Library's
+`waitFor` does not understand vitest's fake clock: advance it inside `act()` instead.

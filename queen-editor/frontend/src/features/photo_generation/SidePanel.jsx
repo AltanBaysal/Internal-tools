@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
 import { Mono } from "../../vendor/kit.jsx";
-import AgentPanel from "./AgentPanel.jsx";
+import AgentPanel from "../agent/AgentPanel.jsx";
 import GeneratePanel from "./GeneratePanel.jsx";
 import ProducersPanel from "../producers/ProducersPanel.jsx";
 import {
@@ -125,8 +125,8 @@ function RailButton({ panel, active, busy, onSelect }) {
 }
 
 // v2's right column: one panel at a time, the rail on its right. Three jobs that used to share a
-// single surface -- submitting work, watching the queue, and the agent that has not been designed
-// yet -- now have a panel each, and the status cards that sat under the form live next door.
+// single surface -- submitting work, watching the queue, and the agent -- now have a panel each, and
+// the status cards that sat under the form live next door.
 export default function SidePanel({ job, known, error, errorField, busyElsewhere, settings,
                                     settingsError, project, stopping, queue, failures, models,
                                     loras, modelsError, producers, frames, selected, onQueueLayer,
@@ -140,6 +140,13 @@ export default function SidePanel({ job, known, error, errorField, busyElsewhere
   const [open, setOpen] = useState(() => opening(project));
   const toggle = (id) => setOpen((shown) => (shown === id ? null : id));
   const current = PANELS.find((panel) => panel.id === open);
+  // A real heading: the open panel's name is also the only thing on screen that says which of the
+  // three you are looking at.
+  const heading = current && (
+    <h2 style={{ margin: 0 }}>
+      <Mono size={11} style={LABEL}>{current.heading || current.title}</Mono>
+    </h2>
+  );
 
   // Whatever the column becomes is what a later mount starts from -- closed included. One effect
   // rather than a write inside toggle: that one is a functional update, and a store written from
@@ -154,11 +161,9 @@ export default function SidePanel({ job, known, error, errorField, busyElsewhere
           goes back to the gallery. */}
       {current && (
       <div className="wf-panel" style={PANEL}>
-        {/* A real heading: the open panel's name is also the only thing on screen that says which
-            of the three you are looking at. */}
-        <h2 style={{ margin: 0 }}>
-          <Mono size={11} style={LABEL}>{current.heading || current.title}</Mono>
-        </h2>
+        {/* The agent's chat puts its two buttons in the heading's row, so it draws the heading
+            itself (madde 425). */}
+        {open !== "agent" && heading}
         {/* The project record fills this panel's boxes and nothing else on the screen reads it, so
             waiting for it is this column's business alone (madde 31). The failure is asked about
             first: with an unreadable record there is no record either, and a ring that never stops
@@ -198,7 +203,7 @@ export default function SidePanel({ job, known, error, errorField, busyElsewhere
                       producers={producers?.producers || null}
                       onInstall={producers?.install} />
         )}
-        {open === "agent" && <AgentPanel />}
+        {open === "agent" && <AgentPanel project={project} heading={heading} />}
         {open === "producers" && (
           <ProducersPanel producers={producers?.producers || null}
                           error={producers?.error || null}

@@ -75,8 +75,8 @@ def _github(monkeypatch, nodes, repos):
 def test_impact_pack_is_installed_without_sam2(nodes, monkeypatch, tmp_path):
     """sam2 has no ready package to take: pip fetches it from GitHub and builds it on the machine, and
     its build asks for torch, which pip sets up again -- CUDA libraries and all -- in a build
-    environment of its own. Our graph loads SAM's first version, sam_vit_b, through
-    segment-anything, and Impact-Pack imports sam2 only when it is installed (madde 314)."""
+    environment of its own. No graph of ours loads a SAM (madde 430), and Impact-Pack imports sam2
+    only when it is installed (madde 314)."""
     _, installed = _github(monkeypatch, nodes, {IMPACT: {"requirements.txt": IMPACT_REQUIREMENTS}})
 
     nodes.install_node("ComfyUI-Impact-Pack", IMPACT, str(tmp_path))
@@ -139,6 +139,23 @@ def test_a_clone_that_leaves_nothing_stops_the_run(nodes, monkeypatch, tmp_path)
     assert "ComfyMath" in str(failure.value), f"Hata hangi node olduğunu söylemiyor: {failure.value}"
 
 
+def test_the_list_is_installed_in_its_order_and_counted(nodes, monkeypatch, tmp_path, capsys):
+    """Every node of the cell's list, in its order, then one line counting them; the list itself
+    stays in the cell."""
+    installed = []
+    monkeypatch.setattr(nodes, "install_node", lambda name, url, folder:
+                        installed.append((name, url, folder)))
+
+    nodes.install_nodes([("ComfyMath", MATH), ("ComfyUI-DaSiWa-Nodes", DASIWA)], str(tmp_path))
+
+    assert installed == [("ComfyMath", MATH, str(tmp_path)),
+                         ("ComfyUI-DaSiWa-Nodes", DASIWA, str(tmp_path))], \
+        f"Node'lar böyle kurulmadı: {installed}"
+    last = capsys.readouterr().out.splitlines()[-1]
+    assert last.startswith("✅") and last.endswith("2 custom node hazır"), \
+        f"Konsol kaç node'un hazır olduğunu söylemedi: {last}"
+
+
 def test_a_node_is_cloned_shallow_with_its_submodules_into_its_own_folder(
         nodes, monkeypatch, tmp_path, capsys):
     """Only the latest tree is needed, and some packs carry submodules. The line a node starts with
@@ -155,3 +172,15 @@ def test_a_node_is_cloned_shallow_with_its_submodules_into_its_own_folder(
     assert (tmp_path / "ComfyMath" / "__init__.py").exists(), "Node kendi adlı klasörüne klonlanmadı"
     assert re.search(r"\[\d\d:\d\d:\d\d\] ComfyMath", capsys.readouterr().out), \
         "Konsol node'un başladığını saatle yazmıyor"
+
+
+def test_a_node_s_clone_and_pip_show_their_progress(nodes, monkeypatch, tmp_path):
+    """The clone and pip are asked for their progress, and pip is not quiet (madde 439)."""
+    commands, _ = _github(monkeypatch, nodes, {MATH: {"requirements.txt": "numpy\n"}})
+
+    nodes.install_node("ComfyMath", MATH, str(tmp_path))
+
+    clone, pip = commands
+    assert "--progress" in clone, f"Klon ilerlemeyi göstermiyor: {clone}"
+    assert pip[pip.index("--progress-bar") + 1] == "on" and "-q" not in pip, \
+        f"pip ilerlemeyi göstermiyor: {pip}"

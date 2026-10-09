@@ -7,6 +7,12 @@ files does not get to find out that four of them landed.
 Names are worked out in the same pass, so a second file called kedi.png already sees the first
 -- whether the first arrived a moment ago or a week ago. The limits are weighed in that pass too,
 against the pool and the rest of the press together (madde 298).
+
+Each file goes in at the end of its own row, and that row is written into the order as it then
+stands (madde 414). The order is what places a file: one it does not name waits among the others by
+name (references.placed), so an upload left out of it would stand wherever its name sorts -- in
+front of the reference already there whenever it sorts first. A second kedi.png, stored as
+kedi-2.png, always would: "-" sorts before ".".
 """
 from backend.features.photo_generation.domain import references
 from backend.features.photo_generation.domain.usecases.list_references import list_references
@@ -61,4 +67,10 @@ def add_references(store, pool, orders, clips, project, files, row=None):
     # Nothing at all is written above, so a refusal leaves the pool exactly as it was.
     for name, data in writing:
         pool.save(project, name, data)
+    # After the files, so the order never names one that did not land. The row is rebuilt from what
+    # the pool holds, so a name whose file was deleted by hand in Drive drops out of it here.
+    order = orders.read(project)
+    for kind in {one["kind"] for one in arriving}:
+        order[kind] = [one["name"] for one in held + arriving if one["kind"] == kind]
+    orders.write(project, order)
     return list_references(store, pool, orders, project)

@@ -87,9 +87,9 @@ def _per_layer(cells, field):
     """{layer: the field's value} -- only the layers whose line carried it.
 
     Its users answer the same kind of question about one layer at a time: which mode made it, which
-    picture it arrived at, and how long the model worked on it. Written as maps rather than fields
-    named for one layer, because they would have to be renamed the day a second layer gains one. A
-    layer whose line carried nothing is absent -- an old layer, or a red one.
+    picture it arrived at, how long the model worked on it, and how long it runs. Written as maps
+    rather than fields named for one layer, because they would have to be renamed the day a second
+    layer gains one. A layer whose line carried nothing is absent -- an old layer, or a red one.
     """
     return {slot: cell[field] for slot, cell in cells.items() if cell.get(field)}
 
@@ -135,6 +135,9 @@ def list_frames(record, store, plan_store, order_store, project):
                 # card read from the record is spread from a produced row, and that row's own
                 # single number must not reach the screen as the card's answer.
                 "renderSeconds": _per_layer(cells, "renderSeconds"),
+                # How long each layer runs, where its line says: a video produced since madde 423.
+                # Not "seconds" -- renderSeconds beside it is another length.
+                "lengths": _per_layer(cells, "seconds"),
                 "prompts": _words(said.get(fid, {}), base.get("prompt"), kind),
                 # Read-only: no request can change it. Empty is a card with none.
                 "scene": scene.of(scenes, fid),

@@ -2,7 +2,8 @@
 requirements installed, save the lines in SKIPPED.
 
 The list of nodes stays in the notebook, where it is counted against the heading over it; what is here
-is how one node comes in, which a cell could not test (madde 314).
+is how the nodes come in, which a cell could not test (madde 314, and the loop over the list since
+madde 438).
 """
 import os
 
@@ -10,9 +11,8 @@ from colab.console import log, run
 
 # Impact-Pack's list ends with sam2 straight from GitHub. It has no ready package: pip builds it on the
 # machine, and its build asks for torch, which pip installs again -- CUDA libraries and all -- in a
-# build environment of its own. Impact-Pack took 3 dk 13 sn of a 6 dk 2 sn cell on the user's run. Our
-# photo graph loads SAM's first version through segment-anything, and Impact-Pack imports sam2 only
-# when it is installed.
+# build environment of its own. Impact-Pack took 3 dk 13 sn of a 6 dk 2 sn cell on the user's run. No
+# graph of ours loads a SAM, and Impact-Pack imports sam2 only when it is installed.
 SKIPPED = {"git+https://github.com/facebookresearch/sam2"}
 
 
@@ -32,6 +32,13 @@ def _kept(req, name):
     return kept
 
 
+def install_nodes(nodes, folder):
+    """The notebook's (name, url) list into folder, in its order, and a line counting them."""
+    for name, url in nodes:
+        install_node(name, url, folder)
+    log(f"{len(nodes)} custom node hazır", "OK")
+
+
 def install_node(name, url, folder):
     """One node into folder/name: cloned shallow with its submodules, and its requirements installed.
     A node already there is left alone, so a second Run all costs nothing. The line a node starts with
@@ -41,10 +48,11 @@ def install_node(name, url, folder):
         log(f"{name}: zaten var")
         return
     log(f"{name}: cloning...")
-    run(["git", "clone", "--depth", "1", "--recurse-submodules", url, target], f"clone {name}",
-        timeout=180)
+    run(["git", "clone", "--progress", "--depth", "1", "--recurse-submodules", url, target],
+        f"clone {name}", timeout=180)
     if not os.listdir(target):
         raise RuntimeError(f"{name}: klon sonrası klasör boş")
     req = os.path.join(target, "requirements.txt")
     if os.path.exists(req):
-        run(["pip", "install", "-q", "-r", _kept(req, name)], f"pip install {name}", timeout=300)
+        run(["pip", "install", "--progress-bar", "on", "-r", _kept(req, name)], f"pip install {name}",
+            timeout=300)

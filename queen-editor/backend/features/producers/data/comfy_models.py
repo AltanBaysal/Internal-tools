@@ -18,9 +18,10 @@ class ComfyModelFiles:
         scandir rather than listdir: it stops at the first match, and is_file() comes off the entry
         instead of a second stat call.
 
-        A missing folder answers False rather than raising. The notebook creates these on startup,
-        but the app also comes up on a machine where nothing was ever installed, and for the panel
-        "no folder" and "empty folder" are the same answer -- not installed.
+        A missing folder answers False rather than raising. The notebook makes a folder only as its
+        first file comes down, so an unticked group has none, and the app also comes up on a machine
+        where nothing was ever installed. For the panel "no folder" and "empty folder" are the same
+        answer -- not installed.
         """
         directory = os.path.join(self._root, "models", folder)
         try:

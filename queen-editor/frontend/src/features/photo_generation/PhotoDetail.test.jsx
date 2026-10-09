@@ -2,9 +2,12 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  getHappyEnding,
   getStatus,
+  getVideoLength,
   listFrames,
   listModels,
+  listProducers,
   regenerateFrame,
   removeFrames,
   removeLayer,
@@ -17,9 +20,12 @@ import PhotoDetail from "./PhotoDetail.jsx";
 vi.mock("../../shared/api.js", () => ({
   cancelGeneration: vi.fn(),
   generateBatch: vi.fn(),
+  getHappyEnding: vi.fn(),
   getStatus: vi.fn(),
+  getVideoLength: vi.fn(),
   listFrames: vi.fn(),
   listModels: vi.fn(),
+  listProducers: vi.fn(),
   regenerateFrame: vi.fn(),
   removeFrames: vi.fn(),
   removeLayer: vi.fn(),
@@ -149,6 +155,11 @@ beforeEach(() => {
   // jsdom has no media pipeline: the player's own calls are stubbed so a tab can be opened.
   vi.spyOn(window.HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
   vi.spyOn(window.HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
+  // No video row: the model is not known, so no note promises a length -- every older test reads
+  // the page as it was.
+  listProducers.mockResolvedValue([]);
+  getVideoLength.mockResolvedValue(8);
+  getHappyEnding.mockResolvedValue(false);
 });
 
 // The frame the worker is holding a layer of: its photo is on disk, its video is not yet.
@@ -2037,5 +2048,116 @@ describe("PhotoDetail — a frame its batch is making (madde 411)", () => {
 
     expect(timeShown().textContent).toBe("0:46");
     expect(timeShown().style.color).toBe("var(--accent)");
+  });
+});
+
+describe("PhotoDetail — the length a new video gets (madde 424)", () => {
+  // The video row the way the server gives it. H3 is the one video model (madde 435), so the row
+  // has nothing to say about which: once it is read, the length is the project's to say.
+  const ROWS = [{ id: "video", name: "Video üreticisi", installed: true, model: "MiniMax H3" }];
+  const LOOPED = { ...LAYERED, modes: { video: "loop" } };
+  const RED_VIDEO = { ...LAYERED, layers: { photo: "P0_0.png" }, failed: ["video"],
+                      errors: { video: "ComfyUI 500 — 3 kez denendi" },
+                      prompts: { photo: "kırmızı elbise" } };
+  const NOTE = "Yeni bir kare açılır — P0_0 kopyası, loop video.";
+
+  // The producers' row and then the project's length are two answers in a row, so the page is given
+  // two turns to take them.
+  async function openIn({ rows, frames, project = "düğün", video = true }) {
+    listProducers.mockResolvedValue(rows);
+    listFrames.mockResolvedValue(frames);
+    getStatus.mockResolvedValue(IDLE);
+    listModels.mockResolvedValue({ models: [], loras: LORAS });
+    render(<PhotoDetail project={project} frame="P0_0" />);
+    await settle();
+    await settle();
+    if (video) fireEvent.click(tab("Video"));
+  }
+
+  it("ends the note under Yeniden üret with the project's length", async () => {
+    // The project's length, not the frame's: a new video is made at what the project says now.
+    getVideoLength.mockResolvedValue(12);
+    await openIn({ rows: ROWS, frames: [LOOPED] });
+
+    expect(screen.getByText(`${NOTE} 12 sn.`)).toBeTruthy();
+  });
+
+  it("puts a note under a red video's Tekrar dene", async () => {
+    await openIn({ rows: ROWS, frames: [RED_VIDEO] });
+
+    const note = screen.getByText("Aynı kare yeniden denenir. 8 sn.");
+    expect(screen.getByText("Tekrar dene — bu kareye").compareDocumentPosition(note)
+           & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("gives the photo tab's Tekrar dene no note", async () => {
+    await openIn({ rows: ROWS, frames: [BROKEN], video: false });
+
+    expect(screen.getByText("Tekrar dene — bu kareye")).toBeTruthy();
+    expect(screen.queryByText(/Aynı kare yeniden denenir/)).toBeNull();
+  });
+
+  it("promises no length under Yeniden üret while the length cannot be read", async () => {
+    getVideoLength.mockRejectedValue(new Error("Sunucuya ulaşılamadı — bağlantıyı kontrol et."));
+    await openIn({ rows: ROWS, frames: [LOOPED], project: "kına-424a" });
+
+    expect(screen.getByText(NOTE)).toBeTruthy();
+  });
+
+  it("gives Tekrar dene no note while the length cannot be read", async () => {
+    getVideoLength.mockRejectedValue(new Error("Sunucuya ulaşılamadı — bağlantıyı kontrol et."));
+    await openIn({ rows: ROWS, frames: [RED_VIDEO], project: "kına-424b" });
+
+    expect(screen.queryByText(/Aynı kare yeniden denenir/)).toBeNull();
+  });
+});
+
+describe("PhotoDetail — Mutlu son on a new video (madde 426)", () => {
+  const ROWS = [{ id: "video", name: "Video üreticisi", installed: true, model: "MiniMax H3" }];
+  const LOOPED = { ...LAYERED, modes: { video: "loop" } };
+  const RED_VIDEO = { ...LAYERED, layers: { photo: "P0_0.png" }, failed: ["video"],
+                      errors: { video: "ComfyUI 500 — 3 kez denendi" },
+                      prompts: { photo: "kırmızı elbise" } };
+  const NOTE = "Yeni bir kare açılır — P0_0 kopyası, loop video.";
+
+  async function openIn({ frames, project }) {
+    listProducers.mockResolvedValue(ROWS);
+    listFrames.mockResolvedValue(frames);
+    getStatus.mockResolvedValue(IDLE);
+    listModels.mockResolvedValue({ models: [], loras: LORAS });
+    render(<PhotoDetail project={project} frame="P0_0" />);
+    await settle();
+    await settle();
+    fireEvent.click(tab("Video"));
+  }
+
+  it("ends the note under Yeniden üret with it, after the length", async () => {
+    // The project's switch, not the frame's: a new video goes the way the project is set now.
+    getHappyEnding.mockResolvedValue(true);
+    await openIn({ frames: [LOOPED], project: "kına-426a" });
+
+    expect(screen.getByText(`${NOTE} 8 sn, mutlu son.`)).toBeTruthy();
+    expect(getHappyEnding).toHaveBeenCalledWith("kına-426a");
+  });
+
+  it("ends a red video's Tekrar dene note with it", async () => {
+    getHappyEnding.mockResolvedValue(true);
+    await openIn({ frames: [RED_VIDEO], project: "kına-426b" });
+
+    expect(screen.getByText("Aynı kare yeniden denenir. 8 sn, mutlu son.")).toBeTruthy();
+  });
+
+  it("still says it under Tekrar dene when the length cannot be read", async () => {
+    getVideoLength.mockRejectedValue(new Error("Sunucuya ulaşılamadı — bağlantıyı kontrol et."));
+    getHappyEnding.mockResolvedValue(true);
+    await openIn({ frames: [RED_VIDEO], project: "kına-426c" });
+
+    expect(screen.getByText("Aynı kare yeniden denenir. Mutlu son.")).toBeTruthy();
+  });
+
+  it("says nothing of it while it is off", async () => {
+    await openIn({ frames: [LOOPED], project: "kına-426d" });
+
+    expect(screen.getByText(`${NOTE} 8 sn.`)).toBeTruthy();
   });
 });

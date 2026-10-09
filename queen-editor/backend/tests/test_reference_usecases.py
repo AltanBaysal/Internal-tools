@@ -7,10 +7,7 @@ from backend.features.photo_generation.domain.usecases.add_references import (
 )
 from backend.features.photo_generation.domain.usecases.list_references import list_references
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
-from backend.features.photo_generation.domain.usecases.queue_references import (
-    NoReferenceProducer,
-    queue_references,
-)
+from backend.features.photo_generation.domain.usecases.queue_references import queue_references
 from backend.features.photo_generation.domain.usecases.remove_reference import remove_reference
 from backend.features.photo_generation.domain.usecases.save_reference_order import (
     InvalidReferenceOrder,
@@ -163,8 +160,8 @@ def test_a_reference_for_a_project_that_does_not_exist_is_refused():
 
 
 def test_the_pool_lists_in_one_stable_order():
-    """Kind by kind, and by name inside a kind while nobody has dragged anything: a slot is a place
-    inside a row, so the pool is read a row at a time (madde 300)."""
+    """Kind by kind: a slot is a place inside a row, so the pool is read a row at a time
+    (madde 300)."""
     clips = FakeClips()
     store, pool = FakeStore(), FakeReferenceStore(clips)
 
@@ -265,9 +262,10 @@ def test_removing_something_that_is_not_there_is_not_an_error():
 
 
 def test_the_pool_carries_the_slot_each_reference_stands_in():
-    orders = FakeOrderStore({"düğün": {references.PICTURE: ["kuş.png", "kedi.png"]}})
+    orders = FakeOrderStore()
     store, pool = FakeStore(), FakeReferenceStore()
     added(store, pool, [("kedi.png", b"ONE"), ("kuş.png", b"TWO")], orders=orders)
+    orders.write("düğün", {references.PICTURE: ["kuş.png", "kedi.png"]})
 
     assert [(row["name"], row["slot"]) for row in pool_of(store, pool, orders)] == [
         ("kuş.png", 1), ("kedi.png", 2)]
@@ -299,6 +297,21 @@ def test_a_removed_name_uploaded_again_goes_to_the_end():
         ("bir.png", 1), ("üç.png", 2), ("iki.png", 3)]
 
 
+def test_an_upload_joins_the_end_of_its_row():
+    """Madde 414: what is in the row keeps its slot, whatever the new file is called -- the Ekle card
+    stands after the row's last reference, and that is where the file was picked (madde 320)."""
+    orders = FakeOrderStore()
+    store, pool = FakeStore(), FakeReferenceStore()
+    added(store, pool, [("zeynep.png", b"ONE")], orders=orders)
+
+    answer = add_references(store, pool, orders, FakeClips(), "düğün", [("ayse.png", b"TWO")],
+                            row=references.PICTURE)
+
+    assert [(row["name"], row["slot"]) for row in answer] == [("zeynep.png", 1), ("ayse.png", 2)]
+    assert [(row["name"], row["slot"]) for row in pool_of(store, pool, orders)] == [
+        ("zeynep.png", 1), ("ayse.png", 2)]
+
+
 def test_the_order_the_user_dragged_is_stored():
     orders = FakeOrderStore()
     store, pool = FakeStore(), FakeReferenceStore()
@@ -325,6 +338,28 @@ def test_a_sent_order_keeps_only_the_names_the_pool_holds():
     assert orders.read("düğün") == {references.PICTURE: ["bir.png", "üç.png"]}
 
 
+def test_a_dragged_row_leaves_every_other_row_as_it_was_saved():
+    """Madde 427: a drag sends its own row alone, and the rows it did not touch keep the order they
+    were saved in. Each row is saved against its name order, so a row that fell back to reading by
+    name would show."""
+    orders = FakeOrderStore({"düğün": {references.PICTURE: ["zeynep.png", "ayse.png"],
+                                       references.VIDEO: ["iki.mp4", "bir.mp4"],
+                                       references.AUDIO: ["rüzgar.wav", "kuş.wav"]}})
+    store, pool = FakeStore(), FakeReferenceStore()
+    for name in ("zeynep.png", "ayse.png", "bir.mp4", "iki.mp4", "rüzgar.wav", "kuş.wav"):
+        pool.save("düğün", name, b"FILE")
+
+    left = save_reference_order(store, pool, orders,
+                                "düğün", {references.VIDEO: ["bir.mp4", "iki.mp4"]})
+
+    assert orders.read("düğün") == {references.PICTURE: ["zeynep.png", "ayse.png"],
+                                    references.VIDEO: ["bir.mp4", "iki.mp4"],
+                                    references.AUDIO: ["rüzgar.wav", "kuş.wav"]}
+    assert [(row["name"], row["slot"]) for row in left] == [
+        ("zeynep.png", 1), ("ayse.png", 2), ("bir.mp4", 1), ("iki.mp4", 2),
+        ("rüzgar.wav", 1), ("kuş.wav", 2)]
+
+
 @pytest.mark.parametrize("order", ["kedi.png", {"picture": "kedi.png"}, {"picture": [7]}])
 def test_an_order_that_is_not_lists_of_names_is_refused(order):
     store, pool = FakeStore(), FakeReferenceStore()
@@ -341,28 +376,17 @@ def ready_pool(orders=None):
     return store, pool, orders
 
 
-def run(store, pool, orders, prompts='["gotik kız"]', variants=1, has_h3=True, project="düğün"):
+def run(store, pool, orders, prompts='["gotik kız"]', variants=1, project="düğün"):
     """A reference run, as far as its refusals.
 
     Everything a run would need once it is allowed to start is None here on purpose: these tests
     are about the checks that come first, and nothing past them is touched. What a run that IS
     allowed does is tested beside the queue's own fakes (test_photo_usecases).
 
-    The H3 flag rides with the stores rather than with the press: which video model the notebook
-    installed is the installation's answer, and main.py binds it once.
+    No word about the video model: H3 is the one there is (madde 435), and it reads the pool.
     """
     return queue_references(None, store, None, None, None, pool, orders, None, None, None,
-                            has_h3, project, prompts, variants)
-
-
-def test_a_reference_run_without_h3_is_refused():
-    """Only H3 has a mode that reads references; WAN has nothing to be handed them."""
-    store, pool, orders = ready_pool()
-
-    with pytest.raises(NoReferenceProducer) as exc:
-        run(store, pool, orders, has_h3=False)
-
-    assert "H3" in str(exc.value)
+                            project, prompts, variants)
 
 
 def test_a_reference_run_with_an_empty_pool_is_refused():

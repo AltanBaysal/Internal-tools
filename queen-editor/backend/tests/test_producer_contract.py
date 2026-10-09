@@ -11,9 +11,11 @@ contract in practice.
 """
 import os
 
+import pytest
+
 from backend import config
+from backend.features.photo_generation.data.comfy_h3_video_generator import ComfyH3VideoGenerator
 from backend.features.photo_generation.data.comfy_photo_generator import ComfyPhotoGenerator
-from backend.features.photo_generation.data.comfy_video_generator import ComfyVideoGenerator
 from backend.features.photo_generation.data.mmaudio_generator import MMAudioGenerator
 from backend.features.photo_generation.domain import layers
 from backend.features.photo_generation.domain.running_name import RunningName
@@ -23,12 +25,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 # The shipped graphs, asked of config: where they live is its answer, and a second copy of the
 # path here would go on being right about the old place (madde 251).
 PHOTO_GRAPH = config.WORKFLOW_PATH
-VIDEO_GRAPH = config.VIDEO_WORKFLOW_PATH
-FIRST_LAST_GRAPH = config.VIDEO_FIRST_LAST_WORKFLOW_PATH
 
-# Every graph config knows the way to -- the five it names, in one place.
-GRAPHS = (config.WORKFLOW_PATH, config.VIDEO_WORKFLOW_PATH,
-          config.VIDEO_FIRST_LAST_WORKFLOW_PATH, config.H3_VIDEO_WORKFLOW_PATH,
+# Every graph config knows the way to -- the three it names, in one place.
+GRAPHS = (config.WORKFLOW_PATH, config.H3_VIDEO_WORKFLOW_PATH,
           config.H3_VIDEO_FIRST_LAST_WORKFLOW_PATH)
 
 
@@ -189,10 +188,16 @@ FRAMES = [
 ]
 
 
+def h3(video_comfy=None):
+    """H3's producer over its shipped graphs: the one video model (madde 435)."""
+    return ComfyH3VideoGenerator(video_comfy or VideoComfy(), config.H3_VIDEO_WORKFLOW_PATH,
+                                 config.H3_VIDEO_FIRST_LAST_WORKFLOW_PATH, timeout=60)
+
+
 def producers_over(video_comfy, ffmpeg, tmp_path):
     return {
         layers.PHOTO: ComfyPhotoGenerator(PhotoComfy(), PHOTO_GRAPH, timeout=60),
-        layers.VIDEO: ComfyVideoGenerator(video_comfy, VIDEO_GRAPH, FIRST_LAST_GRAPH, timeout=60),
+        layers.VIDEO: h3(video_comfy),
         layers.AUDIO: MMAudioGenerator(Sampler(), ffmpeg, tmp_dir=str(tmp_path)),
     }
 
@@ -241,6 +246,31 @@ def test_each_layer_is_made_from_the_one_below_it(tmp_path):
     assert ffmpeg.saw == b"MP4"                             # the sound is laid over that video
 
 
+def test_a_producer_that_makes_no_video_takes_a_length_anyway(tmp_path):
+    """Madde 422: a video job carries how long it is, and the queue hands it to whichever producer
+    it calls -- one call shape. A photo and a sound take it and ignore it."""
+    photo = ComfyPhotoGenerator(PhotoComfy(), PHOTO_GRAPH, timeout=60).generate(
+        "kraliçe tahtta", "blurry", 1, seconds=8)
+    sound = MMAudioGenerator(Sampler(), Ffmpeg(), tmp_dir=str(tmp_path)).generate(
+        "dalga sesi", "", 4242, source=("P0_0_V1_0.mp4", b"MP4"), seconds=8)
+
+    assert photo == b"PNG"
+    assert sound == b"RIFFwav"
+
+
+def test_the_queue_hands_the_real_producers_a_video_job_that_carries_its_length(tmp_path):
+    """The real loop, the real producers: H3 takes the job's length, and the run goes through."""
+    store, video_comfy, ffmpeg = Store(), VideoComfy(), Ffmpeg()
+    timed = [{**job, "seconds": 8} if job["type"] == "video" else job for job in FRAMES]
+
+    state = make_job(Runner(), store, Record(), Plan(timed),
+                     producers_over(video_comfy, ffmpeg, tmp_path),
+                     lambda: "2026-10-06T00:00:00+00:00", "düğün")()
+
+    assert state["status"] == "done"
+    assert store.saved == ["P0_0.png", "P0_0_V1_0.mp4", "P0_0_V1_0_S1_0.wav"]
+
+
 class BatchComfy(PhotoComfy):
     """The photo graph's server on an A100: it holds the batch, and answers with as many pictures
     as the graph asked for."""
@@ -280,3 +310,54 @@ def test_a_prompts_variants_go_through_the_real_photo_producer_as_one_batch():
     assert graph["25"]["class_type"] == "EmptyLatentImage"
     assert graph["25"]["inputs"]["batch_size"] == ["23", 0]
     assert store.saved == ["P0_0.png", "P0_1.png"]
+
+
+# --- Madde 423: a video's row says how long the video that was made runs ---------------------------
+
+def video_row(video, asked, tmp_path):
+    """One frame's three layers under the real loop, its video made by `video` and its job asked at
+    `asked` seconds (None: asked none) -- the row the video left."""
+    record = Record()
+    jobs = [{**job, "seconds": asked} if job["type"] == "video" and asked is not None else job
+            for job in FRAMES]
+    producers = {**producers_over(VideoComfy(), Ffmpeg(), tmp_path), layers.VIDEO: video}
+    make_job(Runner(), Store(), record, Plan(jobs), producers,
+             lambda: "2026-10-06T00:00:00+00:00", "düğün")()
+    return next(row for row in record.rows if row["layer"] == layers.VIDEO)
+
+
+@pytest.mark.parametrize("asked", [4, 8, 12])
+def test_an_h3_video_says_the_length_it_was_asked(tmp_path, asked):
+    assert video_row(h3(), asked, tmp_path)["seconds"] == asked
+
+
+def test_an_h3_video_asked_no_length_says_its_graphs_own(tmp_path):
+    """Every H3 job queued before madde 422: the Director keeps the graph's 4."""
+    assert video_row(h3(), None, tmp_path)["seconds"] == 4
+
+
+# --- Madde 426: Mutlu son -----------------------------------------------------------------------------
+
+def test_a_producer_that_makes_no_video_takes_a_happy_ending_anyway(tmp_path):
+    """A video job carries whether it ends happily, and the queue hands it to whichever producer it
+    calls -- one call shape. A photo and a sound take it and ignore it."""
+    photo = ComfyPhotoGenerator(PhotoComfy(), PHOTO_GRAPH, timeout=60).generate(
+        "kraliçe tahtta", "blurry", 1, happy_ending=True)
+    sound = MMAudioGenerator(Sampler(), Ffmpeg(), tmp_dir=str(tmp_path)).generate(
+        "dalga sesi", "", 4242, source=("P0_0_V1_0.mp4", b"MP4"), happy_ending=True)
+
+    assert photo == b"PNG"
+    assert sound == b"RIFFwav"
+
+
+def test_the_queue_hands_the_real_h3_a_video_job_that_ends_happily(tmp_path):
+    """The real loop, the real producers: H3 takes the job's switch and loads HMCumshot."""
+    store, video_comfy, ffmpeg = Store(), VideoComfy(), Ffmpeg()
+    happy = [{**job, "happyEnding": True} if job["type"] == "video" else job for job in FRAMES]
+
+    state = make_job(Runner(), store, Record(), Plan(happy),
+                     producers_over(video_comfy, ffmpeg, tmp_path),
+                     lambda: "2026-10-09T00:00:00+00:00", "düğün")()
+
+    assert state["status"] == "done"
+    assert "HMCumshot_V1.0.safetensors" in video_comfy.submitted["2678"]["inputs"]["stack_data"]

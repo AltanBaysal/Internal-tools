@@ -22,13 +22,6 @@ from backend.features.workspace.presentation.routes import make_workspace_bp
 from backend.services.store.store import Store
 from backend.web.app import create_app
 
-CODE_STANDARD = os.path.join(
-    os.path.dirname(                                  # queen-agent
-        os.path.dirname(                              # backend
-            os.path.dirname(os.path.abspath(__file__)))),  # tests
-    "CODE-STANDARD.md",
-)
-
 
 def _born(tmp_path):
     store = FileProjectStore(Store(str(tmp_path)))
@@ -340,14 +333,3 @@ def test_a_pin_an_older_archive_left_neither_orders_nor_survives_unarchive(tmp_p
     back = client.patch("/api/projects/pa", json={"archived": False}).get_json()
     assert back["pinned"] is False, "Unarchive eski sabitlemeyi geri getirdi"
     assert not Store(str(tmp_path)).exists("pa/pinned"), "Unarchive eski pinned dosyasını silmedi"
-
-
-# ---- The standard ----
-
-
-def test_the_standard_names_both_new_files():
-    # The row asks for it (v9-2b): a new artifact in the store is a new row in the table that says
-    # which question each one answers.
-    with open(CODE_STANDARD, encoding="utf-8") as handle:
-        named = {line.split("`")[1] for line in handle if line.startswith("| `")}
-    assert {"pinned", "archived"} <= named, "CODE-STANDARD'ın tablosu yeni dosyaları söylemiyor"

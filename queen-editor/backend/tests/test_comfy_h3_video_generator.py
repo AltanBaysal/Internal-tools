@@ -23,7 +23,8 @@ def fl2va_sentence(seconds):
 def director(mode, pictures, duration=4):
     """The Director as the export carries it: the pictures and the prompt live inside two JSON
     strings, and the prompt a third and a fourth time besides."""
-    state = {"version": 2, "mode": mode, "prompt_mode": "simple", "simple_prompt": ""}
+    state = {"version": 2, "mode": mode, "duration": duration, "prompt_mode": "simple",
+             "simple_prompt": ""}
     timeline = {"version": 1,
                 "items": [{"id": f"image-{slot}", "slot": slot, "start": slot, "type": "image",
                            "value": "example.png"} for slot in range(pictures)],
@@ -100,8 +101,8 @@ def test_a_video_with_no_end_frame_is_rendered_by_the_i2va_graph(tmp_path):
 
 
 def test_a_video_with_an_end_frame_is_rendered_by_the_fl2va_graph(tmp_path):
-    """The producer is told an ending picture, never a mode -- the same seam WAN's producer has, so
-    loop and linked videos reach both engines in one shape."""
+    """The producer is told an ending picture, never a mode, so loop and linked videos reach it in
+    one shape."""
     client = FakeClient()
 
     generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", b"PNG"),
@@ -198,8 +199,8 @@ def test_only_an_mp4_counts_as_the_render(tmp_path):
 
 
 def test_how_long_a_video_runs_is_the_director_s_duration(tmp_path):
-    """Read from the I2VA graph alone, like WAN's standard graph: one number is quoted for every
-    video, and the two graphs are held to it by test_workflow_asset."""
+    """Read from the I2VA graph alone: one number is quoted for every video, and the two graphs are
+    held to it by test_workflow_asset."""
     longer = {"2730": director("FL2VA", 2, duration=6), "2739": seed_control()}
 
     assert generator(tmp_path, FakeClient(), fl2va=longer).seconds() == 4.0
@@ -391,7 +392,7 @@ def test_no_row_asks_for_a_trim(tmp_path):
     assert all("trim_start" not in item and "trim_end" not in item for item in sent_items(client))
 
 
-# The graph's own lora stack; the producer never touches it -- loras are baked into the exports.
+# The graph's own lora stack. The producer leaves it as exported, but for Mutlu son (madde 426).
 STACK_NODE = "2678"
 
 
@@ -441,3 +442,144 @@ def test_no_h3_video_is_rendered_with_mystic_xxx(asked):
     stack = json.loads(client.submitted[STACK_NODE]["inputs"]["stack_data"])
     named = [slot["lora"] for slot in stack if slot["lora"] != "None"]
     assert "MysticXXX_MMH3-V4.safetensors" not in named, f"Yığının adı olan yuvaları: {named}"
+
+
+# --- Madde 422: the length the video is made at ----------------------------------------------------
+
+def durations(client):
+    """Every place the Director keeps how long the video runs: its own input, and the two builder
+    states. Which one the node reads cannot be told without running it, so all three are asked."""
+    said = sent_director(client)
+    return (said["duration"], json.loads(said["builder_state"])["duration"],
+            json.loads(said["timeline_data"])["builder_state"]["duration"])
+
+
+@every_mode
+def test_an_h3_video_is_made_at_the_length_it_is_handed(tmp_path, asked):
+    """The graph's own note: "set duration (s)" on the Director. Nothing else in the graph counts
+    frames -- the latent comes out of the Director's guide."""
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("motion", "", 42, seconds=12, **asked)
+
+    assert durations(client) == (12, 12, 12)
+
+
+def test_an_fl2va_prompt_says_the_video_arrives_at_the_end_of_its_length(tmp_path):
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", b"PNG"),
+                                         end=("P1_0.png", b"END"), seconds=8)
+
+    assert sent_director(client)["prompt"] == f"{fl2va_sentence('8.00')}\n\nmotion"
+
+
+@every_mode
+def test_a_video_handed_no_length_keeps_the_graphs_own(tmp_path, asked):
+    """Every job queued before madde 422, and every one queued in a WAN session before 435, comes
+    out at the length it was added with: the graph's own four seconds."""
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("motion", "", 42, **asked)
+
+    assert durations(client) == (4, 4, 4)
+
+
+@every_mode
+def test_every_h3_video_of_the_shipped_graphs_is_made_at_the_length_it_is_handed(asked):
+    client = FakeClient()
+
+    shipped_generator(client).generate("motion", "", 42, seconds=8, **asked)
+
+    assert durations(client) == (8, 8, 8)
+
+
+# --- Madde 426: Mutlu son ----------------------------------------------------------------------------
+
+HAPPY = ("HMCumshot_V1.0.safetensors", 0.7, True)
+BOOSTER = ("H3_Motion_BoosterV2.safetensors", 0.7, True)
+
+
+def named_slots(client):
+    """The stack's slots that load something: name, strength, on. Read by name rather than filtered
+    by `on`, for the reason test_workflow_asset gives -- whether the loader honours `on` is unknown."""
+    stack = json.loads(client.submitted[STACK_NODE]["inputs"]["stack_data"])
+    return [(slot["lora"], slot["str"], slot["on"]) for slot in stack if slot["lora"] != "None"]
+
+
+def shipped_stack(path):
+    with open(path, encoding="utf-8") as handle:
+        return json.load(handle)[STACK_NODE]["inputs"]["stack_data"]
+
+
+@every_mode
+def test_a_happy_ending_loads_hmcumshot_at_seventy_beside_motion_booster(asked):
+    """v1.0 at 0.7, its author's word ("I recommend using strength 0.7"), in the first free slot.
+    REF2VA has no graph of its own, so only the producer can say what its render carries."""
+    client = FakeClient()
+
+    shipped_generator(client).generate("motion", "", 42, happy_ending=True, **asked)
+
+    assert named_slots(client) == [BOOSTER, HAPPY]
+
+
+@every_mode
+def test_a_happy_ending_keeps_the_slot_s_own_video_and_audio_strengths(asked):
+    """The slot's vs and as stay what the export gives every slot, Motion Booster's included: the
+    author names one strength, and the stack's own is `str`."""
+    client = FakeClient()
+
+    shipped_generator(client).generate("motion", "", 42, happy_ending=True, **asked)
+
+    stack = json.loads(client.submitted[STACK_NODE]["inputs"]["stack_data"])
+    happy = next(slot for slot in stack if slot["lora"] == HAPPY[0])
+    assert (happy["vs"], happy["as"]) == (1, 1)
+
+
+@every_mode
+def test_a_video_without_a_happy_ending_sends_the_stack_as_it_ships(asked):
+    """Off, the graph is exactly as today: the stack's string goes out untouched."""
+    client = FakeClient()
+    path = (config.H3_VIDEO_FIRST_LAST_WORKFLOW_PATH if "end" in asked
+            else config.H3_VIDEO_WORKFLOW_PATH)
+
+    shipped_generator(client).generate("motion", "", 42, **asked)
+
+    assert client.submitted[STACK_NODE]["inputs"]["stack_data"] == shipped_stack(path)
+
+
+def stacked(slots):
+    """A test graph with a lora stack of these (lora, strength) slots."""
+    stack = [{"on": True, "lora": lora, "str": strength, "vs": 1, "as": 1}
+             for lora, strength in slots]
+    return {**I2VA_GRAPH, STACK_NODE: {"class_type": "DaSiWa_LTX2LoraLoader",
+                                       "inputs": {"stack_data": json.dumps(stack)}}}
+
+
+def test_a_happy_ending_with_no_free_slot_fails_saying_so(tmp_path):
+    """A full stack means the graph changed under us; the video is not made without its lora."""
+    client = FakeClient()
+    full = stacked([("a.safetensors", 1), ("b.safetensors", 1)])
+
+    with pytest.raises(RuntimeError, match="boş yuva yok"):
+        generator(tmp_path, client, i2va=full).generate("motion", "", 42,
+                                                         source=("P0_0.png", b"PNG"),
+                                                         happy_ending=True)
+    assert client.submitted is None
+
+
+def test_a_happy_ending_on_a_graph_with_no_stack_fails_naming_the_node(tmp_path):
+    client = FakeClient()
+
+    with pytest.raises(RuntimeError, match=STACK_NODE):
+        generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", b"PNG"),
+                                             happy_ending=True)
+    assert client.submitted is None
+
+
+def test_a_video_without_a_happy_ending_asks_nothing_of_the_stack(tmp_path):
+    """The test graphs carry no stack, and a plain video goes through them as before."""
+    client = FakeClient()
+
+    assert generator(tmp_path, client).generate("motion", "", 42,
+                                                source=("P0_0.png", b"PNG")) == b"MP4DATA"

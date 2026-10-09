@@ -1,6 +1,8 @@
-"""DeepSeek chat transport -- an instruction, words and pictures in, the answer's text back.
+"""DeepSeek chat transport -- an instruction, words and pictures, or a conversation and its tools,
+in; the answer's words and the tool calls it makes, back.
 
-Knows nothing about video, prompts or frames: what to ask is the caller's business (see
+One request, and a failure raised in the server's own words; sending it again is box.py's. Knows
+nothing about video, prompts, frames or agents: what to ask is the caller's business (see
 features/photo_generation/data/prompt_writer.py). `http` is injected so tests need no network.
 """
 import base64
@@ -39,19 +41,33 @@ class DeepSeekClient:
         `images` is [(name, bytes)]. They ride in the user message alone: DeepSeek answers 400 to a
         picture in the system message. No words means no text part at all, rather than an empty one.
         """
-        if not self._api_key:
-            raise NotConfigured(
-                "DEEPSEEK_API_KEY yok — Colab Secrets'a ekle ve notebook erişimini aç")
         said = [_picture(name, data) for name, data in images]
         if text:
             said.append({"type": "text", "text": text})
+        answer, _ = self.send([{"role": "system", "content": system},
+                               {"role": "user", "content": said}])
+        return answer
+
+    def send(self, messages, tools=()):
+        """A conversation and the tools the model may call -> (the answer's words, its tool calls).
+
+        Both go as they are: what they say is the caller's business. The words come back trimmed, ""
+        when there are none, and the tool calls as DeepSeek sent them, [] when there are none. An
+        answer with neither is an empty answer.
+        """
+        if not self._api_key:
+            raise NotConfigured(
+                "DEEPSEEK_API_KEY yok — Colab Secrets'a ekle ve notebook erişimini aç")
+        body = {"model": self._model, "messages": messages}
+        # Only when there are some: a question offered nothing to call -- every prompt writer's --
+        # goes as it always did.
+        if tools:
+            body["tools"] = tools
         response = self._http.post(
             self._url,
             headers={"Authorization": f"Bearer {self._api_key}",
                      "Content-Type": "application/json"},
-            json={"model": self._model,
-                  "messages": [{"role": "system", "content": system},
-                               {"role": "user", "content": said}]},
+            json=body,
             timeout=self._timeout,
         )
         if response.status_code >= 400:
@@ -59,10 +75,13 @@ class DeepSeekClient:
             # name, the key or the balance, and only the body knows which.
             raise RuntimeError(f"DeepSeek HTTP {response.status_code}\n{response.text}")
         try:
-            answer = response.json()["choices"][0]["message"]["content"].strip()
+            message = response.json()["choices"][0]["message"]
+            # An answer that calls a tool comes with its content null.
+            words = (message.get("content") or "").strip()
+            calls = message.get("tool_calls") or []
         except (ValueError, KeyError, IndexError, TypeError) as exc:
             raise RuntimeError(f"DeepSeek cevabı beklenen biçimde değil ({type(exc).__name__})\n"
                                f"{response.text}") from None
-        if not answer:
+        if not words and not calls:
             raise RuntimeError(f"DeepSeek boş cevap döndü:\n{response.text}")
-        return answer
+        return words, calls
