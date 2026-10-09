@@ -73,6 +73,13 @@ arşivleme sürdükçe açık — arşivlemenin yavaşlığı v10'un 446'sında 
 basılan ⋯ satırıyla gider ve odak sayfanın gövdesine düşer. 441'de Archive'dan sonra odak sıradaki
 satırın ⋯'sine geçiyor; Unarchive'da aynısı istenirse buradan.
 
+## Dar ekranda dosya paneli sohbeti kapatıyor
+
+*(Claude, 9 Ekim — v10'un 442'sini deneyen QA'da görüldü; 442'den gelmiyor, main'de olup olmadığına
+bakılmadı.)* 400 px genişlikte kenar çubuğu kapalıyken Project files paneli sohbetin çoğunu örtüyor;
+kenar çubuğu açılınca panel ince bir şerit oluyor, ama hata kartının yazısı harf harf alt satıra
+kayıyor. Ekran görüntüleri `tmp/qa442-narrow-folded.png` ve `tmp/qa442-narrow-open.png`'de.
+
 ## Bir frontend testi arada düşüyor
 
 *(Claude, 9 Ekim — Queen Editor v9'un 439'unda görüldü.)* `src/features/workspace/ChatScreen.test.jsx`'in
