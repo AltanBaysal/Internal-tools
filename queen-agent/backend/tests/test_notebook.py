@@ -280,6 +280,15 @@ def test_a_server_that_never_came_up_shows_its_own_log():
     assert "readlines()" in serve or "read()" in serve, "Düşerse sunucunun kendi log'u basılmıyor"
 
 
+def test_the_wait_ends_when_the_server_dies():
+    """Madde 448: a start can now take minutes, so the wait is long -- and a server that died is
+    said at once rather than at the end of it."""
+    serve = _cell(SERVE)
+    assert "server = subprocess.Popen(" in serve and "server.poll()" in serve, (
+        "Sunucu kapanınca bekleme sürüyor"
+    )
+
+
 def test_the_address_comes_from_cloudflared():
     """Colab's own proxy forwards only GET, and this app creates, sends and deletes."""
     serve = _cell(SERVE)

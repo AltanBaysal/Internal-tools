@@ -137,6 +137,15 @@ def test_a_move_into_a_missing_folder_makes_it(tmp_path):
     assert store.read_text("deep/trash/one.md") == "1"
 
 
+def test_mtime_is_the_files_own_time(tmp_path):
+    # Only 448's move of old projects reads one: the old layout kept the pin's moment and a file's
+    # time nowhere else. It goes with 448.
+    store = Store(str(tmp_path))
+    store.write_text("p1/pinned", "")
+    os.utime(tmp_path / "p1" / "pinned", (1_000_000_000, 1_000_000_000))
+    assert store.mtime("p1/pinned") == 1_000_000_000
+
+
 def test_a_move_of_something_that_is_not_there_still_fails(tmp_path):
     with pytest.raises(FileNotFoundError):
         Store(str(tmp_path)).move("ghost.md", "trash/ghost.md")

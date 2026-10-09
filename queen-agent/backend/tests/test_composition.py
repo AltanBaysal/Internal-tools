@@ -48,6 +48,11 @@ def test_a_stop_is_an_ordinary_exit():
     assert "signal.signal(signal.SIGTERM" in _main(), "SIGTERM yazıcıyı beklemeden kapatıyor"
 
 
+def test_old_projects_are_moved_at_start():
+    """Madde 448, until it is confirmed: the move runs once the store is built."""
+    assert "move_old_projects(store, projects)" in _main(), "Eski projeler açılışta taşınmıyor"
+
+
 def test_no_prompt_writer_is_wired():
     """Madde 395, the owner's decision of 30 September: the main model writes each frame's action
     itself, so the engine is built with its default and nothing else."""

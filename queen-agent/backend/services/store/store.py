@@ -40,6 +40,11 @@ class Store:
         except FileNotFoundError:
             return []
 
+    def mtime(self, rel):
+        # Only 448's move of old projects asks: the old layout kept a pin's moment and a file's time
+        # nowhere but here. It goes once 448 is confirmed (BACKLOG).
+        return os.path.getmtime(self._full(rel))
+
     def move(self, src_rel, dst_rel):
         # A rename, not a copy: what is moved keeps its mtime, so a whole project can go to the
         # trash without every file inside it looking as if it had just been written.

@@ -12,6 +12,7 @@ from backend.features.workspace.data.file_project_store import (
 from backend.features.workspace.data.memory_permissions import MemoryPermissions
 from backend.features.workspace.data.memory_stops import MemoryStops
 from backend.features.workspace.data.model_engine import ModelEngine
+from backend.features.workspace.data.old_projects import move_old_projects
 from backend.features.workspace.presentation.routes import make_workspace_bp
 from backend.services.model.client import ModelClient
 from backend.services.store.store import Store
@@ -27,6 +28,8 @@ except ProjectsUnreadable as unreadable:
     raise SystemExit(
         f"QueenAgent did not start. In {config.ROOT}: {unreadable}. Nothing was written to it."
     ) from unreadable
+# Madde 448: projects in the layout before 447 move in, once. Goes once 448 is confirmed (BACKLOG).
+move_old_projects(store, projects)
 # One transport per model since Madde 146, built from the table rather than written out three
 # times: a fourth model is then a row in config.py and nothing here.
 #
