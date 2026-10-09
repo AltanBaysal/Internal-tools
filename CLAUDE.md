@@ -77,6 +77,10 @@ Playwright MCP (`.mcp.json`) is the main agent's and QA's, for seeing a running 
 does. It opens the tools on this machine; any other address is the user's call, since the allow-list
 flag misses redirects and is no security boundary.
 
+It has one browser, and everyone who calls it shares that browser's tabs: one agent's navigation moves
+the page under another's (tried on 9 Ekim). So one agent uses it at a time — no main-agent look while
+QA has the screen, and no two QA agents trying a screen at once.
+
 ## Designs
 
 The designer works in `D:\Github\queen-design` (`AltanBaysal/queen-design`), a folder per tool under
