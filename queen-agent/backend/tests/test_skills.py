@@ -1,5 +1,6 @@
 import pytest
 
+from backend.features.workspace.domain.prompt import SYSTEM_PROMPT
 from backend.features.workspace.domain.skills import INSTRUCTIONS, instruction_for
 
 # Written out rather than imported: the picker's ids live in the frontend's skills.js and Python
@@ -234,6 +235,15 @@ def test_the_flow_writes_the_plan_before_it_asks_anything():
     assert "write a plan file" in _step(1)
 
 
+def test_the_plan_gives_both_the_empty_and_the_done_shape():
+    # Madde 466. Madde 198 found the model inventing its own mark when only the empty box was
+    # written down, and the next turn did not recognise it. Now that the marks say how far the
+    # work got, Step 1 gives the done shape beside the empty one.
+    said = _step(1)
+    assert "- [ ] 1." in said
+    assert "- [x] 1." in said
+
+
 def test_the_flow_carries_on_from_a_plan_that_is_already_there():
     # How a conversation that grew too long is continued: files belong to the project rather than
     # the chat, so a new chat finds the plan and picks up where it stopped. Since Madde 198 that
@@ -241,16 +251,19 @@ def test_the_flow_carries_on_from_a_plan_that_is_already_there():
     assert "carry on from where the work stopped" in _flow()
 
 
-def test_where_the_work_stopped_is_read_off_the_files():
-    # Correction 11. The boxes were the only thing the flow looked at, and a box is filled by a tool
-    # nobody is obliged to call -- so a chat that stopped mid-step read its own plan as finished.
-    # What the work produced is on disk either way, and that is what says how far it got.
-    #
-    # Since Madde 203 this is the whole of the promise: no turn fills a box any more, so this
-    # sentence is where a fresh chat learns where to carry on from.
-    said = _flow()
-    assert "The files of the project show how far the work got." in said
-    assert "the first step whose box is empty" not in said
+def test_where_the_work_stopped_is_read_off_the_plans_marks():
+    # Correction 11 moved this to the files: a box was filled by a step the model could skip, and a
+    # skipped mark sent a fresh chat back to the start. Madde 203 then withdrew the marking. Madde
+    # 466 reverses both (the user, 10 October: "işaretlesin model sıkıntı yok, şu an model daha
+    # güçlü"): the base tells the model to mark a plan file's done step, so the marks say how far
+    # the work got. The files stay as the check -- what the work produced is on disk either way, and
+    # a mark can still be skipped.
+    said = _step(1)
+    assert any(
+        all(word in line for word in ("marked", "how far the work got", "files of the project"))
+        for line in said.splitlines()
+    )
+    assert "The files of the project show how far the work got." not in said
 
 
 def test_a_step_ends_when_the_user_approves_it():
@@ -293,19 +306,24 @@ def test_the_scenario_is_opened_once_with_the_characters():
     assert "Open the scenario file once" in _step(2)
 
 
-def test_no_step_is_ticked_off_the_plan_at_all():
+def test_a_step_is_marked_with_edit_file_by_the_base():
     # Madde 198 gave the flow a tool that fills one box. The rule before it asked for edit_file,
     # which is a free edit -- so what a ticked step looks like was the model's to invent, and the
     # next turn did not recognise it; closing one step cost three plan writes in the trial, because
     # the plan tool of the day rewrote the whole file (Madde 126). What answered both was the box
-    # format, and the format stays.
+    # format, and the format stays. Madde 203 withdrew the tool and the marking with it.
     #
-    # Madde 203 withdraws the rest, on correction 11's finding: the boxes are only a note, and what
-    # says how far the work got is the project's files. Neither road back is offered -- not the
-    # tool, and not edit_file, which is the hand-built anchor 126 was written against.
+    # Madde 466 brings the marking back with edit_file (the user, 10 October: "işaretlesin model
+    # sıkıntı yok, şu an model daha güçlü"), and the plan tool that rewrote the file is long gone.
+    # The rule lives in the base, which rides with every skill, so the flow names no tool for it
+    # and the two cannot say different things. The tool stays gone.
     said = _flow()
     assert "mark_step_done" not in said
     assert "edit_file" not in said
+    assert any(
+        all(word in line for word in ("plan file", "mark", "edit_file"))
+        for line in SYSTEM_PROMPT.lower().splitlines()
+    )
 
 
 def test_the_flow_hands_off_to_nobody():
@@ -408,7 +426,7 @@ def test_a_delegation_answers_only_the_question_that_was_asked():
     # answer belongs to its question.
     #
     # Madde 393, the owner: one line says it. A delegated step still waits for the yes because every
-    # step does, and the plan needs no note of it, since the files are what say how far the work got.
+    # step does, and the plan needs no note of it: its mark says only that the step is done.
     assert '"You decide" is only for the current step.' in _flow()
 
 
@@ -476,8 +494,9 @@ def test_every_check_reads_the_built_prompt_file(number):
 def test_every_review_is_written_to_a_file_of_its_own(number):
     # The list is on disk before the fix starts, so a turn that runs out loses nothing. A file for
     # each check rather than one file added to: adding means edit_file, the hand-built anchor Madde
-    # 126 was written against, and the flow names no edit_file (Madde 203). A check that finds
-    # nothing writes no file at all (the owner, 30 September).
+    # 126 was written against, and the flow names no edit_file (only the base does, to mark a plan's
+    # steps, since Madde 466). A check that finds nothing writes no file at all (the owner, 30
+    # September).
     said = _step(number)
     assert "the frame numbers and the reason for each frame in a review file" in said
     assert f"-review-{number}.md" in said

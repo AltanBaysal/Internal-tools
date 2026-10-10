@@ -154,6 +154,13 @@ def _a_line_says(*words):
     return any(all(word in line for word in words) for line in SYSTEM_PROMPT.lower().splitlines())
 
 
+def _section(heading):
+    """The lines of the section under this heading, lowercased. Empty when no section is headed
+    so, which makes a renamed heading fail on the asserts that read it rather than pass over it."""
+    parts = SYSTEM_PROMPT.split("\n\n")
+    return next((part for part in parts if part.startswith(f"{heading}\n")), "").lower().splitlines()
+
+
 def test_the_base_looks_before_it_writes():
     # Having read it earlier in the chat is not having read it: the file on disk is what the next
     # step reads, and it may have moved on since.
@@ -245,13 +252,47 @@ def test_a_plans_steps_go_one_at_a_time_each_verified():
     # step is its own loop, gather context, take action, verify results (the user's words, from
     # Claude Code's agentic loop), and the next starts only once this one is complete. Asked of the
     # Planning section, where the rule about plans lives.
-    # Empty when no section is headed Planning, so a renamed heading fails on the asserts below.
-    planning = next(
-        (part for part in SYSTEM_PROMPT.split("\n\n") if part.startswith("Planning\n")), ""
-    ).lower()
-    rules = planning.splitlines()
+    rules = _section("Planning")
     assert any("one at a time" in line and "verify" in line for line in rules)
     assert any("next step" in line and "complete" in line for line in rules)
+
+
+LOOP = ("gather context", "take action", "verify results")
+"""The loop's three phases, in the user's words from Claude Code's agentic loop (Madde 465)."""
+
+
+def test_the_loop_has_one_vocabulary():
+    # Madde 466. How you work named the phases understand, act, check, and 465's Planning line
+    # named the same loop gather context, take action, verify results: a weak model can read two
+    # sets of words as two rules. So the numbered steps carry the phases' names, and Planning's loop
+    # line names all three.
+    numbered = [line for line in _section("How you work") if line[:1].isdigit()]
+    # partition rather than split: a numbered line without ". " names no step and fails the assert.
+    steps = [line.partition(". ")[2].partition(":")[0] for line in numbered]
+    assert all(phase in steps for phase in LOOP), steps
+    loop = [line for line in _section("Planning") if "one at a time" in line]
+    assert loop and all(phase in loop[0] for phase in LOOP)
+
+
+def test_a_plan_files_done_step_is_marked_before_the_next():
+    # Madde 466. A fresh chat picks a plan file up from the step left open, and only the file can
+    # say which one that is: a step done but never marked is a step the next chat does again. This
+    # reverses Madde 203, which had withdrawn the marking (the user, 10 October: "işaretlesin model
+    # sıkıntı yok, şu an model daha güçlü").
+    assert any(
+        all(word in line for word in ("plan file", "done", "edit_file", "before", "next"))
+        for line in _section("Planning")
+    )
+
+
+def test_a_question_ends_the_turn_and_comes_last():
+    # Madde 466. Nothing said that a question is the turn's last thing, so the model could put one
+    # mid-answer and carry on, or ask it and leave the rest undone. A question ends the turn, so
+    # what can be done comes first.
+    assert any(
+        all(word in line for word in ("question", "ends", "turn", "last"))
+        for line in _section("Asking")
+    )
 
 
 def test_the_base_says_what_it_did_even_when_it_did_nothing():
@@ -311,17 +352,17 @@ def test_nothing_is_shouted():
     assert "#" not in SYSTEM_PROMPT
 
 
-def test_the_three_core_rules_close_the_text():
+def test_the_core_rules_close_the_text():
     # What a weak model is told at both ends it keeps (GPT-4.1's guide; Gemini's Final Reminder):
     # the last section repeats read first, never claim what a tool did not do, always answer in the
-    # chat -- three lines and nothing after them.
+    # chat, and nothing comes after them. Madde 466 adds the rule the model breaks most -- the
+    # user's "bunu çok yapıyor" -- finishing a plan's step before the next. Asked by what the lines
+    # say rather than how many there are or in which order, so a fifth rule does not break it.
     last = SYSTEM_PROMPT.split("\n\n")[-1].splitlines()
     rules = [line.lower() for line in last[1:]]
-    assert len(rules) == 3
-    assert all(line.startswith("- ") for line in rules)
-    assert "read" in rules[0]
-    assert "tool" in rules[1]
-    assert "chat" in rules[2]
+    assert rules and all(line.startswith("- ") for line in rules)
+    for words in (("read", "first"), ("tool",), ("chat",), ("finish", "step", "next")):
+        assert any(all(word in line for word in words) for line in rules), words
 
 
 # --- the ritual reads (Madde 107) -----------------------------------------------------------------
