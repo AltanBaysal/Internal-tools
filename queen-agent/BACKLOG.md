@@ -69,16 +69,6 @@ projeleri her açılışta bir kerelik `projects.json`'a taşıyor ve eski dosya
 `project.json`, `pinned`, `archived` — dokunmuyor. Kullanıcı taşımanın çalıştığını gördükten sonra bir
 sonraki QueenAgent roadmap'inde taşıma kodu ve bu eski dosyalar kalkar.
 
-## Bir sohbette aynı anda iki tur koşabiliyor
-
-*(Claude, 9 Ekim — v10'un 449'unu okuyan reviewer'ın bulduğu; 449'dan önce de vardı.)* Bağlantı kopunca
-sunucu bunu ancak akışa bir sonraki yazışında öğreniyor; o arada Try again'e basılırsa aynı sohbette
-ikinci bir tur başlıyor. Birinci tur bitince `finally`'si ikincinin Stop'unu ve bekleyen izin kartını
-siliyor (`memory_stops.py`, `memory_permissions.py`, `stream_answer.py`): Stop ikinci turun o anki
-isteğini kesmiyor, arada verilen Allow kayboluyor. Tünel birinci turu yaşatırsa sohbete iki cevap
-yazılıyor. Çare: sohbet başına tek tur — ikinci isteği reddetmek ya da eskisini durdurmak, kullanıcının
-seçimi — ve her turun yalnız kendi kaydını silmesi.
-
 ## Her turda sohbet dosyası iki kez okunuyor
 
 *(Claude, 9 Ekim — 449'un reviewer'ı.)* Route sohbeti okuyor (`routes.py`'nin `existing`'i), sonra
@@ -98,13 +88,6 @@ gösterir.
 geri gelince soru cevapsız duruyor ve ekranda Try again yok — yalnız yeniden yazmak cevaplatıyor.
 Sunucu sorunun cevap beklediğini biliyor (`is_owed_an_answer`).
 
-## Geç gelen sohbet listesi başka projenin kenar çubuğuna çiziliyor
-
-*(Claude, 10 Ekim — v10'un 452'sini okuyan reviewer'ın bulduğu; 452'den önce de vardı.)* `useList.js`
-gelen cevabın hangi yola ait olduğuna bakmıyor. A projesinde bir okuma sürerken B projesi açılır ve
-A'nın cevabı B'ninkinden sonra gelirse, B'nin kenar çubuğunda A'nın sohbetleri görünüyor; birine
-tıklamak "chat missing" diyor. Çare: yolu artık geçerli olmayan cevabı yok saymak.
-
 ## Sürüm değiştirmek kenar çubuğunun sırasını güncellemiyor
 
 *(Claude, 10 Ekim — 452'nin reviewer'ı.)* Sürüm değiştirmek sohbetin son kullanımını değiştirebiliyor
@@ -117,13 +100,6 @@ değiştirmiyor: kırpma yalnız mesajı işaretliyor *(452'nin QA'sı denedi)*.
 *(Claude, 10 Ekim — 452'nin QA'sı gördü; 452'den önce de vardı.)* All projects'ten bir proje açınca
 `GET …/chats` iki kez gidiyor. İkisi de bellekten cevaplanıyor, diske gidilmiyor; Drive'ın tünelinde
 bir gidiş-dönüş fazla.
-
-## create_file'ın tarifi plan dosyasını saymıyor
-
-*(Claude, 10 Ekim — v10'un 455'ini okuyan reviewer'ın bulduğu.)* `CREATE_FILE` *"Call this only when the
-user asked for something worth keeping"* diyor; oysa system prompt ve Start a scenario'nun 1. adımı,
-kullanıcı istemeden bir plan dosyası yazdırıyor. 455 system prompt'ta bunu düzeltti, tool'un tarifi
-aynı kaldı.
 
 ## Suffix system prompt'a iki boş satırla ekleniyor
 
