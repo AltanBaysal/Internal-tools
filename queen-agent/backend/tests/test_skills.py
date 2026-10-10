@@ -1,6 +1,5 @@
 import pytest
 
-from backend.features.workspace.domain.prompt import SYSTEM_PROMPT
 from backend.features.workspace.domain.skills import INSTRUCTIONS, instruction_for
 
 # Written out rather than imported: the picker's ids live in the frontend's skills.js and Python
@@ -306,24 +305,15 @@ def test_the_scenario_is_opened_once_with_the_characters():
     assert "Open the scenario file once" in _step(2)
 
 
-def test_a_step_is_marked_with_edit_file_by_the_base():
+def test_the_flow_names_no_tool_to_mark_a_step():
     # Madde 198 gave the flow a tool that fills one box. The rule before it asked for edit_file,
     # which is a free edit -- so what a ticked step looks like was the model's to invent, and the
     # next turn did not recognise it; closing one step cost three plan writes in the trial, because
     # the plan tool of the day rewrote the whole file (Madde 126). What answered both was the box
-    # format, and the format stays. Madde 203 withdrew the tool and the marking with it.
-    #
-    # Madde 466 brings the marking back with edit_file (the user, 10 October: "işaretlesin model
-    # sıkıntı yok, şu an model daha güçlü"), and the plan tool that rewrote the file is long gone.
-    # The rule lives in the base, which rides with every skill, so the flow names no tool for it
-    # and the two cannot say different things. The tool stays gone.
+    # format, and the format stays. Madde 203 withdrew the tool, and it stays gone.
     said = _flow()
     assert "mark_step_done" not in said
     assert "edit_file" not in said
-    assert any(
-        all(word in line for word in ("plan file", "mark", "edit_file"))
-        for line in SYSTEM_PROMPT.lower().splitlines()
-    )
 
 
 def test_the_flow_hands_off_to_nobody():
