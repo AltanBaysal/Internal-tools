@@ -69,25 +69,6 @@ projeleri her açılışta bir kerelik `projects.json`'a taşıyor ve eski dosya
 `project.json`, `pinned`, `archived` — dokunmuyor. Kullanıcı taşımanın çalıştığını gördükten sonra bir
 sonraki QueenAgent roadmap'inde taşıma kodu ve bu eski dosyalar kalkar.
 
-## Her turda sohbet dosyası iki kez okunuyor
-
-*(Claude, 9 Ekim — 449'un reviewer'ı.)* Route sohbeti okuyor (`routes.py`'nin `existing`'i), sonra
-`stream_answer` aynı dosyayı yeniden okuyor; metinli istekte `append_message` bir kez daha. Route'un
-elindeki sohbet `stream_answer`'a verilirse her turda Drive'a bir gidiş-dönüş eksilir.
-
-## Cevap zaten yazılmışken Try again döngüye giriyor
-
-*(Claude, 9 Ekim — 449'un reviewer'ı.)* Bağlantı `done`'dan hemen önce koptuysa ya da tünel turu
-yaşattıysa cevap diske yazılmış oluyor; Try again *"this chat has already been answered"* alıyor, kart
-yerinde kalıyor ve cevap sohbet yeniden açılana kadar görünmüyor. O dalda kaydı bir kez okumak cevabı
-gösterir.
-
-## Cevap bekleyen soru için sonradan Try again yok
-
-*(Claude, 9 Ekim — 449'un reviewer'ı.)* Kopan tur bir şey kaydetmiyor; sayfa yenilenince ya da sohbete
-geri gelince soru cevapsız duruyor ve ekranda Try again yok — yalnız yeniden yazmak cevaplatıyor.
-Sunucu sorunun cevap beklediğini biliyor (`is_owed_an_answer`).
-
 ## Sürüm değiştirmek kenar çubuğunun sırasını güncellemiyor
 
 *(Claude, 10 Ekim — 452'nin reviewer'ı.)* Sürüm değiştirmek sohbetin son kullanımını değiştirebiliyor
@@ -106,6 +87,13 @@ bir gidiş-dönüş fazla.
 *(Claude, 10 Ekim — 455'in reviewer'ı.)* `SYSTEM_PROMPT_SUFFIX` bir satır sonuyla başlıyor, ve
 `system_prompt()` araya bir boş satır daha koyuyor: ikisi arasında iki boş satır var, docstring bir
 diyor. Davranış eskisi gibi; yalnız docstring yanlış.
+
+## Gönderilen mesaja bir anahtar
+
+*(Claude, 10 Ekim — mimarın sohbet tasarımının isteğe bağlı 5. adımı, [tmp/chat-turn-design.md](../tmp/chat-turn-design.md).)*
+Soru sunucuya yazılıp cevabı tarayıcıya ulaşmadan bağlantı koparsa tarayıcı soruyu gitmemiş sayar ve
+yeniden gönderince soru iki kez yazılır *(449'un sınırı)*. Tarayıcının ürettiği bir anahtar ve sunucunun
+bellekteki son gönderimler haritası bu aralığı kapatır.
 
 ## Bir frontend testi arada düşüyor
 
