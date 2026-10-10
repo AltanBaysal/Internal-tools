@@ -5,13 +5,14 @@ the list, one project, its chats' rows, its files' rows -- is answered from memo
 is made in memory and written behind the request by one writer (queued_write.py). The server is the
 file's only writer: a hand edit is seen after a restart, and one server runs per root.
 
-What a chat or a file says stays in its own file; only what a list shows of it is here. Contents are
+What a chat or a file says stays in its own file; only what a list shows of it is here, and a chat's
+settings -- its mode, since Madde 463: a setting is not something the chat said. Contents are
 written before their entry, so an entry never names something not yet on disk. The other way round
 -- an entry left naming what is gone, because a sudden death lost a delete's removal of it -- reads
 as not found and deletes cleanly.
 
 This is the only module that knows the shape of projects.json. The chat and file stores ask it for
-their entries by name (put_chat, put_file, drop_file, chats, files, file).
+their entries by name (put_chat, chat_mode, set_chat_mode, put_file, drop_file, chats, files, file).
 """
 import json
 import threading
@@ -19,6 +20,7 @@ import threading
 from backend.features.workspace.data.queued_write import QueuedWrite
 from backend.features.workspace.domain.chat import ChatSummary
 from backend.features.workspace.domain.file import File, extension_of
+from backend.features.workspace.domain.modes import DEFAULT, MODES
 from backend.features.workspace.domain.naming import unique_name
 from backend.features.workspace.domain.project import Project
 
@@ -115,6 +117,32 @@ class FileProjectStore:
     def put_chat(self, project_id, chat):
         self._put(project_id, "chats", "id", _chat_row(chat))
 
+    def chat_mode(self, project_id, chat_id):
+        """The chat's mode (Madde 463), or None when no row names it. A row with none -- one written
+        before chats had a mode, or one in Edit -- is in the default, and so is a value nobody knows:
+        a hand edit is not worth refusing the whole file over. Edit picked on such a row is no
+        change, and the stray value stays until another mode is picked."""
+        with self._lock:
+            row = _chat_row_of(self._projects, project_id, chat_id)
+            return None if row is None else _mode_of(row)
+
+    def set_chat_mode(self, project_id, chat_id, mode):
+        """Put the mode on the chat's row; False when no row names it. The caller checked the name.
+
+        The mode the chat is already in is no change, so the writer is not told: the picker answers
+        a press on its checked row as on any other."""
+        with self._lock:
+            row = _chat_row_of(self._projects, project_id, chat_id)
+            if row is None:
+                return False
+            if _mode_of(row) == mode:
+                return True
+            # Written only while it is not the default, like a pin: the common case is no key.
+            _keep_if(row, "mode", "" if mode == DEFAULT else mode)
+        # After the lock, as _change tells it: the writer takes the same lock to render.
+        self._writes.changed()
+        return True
+
     def put_file(self, project_id, name, modified_at):
         self._put(project_id, "files", "name", _file_row(name, modified_at))
 
@@ -187,15 +215,17 @@ class FileProjectStore:
         return answer
 
     def _put(self, project_id, field, key, row):
-        # The row of that key replaced where it stands, or added at the end.
+        # The row of that key updated where it stands, or added at the end. Updated rather than
+        # replaced: a chat's row also holds its settings (Madde 463), which writing what the chat
+        # said must not take away.
         def put(projects):
             entry = projects.get(project_id)
             if entry is None:
                 return
             rows = entry[field]
-            for index, existing in enumerate(rows):
+            for existing in rows:
                 if existing[key] == row[key]:
-                    rows[index] = row
+                    existing.update(row)
                     return
             rows.append(row)
 
@@ -257,6 +287,20 @@ def _chats(entry):
     ]
 
 
+def _chat_row_of(projects, project_id, chat_id):
+    # The row standing for this chat, or None -- _chat_row below builds one.
+    entry = projects.get(project_id)
+    if entry is None:
+        return None
+    return next((row for row in entry["chats"] if row["id"] == chat_id), None)
+
+
+def _mode_of(row):
+    # A row with no mode is in the default, and so is one holding a value nobody knows.
+    mode = row.get("mode")
+    return mode if mode in MODES else DEFAULT
+
+
 def _files(entry):
     return [
         File(name=file["name"], ext=extension_of(file["name"]), modified_at=file["modifiedAt"])
@@ -280,7 +324,8 @@ def _file_row(name, modified_at):
 
 
 def _keep_if(entry, key, value):
-    # Pinned and archived are written only while they stand: an absent key is the common case.
+    # Pinned, archived and a chat's mode are written only while they stand: an absent key is the
+    # common case.
     if value:
         entry[key] = value
     else:

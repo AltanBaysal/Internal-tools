@@ -16,6 +16,7 @@ from backend.features.workspace.domain.errors import (
     NothingToAnswer,
     ProjectAnswering,
     ProjectNotFound,
+    UnknownMode,
     VersionNotFound,
 )
 from backend.features.workspace.domain.chat import (
@@ -32,6 +33,7 @@ from backend.features.workspace.domain.usecases.advance_chat import (
     Started,
     advance_chat,
 )
+from backend.features.workspace.domain.usecases.answer_question import answer_question
 from backend.features.workspace.domain.usecases.create_project import create_project
 from backend.features.workspace.domain.usecases.delete_file import delete_file
 from backend.features.workspace.domain.usecases.delete_project import delete_project
@@ -40,6 +42,7 @@ from backend.features.workspace.domain.usecases.list_chats import list_chats
 from backend.features.workspace.domain.usecases.list_files import list_files
 from backend.features.workspace.domain.usecases.list_projects import list_projects
 from backend.features.workspace.domain.usecases.open_version import open_version
+from backend.features.workspace.domain.usecases.pick_mode import pick_mode
 from backend.features.workspace.domain.usecases.read_chat import read_chat
 from backend.features.workspace.domain.usecases.read_file import read_file
 from backend.features.workspace.domain.usecases.trim_chat import trim_chat
@@ -49,6 +52,8 @@ from backend.features.workspace.domain.usecases.trim_chat import trim_chat
 BUSY = "this chat is still answering -- try again once it has finished"
 # And deleting its project: the folder would move from under the turn writing into it.
 PROJECT_BUSY = "a chat in this project is still answering -- try again once it has finished"
+# What a mode that is none of the three hears (Madde 463), on its own door and on a draft's message.
+NOT_A_MODE = "mode must be plan, ask or edit"
 
 BEAT_SECONDS = 15
 """How long the events stream may stay quiet before it says something (Madde 461, 462).
@@ -114,10 +119,10 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, turns):
         return jsonify({"trashed": trashed})
 
     # There is no PATCH here. What a chat has said never changes: the skill is the session's and
-    # rides on each message, and a chat is never renamed (Madde 86). Two things about it do move --
-    # which version is open (Madde 195) and where the model starts reading it (Madde 345) -- and
-    # each has a door of its own below, next to the other two that act on a chat rather than
-    # describe it.
+    # rides on each message, and a chat is never renamed (Madde 86). Three things about it do move --
+    # which version is open (Madde 195), where the model starts reading it (Madde 345) and its mode
+    # (Madde 463) -- and each has a door of its own below, next to the others that act on a chat
+    # rather than describe it.
     @workspace_bp.get("/api/projects/<project_id>/chats")
     def get_chats(project_id):
         return jsonify([_chat_summary(chat) for chat in list_chats(chat_store, project_id)])
@@ -129,7 +134,12 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, turns):
         chat, snapshot = read_chat(turns, chat_store, project_id, chat_id)
         if chat is None:
             return jsonify({"error": "chat not found"}), 404
-        return jsonify(_chat_state(chat, snapshot))
+        return jsonify(chat_state(project_id, chat, snapshot))
+
+    def chat_state(project_id, chat, snapshot):
+        """The chat as every answer that draws it gives it: each of them replaces the chat on the
+        screen whole, so each carries the mode (Madde 463) -- off the chat's row, in memory."""
+        return _chat_state(chat, snapshot, chat_store.mode_of(project_id, chat.id))
 
     @workspace_bp.get("/api/projects/<project_id>/chats/<chat_id>/events")
     def get_events(project_id, chat_id):
@@ -139,14 +149,14 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, turns):
         live = turns.get(project_id, chat_id)
         return Response(_listened(live), mimetype="text/event-stream", headers=EVENT_HEADERS)
 
-    def advanced_json(advanced):
+    def advanced_json(project_id, advanced):
         """A started turn's answer, or Try again's when it found nothing: the chat as reading it
         gives it -- the screen draws the transcript at once, with no read after the door's answer
         (Madde 462). The turn is looked at before the record it holds, as read_chat does."""
         if isinstance(advanced, Started):
             snapshot = advanced.turn.snapshot()
-            return jsonify(_chat_state(advanced.turn.record(), snapshot)), 202
-        return jsonify(_chat_state(advanced.chat, None)), 200
+            return jsonify(chat_state(project_id, advanced.turn.record(), snapshot)), 202
+        return jsonify(chat_state(project_id, advanced.chat, None)), 200
 
     def busy(project_id, chat_id):
         # With the chat as the turn holds it, off no disk: a tab that was out of date draws the turn
@@ -155,7 +165,7 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, turns):
         chat, snapshot = read_chat(turns, chat_store, project_id, chat_id)
         if chat is None:
             return jsonify({"error": BUSY, "turn": _turn_json(snapshot)}), 409
-        return jsonify({"error": BUSY, **_chat_state(chat, snapshot)}), 409
+        return jsonify({"error": BUSY, **chat_state(project_id, chat, snapshot)}), 409
 
     def advance(project_id, wanted, text, payload):
         return advance_chat(
@@ -174,7 +184,7 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, turns):
             line_id=_new_id("l"),
             skill=payload.get("skill", ""),
             branch_at=payload.get("from"),
-            # The request says it until Madde 463 gives the chat one.
+            # A draft's, picked before the chat existed (Madde 463); read for nothing else.
             mode=payload.get("mode", ""),
         )
 
@@ -198,7 +208,9 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, turns):
             return jsonify({"error": "chat not found"}), 404
         except EmptyMessage:
             return jsonify({"error": "a message needs text"}), 400
-        return advanced_json(advanced)
+        except UnknownMode:
+            return not_a_mode()
+        return advanced_json(project_id, advanced)
 
     # Try again (Madde 462): what it means is the chat's status, and the server's to decide. A
     # running turn is handed back, so the screen reconnects; an unanswered question or a failed
@@ -211,19 +223,37 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, turns):
         except ChatHeld:
             # Reconnecting writes nothing and reads the chat where the turn holds it.
             chat, snapshot = read_chat(turns, chat_store, project_id, chat_id)
-            return jsonify(_chat_state(chat, snapshot))
+            return jsonify(chat_state(project_id, chat, snapshot))
         except ChatFull:
             return full()
         except ProjectNotFound:
             return jsonify({"error": "project not found"}), 404
         except NothingToAnswer:
             return jsonify({"error": "chat not found"}), 404
-        return advanced_json(advanced)
+        return advanced_json(project_id, advanced)
 
     def full():
         return jsonify(
             {"error": "this chat has reached its context ceiling -- start a new chat to keep going"}
         ), 400
+
+    def not_a_mode():
+        return jsonify({"error": NOT_A_MODE}), 400
+
+    # The chat's mode (Madde 463): the browser sends what was picked, and the answer is the mode alone
+    # -- no chat file is read for it, so there is no record to send back. A turn running in the chat
+    # reads it at its next tool call.
+    @workspace_bp.post("/api/projects/<project_id>/chats/<chat_id>/mode")
+    def post_mode(project_id, chat_id):
+        try:
+            mode = pick_mode(
+                chat_store, project_id, chat_id, (request.get_json(silent=True) or {}).get("mode")
+            )
+        except UnknownMode:
+            return not_a_mode()
+        except ChatNotFound:
+            return jsonify({"error": "chat not found"}), 404
+        return jsonify({"mode": mode})
 
     @workspace_bp.post("/api/projects/<project_id>/chats/<chat_id>/version")
     def post_version(project_id, chat_id):
@@ -261,7 +291,7 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, turns):
         return jsonify({})
 
     def nothing_running(project_id, chat_id):
-        # No turn to stop or answer, so nothing is done. Whether the chat exists at all is the row's
+        # No turn to stop, so nothing is done. Whether the chat exists at all is the row's
         # to say, off no disk.
         if not any(chat.id == chat_id for chat in chat_store.list_for(project_id)):
             return jsonify({"error": "chat not found"}), 404
@@ -280,16 +310,28 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, turns):
         # Asked for, not done: the answer stops at its next chance, which has not come yet.
         return jsonify({"turn": _turn_json(live.snapshot())})
 
+    # With the chat's mode as the answer leaves it (Madde 463): an Allow puts the chat in Edit, and
+    # the screen draws that from here rather than knowing the rule.
     @workspace_bp.post("/api/projects/<project_id>/chats/<chat_id>/permission")
     def post_permission(project_id, chat_id):
-        live = turns.get(project_id, chat_id)
-        if live is None:
-            return nothing_running(project_id, chat_id)
         payload = request.get_json(silent=True) or {}
-        live.decide(
-            payload.get("turn"), payload.get("wait"), payload.get("allowed"), payload.get("reason", "")
+        live = answer_question(
+            turns,
+            chat_store,
+            project_id,
+            chat_id,
+            payload.get("turn"),
+            payload.get("wait"),
+            payload.get("allowed"),
+            payload.get("reason", ""),
         )
-        return jsonify({"turn": _turn_json(live.snapshot())})
+        # Answered before the row is looked at, safely: a live turn exists only once its chat's row
+        # does, and the project's delete is refused while one runs. Whether the chat exists at all
+        # is the row's to say, off no disk.
+        mode = chat_store.mode_of(project_id, chat_id)
+        if mode is None:
+            return jsonify({"error": "chat not found"}), 404
+        return jsonify({"turn": _turn_json(live and live.snapshot()), "mode": mode})
 
     @workspace_bp.get("/api/projects/<project_id>/files")
     def get_files(project_id):
@@ -422,9 +464,16 @@ def _turn_json(snapshot):
     }
 
 
-def _chat_state(chat, snapshot):
-    """The chat, with what it is doing (Madde 462): its status, the server's to say, and its turn."""
-    return {**_chat_json(chat), "status": status_of(chat, snapshot), "turn": _turn_json(snapshot)}
+def _chat_state(chat, snapshot, mode):
+    """The chat, with what it is doing (Madde 462): its status, the server's to say, and its turn --
+    and the mode it is in (Madde 463). Not on the turn: a snapshot is the turn's state, and the
+    screen puts each one into the chat it holds, where the mode stays."""
+    return {
+        **_chat_json(chat),
+        "status": status_of(chat, snapshot),
+        "mode": mode,
+        "turn": _turn_json(snapshot),
+    }
 
 
 def _chat_json(chat):

@@ -173,6 +173,17 @@ def test_writing_a_chat_puts_its_row(tmp_path):
     ], "Sohbetin satırı yazınca gelmedi ya da yenilenmedi"
 
 
+def test_a_chats_mode_is_its_row_s_and_never_its_file_s(tmp_path):
+    # Madde 463: a setting of the chat, held where its list is -- not in what it said.
+    raw, chats, _ = _wired(tmp_path)
+    chats.add("p1", _chat())
+    assert chats.mode_of("p1", "c1") == "edit"
+    assert chats.set_mode("p1", "c1", "ask") is True
+    assert chats.mode_of("p1", "c1") == "ask"
+    assert "mode" not in json.loads(raw.read_text("p1/chats/c1.json")), "Mod sohbet dosyasına yazıldı"
+    assert chats.mode_of("p1", "ghost") is None and chats.set_mode("p1", "ghost", "ask") is False
+
+
 def test_the_list_opens_no_chat(tmp_path):
     raw, chats, _ = _wired(tmp_path)
     chats.add("p1", _chat())

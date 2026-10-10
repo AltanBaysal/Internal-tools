@@ -15,7 +15,11 @@ from backend.features.workspace.domain.tools import TOOL_SPECS
 PLAN = "plan"
 ASK = "ask"
 EDIT = "edit"
+# What a chat is in until somebody picks otherwise (Madde 463): a new chat, and a row written before
+# chats had a mode.
 DEFAULT = EDIT
+# Every mode there is: what a chat's row may hold, and what a pick may ask for.
+MODES = (PLAN, ASK, EDIT)
 
 # What opens nothing and changes nothing. Madde 172 left this at one -- the schema reader went with
 # the shape it taught -- 187 made it two, and Madde 205 takes that one back out: the ready-piece

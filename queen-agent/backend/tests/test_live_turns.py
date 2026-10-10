@@ -156,6 +156,17 @@ def test_the_answer_to_the_question_standing_is_what_the_wait_returns():
     assert turn.snapshot().permission is None
 
 
+def test_a_turn_says_whether_it_is_asking_this_question_now():
+    # Madde 463: Allow switches the chat to Edit only when it answers the question standing.
+    turn = LiveTurns().reserve("p1", "c1")
+    assert not turn.asks(turn.id, 1)
+    wait = _asked(turn)
+    assert turn.asks(turn.id, wait)
+    assert not turn.asks(turn.id, wait - 1) and not turn.asks("t-earlier", wait)
+    turn.decide(turn.id, wait, True, "")
+    assert not turn.asks(turn.id, wait)
+
+
 def test_an_answer_left_before_the_question_is_not_kept():
     # Kept, it would let the next write through without anybody being asked.
     turn = LiveTurns().reserve("p1", "c1")

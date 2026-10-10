@@ -33,6 +33,10 @@ class VersionNotFound(Exception):
     """The chat has no version of this name."""
 
 
+class UnknownMode(Exception):
+    """No mode goes by this name (Madde 463): nothing is written for it."""
+
+
 class ChatHeld(Exception):
     """A turn holds this chat (Madde 461): one is answering in it, or its record is being written."""
 

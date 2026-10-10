@@ -44,6 +44,12 @@ class ChatStore(Protocol):
         """What a list shows of every chat of the project, in no particular order -- read without
         opening any chat (Madde 447)."""
 
+    def mode_of(self, project_id: str, chat_id: str) -> str | None:
+        """The chat's mode (Madde 463), or None if there is no such chat. Opens no chat."""
+
+    def set_mode(self, project_id: str, chat_id: str, mode: str) -> bool:
+        """Set the chat's mode; False if there is no such chat. Opens and writes no chat."""
+
 
 class Engine(Protocol):
     """Something that answers a conversation, or one text on its own.
@@ -120,6 +126,9 @@ class LiveTurn(TurnControl, Protocol):
 
     def stop(self, turn_id: str) -> None:
         """Stop this turn, if it is the one named: cut its request and end a wait on a question."""
+
+    def asks(self, turn_id: str, wait: int) -> bool:
+        """Whether this is the turn named, and the question named is the one standing now."""
 
     def decide(self, turn_id: str, wait: int, allowed: bool, reason: str) -> None:
         """Answer the question standing, if turn and question are the ones named."""

@@ -1585,9 +1585,7 @@ test("a refusal is not carried into a later send's Try again", async () => {
   // The question is on disk now, and it is what Try again asks about -- not the sentence refused
   // two sends ago: its own door, with no sentence at all.
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-  await waitFor(() =>
-    expect(retryPosts(fetch)).toEqual([["/api/projects/p1/chats/c1/retry", { mode: "edit" }]]),
-  );
+  await waitFor(() => expect(retryPosts(fetch)).toEqual([["/api/projects/p1/chats/c1/retry", {}]]));
   expect(messagePosts(fetch)).toHaveLength(2);
 });
 
@@ -2081,11 +2079,9 @@ test("a turn's own fault shows the card, and Try again asks the chat's own door"
   await waitFor(() => expect(screen.getByText("401 bad key")).toBeTruthy());
 
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-  // No sentence in it: the one on disk must not be written twice. The mode it was asked in rides
-  // along, as on any send, until Madde 463.
-  await waitFor(() =>
-    expect(retryPosts(fetch)).toEqual([["/api/projects/p1/chats/c1/retry", { mode: "edit" }]]),
-  );
+  // No sentence in it: the one on disk must not be written twice. And no mode: it is the chat's
+  // own (Madde 463).
+  await waitFor(() => expect(retryPosts(fetch)).toEqual([["/api/projects/p1/chats/c1/retry", {}]]));
   await waitFor(() => expect(screen.queryByText("401 bad key")).toBeNull());
   expect(screen.getByTestId("thinking")).toBeTruthy();
 });
@@ -3409,7 +3405,7 @@ test("Try again on a failed answer takes the card away when the door answers, an
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
   await waitFor(() => expect(screen.queryByText("HTTP 502")).toBeNull());
   expect(screen.getByTestId("thinking")).toBeTruthy();
-  expect(retryPosts(fetch)).toEqual([["/api/projects/p1/chats/c1/retry", { mode: "edit" }]]);
+  expect(retryPosts(fetch)).toEqual([["/api/projects/p1/chats/c1/retry", {}]]);
   expect(messagePosts(fetch)).toEqual([]);
 
   server.record = {
@@ -3419,20 +3415,6 @@ test("Try again on a failed answer takes the card away when the door answers, an
   };
   await hear(OVER);
   expect(await screen.findByText("Here it is.")).toBeTruthy();
-});
-
-test("Try again on a failed answer asks in the mode the session is in", async () => {
-  // A question asked again in Plan must not run in Edit, where a write goes through unasked.
-  const { fetch } = failedTurn();
-  render(<App />);
-  await screen.findByText("HTTP 502");
-
-  fireEvent.click(screen.getByText("Edit", { selector: ".picker__name" }));
-  fireEvent.click(screen.getByText("Plan", { selector: ".menu__item-name" }));
-  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-  await waitFor(() =>
-    expect(retryPosts(fetch)).toEqual([["/api/projects/p1/chats/c1/retry", { mode: "plan" }]]),
-  );
 });
 
 // The user's two decisions for Madde 462: neither draws a card or a Try again.
@@ -3788,27 +3770,133 @@ test("Escape closes the picker", async () => {
   expect(screen.queryByText("SKILLS")).toBeNull();
 });
 
-// --- which mode a turn is sent in (Madde 91) -----------------------------------------------------
+// --- the mode is the chat's own (Madde 91, Madde 463) --------------------------------------------
 
-test("the mode in force is what the message is sent with", async () => {
-  const fetch = withChat();
+// Two chats, each in the mode the server holds for it. A pick is answered as `onPick` says --
+// by default as the server does: the chat takes the mode and the door says so.
+function withModes(modes, onPick = (id, mode) => ok({ mode })) {
+  const held = { ...modes };
+  const rows = Object.keys(held).map((id) => ({ id, title: `Chat ${id}`, lastActivity: NOW }));
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    const picking = path.match(/\/chats\/(\w+)\/mode$/);
+    if (picking && options?.method === "POST") {
+      const { mode } = JSON.parse(options.body);
+      return onPick(picking[1], mode).then((answer) => {
+        held[picking[1]] = mode;
+        return answer;
+      });
+    }
+    if (path.endsWith("/messages") && options?.method === "POST") {
+      const sent = JSON.parse(options.body);
+      return ok({ id: "c9", title: sent.text, messages: [], turn: null, mode: sent.mode ?? "edit" }, 202);
+    }
+    const record = path.match(/\/chats\/(\w+)$/);
+    if (record) return ok({ id: record[1], title: `Chat ${record[1]}`, messages: [], mode: held[record[1]] });
+    if (path.endsWith("/chats")) return ok(rows);
+    if (path.endsWith("/files")) return ok([]);
+    return ok([PROJECT]);
+  });
+  vi.stubGlobal("fetch", fetch);
+  return fetch;
+}
+
+const pickerShows = () => document.querySelector(".picker__name").textContent;
+const modePosts = (fetch) =>
+  fetch.mock.calls
+    .filter(([path, options]) => path.endsWith("/mode") && options?.method === "POST")
+    .map(([path, options]) => [path, JSON.parse(options.body)]);
+
+function pick(from, to) {
+  fireEvent.click(screen.getByText(from, { selector: ".picker__name" }));
+  fireEvent.click(screen.getByText(to, { selector: ".menu__item-name" }));
+}
+
+test("the picker draws the chat's own mode, as the server holds it, after a reload too", async () => {
+  withModes({ c1: "plan" });
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
   await chatOpened();
+  expect(pickerShows()).toBe("Plan");
+});
 
-  fireEvent.click(screen.getByText("Edit", { selector: ".picker__name" }));
-  fireEvent.click(screen.getByText("Ask", { selector: ".menu__item-name" }));
+test("each chat draws its own mode as the screen moves between them", async () => {
+  withModes({ c1: "ask", c2: "plan" });
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await chatOpened();
+  expect(pickerShows()).toBe("Ask");
+  fireEvent.click(screen.getByText("Chat c2", { selector: ".sidebar__chat" }));
+  await waitFor(() => expect(pickerShows()).toBe("Plan"));
+  fireEvent.click(screen.getByText("Chat c1", { selector: ".sidebar__chat" }));
+  await waitFor(() => expect(pickerShows()).toBe("Ask"));
+});
+
+test("a pick is drawn at once and sent to the chat's own door", async () => {
+  let answer;
+  const fetch = withModes(
+    { c1: "edit" },
+    (id, mode) =>
+      new Promise((resolve) => {
+        answer = () => resolve({ ok: true, status: 200, json: async () => ({ mode }) });
+      }),
+  );
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await chatOpened();
+  pick("Edit", "Ask");
+  // Before the server has answered: the picker answers the click, as it always has.
+  expect(pickerShows()).toBe("Ask");
+  await waitFor(() =>
+    expect(modePosts(fetch)).toEqual([["/api/projects/p1/chats/c1/mode", { mode: "ask" }]]),
+  );
+  await act(async () => answer());
+  expect(pickerShows()).toBe("Ask");
+});
+
+test("a refused pick goes back to the chat's mode, and the card says what the server said", async () => {
+  withModes({ c1: "edit" }, () =>
+    Promise.resolve({
+      ok: false,
+      status: 400,
+      text: async () => JSON.stringify({ error: "mode must be plan, ask or edit" }),
+    }),
+  );
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await chatOpened();
+  pick("Edit", "Plan");
+  expect(await screen.findByText("mode must be plan, ask or edit")).toBeTruthy();
+  expect(pickerShows()).toBe("Edit");
+});
+
+test("a message in a chat carries no mode: the chat holds its own", async () => {
+  const fetch = withModes({ c1: "ask" });
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
   const box = await chatOpened();
   fireEvent.change(box, { target: { value: "hello" } });
   fireEvent.keyDown(box, { key: "Enter" });
+  await waitFor(() => expect(messagePosts(fetch)).toHaveLength(1));
+  expect("mode" in messagePosts(fetch)[0]).toBe(false);
+});
 
-  await waitFor(() => {
-    const sent = fetch.mock.calls.find(
-      ([path, options]) => String(path).endsWith("/messages") && options?.method === "POST",
-    );
-    expect(sent).toBeTruthy();
-    expect(JSON.parse(sent[1].body).mode).toBe("ask");
-  });
+test("a draft holds the mode picked in it until its first message, and the next draft is in Edit", async () => {
+  const fetch = withModes({ c1: "ask" });
+  window.history.pushState(null, "", "/p/p1/c/new");
+  render(<App />);
+  const box = await chatOpened();
+  expect(pickerShows()).toBe("Edit");
+  pick("Edit", "Plan");
+  // The draft has no chat to send a pick to: it is held until the birth.
+  expect(modePosts(fetch)).toEqual([]);
+  expect(pickerShows()).toBe("Plan");
+  fireEvent.change(box, { target: { value: "hello" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c9"));
+  expect(messagePosts(fetch)[0].mode).toBe("plan");
+  await waitFor(() => expect(pickerShows()).toBe("Plan"));
+  fireEvent.click(screen.getByRole("button", { name: /New chat/ }));
+  await waitFor(() => expect(pickerShows()).toBe("Edit"));
 });
 
 test("opening one picker closes the other", async () => {
@@ -3834,18 +3922,24 @@ const ASKING = live({
   permission: { wait: 1, tool: "create_file", arguments: '{"name": "plan.md"}' },
 });
 
-function paused(onAnswer) {
+function paused(onAnswer, modeAfter = "edit") {
   /* A chat mid-answer, stopped on a question. Nothing ends the turn but the test: the stream says
-     what the server would, and nothing in it depends on timing. */
-  const owed = { id: "c1", title: "hello", messages: [] };
+     what the server would, and nothing in it depends on timing. The answer to the question says
+     the mode the chat is in after it -- `modeAfter`, Edit as the server rules for an Allow. */
+  const owed = { id: "c1", title: "hello", messages: [], mode: "edit" };
   const fetch = vi.fn().mockImplementation((path, options) => {
-    if (path.endsWith("/messages") && options?.method === "POST") return started(owed);
+    if (path.endsWith("/messages") && options?.method === "POST") return started({ ...owed });
+    if (path.endsWith("/mode") && options?.method === "POST") {
+      owed.mode = JSON.parse(options.body).mode;
+      return ok({ mode: owed.mode });
+    }
     if (path.endsWith("/permission") && options?.method === "POST") {
       onAnswer?.(path, JSON.parse(options.body));
-      return ok({ turn: live() });
+      owed.mode = modeAfter;
+      return ok({ turn: live(), mode: modeAfter });
     }
     if (path.endsWith("/chats/c1"))
-      return Promise.resolve({ ok: true, status: 200, json: async () => owed });
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({ ...owed }) });
     return Promise.resolve({ ok: true, status: 200, json: async () => [] });
   });
   vi.stubGlobal("fetch", fetch);
@@ -3856,8 +3950,8 @@ function paused(onAnswer) {
 async function asked() {
   render(<App />);
   const box = await chatOpened();
-  /* Sent in ask mode, which is the mode the question exists for -- and it is also what makes the
-     picker's move afterwards something to see: the app starts in edit, where nothing is asked. */
+  /* Picked into ask, which is the mode the question exists for -- and it is also what makes the
+     picker's move afterwards something to see: a chat starts in edit, where nothing is asked. */
   fireEvent.click(screen.getByText("Edit", { selector: ".picker__name" }));
   fireEvent.click(screen.getByText("Ask", { selector: ".menu__item-name" }));
   fireEvent.change(box, { target: { value: "write the plan" } });
@@ -3884,14 +3978,22 @@ test("allowing sends the yes to the chat's own door, naming the turn and its que
   expect(sent.body).toEqual({ turn: "t1", wait: 1, allowed: true });
 });
 
-test("allowing moves the mode picker to edit", async () => {
-  // The answer settles this one call; the picker is what settles the next turn. Left on Ask, the
-  // very next message would raise the same question again.
+test("after an answer the picker draws the mode the server says the chat is in", async () => {
+  // Allow puts the chat in Edit on the server (Madde 463), and the door says so.
   paused();
   await asked();
-  expect(screen.getByText("Ask", { selector: ".picker__name" })).toBeTruthy();
+  expect(pickerShows()).toBe("Ask");
   fireEvent.click(screen.getByText("Allow"));
-  await waitFor(() => expect(screen.getByText("Edit", { selector: ".picker__name" })).toBeTruthy());
+  await waitFor(() => expect(pickerShows()).toBe("Edit"));
+});
+
+test("the screen keeps no rule of its own about Allow and the mode", async () => {
+  // Told the chat is still in Ask, it draws Ask: the switch is the server's, not the browser's.
+  paused(null, "ask");
+  await asked();
+  fireEvent.click(screen.getByText("Allow"));
+  await waitFor(() => expect(screen.queryByText("QueenAgent wants to run create_file")).toBeNull());
+  expect(pickerShows()).toBe("Ask");
 });
 
 test("denying carries the reason the user typed", async () => {

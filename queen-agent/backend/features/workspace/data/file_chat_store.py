@@ -38,6 +38,14 @@ class FileChatStore:
     def list_for(self, project_id):
         return self._projects.chats(project_id)
 
+    # A chat's mode is a setting, not something it said, so it lives on its row (Madde 463): picking
+    # one opens no chat file.
+    def mode_of(self, project_id, chat_id):
+        return self._projects.chat_mode(project_id, chat_id)
+
+    def set_mode(self, project_id, chat_id, mode):
+        return self._projects.set_chat_mode(project_id, chat_id, mode)
+
     def _write(self, project_id, chat):
         # The id is the file name, so it is not written inside: no artifact repeats an answer
         # another one already gives.

@@ -321,6 +321,149 @@ test("a draft's first answer names the chat it was born as", async () => {
   expect(lastStream().url).toBe("/api/projects/p1/chats/c9/events");
 });
 
+// --- the chat's mode (Madde 463) -------------------------------------------------------------------
+
+function deferred() {
+  let settle;
+  const promise = new Promise((resolve) => {
+    settle = resolve;
+  });
+  return { promise, settle };
+}
+
+test("a draft's first message carries the mode it was picked in, and a chat's message carries none", async () => {
+  const fetch = server({ answer: () => ok(record("c9", [QUESTION]), 202) });
+  const draft = opened(null);
+  await act(() => draft.result.current.send("write it", "", "plan"));
+  const chat = opened("c1");
+  await act(() => chat.result.current.send("more", "", ""));
+  expect(posts(fetch).map(([, body]) => body.mode)).toEqual(["plan", undefined]);
+});
+
+test("a pick is drawn at once, sent to the chat's own door, and becomes the chat's mode", async () => {
+  const answered = deferred();
+  const fetch = server({
+    reads: { c1: [ok({ ...record("c1", [QUESTION, ANSWER]), mode: "edit" })] },
+    answer: () => answered.promise,
+  });
+  const { result } = opened("c1");
+  await waitFor(() => expect(result.current.chat?.mode).toBe("edit"));
+  let picking;
+  act(() => {
+    picking = result.current.pickMode("ask");
+  });
+  // Before the server has said a word: the picker answers the click.
+  expect(result.current.chat.mode).toBe("ask");
+  await waitFor(() =>
+    expect(posts(fetch)).toEqual([["/api/projects/p1/chats/c1/mode", { mode: "ask" }]]),
+  );
+  await act(async () => {
+    answered.settle({ ok: true, status: 200, json: async () => ({ mode: "ask" }) });
+    await picking;
+  });
+  expect(result.current.chat.mode).toBe("ask");
+  expect(result.current.error).toBeNull();
+});
+
+// Each pick answered by hand, in whatever order the test settles them.
+function picksAnsweredByHand(mode = "edit") {
+  const asked = [];
+  const fetch = server({
+    reads: { c1: [ok({ ...record("c1", [QUESTION, ANSWER]), mode })] },
+    answer: () => {
+      const answered = deferred();
+      asked.push(answered);
+      return answered.promise;
+    },
+  });
+  const said = (body) => ({ ok: true, status: 200, json: async () => body });
+  return { fetch, asked, said };
+}
+
+test("a second pick waits for the first one's answer, so the server takes them in click order", async () => {
+  // Sent side by side, two picks can reach the server either way round: Edit, then a quick
+  // correction to Ask, could end with the server in Edit and the screen in Ask.
+  const { fetch, asked, said } = picksAnsweredByHand();
+  const { result } = opened("c1");
+  await waitFor(() => expect(result.current.chat?.mode).toBe("edit"));
+  let second;
+  act(() => {
+    result.current.pickMode("plan");
+    second = result.current.pickMode("ask");
+  });
+  expect(result.current.chat.mode).toBe("ask");
+  await waitFor(() => expect(asked).toHaveLength(1));
+  expect(posts(fetch)).toEqual([["/api/projects/p1/chats/c1/mode", { mode: "plan" }]]);
+  await act(async () => asked[0].settle(said({ mode: "plan" })));
+  await waitFor(() => expect(posts(fetch)).toHaveLength(2));
+  expect(posts(fetch)[1]).toEqual(["/api/projects/p1/chats/c1/mode", { mode: "ask" }]);
+  // The first answer does not draw over the pick still on its way.
+  expect(result.current.chat.mode).toBe("ask");
+  await act(async () => {
+    asked[1].settle(said({ mode: "ask" }));
+    await second;
+  });
+  expect(result.current.chat.mode).toBe("ask");
+});
+
+test("an earlier pick the server took stands when the later one is refused", async () => {
+  // The answers come in click order, so each says where the server is: the one it took is drawn.
+  const { asked, said } = picksAnsweredByHand();
+  const { result } = opened("c1");
+  await waitFor(() => expect(result.current.chat?.mode).toBe("edit"));
+  let second;
+  act(() => {
+    result.current.pickMode("plan");
+    second = result.current.pickMode("ask");
+  });
+  await waitFor(() => expect(asked).toHaveLength(1));
+  await act(async () => asked[0].settle(said({ mode: "plan" })));
+  await waitFor(() => expect(asked).toHaveLength(2));
+  await act(async () => {
+    asked[1].settle({
+      ok: false,
+      status: 500,
+      text: async () => JSON.stringify({ error: "projects.json is busy" }),
+    });
+    await second;
+  });
+  expect(result.current.chat.mode).toBe("plan");
+  expect(result.current.error).toBe("projects.json is busy");
+});
+
+test("picking the mode already shown asks the server nothing", async () => {
+  const { fetch } = picksAnsweredByHand("ask");
+  const { result } = opened("c1");
+  await waitFor(() => expect(result.current.chat?.mode).toBe("ask"));
+  await act(() => result.current.pickMode("ask"));
+  expect(posts(fetch)).toEqual([]);
+});
+
+test("a refused pick goes back to the chat's mode, and the card says what the server said", async () => {
+  server({
+    reads: { c1: [ok({ ...record("c1", [QUESTION, ANSWER]), mode: "plan" })] },
+    answer: () => no(400, { error: "mode must be plan, ask or edit" }),
+  });
+  const { result } = opened("c1");
+  await waitFor(() => expect(result.current.chat?.mode).toBe("plan"));
+  await act(() => result.current.pickMode("ask"));
+  expect(result.current.chat.mode).toBe("plan");
+  expect(result.current.error).toBe("mode must be plan, ask or edit");
+});
+
+test("an answer to a question draws the mode the server says the chat is in", async () => {
+  // The switch to Edit after an Allow is the server's rule: the screen draws what it is told.
+  const waiting = turn({ status: "waiting", permission: { wait: 4, tool: "create_file", arguments: "{}" } });
+  server({
+    reads: { c1: [ok({ ...record("c1", [QUESTION], waiting), mode: "ask" })] },
+    answer: () => ok({ turn: turn(), mode: "edit" }),
+  });
+  const { result } = opened("c1");
+  await waitFor(() => expect(result.current.permission).not.toBeNull());
+  await act(() => result.current.answer(true, ""));
+  expect(result.current.chat.mode).toBe("edit");
+});
+
 test("an edit refused while a turn runs leaves the transcript whole and follows that turn", async () => {
   // 461's QA: the transcript went blank until a reload, and the refusal was thrown uncaught.
   const live = turn({ id: "t7" });
@@ -448,8 +591,9 @@ test("Try again asks its own door, and draws what it answers", async () => {
   });
   const { result } = opened("c1");
   await waitFor(() => expect(result.current.chat).not.toBeNull());
-  await act(() => result.current.answerAgain("ask"));
-  expect(posts(fetch)).toEqual([["/api/projects/p1/chats/c1/retry", { mode: "ask" }]]);
+  await act(() => result.current.answerAgain());
+  // No mode: the chat holds its own (Madde 463).
+  expect(posts(fetch)).toEqual([["/api/projects/p1/chats/c1/retry", {}]]);
   // The failed answer is gone the moment the door answers: it is the server's record now.
   expect(result.current.chat.messages).toHaveLength(1);
   expect(result.current.thinking).toBe(true);

@@ -259,6 +259,96 @@ def test_a_put_into_a_project_that_is_not_there_does_nothing(tmp_path):
     assert Store(str(tmp_path)).list_dir("") == [], "Olmayan projeye kayıt yazıldı"
 
 
+# ---- A chat's mode, on its row (Madde 463) ----
+
+
+def _with_chats(tmp_path, *chat_ids):
+    store = _store(tmp_path)
+    store.add(_project())
+    for chat_id in chat_ids:
+        store.put_chat("pabc", _chat(chat_id))
+    return store
+
+
+def test_a_chats_mode_is_kept_on_its_row_and_outlives_the_app(tmp_path):
+    store = _with_chats(tmp_path, "c1")
+    assert store.set_chat_mode("pabc", "c1", "ask") is True
+    assert store.chat_mode("pabc", "c1") == "ask"
+    again = _restarted(store, tmp_path)
+    assert again.chat_mode("pabc", "c1") == "ask", "Sohbetin modu yeniden başlatmada kayboldu"
+    assert _stored(tmp_path)["pabc"]["chats"][0]["mode"] == "ask"
+
+
+def test_a_row_in_edit_writes_no_mode_and_reads_as_edit(tmp_path):
+    # Like a pin: written only while it stands, so the common case is an absent key.
+    store = _with_chats(tmp_path, "c1")
+    assert store.chat_mode("pabc", "c1") == "edit", "Modu olmayan sohbet Edit okunmadı"
+    store.set_chat_mode("pabc", "c1", "plan")
+    store.set_chat_mode("pabc", "c1", "edit")
+    store.flush()
+    assert "mode" not in _stored(tmp_path)["pabc"]["chats"][0], "Edit modu satıra yazıldı"
+
+
+def test_an_old_row_and_a_hand_edited_mode_read_as_edit(tmp_path):
+    # Rows written before Madde 463, and 448's moved projects, carry no mode: no migration is owed.
+    # A value nobody knows is not worth refusing the whole file over.
+    row = {"title": "Hi", "createdAt": BORN, "lastActivity": BORN}
+    (tmp_path / PROJECTS_FILE).write_text(
+        json.dumps(
+            {
+                "pabc": {
+                    "name": "Thesis",
+                    "createdAt": BORN,
+                    "chats": [{"id": "c1", **row}, {"id": "c2", "mode": 5, **row}],
+                    "files": [],
+                }
+            }
+        )
+    )
+    store = _store(tmp_path)
+    assert (store.chat_mode("pabc", "c1"), store.chat_mode("pabc", "c2")) == ("edit", "edit")
+
+
+def test_writing_a_chat_again_keeps_its_mode(tmp_path):
+    # Every chat write puts its row -- the turn's answer, Try again's drop, a version, a trim -- and a
+    # row replaced whole would lose the mode each time.
+    store = _with_chats(tmp_path, "c1")
+    store.set_chat_mode("pabc", "c1", "plan")
+    store.put_chat("pabc", _chat("c1", said_at=_at(20)))
+    assert store.chat_mode("pabc", "c1") == "plan", "Sohbet yeniden yazılınca modu silindi"
+    assert store.chats("pabc") == [ChatSummary("c1", "Hi", BORN, _at(20))]
+
+
+def test_picking_the_mode_a_chat_is_already_in_wakes_no_writer(tmp_path, monkeypatch):
+    # The picker answers a press on the row already checked as on any other: that is no change, so
+    # the writer is not even told -- no thread, no render of the whole file.
+    store = _with_chats(tmp_path, "c1")
+    store.set_chat_mode("pabc", "c1", "ask")
+    store.flush()
+    told = []
+    monkeypatch.setattr(store._writes, "changed", lambda: told.append(True))
+    assert store.set_chat_mode("pabc", "c1", "ask") is True
+    assert told == [], "Değişmeyen mod için yazıcı uyandırıldı"
+    store.set_chat_mode("pabc", "c1", "plan")
+    assert told == [True]
+
+
+def test_two_chats_keep_their_own_modes(tmp_path):
+    store = _with_chats(tmp_path, "c1", "c2")
+    store.set_chat_mode("pabc", "c1", "ask")
+    store.set_chat_mode("pabc", "c2", "plan")
+    assert (store.chat_mode("pabc", "c1"), store.chat_mode("pabc", "c2")) == ("ask", "plan")
+
+
+def test_the_mode_of_a_chat_that_is_not_there(tmp_path):
+    store = _with_chats(tmp_path, "c1")
+    assert store.chat_mode("pabc", "ghost") is None and store.chat_mode("nope", "c1") is None
+    assert store.set_chat_mode("pabc", "ghost", "ask") is False
+    assert store.set_chat_mode("nope", "c1", "ask") is False
+    store.flush()
+    assert all("mode" not in row for row in _stored(tmp_path)["pabc"]["chats"])
+
+
 def test_an_update_of_a_project_that_is_not_there_is_none(tmp_path):
     assert _store(tmp_path).update("nope", lambda project: project) is None
 

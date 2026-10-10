@@ -108,6 +108,11 @@ class LiveTurn:
         if cut:
             cut()
 
+    def asks(self, turn_id, wait):
+        with self._lock:
+            asked = self._snapshot.permission
+            return turn_id == self.id and asked is not None and asked.wait == wait
+
     def decide(self, turn_id, wait, allowed, reason):
         with self._lock:
             asked = self._snapshot.permission

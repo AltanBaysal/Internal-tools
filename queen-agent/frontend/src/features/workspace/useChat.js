@@ -32,6 +32,13 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
   const [pending, setPending] = useState(null);
   // "turn:wait" of the question just answered: the card goes at once, not a round trip later.
   const [decided, setDecided] = useState(null);
+  // The mode just picked, {key, mode}, until the server answers the pick (Madde 463): the picker
+  // answers the click at once, and a refusal takes it back.
+  const [picked, setPicked] = useState(null);
+  // The picks on their way: the last one's settling, which the next waits behind, and the newest.
+  const picks = useRef({ after: Promise.resolve(), latest: null });
+  // The mode on screen, so a press on the row already checked asks the server nothing.
+  const shownMode = useRef(undefined);
 
   // Kept in refs rather than dependencies: the caller may hand over fresh functions on every
   // render, and that must not rebuild `send`.
@@ -288,8 +295,9 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
   );
 
   // A sentence, or an edit of one (`from`, Madde 195). The skill travels with the message rather
-  // than being read off the chat: what governed a turn is settled when the turn is sent. So does
-  // the mode, until Madde 463 gives the chat one.
+  // than being read off the chat: what governed a turn is settled when the turn is sent. The mode
+  // is the chat's own (Madde 463) and travels only with a draft's first message, the one picked
+  // before the chat existed -- empty for any other.
   const send = useCallback(
     async (text, skill = "", mode = "", from = null) => {
       const key = here.current;
@@ -303,7 +311,7 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
           chat: chatId ?? "",
           text,
           skill,
-          mode,
+          ...(mode ? { mode } : {}),
           // An ordinary reply carries no such field, and the server tells the two apart by its
           // absence rather than by a number meaning nothing.
           ...(from === null ? {} : { from }),
@@ -337,20 +345,48 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
 
   // Try again, through its own door (Madde 462): what it does is the chat's status, and the
   // server's to decide -- reconnect to a running turn, answer a question nobody answered or a
-  // failed answer, or nothing. The question is never written again.
-  const retry = useCallback(
-    async (mode = "") => {
-      if (!chatId) return;
+  // failed answer, or nothing. The question is never written again, and the mode is the chat's.
+  const retry = useCallback(async () => {
+    if (!chatId) return;
+    const key = here.current;
+    setRefused(null);
+    setError(null);
+    setArrived(null);
+    try {
+      took(projectId, await postJson(`/api/projects/${projectId}/chats/${chatId}/retry`, {}), key);
+    } catch (failure) {
+      if (key === here.current) setRefused(failure.message);
+      refusedReply.current = false;
+    }
+  }, [projectId, chatId]);
+
+  // The chat's mode (Madde 463): drawn at once, and the chat's own once the server says so. A
+  // refusal lets the pick go -- the mode the chat was in shows again -- and the card says why.
+  //
+  // Each pick is sent once the one before it has been answered: sent side by side they could reach
+  // the server either way round. In click order, every answer says where the server is as it
+  // lands, so each is the chat's mode -- an earlier pick it took stands if a later one is refused --
+  // while the newest pick still on its way is what is drawn.
+  const pickMode = useCallback(
+    (mode) => {
+      if (mode === shownMode.current) return Promise.resolve();
       const key = here.current;
-      setRefused(null);
-      setError(null);
-      setArrived(null);
-      try {
-        took(projectId, await postJson(`/api/projects/${projectId}/chats/${chatId}/retry`, { mode }), key);
-      } catch (failure) {
-        if (key === here.current) setRefused(failure.message);
-        refusedReply.current = false;
-      }
+      const mine = { key, mode };
+      picks.current.latest = mine;
+      setPicked(mine);
+      const sent = picks.current.after.then(() =>
+        postJson(`/api/projects/${projectId}/chats/${chatId}/mode`, { mode }),
+      );
+      picks.current.after = sent.catch(() => {});
+      return sent
+        .then((said) =>
+          setChat((current) => (current?.id === chatId ? { ...current, mode: said.mode } : current)),
+        )
+        .catch((failure) => {
+          // Said only for the newest pick: an older refusal is not what the screen stands on.
+          if (key === here.current && picks.current.latest === mine) setError(failure.message);
+        })
+        .finally(() => setPicked((current) => (current === mine ? null : current)));
     },
     [projectId, chatId],
   );
@@ -397,7 +433,8 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
     }).catch(() => {});
   }, [projectId]);
 
-  // And the answer names the question too, within its turn.
+  // And the answer names the question too, within its turn. The door says the mode the chat is in
+  // after it (Madde 463): an Allow puts it in Edit, and that is the server's rule, drawn from here.
   const answer = useCallback(
     async (allowed, reason) => {
       const current = held.current;
@@ -409,6 +446,9 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
         wait: asked.wait,
         ...(allowed ? { allowed: true } : { allowed: false, reason }),
       })
+        .then((said) =>
+          setChat((now) => (now?.id === current.id ? { ...now, mode: said.mode } : now)),
+        )
         // Not left, so the question still stands: its card comes back to be answered again.
         .catch(() => setDecided(null));
     },
@@ -419,7 +459,10 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
   // message stood (Madde 195), a reply at the end. A draft draws none (withSentence).
   const sending = pending && pending.key === here.current ? pending : null;
   onItsWay.current = sending?.at ?? null;
-  const shown = sending ? withSentence(chat, sending) : chat;
+  const drawn = sending ? withSentence(chat, sending) : chat;
+  const pick = picked && picked.key === here.current ? picked.mode : null;
+  const shown = pick && drawn ? { ...drawn, mode: pick } : drawn;
+  shownMode.current = shown?.mode;
   const turn = chat && chat.id === chatId ? chat.turn : null;
   const asked = turn?.permission;
   return {
@@ -443,12 +486,13 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
     send,
     stop,
     answer,
+    pickMode,
     version,
     trim,
     // The transient card's Try again. A refused reply is the composer's to send: its sentence went
     // back there. Anything else -- a turn that broke, a refused Try again or edit, a stream that
     // could not be followed -- asks the chat's own door.
-    retry: (sendBox, mode) => (refused && refusedReply.current ? sendBox() : retry(mode)),
+    retry: (sendBox) => (refused && refusedReply.current ? sendBox() : retry()),
     // The recorded failed answer's Try again (Madde 440): never the composer -- what it holds is the
     // next thing to say.
     answerAgain: retry,

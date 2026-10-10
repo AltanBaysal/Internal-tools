@@ -11,6 +11,7 @@ from backend.features.workspace.domain.errors import (
     EmptyMessage,
     NothingToAnswer,
     ProjectNotFound,
+    UnknownMode,
 )
 from backend.features.workspace.domain.usecases.advance_chat import (
     NO_TEXT,
@@ -93,6 +94,55 @@ def test_a_draft_is_held_by_the_id_it_is_born_as(tmp_path):
     started = _advance(turns, chats, projects, wanted="", text="hello")
     assert started.chat.id == "c9"
     assert [(project, chat) for project, chat, _ in turns.held] == [("p1", "c9")]
+
+
+# --- the draft's mode (Madde 463) -------------------------------------------------------------------
+
+
+class ModeAtStart(FakeTurns):
+    """Turns noting the newborn's mode at the moment its turn starts: the loop reads it from there."""
+
+    def __init__(self, chats):
+        super().__init__()
+        self._chats = chats
+        self.modes = []
+
+    def start(self, project_id, turn, chat, pieces):
+        self.modes.append(self._chats.mode_of(project_id, chat.id))
+        super().start(project_id, turn, chat, pieces)
+
+
+def test_a_draft_is_born_in_the_mode_it_was_sent_in_before_its_turn_starts(tmp_path):
+    projects, chats = _stores(tmp_path)
+    turns = ModeAtStart(chats)
+    _advance(turns, chats, projects, wanted="", text="hello", mode="plan")
+    assert turns.modes == ["plan"]
+
+
+def test_a_draft_sent_in_no_mode_is_born_in_edit(tmp_path):
+    projects, chats = _stores(tmp_path)
+    turns = ModeAtStart(chats)
+    _advance(turns, chats, projects, wanted="", text="hello")
+    assert turns.modes == ["edit"]
+
+
+@pytest.mark.parametrize("mode", ["write", 5])
+def test_a_draft_in_a_mode_nobody_knows_is_refused_before_it_is_held(tmp_path, mode):
+    projects, chats = _stores(tmp_path)
+    turns = FakeTurns()
+    with pytest.raises(UnknownMode):
+        _advance(turns, chats, projects, wanted="", text="hello", mode=mode)
+    assert turns.held == [] and chats.list_for("p1") == []
+
+
+@pytest.mark.parametrize("mode", ["plan", "write"])
+def test_a_mode_sent_into_a_chat_that_exists_changes_nothing(tmp_path, mode):
+    # The chat's mode is picked on its own door. An older tab still sends the one it holds with
+    # every message, and must not move the chat with it.
+    projects, chats = _stores(tmp_path, _user(), _ai())
+    _advance(FakeTurns(), chats, projects, mode=mode)
+    _advance(FakeTurns(), chats, projects, text=NO_TEXT, mode=mode)
+    assert chats.mode_of("p1", "c1") == "edit"
 
 
 def test_a_held_chat_is_refused_before_anything_is_read(tmp_path):

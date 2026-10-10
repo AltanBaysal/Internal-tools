@@ -8,11 +8,9 @@ export const MODES = [
   { id: "edit", name: "Edit", detail: "Read, write and build. The full set." },
 ];
 
-// Two names for two reasons: the mode an approval arrives in, and the mode the app starts in --
-// edit being what the app did before there were modes at all. The same value today, and nothing
-// says the two have to stay the same one.
-export const EDIT = "edit";
-export const DEFAULT_MODE = EDIT;
+// What an empty draft draws and sends, and the name a chat not read yet falls back on. Which mode a
+// chat is in is the server's to say (Madde 463), Allow's switch to Edit included.
+export const DEFAULT_MODE = "edit";
 
 // Unlike a skill, there is no such thing as no mode -- so this never answers with a placeholder.
 export function modeName(id) {

@@ -209,8 +209,10 @@ def _seeded(tmp_path):
 
 
 def _answer(chats, files, engine, mode="edit", control=NEVER):
-    """One turn of the seeded chat, handed its record the way the door hands it (Madde 461)."""
-    return list(run_turn(chats, files, engine, "p1", chats.get("p1", "c1"), lambda: NOW, control, mode))
+    """One turn of the seeded chat in this mode, handed its record the way the door hands it (Madde
+    461). The mode is the chat's own since Madde 463, so it is picked on the chat first."""
+    assert chats.set_mode("p1", "c1", mode)
+    return list(run_turn(chats, files, engine, "p1", chats.get("p1", "c1"), lambda: NOW, control))
 
 
 def _said(chats, text, at=NOW, **fields):
@@ -254,6 +256,10 @@ class HandedOnly:
     def get(self, project_id, chat_id):
         raise AssertionError("the turn read the chat again")
 
+    def mode_of(self, project_id, chat_id):
+        # Off the row, in memory (Madde 463): no chat file is opened for it.
+        return self._chats.mode_of(project_id, chat_id)
+
     def replace(self, project_id, chat):
         self.written += 1
         self._chats.replace(project_id, chat)
@@ -266,7 +272,7 @@ def test_the_turn_works_from_the_record_it_is_handed_and_writes_its_answer_once(
     handed = HandedOnly(chats)
     engine = ScriptedEngine([[{"tool_calls": [a_call()]}], [{"text": "Done."}]])
     produced = list(
-        run_turn(handed, files, engine, "p1", chats.get("p1", "c1"), lambda: NOW, NEVER, "edit")
+        run_turn(handed, files, engine, "p1", chats.get("p1", "c1"), lambda: NOW, NEVER)
     )
     assert handed.written == 1
     assert produced[-1] == chats.get("p1", "c1")
@@ -1329,24 +1335,80 @@ def test_an_allowed_call_runs(tmp_path):
     assert files.list_names("p1") == ["plan.md"]
 
 
-def test_an_allowed_call_changes_the_mode_for_the_rest_of_the_turn(tmp_path):
-    # One answer for two writes. Measured by the control running out if it is asked twice, which
-    # is exactly what a mode that did not change would do.
-    rounds = [
-        [
-            {
-                "tool_calls": [
-                    call("create_file", call_id="a", name="one.md", content="x"),
-                    call("create_file", call_id="b", name="two.md", content="y"),
-                ]
-            }
-        ],
-        [{"text": "done"}],
-    ]
-    control = Answers(allowed())
-    _, files, _, _ = _gated(tmp_path, rounds, control=control)
+TWO_WRITES = [
+    [
+        {
+            "tool_calls": [
+                call("create_file", call_id="a", name="one.md", content="x"),
+                call("create_file", call_id="b", name="two.md", content="y"),
+            ]
+        }
+    ],
+    [{"text": "done"}],
+]
+
+
+class AllowsInEdit(Answers):
+    """What an Allow does since Madde 463 (answer_question): the chat's mode becomes Edit before the
+    wait returns."""
+
+    def __init__(self, chats):
+        super().__init__(allowed())
+        self._chats = chats
+
+    def decision(self):
+        self._chats.set_mode("p1", "c1", "edit")
+        return super().decision()
+
+
+def test_the_mode_is_read_off_the_chat_at_every_call(tmp_path):
+    # One answer for two writes, because the Allow put the chat in Edit and the second call reads the
+    # chat's mode again. Measured by the control running out if it is asked twice.
+    chats, files = _seeded(tmp_path)
+    control = AllowsInEdit(chats)
+    _answer(chats, files, ScriptedEngine(TWO_WRITES), "ask", control)
     assert control.asked == 1
     assert sorted(files.list_names("p1")) == ["one.md", "two.md"]
+
+
+def test_an_allow_alone_does_not_change_the_mode_the_loop_runs_in(tmp_path):
+    # The switch to Edit is the server's rule in one place, answer_question: the loop keeps no
+    # copy of it, so a chat still in Ask asks again.
+    control = Answers(allowed(), allowed())
+    _, files, _, _ = _gated(tmp_path, TWO_WRITES, control=control)
+    assert control.asked == 2
+    assert sorted(files.list_names("p1")) == ["one.md", "two.md"]
+
+
+class PicksBetweenRounds(ScriptedEngine):
+    """A user picking a mode while the turn runs: the pick lands before the second request."""
+
+    def __init__(self, rounds, chats, mode):
+        super().__init__(rounds)
+        self._pick = lambda: chats.set_mode("p1", "c1", mode)
+
+    def stream(self, messages, tools=None, on_open=None):
+        if len(self.seen) == 1:
+            self._pick()
+        yield from super().stream(messages, tools, on_open)
+
+
+def test_a_mode_picked_while_the_turn_runs_reaches_its_next_call(tmp_path):
+    # Madde 463: from Edit to Ask mid-turn, so the write in the second round stops at its question.
+    chats, files = _seeded(tmp_path)
+    rounds = [[{"tool_calls": [a_call()]}], _write_round(), [{"text": "done"}]]
+    control = Answers(refused())
+    _answer(chats, files, PicksBetweenRounds(rounds, chats, "ask"), "edit", control)
+    assert control.asked == 1
+    assert files.list_names("p1") == []
+
+
+def test_a_chat_picked_into_edit_mid_turn_stops_asking(tmp_path):
+    # And back: from Ask to Edit, the write runs without a question. NEVER raises if it is asked.
+    chats, files = _seeded(tmp_path)
+    rounds = [[{"tool_calls": [a_call()]}], _write_round(), [{"text": "done"}]]
+    _answer(chats, files, PicksBetweenRounds(rounds, chats, "edit"), "ask")
+    assert files.list_names("p1") == ["plan.md"]
 
 
 def test_a_refused_call_does_not_run(tmp_path):
@@ -1446,12 +1508,12 @@ def _in_mode(tmp_path, rounds, mode):
     return chats, engine, produced
 
 
-def test_a_turn_that_names_no_mode_carries_the_writing_tools(tmp_path):
-    # The retry road sends no mode of its own, and neither does any caller written before this.
+def test_a_chat_nobody_picked_a_mode_for_runs_in_edit(tmp_path):
+    # Madde 463: a new chat, and every row written before chats had a mode. NEVER raises if asked.
     chats, files = _seeded(tmp_path)
-    engine = ScriptedEngine([[{"text": "Hi"}]])
+    engine = ScriptedEngine([_write_round(), [{"text": "done"}]])
     list(run_turn(chats, files, engine, "p1", chats.get("p1", "c1"), lambda: NOW, NEVER))
-    assert "create_file" in engine.tools[0]
+    assert files.list_names("p1") == ["plan.md"]
 
 
 def test_the_answer_is_stamped_when_it_is_written_not_when_the_turn_began(tmp_path):
