@@ -744,8 +744,8 @@ READ_FILE = "Read one of this project's files."
 
 CREATE_FILE = (
     "Save a document into this project.\n"
-    "- Call this only when the user asked for something worth keeping: a draft, a report, a "
-    "summary they will come back to.\n"
+    "- Call this for a plan file, or when the user asked for something worth keeping: a draft, a "
+    "report, a summary they will come back to.\n"
     "- To change a file that already exists, use edit_file. This tool refuses a name that is "
     "already taken.\n"
     "- This tool does not write scenarios. start_scenario opens those."

@@ -1299,6 +1299,17 @@ def test_create_file_no_longer_offers_to_write_a_structure():
     assert "start_scenario opens those" in spec["function"]["description"]
 
 
+def test_create_file_counts_the_plan_file():
+    # Madde 459. The system prompt and Start a scenario's Step 1 have the model write a plan file
+    # nobody asked for; a description saying only when the user asked told it the opposite. The first
+    # check holds the agreement rather than the sentence, so the line can be reworded; the second
+    # keeps the old sentence from coming back.
+    spec = next(s for s in TOOL_SPECS if s["function"]["name"] == "create_file")
+    said = spec["function"]["description"]
+    assert "plan file" in said
+    assert "only when the user asked" not in said
+
+
 def test_the_term_structure_file_is_still_anchored_somewhere():
     # The schema tool used to define it, and the model meets the words in several descriptions
     # before any skill text explains them. With that tool gone the definition has to ride with the
