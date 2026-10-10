@@ -29,6 +29,14 @@ export function patchJson(path, body) {
   return sendJson("PATCH", path, body);
 }
 
+// Whether a door answers at all, its body left unread (Madde 462): a stream EventSource gave up on
+// is asked once by hand, because EventSource passes on nothing of what the server said.
+export async function reach(path) {
+  const response = await fetch(path);
+  if (!response.ok) throw await failureFrom(response);
+  response.body?.cancel();
+}
+
 // Deleting answers with a body like everything else -- 204 would need an exception here, and this
 // is the one place that decides what a response means.
 export function deleteJson(path) {

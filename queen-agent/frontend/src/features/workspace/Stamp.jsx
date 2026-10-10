@@ -22,8 +22,7 @@ function shorten(count) {
 // an answer from before this existed reads back as zero, and a number there would claim a
 // measurement nobody took. The time never drops: it was said at a time either way.
 export default function Stamp({ at, usage, children }) {
-  // The wait is stamped by an effect, so the first draw of a pending box has no time yet. Nothing
-  // rather than an empty line.
+  // A stamp handed no time draws nothing rather than an empty line.
   if (!at) return null;
   return (
     <div className="msg__stamp">
@@ -82,8 +81,8 @@ export function LiveStrip({ at, round, of, tokens }) {
     const tick = setInterval(() => setWord((next) => (next + 1) % WORDS.length), WORD_MS);
     return () => clearInterval(tick);
   }, []);
-  // The time the wait was stamped leads, where the record's time will stand (Madde 348). The first
-  // draw of a pending box has none yet, and then the row starts with the round.
+  // When the question was asked leads, where the record's time will stand (Madde 348). With no
+  // time to read, the row starts with the round.
   const when = at ? `${clockTime(at)} · ` : "";
   return (
     <div className="msg__stamp msg__stamp--live" data-testid="live-strip">

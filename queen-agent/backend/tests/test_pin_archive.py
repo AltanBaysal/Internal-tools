@@ -336,8 +336,10 @@ def test_an_archived_project_is_used_as_any_other_and_stays_archived(tmp_path):
     client.patch(f"/api/projects/{pid}", json={"archived": True})
 
     sent = client.post(f"/api/projects/{pid}/messages", json={"text": "hello"})
-    assert sent.status_code == 200, "Arşivdeki projede mesaj reddedildi"
-    sent.get_data()
+    assert sent.status_code == 202, "Arşivdeki projede mesaj reddedildi"
+    # The turn runs on its own since Madde 461 and the door answers at once since 462: its events
+    # stream ends when the turn does.
+    client.get(f"/api/projects/{pid}/chats/{sent.get_json()['id']}/events").get_data()
     chats = client.get(f"/api/projects/{pid}/chats").get_json()
     assert len(chats) == 1, "Arşivdeki projenin sohbeti listelenmedi"
     record = client.get(f"/api/projects/{pid}/chats/{chats[0]['id']}").get_json()

@@ -6,7 +6,8 @@ again; an answered, stopped or empty chat has nothing to try again. It never wri
 that is on disk already, and writing it again is what put it there twice (Madde 449).
 
 The caller holds the chat for a turn (live_turns.py) before it reads it, so no turn is running here
-and the status is the record's. A running turn's Try again is refused before it gets this far.
+and the status is the record's. A running turn's Try again never gets this far: the door hands that
+turn back, and the screen listens to it again (Madde 462).
 
 A failed answer goes whole, its own steps and files with it: the chat no longer shows that turn's
 step cards or file cards. The files themselves stay on disk and in the rail.

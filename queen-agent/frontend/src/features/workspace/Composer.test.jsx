@@ -165,6 +165,19 @@ test("pressing it while an answer runs sends nothing", () => {
   expect(onSubmit).not.toHaveBeenCalled();
 });
 
+test("Enter sends nothing while the button is a stop, and the sentence stays", () => {
+  // Madde 462: Enter used to send while a turn ran, and the server refused it as busy.
+  const onSubmit = vi.fn();
+  render(
+    <Composer action="Send" placeholder="Ask anything" running onStop={vi.fn()} onSubmit={onSubmit} />,
+  );
+  const box = screen.getByPlaceholderText("Ask anything");
+  fireEvent.change(box, { target: { value: "next thing" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+  expect(onSubmit).not.toHaveBeenCalled();
+  expect(box.value).toBe("next thing");
+});
+
 test("with nothing running the button is what it always was", () => {
   const { button } = draw();
   expect(button.disabled).toBe(true);

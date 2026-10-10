@@ -11,15 +11,21 @@ from dataclasses import dataclass
 
 from backend.features.workspace.domain.chat import Chat, is_full
 from backend.features.workspace.domain.ports import LiveTurn
-from backend.features.workspace.domain.errors import ChatFull, ChatHeld, ChatNotFound, NothingToAnswer
+from backend.features.workspace.domain.errors import (
+    ChatFull,
+    ChatHeld,
+    ChatNotFound,
+    NothingToAnswer,
+    ProjectNotFound,
+)
 from backend.features.workspace.domain.usecases.append_message import append_message
 from backend.features.workspace.domain.usecases.retry_turn import retry_turn
 from backend.features.workspace.domain.usecases.run_turn import run_turn
 
 
 NO_TEXT = object()
-"""What `text` is when the request carried none: Try again. Absent is neither blank nor null -- those
-are sentences, refused or broken as sentences are."""
+"""What `text` is for Try again: no sentence at all. Only the retry door passes it (Madde 462) -- a
+message with no text is a blank one, refused as blank."""
 
 
 @dataclass(frozen=True)
@@ -32,10 +38,10 @@ class Started:
 
 @dataclass(frozen=True)
 class Nothing:
-    """Try again found nothing to try again -- an answer written while nobody was looking. Whoever
-    asked reads the chat as it is."""
+    """Try again found nothing to try again -- an answer written while nobody was looking, or a
+    stopped one. The chat as it was read, so whoever asked shows it without reading it again."""
 
-    chat_id: str
+    chat: Chat
 
 
 def advance_chat(
@@ -47,7 +53,7 @@ def advance_chat(
     project_id,
     wanted,
     text,
-    now,
+    clock,
     new_id,
     line_id,
     skill="",
@@ -55,24 +61,26 @@ def advance_chat(
     mode="",
 ):
     """Started or Nothing. `wanted` is the chat, empty for a draft, which is held by the id it is
-    about to be born as (`new_id`) -- nobody else can be holding that. `text` NO_TEXT is Try again."""
+    about to be born as (`new_id`) -- nobody else can be holding that. `text` NO_TEXT is Try again.
+
+    `clock` is asked for the question's moment here and for the answer's when the turn writes it."""
     held = wanted or new_id
     turn = turns.reserve(project_id, held)
     if turn is None:
         raise ChatHeld(held)
     try:
-        chat = _to_answer(
-            chat_store, project_store, project_id, wanted, text, now, new_id, line_id, skill, branch_at
+        read, chat = _to_answer(
+            chat_store, project_store, project_id, wanted, text, clock, new_id, line_id, skill, branch_at
         )
         if chat is None:
             turns.release(project_id, held, turn)
-            return Nothing(wanted)
+            return Nothing(read)
         turns.start(
             project_id,
             turn,
             chat,
             # The mode travels with the request and ends there until Madde 463 gives the chat one.
-            run_turn(chat_store, file_store, engine, project_id, chat, now, turn, mode),
+            run_turn(chat_store, file_store, engine, project_id, chat, clock, turn, mode),
         )
     except BaseException:
         turns.release(project_id, held, turn)
@@ -80,8 +88,9 @@ def advance_chat(
     return Started(turn, chat)
 
 
-def _to_answer(chat_store, project_store, project_id, wanted, text, now, new_id, line_id, skill, branch_at):
-    """The chat whose question a turn is to answer, read once; None when there is nothing to try."""
+def _to_answer(chat_store, project_store, project_id, wanted, text, clock, new_id, line_id, skill, branch_at):
+    """The chat as read, and the one whose question a turn is to answer -- None when there is
+    nothing to try. Read once."""
     existing = chat_store.get(project_id, wanted) if wanted else None
     # Asked before anything else that could refuse. A full chat that is also already answered is
     # both, and what the user needs to hear is the one that stops them.
@@ -94,12 +103,12 @@ def _to_answer(chat_store, project_store, project_id, wanted, text, now, new_id,
         # chat nobody asked for.
         if wanted and existing is None:
             raise ChatNotFound(wanted)
-        return append_message(
+        return existing, append_message(
             chat_store,
             project_id,
             existing,
             text,
-            now,
+            clock(),
             skill=skill,
             project_store=project_store,
             new_id=new_id,
@@ -109,6 +118,9 @@ def _to_answer(chat_store, project_store, project_id, wanted, text, now, new_id,
             line_id=line_id,
         )
     if existing is None:
+        # Which is missing, the project or its chat: the list says, off no disk (Madde 447).
+        if project_store.get(project_id) is None:
+            raise ProjectNotFound(project_id)
         raise NothingToAnswer(wanted)
     # Try again: after the ceiling, so a full chat refuses before anything is taken out.
-    return retry_turn(chat_store, project_id, existing)
+    return existing, retry_turn(chat_store, project_id, existing)

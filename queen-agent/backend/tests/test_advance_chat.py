@@ -10,6 +10,7 @@ from backend.features.workspace.domain.errors import (
     ChatNotFound,
     EmptyMessage,
     NothingToAnswer,
+    ProjectNotFound,
 )
 from backend.features.workspace.domain.usecases.advance_chat import (
     NO_TEXT,
@@ -63,7 +64,7 @@ def _stores(tmp_path, *said):
 
 def _advance(turns, chats, projects, wanted="c1", text="more", **fields):
     return advance_chat(
-        turns, chats, projects, None, None, "p1", wanted, text, AT, new_id="c9", line_id="l1", **fields
+        turns, chats, projects, None, None, "p1", wanted, text, lambda: AT, new_id="c9", line_id="l1", **fields
     )
 
 
@@ -118,6 +119,16 @@ def test_every_refusal_lets_the_chat_go_and_starts_nothing(tmp_path, wanted, tex
     assert turns.started == []
 
 
+def test_try_again_in_a_project_that_is_not_there_names_the_project(tmp_path):
+    projects, chats = _stores(tmp_path)
+    turns = FakeTurns()
+    with pytest.raises(ProjectNotFound):
+        advance_chat(
+            turns, chats, projects, None, None, "nope", "c1", NO_TEXT, lambda: AT, new_id="c9", line_id="l1"
+        )
+    assert turns.released == turns.held
+
+
 def test_a_full_chat_is_refused_for_its_ceiling_first(tmp_path):
     projects, chats = _stores(tmp_path, _user(), _ai("a" * 170_000, failed=""))
     turns = FakeTurns()
@@ -137,7 +148,11 @@ def test_a_fault_while_reading_lets_the_chat_go(tmp_path):
 def test_try_again_with_nothing_to_try_again_starts_nothing_and_lets_go(tmp_path):
     projects, chats = _stores(tmp_path, _user(), _ai())
     turns = FakeTurns()
-    assert _advance(turns, chats, projects, text=NO_TEXT) == Nothing("c1")
+    nothing = _advance(turns, chats, projects, text=NO_TEXT)
+    # The chat as it was read, handed back: whoever asked shows the answer already written, and
+    # reading it again would be a second trip for the same record (Madde 462).
+    assert isinstance(nothing, Nothing)
+    assert [m.text for m in nothing.chat.messages] == ["hi", "Done."]
     assert turns.started == [] and turns.released == turns.held
 
 

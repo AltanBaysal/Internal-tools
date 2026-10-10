@@ -1,10 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { getJson, postJson } from "../../shared/api.js";
-import { streamEvents } from "../../shared/sse.js";
+import { getJson, postJson, reach } from "../../shared/api.js";
 
-import { chatTitle } from "./chatTitle.js";
+// One chat of one project, as the streams below are kept by it.
+const chatKey = (projectId, chatId) => `${projectId}/${chatId}`;
 
+// What the card says when the browser refused a stream its door had just answered: nothing on the
+// wire said why, so this says only what happened.
+const GAVE_UP = "the browser closed this answer's stream";
+
+// The chat as the server says it stands (Madde 462): its record, its status and its running turn,
+// read once and then listened to. The screen draws that and nothing of its own -- what is kept here
+// is only what is being typed: the sentence on its way until the door answers, and a question just
+// answered until the server says it is gone.
 export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd) {
   const [chat, setChat] = useState(null);
   const [error, setError] = useState(null);
@@ -16,24 +24,14 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
   // what sends it again -- one owner, so it cannot go twice (Madde 349).
   const refusedReply = useRef(false);
   const [missing, setMissing] = useState(false);
-  const [thinking, setThinking] = useState(false);
   // Which message of the record the turn just ended on, so its words fade in once (design item
-  // 214), or null. The answer comes back whole with the record (Madde 440): nothing of it is drawn
-  // while the turn runs.
+  // 214), or null.
   const [arrived, setArrived] = useState(null);
-  const [creatingFile, setCreatingFile] = useState(false);
-  const [createdFiles, setCreatedFiles] = useState([]);
-  // What the turn has done so far. Held only while the answer runs: the record that arrives at the
-  // end carries the same steps, and drawing from both sources would read one step as two.
-  const [streamingCalls, setStreamingCalls] = useState([]);
-  // Where the turn has got to: {round, of, tokens}, or null before it has said (Madde 194). Held on
-  // the same terms as the calls above -- only while the answer runs, because what it describes stops
-  // existing when the turn does.
-  const [progress, setProgress] = useState(null);
-  // The question a paused turn is waiting on: {tool, args}, or null. The frame says `arguments` and
-  // this says `args` -- a language rule rather than a rename, since `arguments` cannot be
-  // destructured as a prop inside a module.
-  const [permission, setPermission] = useState(null);
+  // The sentence on its way: {key, text, at, from}. The design draws the bubble before the server
+  // answers; once it has, the record the door hands back carries the question itself.
+  const [pending, setPending] = useState(null);
+  // "turn:wait" of the question just answered: the card goes at once, not a round trip later.
+  const [decided, setDecided] = useState(null);
 
   // Kept in refs rather than dependencies: the caller may hand over fresh functions on every
   // render, and that must not rebuild `send`.
@@ -43,30 +41,167 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
   born.current = onChatBorn;
   const ended = useRef(onTurnEnd);
   ended.current = onTurnEnd;
-  // Which chat a stream is running into. The first frame moves the address, and the effect below
-  // must not answer that move by throwing away what is still arriving.
-  const streamingInto = useRef(null);
-  // The same fact for the screen: state rather than a ref, because what the hook returns is gated
-  // on it and the gate has to move a render (Madde 106).
-  const [streamingChatId, setStreamingChatId] = useState(null);
-  // The chat the screen is on now, read where a stream ends: a turn that lands elsewhere must not
-  // repaint this one.
-  const live = useRef(chatId);
-  live.current = chatId;
-  // The record the hook holds now, read by the loading effect: the birth guard may only skip the
-  // load when what is held already belongs here.
+  // The chat the screen is on now, read wherever an answer lands: one that lands elsewhere draws
+  // nothing here (Madde 106). The draft is null.
+  const here = useRef(null);
+  here.current = projectId && chatId ? chatKey(projectId, chatId) : null;
+  // The record held now, for what a press needs of it -- the turn and the question it names.
   const held = useRef(null);
   held.current = chat;
-  // The send that owns the shared stream states -- the newest one. An older stream keeps running
-  // on the server; what it may not do is draw on, or clear, a screen that is no longer its own.
-  const owner = useRef(null);
+  // The send whose sentence is on its way here (its `at`), and the one a Stop was pressed for
+  // before the door said which turn it started -- or null.
+  const onItsWay = useRef(null);
+  const early = useRef(null);
+  // The streams open now, one per turn listened to. A turn this hook started keeps its stream until
+  // it ends, wherever the screen is, so its end is heard (Madde 452); one the screen opened closes
+  // when the screen leaves the chat.
+  //
+  // What follows is written as plain functions: each reads only refs and state setters, so the copy
+  // a stream's handler holds is as good as the newest.
+  const streams = useRef(new Map());
+
+  const letGo = (key, stream) => {
+    stream.source.close();
+    if (streams.current.get(key) === stream) streams.current.delete(key);
+  };
+
+  const eventsOf = (project, id) => `/api/projects/${project}/chats/${id}/events`;
+
+  // `probed`: this stream was opened again after asking its door why the last one was refused.
+  const follow = (project, id, own, turnId, probed = false) => {
+    const key = `${chatKey(project, id)}/${turnId}`;
+    const open = streams.current.get(key);
+    if (open) {
+      open.own = open.own || own;
+      return;
+    }
+    const stream = {
+      project,
+      id,
+      key,
+      own,
+      turnId,
+      probed,
+      // Whether it ever said anything: a stream that worked is simply opened again once it fails.
+      heard: false,
+      files: 0,
+      source: new EventSource(eventsOf(project, id)),
+    };
+    streams.current.set(key, stream);
+    stream.source.onmessage = (event) => heard(stream, JSON.parse(event.data));
+    stream.source.onerror = () => {
+      // A drop is EventSource's own to mend: it reconnects, and its first frame is the turn as it
+      // stands. Only a stream it gave up on -- a refusal, the tunnel's 502 -- is ours.
+      if (stream.source.readyState === EventSource.CLOSED) gaveUp(stream);
+    };
+  };
+
+  const heard = (stream, said) => {
+    stream.heard = true;
+    const { turn } = said;
+    // A turn other than the one it opened for -- that one ended before the stream arrived -- is the
+    // end of this one: the record read then names the next.
+    if (!turn || turn.id !== stream.turnId) return finished(stream, said.error);
+    // A file exists this instant, so every list that shows it is out of date -- on every screen.
+    if (turn.files.length > stream.files) {
+      stream.files = turn.files.length;
+      announce.current?.();
+    }
+    if (chatKey(stream.project, stream.id) !== here.current) return;
+    setChat((current) => (current?.id === stream.id ? { ...current, turn } : current));
+  };
+
+  const finished = (stream, fault) => {
+    letGo(stream.key, stream);
+    // However the turn ended, wherever the screen is: what it wrote is on disk (Madde 192, 452).
+    if (stream.own) ended.current?.();
+    const key = chatKey(stream.project, stream.id);
+    if (key !== here.current) return;
+    // The record has one home (Madde 89): the turn is over, and what it wrote is read. Until it
+    // lands the turn still shows, so the wait does not blink out before the answer comes in.
+    getJson(`/api/projects/${stream.project}/chats/${stream.id}`)
+      .then((record) => {
+        if (key !== here.current) return;
+        setChat(record);
+        setArrived(record.messages.length - 1);
+        // The turn's own fault wrote nothing, and no record will say it: only those listening hear.
+        if (fault) setError(fault);
+      })
+      .catch((unreadable) => {
+        if (key !== here.current) return;
+        setChat((current) => (current?.id === stream.id ? { ...current, turn: null } : current));
+        // A fault already said is the real one; otherwise the read speaks for itself.
+        setError(fault || unreadable.message);
+      });
+  };
+
+  // EventSource gave up: a refusal, the tunnel's 502 or 524. It says nothing of why.
+  const gaveUp = (stream) => {
+    const { project, id, own } = stream;
+    letGo(stream.key, stream);
+    // One that had worked is opened again as it was, on screen or off: the door's first frame says
+    // at no disk whether the turn still runs, and {turn: null} ends it as any end does.
+    if (stream.heard) return follow(project, id, own, stream.turnId);
+    const key = chatKey(project, id);
+    if (key !== here.current) {
+      // Never worked, and no screen to say so on: its end will not be heard, so it is called here,
+      // once -- the lists it refreshes are read from memory either way.
+      if (own) ended.current?.();
+      return;
+    }
+    // The card takes the wait's place, as the failure card does: a turn nobody can hear is not
+    // drawn as one -- no dots, no strip, no dashed card frozen above it. Its Try again is the retry
+    // door, which hands the turn back and listens again.
+    const cannotFollow = (words) => {
+      if (key !== here.current) return;
+      setChat((current) => (current?.id === id ? { ...current, turn: null } : current));
+      setError(words);
+    };
+    // Read once: a server that is down says so in the read's own words, and one that is back says
+    // what the chat is doing now.
+    getJson(`/api/projects/${project}/chats/${id}`)
+      .then((record) => {
+        if (key !== here.current) return;
+        setChat(record);
+        if (!record.turn) {
+          if (own) ended.current?.();
+          return;
+        }
+        // Still running, and the stream never said a word: its door is asked once, by hand, for
+        // what EventSource does not pass on. A second refusal after that is not asked again.
+        if (stream.probed) return cannotFollow(GAVE_UP);
+        reach(eventsOf(project, id))
+          .then(() => {
+            if (key === here.current) follow(project, id, own, record.turn.id, true);
+          })
+          .catch((refusal) => cannotFollow(refusal.message));
+      })
+      .catch((unreadable) => cannotFollow(unreadable.message));
+  };
+
+  // What the door answered a send or a Try again with: the chat as reading it gives it. `at` names
+  // the send, whose Stop may have been pressed before the door said which turn it would stop.
+  const took = (project, answer, key, at = null) => {
+    if (answer.turn) {
+      follow(project, answer.id, true, answer.turn.id);
+      if (early.current !== null && early.current === at) {
+        postJson(`/api/projects/${project}/chats/${answer.id}/stop`, { turn: answer.turn.id }).catch(
+          () => {},
+        );
+      }
+    }
+    // Over before the door could answer: what it wrote is already in the answer.
+    else ended.current?.();
+    if (early.current === at) early.current = null;
+    if (key !== here.current) return;
+    setChat(answer);
+    if (!answer.turn) setArrived(answer.messages.length - 1);
+  };
 
   useEffect(() => {
-    // No chat at this address: the draft, or no chat screen at all. Dropped rather than kept -- a
-    // held record is the chat that was left, the draft's first bubble lands on it, and the birth
-    // then shows that transcript at the newborn's address (Madde 104).
-    // A refusal belongs to the chat it was said in: its Try again sends the box, which pressed
-    // here would write the sentence into this chat.
+    // No chat at this address: the draft, or no chat screen at all. A refusal belongs to the chat
+    // it was said in: its Try again sends the box, which pressed here would write the sentence into
+    // this chat.
     if (!projectId || !chatId) {
       setChat(null);
       setError(null);
@@ -75,13 +210,8 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
       setArrived(null);
       return undefined;
     }
-    // Madde 88's birth guard, narrowed by Madde 106: skip the load only while what is held
-    // already belongs here -- the stood-up draft record (id null) or this chat's own. A return
-    // from another chat holds that chat's record, and the transcript comes back from disk.
-    if (chatId === streamingInto.current && held.current) {
-      const heldId = held.current.id;
-      if (heldId === null || heldId === chatId) return undefined;
-    }
+    // Madde 88's birth guard: the door's answer already drew the chat the draft was born as.
+    if (held.current?.id === chatId) return undefined;
     let cancelled = false;
     setChat(null);
     setError(null);
@@ -102,227 +232,131 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
     };
   }, [projectId, chatId]);
 
-  // One road for both jobs since Madde 88: a sentence and a second attempt are the same request
-  // with and without text, and the answer comes back down it either way. Nothing here runs by
-  // itself -- what used to ask on a reload and on a reconnection is a rule on the server now.
-  //
-  // The skill travels with the message rather than being read off the chat: what governed a turn
-  // is settled when the turn is sent. The mode travels the same way and is kept nowhere -- what it
-  // decides is which tools the request carries, and that is decided the moment it is sent.
+  // The chat on screen has a turn running: listen to it. Its own record's turn only -- for the one
+  // render after the address moves, the record held is still the last chat's.
+  const running = chat && chat.id === chatId ? (chat.turn?.id ?? null) : null;
+  useEffect(() => {
+    if (!running) return undefined;
+    follow(projectId, chatId, false, running);
+    const key = `${chatKey(projectId, chatId)}/${running}`;
+    return () => {
+      const stream = streams.current.get(key);
+      if (stream && !stream.own) letGo(key, stream);
+    };
+  }, [projectId, chatId, running]);
+
+  // Coming back to the tab -- switched to, or clicked into beside another -- reads the chat once,
+  // unless a stream already follows a turn in it: a turn another tab started is then drawn, and the
+  // effect above listens to it. One read per return, no connection held while away.
+  useEffect(() => {
+    if (!projectId || !chatId) return undefined;
+    const key = chatKey(projectId, chatId);
+    let reading = false;
+    // Something newer than a look owns the screen: a stream following a turn here, or a sentence
+    // on its way, whose answer is the newer record.
+    const busy = () =>
+      onItsWay.current !== null ||
+      [...streams.current.values()].some((s) => chatKey(s.project, s.id) === key);
+    const back = () => {
+      if (document.visibilityState === "hidden" || reading || busy()) return;
+      if (held.current?.id !== chatId) return;
+      reading = true;
+      getJson(`/api/projects/${projectId}/chats/${chatId}`)
+        // Asked again as it lands: a send may have been answered while the look was out.
+        .then((record) => key === here.current && !busy() && setChat(record))
+        // Nothing is said of a look that failed: the screen keeps what it had, as it was.
+        .catch(() => {})
+        .finally(() => {
+          reading = false;
+        });
+    };
+    window.addEventListener("focus", back);
+    document.addEventListener("visibilitychange", back);
+    return () => {
+      window.removeEventListener("focus", back);
+      document.removeEventListener("visibilitychange", back);
+    };
+  }, [projectId, chatId]);
+
+  // Nothing outlives the hook: a stream left open is a connection held for nobody.
+  useEffect(
+    () => () => {
+      for (const stream of streams.current.values()) stream.source.close();
+      streams.current.clear();
+    },
+    [],
+  );
+
+  // A sentence, or an edit of one (`from`, Madde 195). The skill travels with the message rather
+  // than being read off the chat: what governed a turn is settled when the turn is sent. So does
+  // the mode, until Madde 463 gives the chat one.
   const send = useCallback(
-    async (text = null, skill = "", mode = "", from = null) => {
+    async (text, skill = "", mode = "", from = null) => {
+      const key = here.current;
       const at = new Date().toISOString();
-      const token = {};
-      owner.current = token;
-      // Where this turn lands. Starts as the chat it was sent from; the first frame can name a
-      // newborn instead. Local, so a send that lost the screen still knows its own chat.
-      let target = chatId;
-      // Whether the first frame came (Madde 449). The server writes the question before it sends a
-      // byte, so from that frame on the question is on disk -- and the frame is also the one thing
-      // that names a chat born in the draft, where a Try again has to go.
-      let reached = false;
-      if (text !== null) {
-        // The bubble appears before the server answers -- the design says so in as many words. In
-        // a draft there is no record to add it to, so one is stood up to hold it.
-        setChat((current) =>
-          current
-            ? {
-                ...current,
-                // An edit opens a line where the old message stood, so what is drawn while the
-                // server answers is the conversation up to that point and the new sentence -- not
-                // the new sentence after turns it has just replaced (Madde 195).
-                messages: [
-                  ...(from === null ? current.messages : current.messages.slice(0, from)),
-                  { role: "user", at, text, pending: true },
-                ],
-              }
-            : {
-                id: null,
-                // The server names the newborn the same way, so the name the window shows now is
-                // the name the record comes back with when the turn ends.
-                title: chatTitle(text),
-                messages: [{ role: "user", at, text, pending: true }],
-              },
-        );
-      }
+      setPending({ key, text, at, from });
       setRefused(null);
       setError(null);
-      setThinking(true);
       setArrived(null);
-      setCreatingFile(false);
-      setCreatedFiles([]);
-      setStreamingCalls([]);
-      setProgress(null);
-      streamingInto.current = chatId;
-      setStreamingChatId(chatId);
-      // No text at all is how Try again asks: the question is already on disk and must not be
-      // written a second time. A blank one would be refused, which is a different thing. It still
-      // carries the mode: a question asked again in Plan or Ask must not run in Edit and write
-      // without asking.
-      // An edit carries where it starts from (Madde 195); an ordinary reply carries no such field,
-      // and the server tells the two apart by its absence rather than by a number meaning nothing.
-      const body =
-        text === null
-          ? { chat: chatId, mode }
-          : {
-              chat: chatId ?? "",
-              text,
-              skill,
-              mode,
-              ...(from === null ? {} : { from }),
-            };
       try {
-        await streamEvents(
-          `/api/projects/${projectId}/messages`,
-          (frame) => {
-            if (frame.event === "chat") {
-              target = frame.data.chat;
-              reached = true;
-              if (owner.current !== token) return;
-              streamingInto.current = target;
-              setStreamingChatId(target);
-              // Try again on a failed answer (Madde 440): by this first frame the server has taken
-              // it out of the record, so the record is read again and the wait takes the card's
-              // place. Which message goes is the server's rule, not the screen's. A read that fails
-              // here costs nothing but the card staying until the turn's own read at its end, which
-              // reports for itself; one that lands after this turn lost the screen draws nothing.
-              if (text === null) {
-                getJson(`/api/projects/${projectId}/chats/${target}`)
-                  .then((record) => {
-                    if (owner.current === token && target === live.current) setChat(record);
-                  })
-                  .catch(() => {});
-              }
-              if (target !== chatId) born.current?.(target);
-              return;
-            }
-            // A newer send owns the screen: this stream still lands on disk and is read from
-            // there, but it draws nothing any more -- except a born file, which is true for
-            // every screen.
-            if (owner.current !== token) {
-              if (frame.event === "file") announce.current?.();
-              return;
-            }
-            if (frame.event === "call") {
-              setStreamingCalls((calls) => [...calls, frame.data]);
-              // The dashed card lives between "the model asked" and "the tool answered", and this
-              // frame is the second. Only a born file used to take it down, so a tool that wrote
-              // nothing left it up until the turn ended.
-              setCreatingFile(false);
-            } else if (frame.event === "progress") {
-              // Replaced rather than collected: the frame carries where the turn is now, and one
-              // line has room for one answer.
-              setProgress(frame.data);
-            } else if (frame.event === "file-start") setCreatingFile(true);
-            else if (frame.event === "file") {
-              setCreatedFiles((names) => [...names, frame.data.name]);
-              setCreatingFile(false);
-              // The file exists on disk this instant, so every list that shows it is out of date.
-              announce.current?.();
-            } else if (frame.event === "permission") {
-              // The turn has stopped and is reading for an answer. Nothing else about the screen
-              // changes: it is still running, so the send button is still a stop.
-              setPermission({ tool: frame.data.tool, args: frame.data.arguments });
-            }
-            // The closing frame carries nothing since Madde 89: it says the turn is over, and what
-            // the turn wrote is read below.
-            else if (frame.event === "error") {
-              // The turn's fault belongs to the chat it ran in: standing elsewhere, the screen
-              // does not wear it -- the unanswered message in the record says it on a visit.
-              if ((target ?? null) === (live.current ?? null)) setError(frame.data.error);
-            }
-          },
-          body,
-        );
-        // The record has one home, so the turn ends by reading it -- before the finally below
-        // clears what streamed, or the transcript blinks empty between the two. Whatever the turn
-        // ended as: a fault still leaves the user's own sentence on disk, and it has to stay on
-        // the screen. Read either way; what it may not do is dress a screen standing in another
-        // chat (Madde 106) -- that chat's own visit reads the same record.
-        const landed = target ?? chatId;
-        if (landed) {
-          try {
-            const record = await getJson(`/api/projects/${projectId}/chats/${landed}`);
-            if (landed === live.current) {
-              setChat(record);
-              setArrived(record.messages.length - 1);
-            }
-          } catch (unreadable) {
-            // A fault already reported is the turn's real one, and replacing it with this would
-            // show the wrong cause. Otherwise the read speaks for itself: the answer was written,
-            // and what was lost is the showing of it.
-            if (landed === live.current) setError((current) => current ?? unreadable.message);
-          }
-        }
+        const answer = await postJson(`/api/projects/${projectId}/messages`, {
+          chat: chatId ?? "",
+          text,
+          skill,
+          mode,
+          // An ordinary reply carries no such field, and the server tells the two apart by its
+          // absence rather than by a number meaning nothing.
+          ...(from === null ? {} : { from }),
+        });
+        took(projectId, answer, key, at);
+        // Madde 88: a chat this screen was not on has just been born, and the address follows it.
+        if (key === here.current && answer.id !== chatId) born.current?.(answer.id);
       } catch (failure) {
-        // The connection dropped after the first frame: the question is on disk, so this is an
-        // answer that never came, not a sentence refused (Madde 449). Its bubble stays, the box is
-        // not handed the sentence -- one more Enter would write it twice --, and the card's Try
-        // again asks with no sentence. A fault the stream already said is the real one and stays,
-        // as it does over a record that could not be read.
-        if (reached) {
-          if ((target ?? null) === (live.current ?? null)) {
-            setError((current) => current ?? failure.message);
+        // Refused, or the server never answered: nothing was written, so the transcript is the
+        // server's as it was -- the bubble alone goes, and a Stop pressed for it with it. A turn
+        // holding the chat (409) is followed, and its answer is the chat as that turn holds it: a
+        // tab that was out of date draws the question it never saw, under the wait. The box keeps
+        // the sentence for when the turn ends.
+        if (early.current === at) early.current = null;
+        if (key === here.current) {
+          setRefused(failure.message);
+          const { error: _words, ...stands } = failure.body ?? {};
+          if (stands.messages && chatId) {
+            setChat((current) => (current?.id === chatId ? stands : current));
           }
-          return;
         }
-        // No first frame: refused, or dropped before the server said anything. Nothing says the
-        // question was written, and almost always it was not -- the one gap is a connection lost
-        // between the server's write and its first byte. So it is read as unsent: the optimistic
-        // bubble is taken back out, and the screen never claims something was said that may not
-        // have been.
-        if (text !== null) {
-          setChat((current) =>
-            current
-              ? {
-                  ...current,
-                  messages: current.messages.filter(
-                    (message) => !(message.at === at && message.text === text),
-                  ),
-                }
-              : current,
-          );
-        }
-        if ((target ?? null) === (live.current ?? null)) setRefused(failure.message);
-        refusedReply.current = text !== null && from === null;
-        // Thrown on rather than swallowed, but only when there was a sentence: the composer is
-        // holding the only copy of it and has to know to keep it.
-        if (text !== null) throw failure;
+        refusedReply.current = from === null;
+        // Thrown on: the field holding the only copy of the sentence has to know to keep it.
+        throw failure;
       } finally {
-        // Only the send that owns the screen clears it: an older stream sweeping these would wipe
-        // one that is still drawing (Madde 106).
-        if (owner.current === token) {
-          // The cards drawn from the stream go: the stored answer carries the same names, and a
-          // stream that broke wrote no answer at all.
-          setCreatingFile(false);
-          setCreatedFiles([]);
-          setStreamingCalls([]);
-          // The strip becomes the record's stamp: same place, and the count stops where it stopped.
-          setProgress(null);
-          // However the turn ended. A question left standing would hang over the next turn,
-          // offering to allow something nobody is waiting on any more.
-          setPermission(null);
-          setThinking(false);
-          // Cleared so a later visit loads from disk: while a stream runs its chat reads from
-          // these states, and once it ends the record is the only home (Madde 89).
-          streamingInto.current = null;
-          setStreamingChatId(null);
-          owner.current = null;
-        }
-        // Outside that gate, and however the turn ended (Madde 192). The gate guards what draws on
-        // the screen; this draws nothing -- it asks the disk. What the turn wrote is written
-        // whoever is looking, and a fault is an ending too: what got as far as disk is on it. The
-        // same reason a born file is announced for every screen. Whether the first frame came goes
-        // with it: only then was the question written, and with it the chat's last activity.
-        ended.current?.(reached);
+        setPending((current) => (current?.at === at ? null : current));
+      }
+    },
+    [projectId, chatId],
+  );
+
+  // Try again, through its own door (Madde 462): what it does is the chat's status, and the
+  // server's to decide -- reconnect to a running turn, answer a question nobody answered or a
+  // failed answer, or nothing. The question is never written again.
+  const retry = useCallback(
+    async (mode = "") => {
+      if (!chatId) return;
+      const key = here.current;
+      setRefused(null);
+      setError(null);
+      setArrived(null);
+      try {
+        took(projectId, await postJson(`/api/projects/${projectId}/chats/${chatId}/retry`, { mode }), key);
+      } catch (failure) {
+        if (key === here.current) setRefused(failure.message);
+        refusedReply.current = false;
       }
     },
     [projectId, chatId],
   );
 
   // Which version of the conversation is open (Madde 195). The record is read back rather than
-  // guessed at: the server keeps which line is open, and a second answer held here is the one that
-  // would go stale.
+  // guessed at: the server keeps which line is open.
   const version = useCallback(
     async (wanted) => {
       try {
@@ -338,8 +372,7 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
   );
 
   // Continue here (Madde 352): the server trims, and the record is read back the way a version is.
-  // A refusal met while the chat was full said it was full, which stops being true here; an answer
-  // that never came is still owed, so its card and its Try again stay.
+  // A refusal met while the chat was full said it was full, which stops being true here.
   const trim = useCallback(async () => {
     try {
       await postJson(`/api/projects/${projectId}/chats/${chatId}/trim`);
@@ -350,57 +383,82 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
     }
   }, [projectId, chatId]);
 
+  // Stop names the turn it was pressed for: one landing after it reaches nothing (Madde 462). What
+  // it amounts to is heard on the stream, so the door's answer is not read. Pressed while the
+  // sentence is still on its way, it is kept for that send, and sent once the door names the turn.
   const stop = useCallback(async () => {
-    // The server's answer carries nothing; what matters is that the running turn's connection is
-    // cut. A refusal is not worth a message -- the stream ends either way.
-    await postJson(`/api/projects/${projectId}/chats/${chatId}/stop`, {}).catch(() => {});
-  }, [projectId, chatId]);
+    const current = held.current;
+    if (!current?.turn) {
+      early.current = onItsWay.current;
+      return;
+    }
+    await postJson(`/api/projects/${projectId}/chats/${current.id}/stop`, {
+      turn: current.turn.id,
+    }).catch(() => {});
+  }, [projectId]);
 
+  // And the answer names the question too, within its turn.
   const answer = useCallback(
     async (allowed, reason) => {
-      // The card goes first: the turn carries on down the stream that is already open, and waiting
-      // for the door to reply would leave the question on screen after it was settled.
-      setPermission(null);
-      // The chat the stream went into rather than the address: a chat born by this very message
-      // has no address yet, and the answer would knock at chats/null.
-      const landed = streamingInto.current ?? chatId;
-      await postJson(
-        `/api/projects/${projectId}/chats/${landed}/permission`,
-        allowed ? { allowed: true } : { allowed: false, reason },
-      ).catch(() => {});
+      const current = held.current;
+      const asked = current?.turn?.permission;
+      if (!asked) return;
+      setDecided(`${current.turn.id}:${asked.wait}`);
+      await postJson(`/api/projects/${projectId}/chats/${current.id}/permission`, {
+        turn: current.turn.id,
+        wait: asked.wait,
+        ...(allowed ? { allowed: true } : { allowed: false, reason }),
+      })
+        // Not left, so the question still stands: its card comes back to be answered again.
+        .catch(() => setDecided(null));
     },
-    [projectId, chatId],
+    [projectId],
   );
 
-  // What the stream draws belongs to the chat it runs into (Madde 106): standing elsewhere, none
-  // of it shows -- and coming back, it shows again. The draft is its own chat here: null equals
-  // null until the first frame names the newborn, and the address follows it.
-  const visible = streamingChatId === (chatId ?? null);
+  // The sentence on its way stands in the transcript it was sent from: an edit where the old
+  // message stood (Madde 195), a reply at the end. A draft draws none (withSentence).
+  const sending = pending && pending.key === here.current ? pending : null;
+  onItsWay.current = sending?.at ?? null;
+  const shown = sending ? withSentence(chat, sending) : chat;
+  const turn = chat && chat.id === chatId ? chat.turn : null;
+  const asked = turn?.permission;
   return {
-    chat,
+    chat: shown,
     error,
     refused,
     missing,
-    thinking: visible && thinking,
+    // The wait and its Stop stand from the moment the sentence leaves.
+    thinking: Boolean(turn || sending),
+    // When it left: the wait's time where no bubble stands to read it from -- the draft.
+    sentAt: sending?.at ?? null,
     arrived,
-    creatingFile: visible && creatingFile,
-    createdFiles: visible ? createdFiles : [],
-    streamingCalls: visible ? streamingCalls : [],
-    progress: visible ? progress : null,
-    permission: visible ? permission : null,
+    creatingFile: Boolean(turn?.creating),
+    createdFiles: turn?.files ?? [],
+    streamingCalls: turn?.calls ?? [],
+    progress: turn?.progress ?? null,
+    // The frame says `arguments` and this says `args` -- a language rule rather than a rename,
+    // since `arguments` cannot be destructured as a prop inside a module.
+    permission:
+      asked && `${turn.id}:${asked.wait}` !== decided ? { tool: asked.tool, args: asked.arguments } : null,
     send,
     stop,
     answer,
     version,
     trim,
-    // The transient card's Try again sends again what got no answer. A refused reply is the
-    // composer's to send: its sentence went back there. Anything else -- a turn that broke, a
-    // refused Try again, or a refused edit, whose sentence nothing holds any more -- asks with no
-    // sentence on it, in the mode the session is in.
-    retry: (sendBox, mode) =>
-      refused && refusedReply.current ? sendBox() : send(null, "", mode),
-    // The recorded failed answer's Try again (Madde 440): the server takes the answer out and
-    // answers its question again. Never the composer -- what it holds is the next thing to say.
-    answerAgain: (mode) => send(null, "", mode),
+    // The transient card's Try again. A refused reply is the composer's to send: its sentence went
+    // back there. Anything else -- a turn that broke, a refused Try again or edit, a stream that
+    // could not be followed -- asks the chat's own door.
+    retry: (sendBox, mode) => (refused && refusedReply.current ? sendBox() : retry(mode)),
+    // The recorded failed answer's Try again (Madde 440): never the composer -- what it holds is the
+    // next thing to say.
+    answerAgain: retry,
   };
+}
+
+function withSentence(chat, { text, at, from }) {
+  // A draft has no record to stand it in, and draws none: the screen shows the draft until the
+  // door's answer names the newborn, and that answer is its record, under the name the server gave.
+  if (!chat) return chat;
+  const before = from === null ? chat.messages : chat.messages.slice(0, from);
+  return { ...chat, messages: [...before, { role: "user", at, text }] };
 }

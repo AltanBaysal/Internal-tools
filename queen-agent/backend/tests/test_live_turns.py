@@ -83,6 +83,23 @@ def test_a_late_release_does_not_let_go_of_the_next_turn():
     assert turns.get("p1", "c1") is second
 
 
+def test_a_release_ends_the_turn_it_lets_go_of():
+    # A hold that never ran -- a version, a refused send -- has to end too (Madde 462): a reload in
+    # that moment listens to it, and a turn nobody ends keeps its listener waiting for ever.
+    turns = LiveTurns()
+    held = turns.reserve("p1", "c1")
+    turns.release("p1", "c1", held)
+    assert held.snapshot().ended and held.snapshot().error == ""
+
+
+def test_a_turn_ends_once_and_keeps_the_words_of_its_first_end():
+    turn = LiveTurns().reserve("p1", "c1")
+    turn.end("the disk went away")
+    ended = turn.snapshot()
+    turn.end("")
+    assert turn.snapshot() == ended
+
+
 def test_a_project_knows_whether_any_of_its_chats_is_answering():
     turns = LiveTurns()
     turns.reserve("p1", "c1")

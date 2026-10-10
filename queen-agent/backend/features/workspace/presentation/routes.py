@@ -26,7 +26,7 @@ from backend.features.workspace.domain.chat import (
     sent_from,
     variants_of,
 )
-from backend.features.workspace.domain.turn import Snapshot
+from backend.features.workspace.domain.turn import status_of
 from backend.features.workspace.domain.usecases.advance_chat import (
     NO_TEXT,
     Started,
@@ -40,6 +40,7 @@ from backend.features.workspace.domain.usecases.list_chats import list_chats
 from backend.features.workspace.domain.usecases.list_files import list_files
 from backend.features.workspace.domain.usecases.list_projects import list_projects
 from backend.features.workspace.domain.usecases.open_version import open_version
+from backend.features.workspace.domain.usecases.read_chat import read_chat
 from backend.features.workspace.domain.usecases.read_file import read_file
 from backend.features.workspace.domain.usecases.trim_chat import trim_chat
 
@@ -50,7 +51,7 @@ BUSY = "this chat is still answering -- try again once it has finished"
 PROJECT_BUSY = "a chat in this project is still answering -- try again once it has finished"
 
 BEAT_SECONDS = 15
-"""How long the POST's stream may stay quiet before it says something (Madde 461).
+"""How long the events stream may stay quiet before it says something (Madde 461, 462).
 
 Not a timeout: neither the turn nor its question has an end of its own. What this number says is
 how often the browser hears from us while nothing happens -- the model thinking as well as a
@@ -58,6 +59,10 @@ question waiting: a stream gone quiet inside a tunnel is a stream the tunnel clo
 seconds on trycloudflare), and a browser that went away is only discovered by writing to it. Since
 the turn runs on its own, that discovery ends only the listening, never the turn.
 """
+
+# What keeps a proxy from holding the frames back: nothing here may be cached, and nginx-style
+# buffers are told to pass each frame on as it is written.
+EVENT_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
 
 
 def make_workspace_bp(project_store, chat_store, file_store, engine, turns):
@@ -119,65 +124,106 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, turns):
 
     @workspace_bp.get("/api/projects/<project_id>/chats/<chat_id>")
     def get_chat(project_id, chat_id):
-        # While a turn runs it holds the chat as it stands -- nothing else writes it then -- so a
-        # reload reads it there, off no disk (Madde 461).
-        live = turns.get(project_id, chat_id)
-        chat = (live and live.record()) or chat_store.get(project_id, chat_id)
+        # With its status and its running turn (Madde 462): a reload draws the turn, its Stop and
+        # its question from here. While a turn runs, off no disk (Madde 461).
+        chat, snapshot = read_chat(turns, chat_store, project_id, chat_id)
         if chat is None:
             return jsonify({"error": "chat not found"}), 404
-        return jsonify(_chat_json(chat))
+        return jsonify(_chat_state(chat, snapshot))
 
-    # One door, and one meaning: advance this chat. Which chat is a field in the body rather than a
-    # piece of the address, because it is allowed to be empty -- and an empty piece of a path is a
-    # different address, not an empty value.
-    #
-    # Text writes a message first; no text is Try again. The turn runs on a thread of its own since
-    # Madde 461, whoever is listening; what leaves down this connection is the bridge's telling of
-    # it, so the screen is what it was.
+    @workspace_bp.get("/api/projects/<project_id>/chats/<chat_id>/events")
+    def get_events(project_id, chat_id):
+        # The running turn as it moves (Madde 462). Found here rather than inside the stream, so the
+        # turn listened to is the one running as the request arrives. No chat is read: a name that
+        # holds no turn hears that none runs, which is all this door says.
+        live = turns.get(project_id, chat_id)
+        return Response(_listened(live), mimetype="text/event-stream", headers=EVENT_HEADERS)
+
+    def advanced_json(advanced):
+        """A started turn's answer, or Try again's when it found nothing: the chat as reading it
+        gives it -- the screen draws the transcript at once, with no read after the door's answer
+        (Madde 462). The turn is looked at before the record it holds, as read_chat does."""
+        if isinstance(advanced, Started):
+            snapshot = advanced.turn.snapshot()
+            return jsonify(_chat_state(advanced.turn.record(), snapshot)), 202
+        return jsonify(_chat_state(advanced.chat, None)), 200
+
+    def busy(project_id, chat_id):
+        # With the chat as the turn holds it, off no disk: a tab that was out of date draws the turn
+        # it ran into over the question that started it, and its box keeps the sentence. A name
+        # with no chat behind it -- two requests for one wrong id at once -- has only the turn.
+        chat, snapshot = read_chat(turns, chat_store, project_id, chat_id)
+        if chat is None:
+            return jsonify({"error": BUSY, "turn": _turn_json(snapshot)}), 409
+        return jsonify({"error": BUSY, **_chat_state(chat, snapshot)}), 409
+
+    def advance(project_id, wanted, text, payload):
+        return advance_chat(
+            turns,
+            chat_store,
+            project_store,
+            file_store,
+            engine,
+            project_id,
+            wanted,
+            text,
+            _now,
+            # Minted whether or not they are used: the alternative is a second branch inside the
+            # rule, asking the route for an id only once it knows it needs one.
+            new_id=_new_id("c"),
+            line_id=_new_id("l"),
+            skill=payload.get("skill", ""),
+            branch_at=payload.get("from"),
+            # The request says it until Madde 463 gives the chat one.
+            mode=payload.get("mode", ""),
+        )
+
+    # One door, and one meaning: say something in this chat. Which chat is a field in the body
+    # rather than a piece of the address, because it is allowed to be empty -- and an empty piece of
+    # a path is a different address, not an empty value. Try again has a door of its own since
+    # Madde 462, so absent text here is blank text, refused as blank.
     @workspace_bp.post("/api/projects/<project_id>/messages")
     def post_message(project_id):
         payload = request.get_json(silent=True) or {}
+        wanted = payload.get("chat", "")
         try:
-            advanced = advance_chat(
-                turns,
-                chat_store,
-                project_store,
-                file_store,
-                engine,
-                project_id,
-                payload.get("chat", ""),
-                # Absent is neither blank nor null: no sentence at all is Try again.
-                payload.get("text", NO_TEXT),
-                _now(),
-                # Minted whether or not they are used: the alternative is a second branch inside
-                # the rule, asking the route for an id only once it knows it needs one.
-                new_id=_new_id("c"),
-                line_id=_new_id("l"),
-                skill=payload.get("skill", ""),
-                branch_at=payload.get("from"),
-                mode=payload.get("mode", ""),
-            )
-        except ChatHeld:
-            return jsonify({"error": BUSY}), 409
+            advanced = advance(project_id, wanted, payload.get("text", ""), payload)
+        except ChatHeld as held:
+            return busy(project_id, held.args[0])
         except ChatFull:
-            return jsonify(
-                {"error": "this chat has reached its context ceiling -- start a new chat to keep going"}
-            ), 400
+            return full()
         except ProjectNotFound:
             return jsonify({"error": "project not found"}), 404
         except ChatNotFound:
             return jsonify({"error": "chat not found"}), 404
         except EmptyMessage:
             return jsonify({"error": "a message needs text"}), 400
+        return advanced_json(advanced)
+
+    # Try again (Madde 462): what it means is the chat's status, and the server's to decide. A
+    # running turn is handed back, so the screen reconnects; an unanswered question or a failed
+    # answer starts the loop; anything else is answered as it is. The question is never written.
+    @workspace_bp.post("/api/projects/<project_id>/chats/<chat_id>/retry")
+    def post_retry(project_id, chat_id):
+        payload = request.get_json(silent=True) or {}
+        try:
+            advanced = advance(project_id, chat_id, NO_TEXT, payload)
+        except ChatHeld:
+            # Reconnecting writes nothing and reads the chat where the turn holds it.
+            chat, snapshot = read_chat(turns, chat_store, project_id, chat_id)
+            return jsonify(_chat_state(chat, snapshot))
+        except ChatFull:
+            return full()
+        except ProjectNotFound:
+            return jsonify({"error": "project not found"}), 404
         except NothingToAnswer:
-            return jsonify({"error": "there is nothing here to answer"}), 400
-        # Every refusal is settled by here, which is why they can still be status codes. A started
-        # turn has its question written, and the first frame is `chat`: the browser reads it as
-        # "the question is written" and asks again without it (Madde 449). Nothing to try again
-        # ends the stream at once, and the screen reads the record and shows the answer.
-        if isinstance(advanced, Started):
-            return Response(_sse(advanced.chat.id, advanced.turn), mimetype="text/event-stream")
-        return Response(_sse(advanced.chat_id, None), mimetype="text/event-stream")
+            return jsonify({"error": "chat not found"}), 404
+        return advanced_json(advanced)
+
+    def full():
+        return jsonify(
+            {"error": "this chat has reached its context ceiling -- start a new chat to keep going"}
+        ), 400
 
     @workspace_bp.post("/api/projects/<project_id>/chats/<chat_id>/version")
     def post_version(project_id, chat_id):
@@ -219,32 +265,31 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, turns):
         # to say, off no disk.
         if not any(chat.id == chat_id for chat in chat_store.list_for(project_id)):
             return jsonify({"error": "chat not found"}), 404
-        return jsonify({})
+        return jsonify({"turn": None})
 
+    # Stop and the answer to a question name what they were pressed for (Madde 462): the turn, and
+    # the question within it. A press landing late -- after its turn ended, or once another one
+    # began -- names something no longer running, and does nothing. Each answers with the turn as it
+    # stands after the press, off no disk; what the press amounts to is heard on the events door.
     @workspace_bp.post("/api/projects/<project_id>/chats/<chat_id>/stop")
     def post_stop(project_id, chat_id):
-        # Bound to the turn running now: a press landing after it ended reaches nothing. The browser
-        # carries no turn id until Madde 462, so the turn holding the chat is the one it means.
         live = turns.get(project_id, chat_id)
         if live is None:
             return nothing_running(project_id, chat_id)
-        live.stop(live.id)
+        live.stop((request.get_json(silent=True) or {}).get("turn"))
         # Asked for, not done: the answer stops at its next chance, which has not come yet.
-        return jsonify({})
+        return jsonify({"turn": _turn_json(live.snapshot())})
 
     @workspace_bp.post("/api/projects/<project_id>/chats/<chat_id>/permission")
     def post_permission(project_id, chat_id):
-        # The stop's sibling, bound the same way: to the question standing now. One left before it
-        # was asked is nobody's answer and is dropped.
         live = turns.get(project_id, chat_id)
         if live is None:
             return nothing_running(project_id, chat_id)
-        asked = live.snapshot().permission
-        if asked is not None:
-            payload = request.get_json(silent=True) or {}
-            live.decide(live.id, asked.wait, payload.get("allowed"), payload.get("reason", ""))
-        # Left, not acted on: what the decision amounts to is seen in the stream it unblocks.
-        return jsonify({})
+        payload = request.get_json(silent=True) or {}
+        live.decide(
+            payload.get("turn"), payload.get("wait"), payload.get("allowed"), payload.get("reason", "")
+        )
+        return jsonify({"turn": _turn_json(live.snapshot())})
 
     @workspace_bp.get("/api/projects/<project_id>/files")
     def get_files(project_id):
@@ -286,68 +331,42 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, turns):
     return workspace_bp
 
 
-def _sse(chat_id, turn):
-    """Today's frames, told from the running turn: the bridge that keeps the screen as it was while
-    the turn runs on its own (Madde 461), until the browser listens to the turn itself (462).
+def _listened(live):
+    """The running turn, told to one listener (Madde 462): the snapshot as it stands first, then a
+    snapshot on every change, a beat while nothing moves, and the stream ends after the turn does.
 
-    It listens rather than drives: a browser that goes away ends this stream at its next write, and
-    the turn runs on. Each wake tells what changed since the last one, so changes that came quicker
-    than a wake arrive together -- the screen draws state, so it lands where the turn is.
+    Whole snapshots, small (a few hundred bytes a step): a listener that wakes after several changes
+    lands where the turn is, and one that reconnects needs nothing but the first frame -- no event
+    log, no event ids. It listens rather than drives: a browser that goes away ends this stream at
+    its next write, and the turn runs on.
     """
-    # First, before the model has said a word: the id cannot come back as a field any more, and the
-    # browser needs it to change the address. Sent every time rather than only when it is news --
-    # no condition here, and the browser acts only if it differs from what it holds.
-    yield _frame("chat", {"chat": chat_id})
-    if turn is None:
-        # Nothing to run: the stream ends, and the browser reads the record as after any turn.
-        yield _frame("done", {})
+    if live is None:
+        yield _frame({"turn": None})
         return
-    seen = Snapshot(id=turn.id)
+    seen = live.snapshot()
+    yield _frame(_told(seen))
     while not seen.ended:
-        now = turn.changed_since(seen.version, BEAT_SECONDS)
+        now = live.changed_since(seen.version, BEAT_SECONDS)
         if now.version == seen.version:
-            # No event line, which is why the browser's parser drops it -- and dropping it is the
-            # whole job. This frame exists to be bytes on a connection that has gone quiet.
-            yield ": waiting\n\n"
+            # A comment line, which EventSource drops -- and dropping it is the whole job. This
+            # frame exists to be bytes on a connection that has gone quiet.
+            yield ": beat\n\n"
             continue
-        yield from _told(seen, now)
         seen = now
+        yield _frame(_told(seen))
 
 
-def _told(before, after):
-    """The frames that say how the turn moved from one snapshot to the next, in the order a turn
-    does those things. No words among them since Madde 440: the answer comes back whole and the
-    screen reads it off the record once the turn is over."""
-    if after.progress is not None and after.progress != before.progress:
-        # Where the turn has got to (Madde 194): the round and the count, as they are now.
-        progress = after.progress
-        yield _frame("progress", {"round": progress.round, "of": progress.of, "tokens": progress.tokens})
-    files = after.files[len(before.files) :]
-    calls = after.calls[len(before.calls) :]
-    for name in files:
-        yield _frame("file", {"name": name})
-    for step in calls:
-        yield _frame("call", {"tool": step.tool, "target": step.target, "outcome": step.outcome})
-    # After them: a file or a step takes the card down on screen, so a write that began in the same
-    # wake as the last one ended -- no disk between them -- needs its card told again behind them.
-    if after.creating and (not before.creating or files or calls):
-        yield _frame("file-start", {})
-    if after.permission is not None and after.permission != before.permission:
-        asked = after.permission
-        yield _frame("permission", {"tool": asked.tool, "arguments": asked.arguments})
-    if after.ended:
-        if after.error:
-            # The turn's own fault: nothing was written. The status code was settled the moment
-            # the first byte left, so it can only travel inside the stream.
-            yield _frame("error", {"error": after.error})
-        else:
-            # The record has one home since Madde 89, and it is get_chat. This frame says the turn
-            # is over; what it wrote is a question asked separately.
-            yield _frame("done", {})
+def _told(snapshot):
+    # The last frame says no turn runs; the browser then reads the record the turn wrote. A turn
+    # whose own code broke wrote nothing, and its words travel here: no record will say them.
+    if snapshot.ended and snapshot.error:
+        return {"turn": None, "error": snapshot.error}
+    return {"turn": _turn_json(snapshot)}
 
 
-def _frame(event, data):
-    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+def _frame(data):
+    # No event name: every frame is a snapshot, and EventSource hands an unnamed one to onmessage.
+    return f"data: {json.dumps(data)}\n\n"
 
 
 def _new_id(prefix):
@@ -381,6 +400,31 @@ def _chat_summary(chat):
         "createdAt": chat.created_at,
         "lastActivity": chat.last_activity,
     }
+
+
+def _turn_json(snapshot):
+    """A running turn as the screen draws it, or None when none runs (Madde 462). The same object in
+    every answer that carries one -- reading a chat, its events, a refused message, Stop."""
+    if snapshot is None or snapshot.ended:
+        return None
+    progress, asked = snapshot.progress, snapshot.permission
+    return {
+        "id": snapshot.id,
+        "status": status_of(None, snapshot),
+        "calls": [{"tool": step.tool, "target": step.target, "outcome": step.outcome} for step in snapshot.calls],
+        "files": list(snapshot.files),
+        # A file being written this moment: the dashed card.
+        "creating": snapshot.creating,
+        # Where the turn has got to (Madde 194), or None before its first round has begun.
+        "progress": progress and {"round": progress.round, "of": progress.of, "tokens": progress.tokens},
+        # The question it waits on. `wait` names it, so the answer cannot settle a later one.
+        "permission": asked and {"wait": asked.wait, "tool": asked.tool, "arguments": asked.arguments},
+    }
+
+
+def _chat_state(chat, snapshot):
+    """The chat, with what it is doing (Madde 462): its status, the server's to say, and its turn."""
+    return {**_chat_json(chat), "status": status_of(chat, snapshot), "turn": _turn_json(snapshot)}
 
 
 def _chat_json(chat):

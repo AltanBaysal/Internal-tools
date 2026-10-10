@@ -90,6 +90,12 @@ def test_a_live_turn_on_a_question_is_waiting():
     assert status_of(_chat(_user()), asked) == WAITING
 
 
+def test_a_live_turn_says_its_status_with_no_record_at_hand():
+    # What the events door and Stop answer with (Madde 462): they read no chat, and need none.
+    assert status_of(None, Snapshot(id="t1")) == RUNNING
+    assert status_of(None, Snapshot(id="t1", permission=Question(1, "edit_file", "{}"))) == WAITING
+
+
 def test_an_ended_turn_leaves_the_status_to_the_record():
     over = Snapshot(id="t1", ended=True)
     assert status_of(_chat(_user(), _ai()), over) == ANSWERED

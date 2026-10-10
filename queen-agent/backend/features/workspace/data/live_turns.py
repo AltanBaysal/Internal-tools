@@ -70,7 +70,10 @@ class LiveTurn:
             self._lock.notify_all()
 
     def end(self, error):
+        # Once: the first end is the one listeners heard, and its words are the turn's.
         with self._lock:
+            if self._snapshot.ended:
+                return
             self._snapshot = changed(self._snapshot, ended=True, permission=None, error=error)
             self._lock.notify_all()
 
@@ -130,11 +133,19 @@ class LiveTurns:
             self._turns[(project_id, chat_id)] = turn
             return turn
 
-    def release(self, project_id, chat_id, turn):
+    def release(self, project_id, chat_id, turn, error=""):
+        """Let go of the chat, then end the turn that held it (Madde 462).
+
+        Every hold ends here, whatever it was: a turn that ran, a send refused after it was held,
+        a version or a trim. Someone may be listening to any of them -- a reload in that moment --
+        and a turn nobody ends keeps its listener waiting for ever. Let go before saying so:
+        whoever hears the end may send the next message at once.
+        """
         # Only that turn: a release arriving late must not let go of the turn after it.
         with self._lock:
             if self._turns.get((project_id, chat_id)) is turn:
                 del self._turns[(project_id, chat_id)]
+        turn.end(error)
 
     def get(self, project_id, chat_id):
         with self._lock:
@@ -169,6 +180,4 @@ class LiveTurns:
             error = str(broken)
             log.error("the turn in chat %s ended on a fault: %s", chat_id, error)
         finally:
-            # Let go before saying so: whoever hears the end may send the next message at once.
-            self.release(project_id, chat_id, turn)
-            turn.end(error)
+            self.release(project_id, chat_id, turn, error)

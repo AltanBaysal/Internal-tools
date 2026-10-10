@@ -135,9 +135,9 @@ export default function App() {
     drafting ? null : route.chatId,
     // The project list's counts are not read here: All projects reads the list when it is entered.
     reloadFiles,
-    // Madde 88: the stream's first frame names its chat. When that is a chat this screen was not
-    // on, it has just been born -- the address follows it while the answer is still arriving, and
-    // the sidebar, which lists it, is out of date.
+    // Madde 88: the door's answer names its chat. When that is a chat this screen was not on, it
+    // has just been born -- the address follows it while the answer is still running, and the
+    // sidebar, which lists it, is out of date.
     (id) => {
       // The skill that governed the birth becomes the newborn's own selection, and the draft lets
       // it go -- Madde 105.
@@ -147,14 +147,12 @@ export default function App() {
       return reloadProjectChats();
     },
     // A turn is the usual writer, so its end is the usual moment for what it wrote to be out of
-    // date: the files, however the turn ended (Madde 192), and -- once the question reached the
-    // server, its messages being the chat's last activity (Madde 447) -- the order of the sidebar's
-    // chats (Madde 452). Once a turn, not on every frame. A send that never reached the server
-    // changed no order, and reading the list from a server that is likely down would trade the
-    // rows on screen for a failure.
-    (reached) => {
+    // date: the files, however the turn ended (Madde 192), and the order of the sidebar's chats,
+    // its messages being the chat's last activity (Madde 447, 452). Once a turn, not on every
+    // frame -- and only a turn's: a send the server refused started none and changed no order.
+    () => {
       refresh();
-      if (reached) reloadProjectChats();
+      reloadProjectChats();
     },
   );
 
@@ -354,6 +352,7 @@ export default function App() {
               refused={chat.refused}
               missing={chat.missing}
               thinking={chat.thinking}
+              sentAt={chat.sentAt}
               arrived={chat.arrived}
               creatingFile={chat.creatingFile}
               createdFiles={chat.createdFiles}

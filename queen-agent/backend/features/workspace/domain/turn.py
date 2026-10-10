@@ -97,6 +97,8 @@ def status_of(chat, live):
     """Which of the seven states this chat is in. `live` is its turn's snapshot, or None.
 
     A turn that has ended leaves the answer to the record: by then it has written what it wrote.
+    While one runs the record is not looked at, so a caller holding none -- the events door, Stop --
+    can pass None.
     """
     if live is not None and not live.ended:
         return WAITING if live.permission else RUNNING

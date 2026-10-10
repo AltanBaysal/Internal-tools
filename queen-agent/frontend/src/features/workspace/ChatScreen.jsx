@@ -42,6 +42,7 @@ export default function ChatScreen({
   refused,
   missing,
   thinking,
+  sentAt = null,
   arrived = null,
   creatingFile,
   createdFiles = [],
@@ -73,12 +74,12 @@ export default function ChatScreen({
   // Held here rather than in App: it is a state of this screen, and it ends the moment the sentence
   // is sent.
   const [editing, setEditing] = useState(null);
-  // Stamped once, when the wait starts. There is nothing on the server to read it from yet, and the
-  // label answers "when was this asked for" -- an answer that stops being new the moment it is given.
-  const [askedAt, setAskedAt] = useState(null);
-  useEffect(() => {
-    setAskedAt(thinking ? (at) => at ?? new Date().toISOString() : null);
-  }, [thinking]);
+  // The label answers "when was this asked for", and the record says: the question being answered
+  // is the open line's last message -- the sentence on its way, or the one written before the turn
+  // began (Madde 462). So a reload in the middle of a turn shows when it was asked, not the reload.
+  // A draft draws no bubble before the door answers, so there it is when the sentence left.
+  const last = thinking ? chat?.messages.at(-1) : null;
+  const askedAt = last?.role === "user" ? last.at : thinking ? sentAt : null;
 
   // The box, for the card's Try again: a refused reply is sent again by the box that holds it.
   const box = useRef(null);
@@ -212,7 +213,11 @@ export default function ChatScreen({
                               text={editing.text}
                               onConfirm={(text) => {
                                 setEditing(null);
-                                onSend?.(text, index);
+                                // Refused, the sentence comes back to the field it was typed in
+                                // (FOUNDATION, principle 1); the card says why.
+                                Promise.resolve(onSend?.(text, index)).catch(() =>
+                                  setEditing({ index, text }),
+                                );
                               }}
                               onCancel={() => setEditing(null)}
                             />

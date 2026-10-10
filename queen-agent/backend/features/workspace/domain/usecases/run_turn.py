@@ -168,7 +168,9 @@ class _Noting:
         return self._files.write(project_id, name, content)
 
 
-def run_turn(chat_store, file_store, engine, project_id, chat, now, control, mode=EDIT):
+def run_turn(chat_store, file_store, engine, project_id, chat, clock, control, mode=EDIT):
+    # `clock` rather than a moment (Madde 462): the answer is stamped when it is written, and a turn
+    # can run for minutes after the request that started it.
     # Local to this answer and never written to the chat: what the model was told and what the tools
     # answered back is bookkeeping. What the turn *did* is not -- that is `made`, and it reaches the
     # record.
@@ -344,7 +346,7 @@ def run_turn(chat_store, file_store, engine, project_id, chat, now, control, mod
             project_id,
             chat,
             text,
-            now,
+            clock(),
             role="ai",
             files=born,
             calls=made,

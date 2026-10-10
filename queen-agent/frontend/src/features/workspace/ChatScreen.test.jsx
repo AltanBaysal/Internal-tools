@@ -364,6 +364,16 @@ test("the stamp closes a message rather than opening it", () => {
 
 const RUNNING_AT = { round: 4, of: 16, tokens: 12300 };
 
+// A chat as it stands while a turn runs: its open line ends on the question being answered, asked
+// at 14:32.
+const ASKED = {
+  ...CHAT,
+  messages: [
+    ...CHAT.messages,
+    { role: "user", at: new Date(2026, 7, 9, 14, 32).toISOString(), text: "And the ending" },
+  ],
+};
+
 test("the running turn says where it is, on one line, where the stamp sits", () => {
   const { container } = render(
     <ChatScreen project={PROJECT} chat={CHAT} thinking progress={RUNNING_AT} />,
@@ -381,9 +391,9 @@ test("the running turn says where it is, on one line, where the stamp sits", () 
 
 test("the strip carries a word that says nothing about the work", () => {
   vi.useFakeTimers();
-  vi.setSystemTime(new Date(2026, 7, 9, 14, 32));
+  vi.setSystemTime(new Date(2026, 7, 9, 14, 40));
   try {
-    render(<ChatScreen project={PROJECT} chat={CHAT} thinking progress={RUNNING_AT} />);
+    render(<ChatScreen project={PROJECT} chat={ASKED} thinking progress={RUNNING_AT} />);
     // A gerund and an ellipsis. Deriving it from the tool name was asked against: the two pieces
     // beside it already carry every fact there is. The whole line is pinned here -- one row, in
     // this order, with nothing dividing it into columns.
@@ -705,22 +715,35 @@ test("a file on its way shows a dashed card with no name on it", () => {
   expect(screen.getByText("creating file…")).toBeTruthy();
 });
 
-test("the waiting stamp carries the time the wait began", () => {
-  // Today the clock only appears once the answer has been saved; the design wants the stamp and the
-  // dots on screen together, time and all.
+test("the waiting stamp carries the time the question was asked", () => {
+  // The design wants the stamp and the dots on screen together, time and all. Since Madde 462 the
+  // time is the question's own, from the record: a reload during the turn shows it too.
   vi.useFakeTimers();
-  vi.setSystemTime(new Date(2026, 7, 9, 14, 32));
-  render(<ChatScreen project={PROJECT} chat={CHAT} thinking />);
-  expect(screen.getByText("14:32").parentElement.className).toBe("msg__stamp");
+  vi.setSystemTime(new Date(2026, 7, 9, 14, 40));
+  const { container } = render(<ChatScreen project={PROJECT} chat={ASKED} thinking />);
+  expect(container.querySelector("[data-testid=thinking] .msg__stamp").textContent).toBe("14:32");
   vi.useRealTimers();
+});
+
+test("in a draft the waiting stamp is the time the sentence left", () => {
+  // The draft draws no bubble before the door answers, so there is no question in it to read.
+  const { container } = render(
+    <ChatScreen
+      project={PROJECT}
+      chat={{ id: null, title: "New chat", messages: [] }}
+      thinking
+      sentAt={new Date(2026, 7, 9, 14, 32).toISOString()}
+    />,
+  );
+  expect(container.querySelector("[data-testid=thinking] .msg__stamp").textContent).toBe("14:32");
 });
 
 test("that time does not move while the answer arrives", () => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date(2026, 7, 9, 14, 32));
-  const { rerender } = render(<ChatScreen project={PROJECT} chat={CHAT} thinking />);
+  const { rerender } = render(<ChatScreen project={PROJECT} chat={ASKED} thinking />);
   vi.setSystemTime(new Date(2026, 7, 9, 14, 35));
-  rerender(<ChatScreen project={PROJECT} chat={CHAT} thinking progress={RUNNING_AT} />);
+  rerender(<ChatScreen project={PROJECT} chat={ASKED} thinking progress={RUNNING_AT} />);
   // It answers "when was this asked for", and that answer stopped being new at 14:32.
   expect(screen.getByTestId("live-strip").textContent).toMatch(/^14:32 · /);
   expect(screen.queryByText(/14:35/)).toBeNull();
@@ -1169,6 +1192,17 @@ test("the tick sends the corrected sentence and says which message it starts fro
   fireEvent.change(field, { target: { value: "Write a shorter intro" } });
   fireEvent.click(screen.getByRole("button", { name: "Confirm edit" }));
   expect(onSend).toHaveBeenCalledWith("Write a shorter intro", 0);
+});
+
+test("a refused edit hands its sentence back to its own field", async () => {
+  // Madde 462: the refusal was thrown and nobody caught it, and the sentence was gone.
+  const onSend = vi.fn().mockRejectedValue(new Error("this chat is still answering"));
+  const { field } = _editing(CHAT, { onSend });
+  fireEvent.change(field, { target: { value: "Write a shorter intro" } });
+  fireEvent.click(screen.getByRole("button", { name: "Confirm edit" }));
+  await act(async () => {});
+  expect(screen.getByRole("button", { name: "Confirm edit" })).toBeTruthy();
+  expect(document.querySelector(".msg__editing-input").value).toBe("Write a shorter intro");
 });
 
 test("the cross sends nothing and gives the message back", () => {

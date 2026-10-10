@@ -210,7 +210,7 @@ def _seeded(tmp_path):
 
 def _answer(chats, files, engine, mode="edit", control=NEVER):
     """One turn of the seeded chat, handed its record the way the door hands it (Madde 461)."""
-    return list(run_turn(chats, files, engine, "p1", chats.get("p1", "c1"), NOW, control, mode))
+    return list(run_turn(chats, files, engine, "p1", chats.get("p1", "c1"), lambda: NOW, control, mode))
 
 
 def _said(chats, text, at=NOW, **fields):
@@ -265,7 +265,9 @@ def test_the_turn_works_from_the_record_it_is_handed_and_writes_its_answer_once(
     chats, files = _seeded(tmp_path)
     handed = HandedOnly(chats)
     engine = ScriptedEngine([[{"tool_calls": [a_call()]}], [{"text": "Done."}]])
-    produced = list(run_turn(handed, files, engine, "p1", chats.get("p1", "c1"), NOW, NEVER, "edit"))
+    produced = list(
+        run_turn(handed, files, engine, "p1", chats.get("p1", "c1"), lambda: NOW, NEVER, "edit")
+    )
     assert handed.written == 1
     assert produced[-1] == chats.get("p1", "c1")
     assert [m.text for m in produced[-1].messages] == ["hi", "Done."]
@@ -1448,8 +1450,25 @@ def test_a_turn_that_names_no_mode_carries_the_writing_tools(tmp_path):
     # The retry road sends no mode of its own, and neither does any caller written before this.
     chats, files = _seeded(tmp_path)
     engine = ScriptedEngine([[{"text": "Hi"}]])
-    list(run_turn(chats, files, engine, "p1", chats.get("p1", "c1"), NOW, NEVER))
+    list(run_turn(chats, files, engine, "p1", chats.get("p1", "c1"), lambda: NOW, NEVER))
     assert "create_file" in engine.tools[0]
+
+
+def test_the_answer_is_stamped_when_it_is_written_not_when_the_turn_began(tmp_path):
+    # Madde 462: a turn can run for minutes, and its answer said "a minute ago" the moment it came.
+    # The clock is asked once, at the write.
+    chats, files = _seeded(tmp_path)
+    engine = ScriptedEngine([[{"text": "Hi"}]])
+    asked = []
+
+    def clock():
+        asked.append(engine.tools)
+        return "2026-08-09T11:09:00.000+00:00"
+
+    produced = list(run_turn(chats, files, engine, "p1", chats.get("p1", "c1"), clock, NEVER))
+    assert produced[-1].messages[-1].at == "2026-08-09T11:09:00.000+00:00"
+    # Asked after the model had answered, and once.
+    assert asked == [engine.tools] and len(engine.tools) == 1
 
 
 def test_in_plan_mode_the_turn_ends_when_the_plan_is_written(tmp_path):

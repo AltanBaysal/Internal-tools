@@ -132,8 +132,9 @@ class Turns(Protocol):
     def reserve(self, project_id: str, chat_id: str) -> LiveTurn | None:
         """A new turn holding this chat, or None if one already does -- in one step."""
 
-    def release(self, project_id: str, chat_id: str, turn: LiveTurn) -> None:
-        """Let go of the chat, if that turn is still the one holding it."""
+    def release(self, project_id: str, chat_id: str, turn: LiveTurn, error: str = "") -> None:
+        """Let go of the chat, if that turn is still the one holding it, and end the turn -- with
+        these words when its own code broke. Every hold ends, so nobody listens to one for ever."""
 
     def get(self, project_id: str, chat_id: str) -> LiveTurn | None:
         """The turn holding this chat, or None."""

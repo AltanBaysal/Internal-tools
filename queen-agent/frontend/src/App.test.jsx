@@ -43,6 +43,11 @@ function serverWithProjects(projects, chatsOf = {}) {
       return ok(born, 201);
     }
     if (path === "/api/projects") return ok([...live]);
+    // A message is answered at once with its chat, the turn already over (Madde 462).
+    if (path.endsWith("/messages") && options?.method === "POST") {
+      const sent = JSON.parse(options.body);
+      return ok({ id: sent.chat || "c9", title: sent.text, messages: [], turn: null }, 202);
+    }
     const list = path.match(/^\/api\/projects\/(\w+)\/chats$/);
     if (list) return ok(chatsOf[list[1]] ?? []);
     const record = path.match(/\/chats\/(\w+)$/);
@@ -1341,13 +1346,8 @@ test("the first message in a draft creates the chat and takes its address", asyn
   const chat = { id: "c1", title: "Write the intro", messages: [], lastActivity: "x" };
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (path === "/api/projects/p1/messages" && options?.method === "POST") {
-      // Madde 88: the answer comes back down this same request, and its first frame is what says
-      // which chat was born.
-      return Promise.resolve(
-        sseResponse(
-          `event: chat\ndata: {"chat":"c1"}\n\nevent: done\ndata: ${JSON.stringify(chat)}\n\n`,
-        ),
-      );
+      // Madde 88, 462: the door's answer is the chat that was born, its turn running.
+      return started(chat);
     }
     if (path.endsWith("/chats/c1")) {
       return Promise.resolve({ ok: true, status: 200, json: async () => chat });
@@ -1401,16 +1401,14 @@ test("a chat whose record has not come yet stands in its own frame", async () =>
   expect(screen.queryByRole("button", { name: "← back" })).toBeNull();
 });
 
-test("a newborn chat is named by the trimmed first message, not the whole of it", async () => {
-  // Madde 116: the record stood up for the draft carried the whole message as its title. The
-  // server's trimmed name only arrives when the turn ends -- minutes later in a flow run -- so
-  // the window this test stands in is the turn still running after the first frame moved the
-  // address.
+test("a newborn chat is named as the server named it while its first turn still runs", async () => {
+  // Madde 116: the record stood up for the draft carried the whole message as its title. Since
+  // Madde 462 nothing is stood up: the door's answer is the newborn's record, under the server's
+  // trimmed name, and the browser keeps no copy of the naming rule.
   const first = "m".repeat(80);
-  const { response } = gatedSse('event: chat\ndata: {"chat":"c1"}\n\n', "event: done\ndata: {}\n\n");
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (path === "/api/projects/p1/messages" && options?.method === "POST") {
-      return Promise.resolve(response);
+      return started({ id: "c1", title: "m".repeat(42) + "…", messages: [] });
     }
     if (path === "/api/projects/p1/chats") {
       return Promise.resolve({ ok: true, status: 200, json: async () => [] });
@@ -1469,23 +1467,42 @@ test("the user bubble shows before the server answers, and a refusal hands the w
   expect(screen.getByPlaceholderText("Reply...").value).toBe("hello");
 });
 
-function sseResponse(text) {
-  const encoded = new TextEncoder().encode(text);
-  let sent = false;
-  return {
-    ok: true,
-    status: 200,
-    body: {
-      getReader: () => ({
-        read: async () => {
-          if (sent) return { done: true };
-          sent = true;
-          return { done: false, value: encoded };
-        },
-      }),
-    },
-  };
+// --- the server's side of a turn (Madde 462) ------------------------------------------------------
+//
+// The door answers a message or a Try again at once, with the chat as reading it gives it -- its
+// record, its status and its running turn -- and the turn is then heard on the chat's events
+// stream, which the fake EventSource in test-setup.js lets a test speak for.
+
+const TURN = {
+  id: "t1",
+  status: "running",
+  calls: [],
+  files: [],
+  creating: false,
+  progress: null,
+  permission: null,
+};
+const live = (fields = {}) => ({ ...TURN, ...fields });
+// The door's 202: this chat, with this turn running in it.
+const started = (chat, turn = live()) => ok({ ...chat, status: turn.status, turn }, 202);
+const OVER = { turn: null };
+const streams = () => globalThis.EventSource.opened;
+
+// What the chat's stream says, once the screen listens: a turn as it stands (sent as {turn}), or a
+// whole frame -- OVER, or the end with the turn's own fault. Spoken on the newest stream, each after
+// whatever reads the last one set off have landed.
+async function hear(...frames) {
+  await waitFor(() => expect(streams().length).toBeGreaterThan(0));
+  const source = streams().at(-1);
+  for (const frame of frames) {
+    await act(async () => source.emit("turn" in frame ? frame : { turn: frame }));
+  }
 }
+
+const retryPosts = (fetch) =>
+  fetch.mock.calls
+    .filter(([path, options]) => path.endsWith("/retry") && options?.method === "POST")
+    .map(([path, options]) => [path, JSON.parse(options.body)]);
 
 // Madde 349: the card says no answer came, and what it came for is the refused sentence -- a
 // request with no text would ask the server to answer a question that was never written.
@@ -1504,6 +1521,10 @@ function stubRefusingChat(answers) {
     if (path.endsWith("/messages") && options?.method === "POST") {
       posts += 1;
       return Promise.resolve(answers(posts));
+    }
+    // Try again finds nothing to try: the chat comes back as it is.
+    if (path.endsWith("/retry") && options?.method === "POST") {
+      return ok({ ...records.c1, turn: null });
     }
     const record = records[path.match(/\/chats\/(\w+)$/)?.[1]];
     if (record) return Promise.resolve({ ok: true, status: 200, json: async () => record });
@@ -1547,7 +1568,7 @@ test("Try again after a refusal sends the refused message again", async () => {
 
 test("a refusal is not carried into a later send's Try again", async () => {
   const fetch = stubRefusingChat((post) =>
-    post === 1 ? NOT_FOUND : sseResponse('event: error\ndata: {"error":"401 bad key"}\n\n'),
+    post === 1 ? NOT_FOUND : started({ id: "c1", title: "Hi", messages: [] }),
   );
   render(<App />);
   const box = await chatOpened();
@@ -1557,20 +1578,24 @@ test("a refusal is not carried into a later send's Try again", async () => {
 
   fireEvent.change(box, { target: { value: "again" } });
   fireEvent.keyDown(box, { key: "Enter" });
+  // The turn's own fault: its words come on its last frame, and nothing was written.
+  await hear({ turn: null, error: "401 bad key" });
   await screen.findByText("401 bad key");
 
   // The question is on disk now, and it is what Try again asks about -- not the sentence refused
-  // two sends ago.
+  // two sends ago: its own door, with no sentence at all.
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-  await waitFor(() => expect(messagePosts(fetch)).toHaveLength(3));
-  expect(messagePosts(fetch)[2]).toEqual({ chat: "c1", mode: "edit" });
+  await waitFor(() =>
+    expect(retryPosts(fetch)).toEqual([["/api/projects/p1/chats/c1/retry", { mode: "edit" }]]),
+  );
+  expect(messagePosts(fetch)).toHaveLength(2);
 });
 
 // The box is the refused sentence's one owner, so Try again is the box sending it -- left behind
 // there as well, it would be sent a second time.
 test("a sentence sent again by Try again does not stay in the box", async () => {
   const fetch = stubRefusingChat((post) =>
-    post === 1 ? NOT_FOUND : sseResponse('event: chat\ndata: {"chat":"c1"}\n\nevent: done\ndata: {}\n\n'),
+    post === 1 ? NOT_FOUND : started({ id: "c1", title: "Hi", messages: [] }),
   );
   render(<App />);
   const box = await chatOpened();
@@ -1610,40 +1635,6 @@ test("a refusal's card does not follow the user into the draft", async () => {
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/new"));
   expect(screen.queryByText("Couldn't get a response.")).toBeNull();
 });
-
-// A stream that hands over its first frames, then waits to be released before the rest. The one-shot
-// helper cannot serve a test that has to press something *while* the answer is running. A `rest`
-// that is an error breaks the stream instead, the way a dropped connection does (Madde 449).
-function gatedSse(first, rest) {
-  const encoder = new TextEncoder();
-  let release;
-  const gate = new Promise((resolve) => {
-    release = resolve;
-  });
-  let stage = 0;
-  const response = {
-    ok: true,
-    status: 200,
-    body: {
-      getReader: () => ({
-        read: async () => {
-          if (stage === 0) {
-            stage = 1;
-            return { done: false, value: encoder.encode(first) };
-          }
-          if (stage === 1) {
-            stage = 2;
-            await gate;
-            if (rest instanceof Error) throw rest;
-            return { done: false, value: encoder.encode(rest) };
-          }
-          return { done: true };
-        },
-      }),
-    },
-  };
-  return { response, release: () => release() };
-}
 
 test("nothing asks for an answer by itself when a chat is opened", async () => {
   // Madde 88 replaced two tests with this one. Both of them proved that a particular kind of chat
@@ -1692,15 +1683,7 @@ test("a call arrives in the stream and is still there once the record lands", as
     ],
   };
   const fetch = vi.fn().mockImplementation((path, options) => {
-    if (path.endsWith("/messages") && options?.method === "POST") {
-      return Promise.resolve(
-        sseResponse(
-          `event: chat\ndata: {"chat":"c1"}\n\n` +
-            `event: call\ndata: {"tool":"read_file","target":"plan.md"}\n\n` +
-            `event: done\ndata: {}\n\n`,
-        ),
-      );
-    }
+    if (path.endsWith("/messages") && options?.method === "POST") return started(owed);
     if (path.endsWith("/chats/c1")) {
       // Madde 89: the record is read back when the turn closes, so the second read is the one
       // carrying what was written.
@@ -1721,6 +1704,7 @@ test("a call arrives in the stream and is still there once the record lands", as
   const box = await chatOpened();
   fireEvent.change(box, { target: { value: "hello" } });
   fireEvent.keyDown(box, { key: "Enter" });
+  await hear(live({ calls: [{ tool: "read_file", target: "plan.md", outcome: "" }] }), OVER);
   await waitFor(() => expect(screen.getByText("Done.")).toBeTruthy());
   // Since Madde 84 the record's calls sit behind a door, so the claim is asked of what is behind
   // it. Unchanged otherwise, and it is the whole point of the test: one step, kept once, though two
@@ -1729,9 +1713,9 @@ test("a call arrives in the stream and is still there once the record lands", as
   expect(screen.getAllByText("⏺ read_file(plan.md)")).toHaveLength(1);
 });
 
-test("sending a sentence is answered down one connection and keeps the server's record", async () => {
-  // Madde 88: one request. The sentence goes out and the turn comes back down the same
-  // connection, so the count below is the whole claim -- nothing opened a second one.
+test("sending a sentence is one request, the turn is heard on one stream, and the record is kept", async () => {
+  // Madde 88, 462: the sentence goes out once, the turn is heard on the chat's own stream, and the
+  // record is read when it ends -- the counts below are the whole claim.
   const empty = { id: "c1", title: "hello", messages: [] };
   const answered = {
     ...empty,
@@ -1743,9 +1727,7 @@ test("sending a sentence is answered down one connection and keeps the server's 
   let read = 0;
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (path.endsWith("/messages") && options?.method === "POST") {
-      return Promise.resolve(
-        sseResponse(`event: chat\ndata: {"chat":"c1"}\n\nevent: done\ndata: {}\n\n`),
-      );
+      return started({ ...empty, messages: answered.messages.slice(0, 1) });
     }
     if (path.endsWith("/chats/c1")) {
       read += 1;
@@ -1764,9 +1746,11 @@ test("sending a sentence is answered down one connection and keeps the server's 
   const box = await chatOpened();
   fireEvent.change(box, { target: { value: "hello" } });
   fireEvent.keyDown(box, { key: "Enter" });
+  await hear(OVER);
 
   await waitFor(() => expect(screen.getByText("Done.")).toBeTruthy());
   expect(fetch.mock.calls.filter(([, options]) => options?.method === "POST")).toHaveLength(1);
+  expect(streams().map((source) => source.url)).toEqual(["/api/projects/p1/chats/c1/events"]);
 });
 
 test("a call frame takes the dashed card down", async () => {
@@ -1775,14 +1759,8 @@ test("a call frame takes the dashed card down", async () => {
   // spinning until the turn ended -- rare then, and the ordinary case now that create_file refuses
   // a name that is taken.
   const owed = { id: "c1", title: "hello", messages: [] };
-  const { response, release } = gatedSse(
-    'event: chat\ndata: {"chat":"c1"}\n\n' +
-      "event: file-start\ndata: {}\n\n" +
-      'event: call\ndata: {"tool":"create_file","target":"plan.md","outcome":"Already there"}\n\n',
-    `event: done\ndata: ${JSON.stringify(owed)}\n\n`,
-  );
   const fetch = vi.fn().mockImplementation((path, options) => {
-    if (path.endsWith("/messages") && options?.method === "POST") return Promise.resolve(response);
+    if (path.endsWith("/messages") && options?.method === "POST") return started(owed);
     if (path.endsWith("/chats/c1"))
       return Promise.resolve({ ok: true, status: 200, json: async () => owed });
     return Promise.resolve({ ok: true, status: 200, json: async () => [] });
@@ -1794,13 +1772,16 @@ test("a call frame takes the dashed card down", async () => {
   const box = await chatOpened();
   fireEvent.change(box, { target: { value: "fix the plan" } });
   fireEvent.keyDown(box, { key: "Enter" });
+  await hear(live({ creating: true }));
+  expect(screen.getByText("creating file…")).toBeTruthy();
+  await hear(
+    live({ calls: [{ tool: "create_file", target: "plan.md", outcome: "Already there" }] }),
+  );
 
   // The handle is what says the tool answered -- while a turn runs it carries the newest call, and
-  // the outcome itself is behind the door. Waiting for it is what makes the dashed card's absence
-  // mean something: without it this would also pass on a card that never went up.
+  // the outcome itself is behind the door.
   await waitFor(() => expect(screen.getByText("⏺ create_file(plan.md)")).toBeTruthy());
   expect(screen.queryByText("creating file…")).toBeNull();
-  release();
 });
 
 test("a file born mid-answer reaches the rail without a reload", async () => {
@@ -1809,26 +1790,12 @@ test("a file born mid-answer reaches the rail without a reload", async () => {
     title: "hello",
     messages: [{ role: "user", at: new Date().toISOString(), text: "write the outline" }],
   };
-  const answered = {
-    ...owed,
-    messages: [
-      ...owed.messages,
-      { role: "ai", at: new Date().toISOString(), text: "Saved.", files: ["outline.md"] },
-    ],
-  };
   // The directory is the list, so the stub answers differently once the file has been written.
   let onDisk = [];
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (path.endsWith("/messages") && options?.method === "POST") {
       onDisk = [{ name: "outline.md", ext: "md", modifiedAt: new Date().toISOString() }];
-      return Promise.resolve(
-        sseResponse(
-          'event: chat\ndata: {"chat":"c1"}\n\n' +
-            'event: file-start\ndata: {}\n\n' +
-            'event: file\ndata: {"name":"outline.md"}\n\n' +
-            `event: done\ndata: ${JSON.stringify(answered)}\n\n`,
-        ),
-      );
+      return started(owed);
     }
     if (path.endsWith("/files")) {
       return Promise.resolve({ ok: true, status: 200, json: async () => onDisk });
@@ -1845,6 +1812,8 @@ test("a file born mid-answer reaches the rail without a reload", async () => {
   const box = await chatOpened();
   fireEvent.change(box, { target: { value: "write the outline" } });
   fireEvent.keyDown(box, { key: "Enter" });
+  // Still running: the file is heard of on the stream, and the rail reads its list then.
+  await hear(live({ files: ["outline.md"] }));
   await waitFor(() => expect(screen.getByTestId("file-rail").textContent).toContain("outline.md"));
 });
 
@@ -1857,10 +1826,8 @@ test("a turn ending brings the file list up to date, whatever wrote the file", a
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (path.endsWith("/messages") && options?.method === "POST") {
       onDisk = [{ name: "plan.md", ext: "md", modifiedAt: new Date().toISOString() }];
-      // No file frame at all: this stream announces nothing it wrote.
-      return Promise.resolve(
-        sseResponse('event: chat\ndata: {"chat":"c1"}\n\nevent: done\ndata: {}\n\n'),
-      );
+      // No file on any frame: this turn announces nothing it wrote.
+      return started(owed);
     }
     if (path.endsWith("/files")) {
       return Promise.resolve({ ok: true, status: 200, json: async () => onDisk });
@@ -1883,6 +1850,7 @@ test("a turn ending brings the file list up to date, whatever wrote the file", a
 
   fireEvent.change(box, { target: { value: "write the plan" } });
   fireEvent.keyDown(box, { key: "Enter" });
+  await hear(OVER);
   await waitFor(() => expect(screen.getByTestId("file-rail").textContent).toContain("plan.md"));
 });
 
@@ -1895,9 +1863,7 @@ test("a turn ending reads the file that is open again", async () => {
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (path.endsWith("/messages") && options?.method === "POST") {
       text = "the second draft";
-      return Promise.resolve(
-        sseResponse('event: chat\ndata: {"chat":"c1"}\n\nevent: done\ndata: {}\n\n'),
-      );
+      return started(owed);
     }
     if (path.endsWith("/files/plan.md")) {
       return Promise.resolve({
@@ -1924,6 +1890,7 @@ test("a turn ending reads the file that is open again", async () => {
   const box = await chatOpened();
   fireEvent.change(box, { target: { value: "rewrite it" } });
   fireEvent.keyDown(box, { key: "Enter" });
+  await hear(OVER);
   await waitFor(() => expect(screen.getByText("the second draft")).toBeTruthy());
 });
 
@@ -1961,19 +1928,13 @@ test("a turn in an existing chat brings the chat up in the sidebar, and leaving 
     { id: "c2", title: "Missing values", lastActivity: hoursAgo(5) },
     { id: "c1", title: "Write the intro", lastActivity: hoursAgo(6) },
   ];
-  const { response, release } = gatedSse(
-    CHAT_FRAME +
-      'event: progress\ndata: {"round":1,"of":16,"tokens":0}\n\n' +
-      'event: progress\ndata: {"round":2,"of":16,"tokens":12300}\n\n',
-    "event: done\ndata: {}\n\n",
-  );
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (path.endsWith("/messages") && options?.method === "POST") {
-      // The question is written before the first frame, and its moment is the chat's last activity.
+      // The question is written before the door answers, and its moment is the chat's last activity.
       const now = new Date().toISOString();
       projects = [{ ...projects[1], lastActivity: now }, projects[0]];
       chats = [{ ...chats[1], lastActivity: now }, chats[0]];
-      return Promise.resolve(response);
+      return started({ id: "c1", title: "Write the intro", messages: [] });
     }
     if (path === "/api/projects") return ok(projects);
     if (path.endsWith("/chats")) return ok(chats);
@@ -1989,12 +1950,16 @@ test("a turn in an existing chat brings the chat up in the sidebar, and leaving 
   await waitFor(() => expect(sidebarRows()).toEqual(["Missing values", "Write the intro"]));
   fireEvent.change(box, { target: { value: "and again" } });
   fireEvent.keyDown(box, { key: "Enter" });
+  await hear(
+    live({ progress: { round: 1, of: 16, tokens: 0 } }),
+    live({ progress: { round: 2, of: 16, tokens: 12300 } }),
+  );
   const strip = await screen.findByTestId("live-strip");
   await waitFor(() => expect(strip.textContent).toContain("round 2/16"));
   // Not on every frame: once a turn, at its end.
   expect(chatReads()).toHaveLength(1);
 
-  await act(async () => release());
+  await hear(OVER);
   await waitFor(() => expect(sidebarRows()).toEqual(["Write the intro", "Missing values"]));
   expect(chatReads()).toHaveLength(2);
   // The project list is on no screen in a chat, so the turn does not read it.
@@ -2033,12 +1998,6 @@ test("a send that never reached the server reads no list, and the sidebar keeps 
 function _turnThatReports() {
   const owed = { id: "c1", title: "hello", messages: [] };
   let record = owed;
-  const { response, release } = gatedSse(
-    'event: chat\ndata: {"chat":"c1"}\n\n' +
-      'event: progress\ndata: {"round":1,"of":16,"tokens":0}\n\n' +
-      'event: progress\ndata: {"round":2,"of":16,"tokens":12300}\n\n',
-    "event: done\ndata: {}\n\n",
-  );
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (path.endsWith("/messages") && options?.method === "POST") {
       record = {
@@ -2052,7 +2011,7 @@ function _turnThatReports() {
           },
         ],
       };
-      return Promise.resolve(response);
+      return started(owed);
     }
     if (path.endsWith("/chats/c1")) {
       return Promise.resolve({ ok: true, status: 200, json: async () => record });
@@ -2061,8 +2020,12 @@ function _turnThatReports() {
   });
   vi.stubGlobal("fetch", fetch);
   window.history.pushState(null, "", "/p/p1/c/c1");
-  return release;
 }
+
+const REPORTED = [
+  live({ progress: { round: 1, of: 16, tokens: 0 } }),
+  live({ progress: { round: 2, of: 16, tokens: 12300 } }),
+];
 
 test("a running turn counts its rounds and its tokens on screen", async () => {
   _turnThatReports();
@@ -2070,6 +2033,7 @@ test("a running turn counts its rounds and its tokens on screen", async () => {
   const box = await chatOpened();
   fireEvent.change(box, { target: { value: "go" } });
   fireEvent.keyDown(box, { key: "Enter" });
+  await hear(...REPORTED);
 
   const strip = await screen.findByTestId("live-strip");
   await waitFor(() => expect(strip.textContent).toContain("round 2/16"));
@@ -2077,14 +2041,15 @@ test("a running turn counts its rounds and its tokens on screen", async () => {
 });
 
 test("when the turn ends the strip is gone and the stamp is in its place", async () => {
-  const release = _turnThatReports();
+  _turnThatReports();
   render(<App />);
   const box = await chatOpened();
   fireEvent.change(box, { target: { value: "go" } });
   fireEvent.keyDown(box, { key: "Enter" });
+  await hear(...REPORTED);
   await screen.findByTestId("live-strip");
 
-  release();
+  await hear(OVER);
   await waitFor(() => expect(screen.queryByTestId("live-strip")).toBeNull());
   // What it cost rather than how big it got, and that difference is on purpose: the strip answers
   // how big the turn got, the stamp what came from the cache and what missed it (Madde 354). 9000
@@ -2093,18 +2058,13 @@ test("when the turn ends the strip is gone and the stamp is in its place", async
   expect(screen.getByText("6.0k missed")).toBeTruthy();
 });
 
-test("a fault inside the stream shows the card and Try again asks through the one door", async () => {
-  // Madde 88 kept the button and took away the finger that pressed it. It goes to the same
-  // address as a sentence does, and carries no sentence: the question is already on disk.
+test("a turn's own fault shows the card, and Try again asks the chat's own door", async () => {
+  // Madde 88 kept the button and took away the finger that pressed it; since Madde 462 Try again
+  // has a door of its own, and carries no sentence: the question is already on disk.
   const empty = { id: "c1", title: "hello", messages: [] };
   const fetch = vi.fn().mockImplementation((path, options) => {
-    if (path.endsWith("/messages") && options?.method === "POST") {
-      return Promise.resolve(
-        sseResponse(
-          'event: chat\ndata: {"chat":"c1"}\n\nevent: error\ndata: {"error":"401 bad key"}\n\n',
-        ),
-      );
-    }
+    if (path.endsWith("/messages") && options?.method === "POST") return started(empty);
+    if (path.endsWith("/retry") && options?.method === "POST") return started(empty, live({ id: "t2" }));
     if (path.endsWith("/chats/c1")) {
       return Promise.resolve({ ok: true, status: 200, json: async () => empty });
     }
@@ -2117,16 +2077,17 @@ test("a fault inside the stream shows the card and Try again asks through the on
   const box = await chatOpened();
   fireEvent.change(box, { target: { value: "hello" } });
   fireEvent.keyDown(box, { key: "Enter" });
+  await hear({ turn: null, error: "401 bad key" });
   await waitFor(() => expect(screen.getByText("401 bad key")).toBeTruthy());
 
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-  await waitFor(() => {
-    const posts = fetch.mock.calls.filter(([, options]) => options?.method === "POST");
-    expect(posts).toHaveLength(2);
-    // No sentence in it: the one on disk must not be written twice. The mode it was asked in rides
-    // along, as on any send.
-    expect(JSON.parse(posts[1][1].body)).toEqual({ chat: "c1", mode: "edit" });
-  });
+  // No sentence in it: the one on disk must not be written twice. The mode it was asked in rides
+  // along, as on any send, until Madde 463.
+  await waitFor(() =>
+    expect(retryPosts(fetch)).toEqual([["/api/projects/p1/chats/c1/retry", { mode: "edit" }]]),
+  );
+  await waitFor(() => expect(screen.queryByText("401 bad key")).toBeNull());
+  expect(screen.getByTestId("thinking")).toBeTruthy();
 });
 
 test("a broken engine is reported and nothing asks again by itself", async () => {
@@ -2905,9 +2866,9 @@ test("a reply goes through the same door and names its chat", async () => {
 });
 
 test("the draft's first answer moves it to the new address", async () => {
-  // Madde 88: the first frame carries the id, so the address changes while the turn is still
-  // running. What is on the screen stays rather than being reloaded away -- the hook knows it is
-  // streaming into that chat and does not go back to disk for it.
+  // Madde 88: the door's answer carries the id, so the address changes while the turn is still
+  // running. What is on the screen stays rather than being reloaded away -- the answer is the
+  // newborn's record, and the hook does not go back to disk for it.
   const answered = {
     id: "c1",
     title: "hello",
@@ -2918,9 +2879,7 @@ test("the draft's first answer moves it to the new address", async () => {
   };
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (String(path).endsWith("/messages") && options?.method === "POST") {
-      return Promise.resolve(
-        sseResponse(`event: chat\ndata: {"chat":"c1"}\n\nevent: done\ndata: {}\n\n`),
-      );
+      return started({ ...answered, messages: answered.messages.slice(0, 1) });
     }
     // Read once when the turn closes, since Madde 89 -- and not before.
     if (String(path).endsWith("/chats/c1")) {
@@ -2943,9 +2902,11 @@ test("the draft's first answer moves it to the new address", async () => {
   fireEvent.keyDown(box, { key: "Enter" });
 
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c1"));
-  expect(screen.getByText("Done.")).toBeTruthy();
+  expect(screen.getByText("hello", { selector: ".msg__bubble" })).toBeTruthy();
+  await hear(OVER);
+  await waitFor(() => expect(screen.getByText("Done.")).toBeTruthy());
   // Read once, at the end of the turn -- Madde 89. Twice would mean the loading effect stepped in
-  // while the answer was still arriving, which is the thing 88's guard exists to prevent.
+  // while the answer was still running, which is the thing 88's guard exists to prevent.
   await waitFor(() =>
     expect(fetch.mock.calls.filter(([path]) => String(path).endsWith("/chats/c1"))).toHaveLength(1),
   );
@@ -2967,15 +2928,7 @@ test("when the turn ends the record is read, and what it says is what is drawn",
   };
   let read = 0;
   const fetch = vi.fn().mockImplementation((path, options) => {
-    if (String(path).endsWith("/messages") && options?.method === "POST") {
-      return Promise.resolve(
-        sseResponse(
-          `event: chat\ndata: {"chat":"c1"}\n\n` +
-            `event: chunk\ndata: {"text":"What the stream said."}\n\n` +
-            `event: done\ndata: {}\n\n`,
-        ),
-      );
-    }
+    if (String(path).endsWith("/messages") && options?.method === "POST") return started(empty);
     if (String(path).endsWith("/chats/c1")) {
       read += 1;
       return Promise.resolve({
@@ -2993,12 +2946,15 @@ test("when the turn ends the record is read, and what it says is what is drawn",
   const box = await chatOpened();
   fireEvent.change(box, { target: { value: "hello" } });
   fireEvent.keyDown(box, { key: "Enter" });
+  // A stray word on a frame is not the answer: the turn's snapshot carries none, and nothing of a
+  // frame but the turn is drawn.
+  await hear({ turn: live(), text: "What the stream said." }, OVER);
 
   await waitFor(() => expect(screen.getByText("What the record says.")).toBeTruthy());
   expect(screen.queryByText("What the stream said.")).toBeNull();
 });
 
-test("a chat that was just born is read by the id the first frame gave", async () => {
+test("a chat that was just born is read by the id the door's answer gave", async () => {
   const written = {
     id: "c1",
     title: "hello",
@@ -3009,9 +2965,7 @@ test("a chat that was just born is read by the id the first frame gave", async (
   };
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (String(path).endsWith("/messages") && options?.method === "POST") {
-      return Promise.resolve(
-        sseResponse(`event: chat\ndata: {"chat":"c1"}\n\nevent: done\ndata: {}\n\n`),
-      );
+      return started({ ...written, messages: written.messages.slice(0, 1) });
     }
     if (String(path).endsWith("/chats/c1")) {
       return Promise.resolve({ ok: true, status: 200, json: async () => written });
@@ -3031,8 +2985,10 @@ test("a chat that was just born is read by the id the first frame gave", async (
   const box = await chatOpened();
   fireEvent.change(box, { target: { value: "hello" } });
   fireEvent.keyDown(box, { key: "Enter" });
+  await hear(OVER);
 
   await waitFor(() => expect(screen.getByText("Done.")).toBeTruthy());
+  expect(streams()[0].url).toBe("/api/projects/p1/chats/c1/events");
 });
 
 test("a turn that ended in a fault is read back too", async () => {
@@ -3043,13 +2999,7 @@ test("a turn that ended in a fault is read back too", async () => {
     messages: [{ role: "user", at: new Date().toISOString(), text: "hello" }],
   };
   const fetch = vi.fn().mockImplementation((path, options) => {
-    if (String(path).endsWith("/messages") && options?.method === "POST") {
-      return Promise.resolve(
-        sseResponse(
-          `event: chat\ndata: {"chat":"c1"}\n\nevent: error\ndata: {"error":"401 bad key"}\n\n`,
-        ),
-      );
-    }
+    if (String(path).endsWith("/messages") && options?.method === "POST") return started(written);
     if (String(path).endsWith("/chats/c1")) {
       return Promise.resolve({ ok: true, status: 200, json: async () => written });
     }
@@ -3062,6 +3012,7 @@ test("a turn that ended in a fault is read back too", async () => {
   const box = await chatOpened();
   fireEvent.change(box, { target: { value: "hello" } });
   fireEvent.keyDown(box, { key: "Enter" });
+  await hear({ turn: null, error: "401 bad key" });
 
   await waitFor(() => expect(screen.getByText("401 bad key")).toBeTruthy());
   expect(screen.getByText("hello", { selector: ".msg__bubble" })).toBeTruthy();
@@ -3075,11 +3026,7 @@ test("a record that cannot be read back says so in the read's own words", async 
   const empty = { id: "c1", title: "hello", messages: [] };
   let read = 0;
   const fetch = vi.fn().mockImplementation((path, options) => {
-    if (String(path).endsWith("/messages") && options?.method === "POST") {
-      return Promise.resolve(
-        sseResponse(`event: chat\ndata: {"chat":"c1"}\n\nevent: done\ndata: {}\n\n`),
-      );
-    }
+    if (String(path).endsWith("/messages") && options?.method === "POST") return started(empty);
     if (String(path).endsWith("/chats/c1")) {
       read += 1;
       if (read > 1) {
@@ -3100,6 +3047,7 @@ test("a record that cannot be read back says so in the read's own words", async 
   const box = await chatOpened();
   fireEvent.change(box, { target: { value: "hello" } });
   fireEvent.keyDown(box, { key: "Enter" });
+  await hear(OVER);
 
   // The read's own sentence, not a guess about what went wrong.
   await waitFor(() => expect(screen.getByText("the disk went away")).toBeTruthy());
@@ -3112,13 +3060,7 @@ test("the skill picked in a draft survives landing in the chat it created", asyn
   // session picked, and an old record saying a gone name is exactly what happens on disk.
   const born = { id: "c1", title: "Write it", skill: "verify-prompts", messages: [] };
   const fetch = vi.fn().mockImplementation((path, options) => {
-    if (String(path).endsWith("/messages") && options?.method === "POST") {
-      return Promise.resolve(
-        sseResponse(
-          `event: chat\ndata: {"chat":"c1"}\n\nevent: done\ndata: ${JSON.stringify(born)}\n\n`,
-        ),
-      );
-    }
+    if (String(path).endsWith("/messages") && options?.method === "POST") return started(born);
     if (String(path).endsWith("/chats/c1")) {
       return Promise.resolve({ ok: true, status: 200, json: async () => born });
     }
@@ -3167,13 +3109,9 @@ test("a draft's first answer never wears the old chat's transcript", async () =>
       { role: "ai", at: new Date().toISOString(), text: "Fresh." },
     ],
   };
-  const { response, release } = gatedSse(
-    `event: chat\ndata: {"chat":"c2"}\n\n`,
-    `event: done\ndata: {}\n\n`,
-  );
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (String(path).endsWith("/messages") && options?.method === "POST") {
-      return Promise.resolve(response);
+      return started({ ...born, messages: born.messages.slice(0, 1) });
     }
     if (String(path).endsWith("/chats/c1")) {
       return Promise.resolve({ ok: true, status: 200, json: async () => old });
@@ -3206,9 +3144,7 @@ test("a draft's first answer never wears the old chat's transcript", async () =>
   expect(screen.queryByText("The old answer.")).toBeNull();
   expect(screen.getByText("hello", { selector: ".msg__bubble" })).toBeTruthy();
 
-  await act(async () => {
-    release();
-  });
+  await hear(OVER);
   await waitFor(() => expect(screen.getByText("Fresh.")).toBeTruthy());
 });
 
@@ -3223,19 +3159,18 @@ test("an answer streaming in one chat does not show in another", async () => {
     { id: "c1", title: "First", lastActivity: new Date().toISOString() },
     { id: "c2", title: "Second", lastActivity: new Date().toISOString() },
   ];
-  const { response, release } = gatedSse(
-    `event: chat\ndata: {"chat":"c1"}\n\n` +
-      `event: call\ndata: {"tool":"read_file","target":"halfway.md"}\n\n`,
-    `event: done\ndata: {}\n\n`,
-  );
+  // The turn as the server holds it: what reading c1 hands back while it runs.
+  const running = live({ calls: [{ tool: "read_file", target: "halfway.md", outcome: "" }] });
+  let turn = null;
   vi.stubGlobal(
     "fetch",
     vi.fn().mockImplementation((path, options) => {
       if (String(path).endsWith("/messages") && options?.method === "POST") {
-        return Promise.resolve(response);
+        turn = running;
+        return started(records.c1);
       }
       if (String(path).endsWith("/chats/c1")) {
-        return Promise.resolve({ ok: true, status: 200, json: async () => records.c1 });
+        return ok({ ...records.c1, turn });
       }
       if (String(path).endsWith("/chats/c2")) {
         return Promise.resolve({ ok: true, status: 200, json: async () => records.c2 });
@@ -3255,28 +3190,25 @@ test("an answer streaming in one chat does not show in another", async () => {
   const box = await chatOpened();
   fireEvent.change(box, { target: { value: "go" } });
   fireEvent.keyDown(box, { key: "Enter" });
+  await hear(running);
   // A step rather than words since Madde 440: the words are never drawn while the turn runs.
   const step = "⏺ read_file(halfway.md)";
   await waitFor(() => expect(screen.getByText(step)).toBeTruthy());
 
   fireEvent.click(screen.getByText("Second", { selector: ".sidebar__chat" }));
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c2"));
-  expect(screen.queryByText(step)).toBeNull();
+  await waitFor(() => expect(screen.queryByText(step)).toBeNull());
   expect(screen.queryByTestId("thinking")).toBeNull();
 
   fireEvent.click(screen.getByText("First", { selector: ".sidebar__chat" }));
   await waitFor(() => expect(screen.getByText(step)).toBeTruthy());
-
-  await act(async () => {
-    release();
-  });
+  // Still the one stream: the turn this screen started kept it open, and coming back reuses it.
+  expect(streams()).toHaveLength(1);
 });
 
 test("a turn that ends in a left chat does not repaint the one the user is standing in", async () => {
-  // Madde 106. The turn still ends by reading the record (Madde 89) -- what changed is that the
-  // read dresses only the screen standing in the chat it landed in. The wait below is two claims
-  // on purpose: the read has happened AND the streamed line has gone dark, which is the finally
-  // that runs after the repaint used to land.
+  // Madde 106. The turn's end is heard wherever the screen is (Madde 452), and the record is read
+  // only by a screen standing in its chat: the visit back reads it then.
   const finished = {
     id: "c1",
     title: "First",
@@ -3295,24 +3227,16 @@ test("a turn that ends in a left chat does not repaint the one the user is stand
     { id: "c2", title: "Second", lastActivity: new Date().toISOString() },
   ];
   let c1Reads = 0;
-  const { response, release } = gatedSse(
-    `event: chat\ndata: {"chat":"c1"}\n\n` +
-      `event: call\ndata: {"tool":"read_file","target":"running.md"}\n\n`,
-    `event: done\ndata: {}\n\n`,
-  );
+  let over = false;
   vi.stubGlobal(
     "fetch",
     vi.fn().mockImplementation((path, options) => {
       if (String(path).endsWith("/messages") && options?.method === "POST") {
-        return Promise.resolve(response);
+        return started({ id: "c1", title: "First", messages: finished.messages.slice(0, 1) });
       }
       if (String(path).endsWith("/chats/c1")) {
         c1Reads += 1;
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: async () => (c1Reads > 1 ? finished : { id: "c1", title: "First", messages: [] }),
-        });
+        return ok(over ? finished : { id: "c1", title: "First", messages: [] });
       }
       if (String(path).endsWith("/chats/c2")) {
         return Promise.resolve({ ok: true, status: 200, json: async () => second });
@@ -3332,18 +3256,18 @@ test("a turn that ends in a left chat does not repaint the one the user is stand
   const box = await chatOpened();
   fireEvent.change(box, { target: { value: "go" } });
   fireEvent.keyDown(box, { key: "Enter" });
+  await hear(live({ calls: [{ tool: "read_file", target: "running.md", outcome: "" }] }));
   await waitFor(() => expect(screen.getByText("⏺ read_file(running.md)")).toBeTruthy());
+  const own = streams().at(-1);
 
   fireEvent.click(screen.getByText("Second", { selector: ".sidebar__chat" }));
   await waitFor(() => expect(screen.getByText("Second's own words")).toBeTruthy());
 
-  await act(async () => {
-    release();
-  });
-  await waitFor(() => {
-    expect(c1Reads).toBeGreaterThan(1);
-    expect(screen.queryByText("⏺ read_file(running.md)")).toBeNull();
-  });
+  over = true;
+  await act(async () => own.emit(OVER));
+  expect(own.readyState).toBe(globalThis.EventSource.CLOSED);
+  // Not read here: no screen stands in it.
+  expect(c1Reads).toBe(1);
   expect(screen.queryByText("The finished answer.")).toBeNull();
   expect(screen.getByText("Second's own words")).toBeTruthy();
 
@@ -3369,20 +3293,17 @@ test("coming back to a streaming chat finds its transcript and its stream", asyn
     { id: "c1", title: "First", lastActivity: new Date().toISOString() },
     { id: "c2", title: "Second", lastActivity: new Date().toISOString() },
   ];
-  const { response, release } = gatedSse(
-    `event: chat\ndata: {"chat":"c1"}\n\n` +
-      `event: call\ndata: {"tool":"read_file","target":"live.md"}\n\n`,
-    `event: done\ndata: {}\n\n`,
-  );
+  const running = live({ calls: [{ tool: "read_file", target: "live.md", outcome: "" }] });
+  let turn = null;
   vi.stubGlobal(
     "fetch",
     vi.fn().mockImplementation((path, options) => {
       if (String(path).endsWith("/messages") && options?.method === "POST") {
-        return Promise.resolve(response);
+        turn = running;
+        return started(first);
       }
-      if (String(path).endsWith("/chats/c1")) {
-        return Promise.resolve({ ok: true, status: 200, json: async () => first });
-      }
+      // While the turn runs, reading the chat hands it back with it (Madde 462).
+      if (String(path).endsWith("/chats/c1")) return ok({ ...first, turn });
       if (String(path).endsWith("/chats/c2")) {
         return Promise.resolve({ ok: true, status: 200, json: async () => second });
       }
@@ -3401,6 +3322,7 @@ test("coming back to a streaming chat finds its transcript and its stream", asyn
   const box = await chatOpened();
   fireEvent.change(box, { target: { value: "go" } });
   fireEvent.keyDown(box, { key: "Enter" });
+  await hear(running);
   await waitFor(() => expect(screen.getByText("⏺ read_file(live.md)")).toBeTruthy());
 
   fireEvent.click(screen.getByText("Second", { selector: ".sidebar__chat" }));
@@ -3412,23 +3334,16 @@ test("coming back to a streaming chat finds its transcript and its stream", asyn
   );
   expect(screen.queryByText("Second's own words")).toBeNull();
   expect(screen.getByText("⏺ read_file(live.md)")).toBeTruthy();
-
-  await act(async () => {
-    release();
-  });
 });
 
 // --- the answer comes back whole, or fails (Madde 440) -------------------------------------------
 
-// A chat answered by `streams`, one per send in turn and the last one again after that, whose record
-// is whatever `server.record` holds when it is read: the test moves it on as the server would.
-function stubTurn(server, ...streams) {
-  let posts = 0;
+// A chat whose record is whatever `server.record` holds when it is read or a door answers: the test
+// moves it on as the server would. A message and a Try again each start a turn on it.
+function stubTurn(server) {
   const fetch = vi.fn().mockImplementation((path, options) => {
-    if (String(path).endsWith("/messages") && options?.method === "POST") {
-      posts += 1;
-      return Promise.resolve(streams[Math.min(posts, streams.length) - 1]);
-    }
+    const door = String(path).endsWith("/messages") || String(path).endsWith("/retry");
+    if (door && options?.method === "POST") return started(server.record);
     if (String(path).endsWith("/chats/c1")) {
       const record = server.record;
       return Promise.resolve({ ok: true, status: 200, json: async () => record });
@@ -3450,16 +3365,14 @@ test("the wait stands until the turn ends, and then the answer arrives whole", a
   // Design item 214: no words while the turn runs; the record's message takes the wait's place,
   // its words fading in.
   const question = { role: "user", at: NOW, text: "go" };
-  const { response, release } = gatedSse(
-    `event: chat\ndata: {"chat":"c1"}\n\nevent: chunk\ndata: {"text":"Here it"}\n\n`,
-    `event: done\ndata: {}\n\n`,
-  );
   const server = { record: { id: "c1", title: "go", messages: [] } };
-  stubTurn(server, response);
+  stubTurn(server);
   render(<App />);
   const box = await chatOpened();
+  server.record = { id: "c1", title: "go", messages: [question] };
   fireEvent.change(box, { target: { value: "go" } });
   fireEvent.keyDown(box, { key: "Enter" });
+  await hear(live({ progress: { round: 1, of: 16, tokens: 0 } }));
   await waitFor(() => expect(screen.getByTestId("thinking")).toBeTruthy());
   expect(screen.queryByText(/Here it/)).toBeNull();
 
@@ -3468,9 +3381,7 @@ test("the wait stands until the turn ends, and then the answer arrives whole", a
     title: "go",
     messages: [question, { role: "ai", at: NOW, text: "Here it is." }],
   };
-  await act(async () => {
-    release();
-  });
+  await hear(OVER);
   const words = await screen.findByText("Here it is.");
   expect(words.closest(".msg").classList.contains("msg--arrived")).toBe(true);
   expect(screen.queryByTestId("thinking")).toBeNull();
@@ -3479,193 +3390,240 @@ test("the wait stands until the turn ends, and then the answer arrives whole", a
 const QUESTION = { role: "user", at: NOW, text: "go" };
 const FAILED_ANSWER = { role: "ai", at: NOW, text: "HTTP 502", failed: "technical" };
 
-// A chat whose turn failed, the stream that Try again opens, and the server holding the record.
+// A chat whose turn failed, and the server holding the record.
 function failedTurn() {
-  const stream = gatedSse(`event: chat\ndata: {"chat":"c1"}\n\n`, `event: done\ndata: {}\n\n`);
-  const server = { record: { id: "c1", title: "go", messages: [QUESTION, FAILED_ANSWER] } };
-  const fetch = stubTurn(server, stream.response);
-  return { fetch, server, release: stream.release };
+  const server = {
+    record: { id: "c1", title: "go", status: "failed", messages: [QUESTION, FAILED_ANSWER] },
+  };
+  return { fetch: stubTurn(server), server };
 }
 
-test("Try again on a failed answer takes the card away at once and asks with no sentence", async () => {
-  const { fetch, server, release } = failedTurn();
+test("Try again on a failed answer takes the card away when the door answers, and asks with no sentence", async () => {
+  const { fetch, server } = failedTurn();
   render(<App />);
   await screen.findByText("HTTP 502");
 
-  // What the server does on this request before its first frame: the failed answer goes.
+  // What the server does on this request before it answers: the failed answer goes, and the door
+  // hands back the record without it -- no read after it (Madde 462).
   server.record = { id: "c1", title: "go", messages: [QUESTION] };
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-  // The record is read again on the first frame, so the card goes and the wait stands in its place.
   await waitFor(() => expect(screen.queryByText("HTTP 502")).toBeNull());
   expect(screen.getByTestId("thinking")).toBeTruthy();
-  expect(messagePosts(fetch)).toEqual([{ chat: "c1", mode: "edit" }]);
+  expect(retryPosts(fetch)).toEqual([["/api/projects/p1/chats/c1/retry", { mode: "edit" }]]);
+  expect(messagePosts(fetch)).toEqual([]);
 
   server.record = {
     id: "c1",
     title: "go",
     messages: [QUESTION, { role: "ai", at: NOW, text: "Here it is." }],
   };
-  await act(async () => {
-    release();
-  });
+  await hear(OVER);
   expect(await screen.findByText("Here it is.")).toBeTruthy();
 });
 
 test("Try again on a failed answer asks in the mode the session is in", async () => {
   // A question asked again in Plan must not run in Edit, where a write goes through unasked.
-  const { fetch, release } = failedTurn();
+  const { fetch } = failedTurn();
   render(<App />);
   await screen.findByText("HTTP 502");
 
   fireEvent.click(screen.getByText("Edit", { selector: ".picker__name" }));
   fireEvent.click(screen.getByText("Plan", { selector: ".menu__item-name" }));
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-  await waitFor(() => expect(messagePosts(fetch)).toEqual([{ chat: "c1", mode: "plan" }]));
+  await waitFor(() =>
+    expect(retryPosts(fetch)).toEqual([["/api/projects/p1/chats/c1/retry", { mode: "plan" }]]),
+  );
+});
 
-  await act(async () => {
-    release();
+// The user's two decisions for Madde 462: neither draws a card or a Try again.
+
+test("a question nobody answered stands plainly, with no card and no Try again", async () => {
+  // "cevapsız kalmış soru düz sorulsun, hata gibi görünmesin" -- a turn that died with the server.
+  stubTurn({ record: { id: "c1", title: "go", status: "unanswered", turn: null, messages: [QUESTION] } });
+  render(<App />);
+  expect(await screen.findByText("go", { selector: ".msg__bubble" })).toBeTruthy();
+  expect(screen.queryByText("Couldn't get a response.")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+  expect(screen.queryByTestId("thinking")).toBeNull();
+});
+
+test("a stopped answer offers no Try again", async () => {
+  // "tabii ki olmasın" -- the design draws Stopped and its time, and nothing to press.
+  const stopped = { role: "ai", at: NOW, text: "", stopped: true };
+  stubTurn({ record: { id: "c1", title: "go", status: "stopped", turn: null, messages: [QUESTION, stopped] } });
+  render(<App />);
+  expect(await screen.findByText("Stopped")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+  expect(screen.queryByText("Couldn't get a response.")).toBeNull();
+});
+
+test("a reload during a running turn draws the turn and its Stop, and hears it end", async () => {
+  const server = {
+    record: {
+      id: "c1",
+      title: "go",
+      status: "running",
+      turn: live({ calls: [{ tool: "read_file", target: "plan.md", outcome: "1 line" }] }),
+      messages: [QUESTION],
+    },
+  };
+  stubTurn(server);
+  render(<App />);
+  await waitFor(() => expect(screen.getByText("⏺ read_file(plan.md)")).toBeTruthy());
+  expect(screen.getByTitle("Stop")).toBeTruthy();
+  expect(streams().map((source) => source.url)).toEqual(["/api/projects/p1/chats/c1/events"]);
+
+  server.record = { id: "c1", title: "go", messages: [QUESTION, { role: "ai", at: NOW, text: "Done." }] };
+  await hear(OVER);
+  expect(await screen.findByText("Done.")).toBeTruthy();
+  expect(screen.queryByTitle("Stop")).toBeNull();
+});
+
+test("a reload during a waiting question draws its card again, and Allow names the turn and the question", async () => {
+  // Gap 3 of Madde 461: the card and Stop came only down the POST, so a reload lost both and the
+  // chat stayed held.
+  const asking = live({
+    status: "waiting",
+    permission: { wait: 3, tool: "create_file", arguments: '{"name": "plan.md"}' },
   });
+  const fetch = stubTurn({
+    record: { id: "c1", title: "go", status: "waiting", turn: asking, messages: [QUESTION] },
+  });
+  render(<App />);
+  expect(await screen.findByText("QueenAgent wants to run create_file")).toBeTruthy();
+  expect(screen.getByTitle("Stop")).toBeTruthy();
+  fireEvent.click(screen.getByText("Allow"));
+  await waitFor(() =>
+    expect(
+      fetch.mock.calls
+        .filter(([path]) => String(path).endsWith("/permission"))
+        .map(([, options]) => JSON.parse(options.body)),
+    ).toEqual([{ turn: "t1", wait: 3, allowed: true }]),
+  );
+  expect(screen.queryByText("QueenAgent wants to run create_file")).toBeNull();
 });
 
 // --- a connection that drops (Madde 449) ---------------------------------------------------------
 
-// A stream that hands over its first frames and drops once released -- after the screen has caught
-// up with what those frames said.
-const droppingSse = (first) => gatedSse(first, new TypeError("network error"));
+// --- a connection that drops (Madde 449, the browser's own since 462) -----------------------------
 
 const questions = () =>
   [...document.querySelectorAll(".msg--user .msg__bubble")].map((bubble) => bubble.textContent);
 
-const CHAT_FRAME = 'event: chat\ndata: {"chat":"c1"}\n\n';
-
-test("a turn whose connection drops keeps its question once, and Try again has it answered", async () => {
-  // The server wrote the question before its first frame, so the card is an answer that never
-  // came: the sentence stays in the chat and not in the box, and Try again asks with no sentence.
-  const broken = droppingSse(CHAT_FRAME);
-  const again = gatedSse(CHAT_FRAME, "event: done\ndata: {}\n\n");
+test("a turn whose stream drops is heard again with its question once, and no card", async () => {
+  // EventSource mends a drop by itself, and its first frame is the turn as it stands: nothing to
+  // try again, and the sentence is never sent twice.
   const server = { record: { id: "c1", title: "go", messages: [] } };
-  const fetch = stubTurn(server, broken.response, again.response);
+  const fetch = stubTurn(server);
   render(<App />);
   const box = await chatOpened();
+  server.record = { id: "c1", title: "go", messages: [QUESTION] };
   fireEvent.change(box, { target: { value: "go" } });
   fireEvent.keyDown(box, { key: "Enter" });
-  await waitFor(() => expect(screen.getByTestId("thinking")).toBeTruthy());
+  await hear(live());
 
-  server.record = { id: "c1", title: "go", messages: [QUESTION] };
-  await act(async () => {
-    broken.release();
-  });
-  expect(await screen.findByText("network error")).toBeTruthy();
-  expect(questions()).toEqual(["go"]);
+  act(() => streams().at(-1).drop());
+  expect(screen.queryByText("Couldn't get a response.")).toBeNull();
+  expect(screen.getByTestId("thinking")).toBeTruthy();
   expect(box.value).toBe("");
-
-  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-  await waitFor(() => expect(messagePosts(fetch)).toHaveLength(2));
-  expect(messagePosts(fetch)[1]).toEqual({ chat: "c1", mode: "edit" });
-  await waitFor(() => expect(screen.queryByText("network error")).toBeNull());
 
   server.record = {
     id: "c1",
     title: "go",
     messages: [QUESTION, { role: "ai", at: NOW, text: "Here it is." }],
   };
-  await act(async () => {
-    again.release();
-  });
+  await hear(live({ progress: { round: 2, of: 16, tokens: 10 } }), OVER);
   expect(await screen.findByText("Here it is.")).toBeTruthy();
   expect(questions()).toEqual(["go"]);
+  expect(messagePosts(fetch)).toHaveLength(1);
 });
 
-test("a draft's turn that drops after its first frame is asked again in the chat it was born as", async () => {
-  const broken = droppingSse(CHAT_FRAME);
-  const again = gatedSse(CHAT_FRAME, "event: done\ndata: {}\n\n");
+test("a newborn chat's stream given up on is read again and listened to in the chat it was born as", async () => {
   const server = { record: { id: "c1", title: "go", messages: [QUESTION] } };
-  const fetch = stubTurn(server, broken.response, again.response);
+  stubTurn(server);
   window.history.pushState(null, "", "/p/p1/c/new");
   render(<App />);
   const box = await chatOpened();
   fireEvent.change(box, { target: { value: "go" } });
   fireEvent.keyDown(box, { key: "Enter" });
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c1"));
+  await hear(live());
 
-  await act(async () => {
-    broken.release();
-  });
-  fireEvent.click(await screen.findByRole("button", { name: "Try again" }));
-  await waitFor(() => expect(messagePosts(fetch)).toHaveLength(2));
-  expect(messagePosts(fetch)[1]).toEqual({ chat: "c1", mode: "edit" });
-
-  await act(async () => {
-    again.release();
-  });
+  // The tunnel's 502: EventSource gives up. The chat is read once, and still running, listened to.
+  server.record = { ...server.record, turn: live() };
+  act(() => streams().at(-1).refuse());
+  await waitFor(() => expect(streams()).toHaveLength(2));
+  expect(streams()[1].url).toBe("/api/projects/p1/chats/c1/events");
+  expect(screen.queryByText("Couldn't get a response.")).toBeNull();
 });
 
-test("an edit whose connection drops keeps the corrected question once, and Try again answers it", async () => {
-  // The server opened the new line before its first frame: the corrected question stands where the
-  // old one stood, and nothing holds the old sentence any more for a send with text.
+test("an edit whose stream drops keeps the corrected question once", async () => {
+  // The server opened the new line before it answered: the corrected question stands where the
+  // old one stood.
   const answered = { id: "c1", title: "go", messages: [QUESTION, { role: "ai", at: NOW, text: "Here it is." }] };
   const corrected = { role: "user", at: NOW, text: "go again" };
-  const broken = droppingSse(CHAT_FRAME);
-  const again = gatedSse(CHAT_FRAME, "event: done\ndata: {}\n\n");
   const server = { record: answered };
-  const fetch = stubTurn(server, broken.response, again.response);
+  const fetch = stubTurn(server);
   const { container } = render(<App />);
   await screen.findByText("Here it is.");
   fireEvent.click(screen.getByRole("button", { name: "Edit message" }));
   fireEvent.change(container.querySelector(".msg__editing-input"), { target: { value: "go again" } });
-  fireEvent.click(screen.getByRole("button", { name: "Confirm edit" }));
-  await waitFor(() => expect(screen.getByTestId("thinking")).toBeTruthy());
-  expect(messagePosts(fetch)[0].from).toBe(0);
-
   server.record = { id: "c1", title: "go", messages: [corrected] };
-  await act(async () => {
-    broken.release();
-  });
-  expect(await screen.findByText("network error")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Confirm edit" }));
+  await hear(live());
+  expect(screen.getByTestId("thinking")).toBeTruthy();
+  expect(messagePosts(fetch)[0].from).toBe(0);
   expect(questions()).toEqual(["go again"]);
   expect(screen.queryByText("Here it is.")).toBeNull();
 
-  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-  await waitFor(() => expect(messagePosts(fetch)).toHaveLength(2));
-  expect(messagePosts(fetch)[1]).toEqual({ chat: "c1", mode: "edit" });
-
+  act(() => streams().at(-1).drop());
   server.record = {
     id: "c1",
     title: "go",
     messages: [corrected, { role: "ai", at: NOW, text: "Shorter." }],
   };
-  await act(async () => {
-    again.release();
-  });
+  await hear(OVER);
   expect(await screen.findByText("Shorter.")).toBeTruthy();
   expect(questions()).toEqual(["go again"]);
+  expect(messagePosts(fetch)).toHaveLength(1);
 });
 
-test("a fault the stream said before it dropped is the one the card keeps", async () => {
-  // The turn's own words are the real cause; the drop that followed them is not.
-  const broken = droppingSse(`${CHAT_FRAME}event: error\ndata: {"error":"HTTP 401"}\n\n`);
-  const server = { record: { id: "c1", title: "go", messages: [] } };
-  stubTurn(server, broken.response);
+test("a fault the turn said is the one the card keeps, whatever the read after it says", async () => {
+  // The turn's own words are the real cause; a read that failed after them is not.
+  let reads = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockImplementation((path, options) => {
+      if (String(path).endsWith("/messages") && options?.method === "POST") {
+        return started({ id: "c1", title: "go", messages: [QUESTION] });
+      }
+      if (String(path).endsWith("/chats/c1")) {
+        reads += 1;
+        return reads > 1
+          ? Promise.resolve({ ok: false, status: 502, text: async () => "" })
+          : ok({ id: "c1", title: "go", messages: [] });
+      }
+      return ok(String(path) === "/api/projects" ? [PROJECT] : []);
+    }),
+  );
+  window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
   const box = await chatOpened();
   fireEvent.change(box, { target: { value: "go" } });
   fireEvent.keyDown(box, { key: "Enter" });
+  await hear({ turn: null, error: "HTTP 401" });
   expect(await screen.findByText("HTTP 401")).toBeTruthy();
-
-  await act(async () => {
-    broken.release();
-  });
   await waitFor(() => expect(screen.queryByTestId("thinking")).toBeNull());
-  expect(screen.getByText("HTTP 401")).toBeTruthy();
-  expect(screen.queryByText("network error")).toBeNull();
+  expect(screen.queryByText("HTTP 502")).toBeNull();
 });
 
 test("a send that never reached the server hands the sentence back, and Try again sends it", async () => {
-  // No first frame, so nothing says the question was written: the road a refusal takes (Madde 349).
+  // The door never answered, so nothing says the question was written: the road a refusal takes
+  // (Madde 349).
   const fetch = stubRefusingChat((post) =>
     post === 1
       ? Promise.reject(new TypeError("Failed to fetch"))
-      : sseResponse(`${CHAT_FRAME}event: done\ndata: {}\n\n`),
+      : started({ id: "c1", title: "Hi", messages: [] }),
   );
   render(<App />);
   const box = await chatOpened();
@@ -3760,11 +3718,7 @@ test("a second draft does not wear the first one's skill", async () => {
   // the next draft starts with nothing.
   const born = { id: "c1", title: "Write it", skill: "edit-prompts", messages: [] };
   const fetch = vi.fn().mockImplementation((path, options) => {
-    if (String(path).endsWith("/messages") && options?.method === "POST") {
-      return Promise.resolve(
-        sseResponse(`event: chat\ndata: {"chat":"c1"}\n\nevent: done\ndata: {}\n\n`),
-      );
-    }
+    if (String(path).endsWith("/messages") && options?.method === "POST") return started(born);
     if (String(path).endsWith("/chats/c1")) {
       return Promise.resolve({ ok: true, status: 200, json: async () => born });
     }
@@ -3874,22 +3828,21 @@ test("opening one picker closes the other", async () => {
 
 // --- the question the screen asks (Madde 102) ----------------------------------------------------
 
-const ASKING =
-  'event: chat\ndata: {"chat":"c1"}\n\n' +
-  'event: permission\ndata: {"tool":"create_file","arguments":"{\\"name\\": \\"plan.md\\"}"}\n\n';
+// The turn waiting on its question, as the stream says it. `wait` names the question in its turn.
+const ASKING = live({
+  status: "waiting",
+  permission: { wait: 1, tool: "create_file", arguments: '{"name": "plan.md"}' },
+});
 
 function paused(onAnswer) {
-  /* A chat mid-answer, stopped on a question. The gate is released by whatever answers the door,
-     so the turn only finishes once the test has pressed something -- the same shape the stop test
-     uses, and nothing in it depends on timing. */
+  /* A chat mid-answer, stopped on a question. Nothing ends the turn but the test: the stream says
+     what the server would, and nothing in it depends on timing. */
   const owed = { id: "c1", title: "hello", messages: [] };
-  const { response, release } = gatedSse(ASKING, `event: done\ndata: ${JSON.stringify(owed)}\n\n`);
   const fetch = vi.fn().mockImplementation((path, options) => {
-    if (path.endsWith("/messages") && options?.method === "POST") return Promise.resolve(response);
+    if (path.endsWith("/messages") && options?.method === "POST") return started(owed);
     if (path.endsWith("/permission") && options?.method === "POST") {
       onAnswer?.(path, JSON.parse(options.body));
-      release();
-      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+      return ok({ turn: live() });
     }
     if (path.endsWith("/chats/c1"))
       return Promise.resolve({ ok: true, status: 200, json: async () => owed });
@@ -3897,7 +3850,7 @@ function paused(onAnswer) {
   });
   vi.stubGlobal("fetch", fetch);
   window.history.pushState(null, "", "/p/p1/c/c1");
-  return { fetch, release };
+  return { fetch };
 }
 
 async function asked() {
@@ -3909,27 +3862,26 @@ async function asked() {
   fireEvent.click(screen.getByText("Ask", { selector: ".menu__item-name" }));
   fireEvent.change(box, { target: { value: "write the plan" } });
   fireEvent.keyDown(box, { key: "Enter" });
+  await hear(ASKING);
   return screen.findByText("QueenAgent wants to run create_file");
 }
 
-test("a permission frame puts the card up while the answer is still running", async () => {
-  const { release } = paused();
+test("a waiting turn puts the card up while the answer is still running", async () => {
+  paused();
   await asked();
   expect(screen.getByText('{"name": "plan.md"}')).toBeTruthy();
-  release();
 });
 
-test("allowing sends the yes to the chat's own door", async () => {
+test("allowing sends the yes to the chat's own door, naming the turn and its question", async () => {
   let sent = null;
-  const { release } = paused((path, body) => {
+  paused((path, body) => {
     sent = { path, body };
   });
   await asked();
   fireEvent.click(screen.getByText("Allow"));
   await waitFor(() => expect(sent).toBeTruthy());
   expect(sent.path).toContain("/api/projects/p1/chats/c1/permission");
-  expect(sent.body).toEqual({ allowed: true });
-  release();
+  expect(sent.body).toEqual({ turn: "t1", wait: 1, allowed: true });
 });
 
 test("allowing moves the mode picker to edit", async () => {
@@ -3953,7 +3905,7 @@ test("denying carries the reason the user typed", async () => {
   });
   fireEvent.click(screen.getByText("Deny"));
   await waitFor(() => expect(sent).toBeTruthy());
-  expect(sent).toEqual({ allowed: false, reason: "not that file" });
+  expect(sent).toEqual({ turn: "t1", wait: 1, allowed: false, reason: "not that file" });
 });
 
 test("answering takes the card down", async () => {
@@ -3964,11 +3916,18 @@ test("answering takes the card down", async () => {
 });
 
 test("the send button is still a stop while the card stands", async () => {
-  // The wait has no end and no timeout, so the way out is the button that was already there.
-  const { release } = paused();
+  // The wait has no end and no timeout, so the way out is the button that was already there --
+  // and it names the turn it stops (Madde 462).
+  const { fetch } = paused();
   await asked();
-  expect(screen.getByTitle("Stop")).toBeTruthy();
-  release();
+  fireEvent.click(screen.getByTitle("Stop"));
+  await waitFor(() =>
+    expect(
+      fetch.mock.calls
+        .filter(([path]) => path.endsWith("/stop"))
+        .map(([path, options]) => [path, JSON.parse(options.body)]),
+    ).toEqual([["/api/projects/p1/chats/c1/stop", { turn: "t1" }]]),
+  );
 });
 
 test("a turn that ends unanswered takes the card with it", async () => {
@@ -3977,9 +3936,9 @@ test("a turn that ends unanswered takes the card with it", async () => {
   //
   // The card has to be seen standing before its absence means anything -- without that half this
   // would also pass on a card that was never drawn.
-  const { fetch, release } = paused();
+  const { fetch } = paused();
   await asked();
-  release();
+  await hear(OVER);
   await waitFor(() => expect(screen.queryByText("QueenAgent wants to run create_file")).toBeNull());
   expect(fetch.mock.calls.some(([path]) => String(path).endsWith("/permission"))).toBe(false);
 });
@@ -4087,9 +4046,7 @@ test("a message is edited, the chat carries on from there, and the arrow goes ba
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (path.endsWith("/messages") && options?.method === "POST") {
       open = edited;
-      return Promise.resolve(
-        sseResponse(`event: chat\ndata: {"chat":"c1"}\n\nevent: done\ndata: {}\n\n`),
-      );
+      return started({ ...edited, messages: edited.messages.slice(0, 1) });
     }
     if (path.endsWith("/version") && options?.method === "POST") {
       open = JSON.parse(options.body).version === "" ? first : edited;
@@ -4112,6 +4069,7 @@ test("a message is edited, the chat carries on from there, and the arrow goes ba
   expect(screen.getByPlaceholderText("Reply...").value).toBe("");
   fireEvent.change(field, { target: { value: "Write a shorter intro" } });
   fireEvent.click(screen.getByRole("button", { name: "Confirm edit" }));
+  await hear(OVER);
 
   await waitFor(() => expect(screen.getByText("Shorter.")).toBeTruthy());
   const sent = JSON.parse(
@@ -4189,17 +4147,13 @@ test("a refusal met while the chat was full goes with Continue here", async () =
   // The question filled the chat and its answer never came; Try again then met the ceiling. What
   // the refusal said stops being true the moment the chat is trimmed.
   let record = { id: "c1", title: "Long", full: false, trimmed: 0, messages: turn("Last answer.") };
-  let posts = 0;
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (path.endsWith("/messages") && options?.method === "POST") {
-      posts += 1;
-      if (posts === 1) {
-        const asked = { role: "user", at: new Date().toISOString(), text: "and more" };
-        record = { ...record, full: true, messages: [...record.messages, asked] };
-        return Promise.resolve(
-          sseResponse('event: chat\ndata: {"chat":"c1"}\n\nevent: error\ndata: {"error":"502 upstream"}\n\n'),
-        );
-      }
+      const asked = { role: "user", at: new Date().toISOString(), text: "and more" };
+      record = { ...record, full: true, messages: [...record.messages, asked] };
+      return started(record);
+    }
+    if (path.endsWith("/retry") && options?.method === "POST") {
       return Promise.resolve({
         ok: false,
         status: 400,
@@ -4222,6 +4176,7 @@ test("a refusal met while the chat was full goes with Continue here", async () =
   const box = await chatOpened();
   fireEvent.change(box, { target: { value: "and more" } });
   fireEvent.keyDown(box, { key: "Enter" });
+  await hear({ turn: null, error: "502 upstream" });
   await screen.findByText("502 upstream");
   await screen.findByText("This chat is full.");
 

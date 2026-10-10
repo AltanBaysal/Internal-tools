@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { getJson, postJson } from "./api.js";
+import { getJson, postJson, reach } from "./api.js";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -46,6 +46,28 @@ test("the code is still carried apart from the sentence", async () => {
   // "This does not exist" is a screen, not an error line, and that decision reads the number.
   stubFetch({ ok: false, status: 404, text: async () => JSON.stringify({ error: "gone" }) });
   await expect(getJson("/api/x")).rejects.toMatchObject({ status: 404, message: "gone" });
+});
+
+test("what else a refusal said is carried with it", async () => {
+  // Madde 462: a message refused while a turn runs names that turn, so the screen can follow it.
+  stubFetch({
+    ok: false,
+    status: 409,
+    text: async () => JSON.stringify({ error: "busy", turn: { id: "t1" } }),
+  });
+  await expect(postJson("/api/x", {})).rejects.toMatchObject({
+    message: "busy",
+    body: { error: "busy", turn: { id: "t1" } },
+  });
+});
+
+test("reach leaves a body it was not asked for unread, and a refusal says what it said", async () => {
+  const cancel = vi.fn();
+  stubFetch({ ok: true, status: 200, body: { cancel } });
+  await reach("/api/x/events");
+  expect(cancel).toHaveBeenCalled();
+  stubFetch({ ok: false, status: 524, text: async () => "A timeout occurred" });
+  await expect(reach("/api/x/events")).rejects.toThrow("HTTP 524: A timeout occurred");
 });
 
 test("postJson sends POST and needs no body", async () => {

@@ -59,7 +59,10 @@ export default forwardRef(function Composer(
   const onKeyDown = (event) => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      submit();
+      // Enter is the button's key, and while an answer runs the button stops rather than sends
+      // (Madde 462). Stopping stays a press: a key that cut the answer short would be pressed by
+      // accident at the end of every sentence typed ahead.
+      if (!running) submit();
     }
   };
 
