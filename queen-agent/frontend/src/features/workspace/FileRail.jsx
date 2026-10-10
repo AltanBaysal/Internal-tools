@@ -148,6 +148,8 @@ export default function FileRail({
   // than travelling up with the width.
   const [dragging, setDragging] = useState(false);
   const style = railStyle(reading, collapsed, width);
+  // Before the project's list has come there is nothing to count, and a 0 would say it has no files.
+  const count = loading ? null : <span className="rail__count">{files.length}</span>;
 
   if (reading?.name) {
     return (
@@ -184,12 +186,12 @@ export default function FileRail({
         {foldedByWidth ? (
           <div className="rail__head rail__head--still">
             <span className="rail__label">Project files</span>
-            <span className="rail__count">{files.length}</span>
+            {count}
           </div>
         ) : (
           <button type="button" className="rail__head" aria-expanded={!collapsed} onClick={onToggle}>
             <span className="rail__label">Project files</span>
-            <span className="rail__count">{files.length}</span>
+            {count}
             <span className="rail__chevron">{collapsed ? "‹" : "›"}</span>
           </button>
         )}

@@ -31,6 +31,7 @@ function Fold({ collapsed, onToggle }) {
 
 export default function Sidebar({
   chats = [],
+  loading = false,
   error,
   onRetry,
   activeChatId,
@@ -83,9 +84,10 @@ export default function Sidebar({
   }
 
   const asked = query.trim();
-  // A read that failed leaves the last list in hand -- another project's, maybe -- so with the
-  // list unknown nothing is listed, and Enter has nothing to open.
-  const shown = error ? [] : chats.filter((chat) => matches(chat.title, query));
+  // A read that failed leaves this project's last list in hand, and it may no longer be what the
+  // project holds -- so with the list unknown nothing is listed, and Enter has nothing to open. With
+  // no answer about this project in hand yet, there is no list at all (Madde 457).
+  const shown = error || loading ? [] : chats.filter((chat) => matches(chat.title, query));
 
   // The keys are the design's: Enter opens the first match -- the server lists the most recent
   // first -- and hands its reply box the focus; Escape empties the box. Emptying it is that press's
@@ -120,6 +122,8 @@ export default function Sidebar({
         onKeyDown={onKeyDown}
       />
 
+      {/* With no answer about this project in hand yet, the rows' place stays empty: the design
+          draws no wait here, and "No chats yet." before an answer would be a guess (Madde 457). */}
       <div className="sidebar__chats">
         {error ? (
           // Madde 386, in 364's shape: the chats are on disk and only the read failed, so this is
@@ -133,7 +137,7 @@ export default function Sidebar({
               <CopyButton text={error} className="sidebar__copy" />
             </div>
           </div>
-        ) : shown.length ? (
+        ) : loading ? null : shown.length ? (
           shown.map((chat) => (
             <button
               key={chat.id}

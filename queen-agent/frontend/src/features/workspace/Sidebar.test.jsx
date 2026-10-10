@@ -62,6 +62,15 @@ test("a project with no chats says so", () => {
   expect(empty.closest(".sidebar__chats")).toBeTruthy();
 });
 
+test("loading draws neither rows nor No chats yet.", () => {
+  // Madde 457: before the project's own answer there is no list -- not the last project's, and not
+  // none. The design draws no wait in the sidebar, so its place stays empty; the search stays.
+  const { container } = render(<Sidebar chats={CHATS} loading />);
+  expect(container.querySelector(".sidebar__chats").children.length).toBe(0);
+  expect(screen.queryByText("No chats yet.")).toBeNull();
+  expect(screen.getByRole("textbox", { name: "Search chats" })).toBeTruthy();
+});
+
 test("with chats, nothing says there are none", () => {
   render(<Sidebar chats={CHATS} />);
   expect(screen.queryByText("No chats yet.")).toBeNull();
@@ -327,7 +336,8 @@ test("its Copy puts the error on the clipboard exactly as it came", async () => 
 });
 
 test("the failure stands in the rows' place, whatever was listed and whatever is typed", () => {
-  // A failed read leaves the last list standing -- another project's, maybe -- so it is not shown.
+  // A failed read leaves the project's last list standing, maybe no longer what it holds -- so it is
+  // not shown.
   const { container } = render(<Sidebar chats={CHATS} error={RAW} />);
   expect(rows(container)).toEqual([]);
   type("zebra");

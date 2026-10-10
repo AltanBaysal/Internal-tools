@@ -86,7 +86,9 @@ export default function App() {
   // against the record on screen rather than the address: for a render after the address moves the
   // old chat's record is still there, and its box would take the focus only to lose it.
   const [replyFor, setReplyFor] = useState(null);
-  const { projectChats, projectChatsError, reloadProjectChats } = useProjectChats(route.projectId);
+  const { projectChats, loadingChats, projectChatsError, reloadProjectChats } = useProjectChats(
+    route.projectId,
+  );
   // A chat is born with its first message, so "New chat" has nothing to create yet. The draft has
   // an address all the same -- a reload must not throw the user out of what they were typing.
   const drafting = route.view === "chat" && route.chatId === "new";
@@ -271,6 +273,7 @@ export default function App() {
         {route.view === "root" || route.view === "new" ? null : (
           <Sidebar
             chats={projectChats}
+            loading={loadingChats}
             error={projectChatsError}
             onRetry={reloadProjectChats}
             activeChatId={route.chatId}

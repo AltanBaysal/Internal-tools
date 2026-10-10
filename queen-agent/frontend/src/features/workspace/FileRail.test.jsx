@@ -255,6 +255,16 @@ test("while the spinner turns, the heading and Refresh stand where they are", ()
   expect(screen.getByRole("button", { name: "Refresh" })).toBeTruthy();
 });
 
+test("while the spinner turns, the heading counts nothing, open or folded", () => {
+  // Madde 457: a 0 before the project's list has come would say it has no files.
+  const { container, rerender } = render(<FileRail files={[]} loading />);
+  expect(container.querySelector(".rail__count")).toBeNull();
+  rerender(<FileRail files={[]} loading collapsed />);
+  expect(container.querySelector(".rail__count")).toBeNull();
+  rerender(<FileRail files={[]} loading foldedByWidth />);
+  expect(container.querySelector(".rail__count")).toBeNull();
+});
+
 test("once the list has come, the spinner is gone and the rows are there", () => {
   render(<FileRail files={FILES} />);
   expect(screen.getByText("outline.md")).toBeTruthy();

@@ -302,6 +302,98 @@ test("leaving before the project's chats arrive stays where the user went", asyn
   expect(window.location.pathname).toBe("/");
 });
 
+test("a chat list that arrives after its project was left is not drawn in the next one's sidebar", async () => {
+  // Madde 457: the open project's chats are the only ones its sidebar lists -- a row of another's
+  // would open onto "chat missing".
+  const NOTES = { id: "p2", name: "Notes", chats: 1, files: 0, pinned: false, lastActivity: NOW };
+  const waiting = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockImplementation((path) => {
+      if (path === "/api/projects/p1/chats") {
+        return new Promise((resolve) => waiting.push(resolve));
+      }
+      if (path === "/api/projects/p2/chats") {
+        return ok([{ id: "n1", title: "Notes chat", lastActivity: NOW }]);
+      }
+      if (path === "/api/projects") return ok([THESIS, NOTES]);
+      const record = path.match(/\/chats\/(\w+)$/);
+      if (record) return ok({ id: record[1], title: record[1], messages: [] });
+      return ok([]);
+    }),
+  );
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  fireEvent.click(await screen.findByRole("button", { name: "Exit project" }));
+  fireEvent.click(await screen.findByRole("button", { name: /^Notes/ }));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p2/c/n1"));
+  await screen.findByText("Notes chat", { selector: ".sidebar__chat" });
+
+  await act(async () => {
+    waiting.forEach((resolve) =>
+      resolve({
+        ok: true,
+        status: 200,
+        json: async () => [{ id: "c1", title: "Thesis chat", lastActivity: NOW }],
+      }),
+    );
+  });
+  expect(sidebarRows()).toEqual(["Notes chat"]);
+});
+
+test("the next project's sidebar and rail list nothing of the last one's while its own lists are on the way", async () => {
+  // Madde 457: the rows on hand are the project just left's, and a click on one would say chat
+  // missing. The sidebar's place stays empty and the rail waits with its spinner.
+  const NOTES = { id: "p2", name: "Notes", chats: 1, files: 0, pinned: false, lastActivity: NOW };
+  const heldChats = [];
+  const heldFiles = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockImplementation((path) => {
+      if (path === "/api/projects") return ok([THESIS, NOTES]);
+      if (path === "/api/projects/p1/chats") {
+        return ok([{ id: "c1", title: "Thesis chat", lastActivity: NOW }]);
+      }
+      if (path === "/api/projects/p1/files") {
+        return ok([{ name: "thesis.md", ext: "md", modifiedAt: NOW }]);
+      }
+      if (path === "/api/projects/p2/chats") {
+        return new Promise((resolve) => heldChats.push(resolve));
+      }
+      if (path === "/api/projects/p2/files") {
+        return new Promise((resolve) => heldFiles.push(resolve));
+      }
+      const record = path.match(/\/chats\/(\w+)$/);
+      if (record) return ok({ id: record[1], title: record[1], messages: [] });
+      return ok([]);
+    }),
+  );
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  const { container } = render(<App />);
+  await screen.findByText("Thesis chat", { selector: ".sidebar__chat" });
+  await screen.findByText("thesis.md");
+
+  fireEvent.click(screen.getByRole("button", { name: "Exit project" }));
+  fireEvent.click(await screen.findByRole("button", { name: /^Notes/ }));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p2"));
+  expect(sidebarRows()).toEqual([]);
+  expect(screen.queryByText("No chats yet.")).toBeNull();
+
+  await act(async () => {
+    heldChats.forEach((resolve) =>
+      resolve({
+        ok: true,
+        status: 200,
+        json: async () => [{ id: "n1", title: "Notes chat", lastActivity: NOW }],
+      }),
+    );
+  });
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p2/c/n1"));
+  expect(sidebarRows()).toEqual(["Notes chat"]);
+  expect(container.querySelector(".file-row")).toBeNull();
+  expect(container.querySelector(".file-list__spinner")).toBeTruthy();
+});
+
 // --- the naming screen (Madde 361; the design's items 135, 153, 169, 195) ------------------------
 
 const posts = (fetch) =>
