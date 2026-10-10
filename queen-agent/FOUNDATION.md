@@ -35,6 +35,12 @@ chat or a file says is seen at once, because contents are read from their own fi
 a file *says* is not metadata and keeps this principle whole — it is written to its own file before
 the request answers, and before any entry names it.
 
+One kind of state lives only in memory, on purpose: a running turn — its steps, its Stop and a
+permission it is waiting on (Madde 461). A restart ends it; its question is already on disk, so the
+chat reads as unanswered and Try again asks it again, while the waiting permission is lost
+unanswered. While a turn runs the server is its chat file's only writer, and the answer is written
+from the record the turn was handed, so a hand edit to that file made during the turn is written over.
+
 **3. Correctness > simplicity > generality > performance.**
 YAGNI: no abstraction before a proven need, no optimization before a measured problem, no feature
 before a real user ask.

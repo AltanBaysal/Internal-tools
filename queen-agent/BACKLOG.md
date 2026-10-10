@@ -104,6 +104,14 @@ dosyasıyla yeniden açabiliyor. Listede görünmüyor, çöpteki proje bütün 
 bir klasör. **Önerilen çözüm** (reviewer): silme projeye bir "kapanıyor" işareti koysun, `reserve` o
 işaretli projede sohbet tutmasın — bakmak ve işaretlemek tek kilit altında.
 
+## Stop, model daha ilk sözünü söylemeden de hemen kessin
+
+*(Claude, 10 Ekim — v10'un 460'ının reviewer'ı buldu; v10'da 464 olarak yazıldı, kullanıcı backlog'a aldı —
+"hepsi için önerdiğini yap sıkıntı yok".)* `client.py` isteği kesme imkânını ancak `urlopen` döndükten, yani
+servis cevaba başladıktan sonra alıyor. Servis daha cevap vermeden basılan Stop yalnız bir işaret koyuyor ve
+istek en fazla `MODEL_IDLE_SECONDS` (180 sn) sonra iniyor. Kapatmak için istemci bağlantıyı istek gitmeden
+açmalı (`urlopen` yerine `http.client`); bu, istemcinin taşıma yolunu ve testlerin `opener` dikişini değiştirir.
+
 ## Reddedilen bir isteğin kartındaki Try again o isteği değil turu dener
 
 *(Claude, 10 Ekim — v10'un 463'ünü deneyen QA'da görüldü; 463'ten eski.)* Mod seçimi, sürüm değiştirme ya da

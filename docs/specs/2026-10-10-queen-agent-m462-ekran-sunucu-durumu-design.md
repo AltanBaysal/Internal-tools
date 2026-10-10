@@ -241,7 +241,7 @@ Sunucu: dinleyen her bağlantı, tur sürdüğü sürece bir iş parçacığı t
   cevapsız kalan bir soru ancak düzenlenerek ya da yeni bir mesajla cevaplatılabilir. Turun kendi kodu
   bozulursa, o sırada dinleyen sekme kartı turun sözüyle ve Try again'le görür; yenileyince düz soru.
   Ana agent bunu roadmap testinde kullanıcıya soracak.
-- **Boşta duran ikinci sekme** *(kullanıcıya soruluyor; bu madde değiştirilebilir)*: olay kapısı yalnız
+- **Boşta duran ikinci sekme** *(kullanıcı, 10 Ekim — önerilen yol, "hepsi için önerdiğini yap sıkıntı yok")*: olay kapısı yalnız
   canlı bir turu dinletir. B sekmesi sohbette boştayken A sekmesi mesaj gönderirse, B'ye dönüldüğünde —
   sekmeler arasında geçilince ya da yandaki pencereye tıklanınca — B sohbeti bir kez okur, turu görür ve
   dinler. **Kapsamadığı:** A'nın yanında görünür duran ama hiç odak almayan bir B, odak alana kadar turu
