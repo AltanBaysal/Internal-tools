@@ -114,8 +114,8 @@ açmalı (`urlopen` yerine `http.client`); bu, istemcinin taşıma yolunu ve tes
 
 ## Reddedilen bir isteğin kartındaki Try again o isteği değil turu dener
 
-*(Claude, 10 Ekim — v10'un 463'ünü deneyen QA'da görüldü; 463'ten eski.)* Mod seçimi, sürüm değiştirme ya da
-kırpma reddedilince `useChat.js`'in `setError`'u *"Couldn't get a response."* kartını gösteriyor; kartın Try
+*(Claude, 10 Ekim — v10'un 463'ünü deneyen QA'da görüldü; 463'ten eski.)* Sürüm değiştirme ya da kırpma
+reddedilince `useChat.js`'in `setError`'u *"Couldn't get a response."* kartını gösteriyor; kartın Try
 again'i sohbetin `…/retry` kapısını çağırıyor, reddedilen isteği yeniden göndermiyor. Cevaplanmış sohbette
 bir şey yapmadan kartı kapatıyor; son cevabı başarısız ya da cevapsız bir sohbette ise bir tur başlatır.
 

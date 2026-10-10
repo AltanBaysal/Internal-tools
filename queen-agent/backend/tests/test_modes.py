@@ -4,6 +4,8 @@ The modes are named here the way the wire names them, and the module is imported
 rather than at the top: a module that does not exist yet fails this whole file's collection, and
 then none of the turn's other reds are visible anywhere in the suite.
 """
+import pytest
+
 # One since Madde 172: the schema tool went with the shape it taught, and reading a file is the only
 # thing left that opens nothing and changes nothing.
 READS = ("read_file",)
@@ -96,11 +98,19 @@ def test_plan_mode_writes_one_file_without_asking():
     assert _asks("plan", "add_frame")
 
 
-def test_a_mode_nobody_knows_is_the_default_one():
-    # An older browser, or a body with no mode in it at all. A question nobody expected would stop
-    # a turn that used to run.
-    assert not _asks("", "create_file")
-    assert not _asks("something-else", "create_file")
+def test_a_mode_nobody_knows_never_reaches_the_rule():
+    # Madde 467: the door checks the mode (advance_chat) and refuses one nobody knows, and a body
+    # with none runs in Edit there. So the rule keeps no fallback of its own: a mode that got past
+    # the door unchecked is a fault, said as one.
+    with pytest.raises(KeyError):
+        _asks("something-else", "create_file")
+
+
+def test_the_modes_the_door_knows_are_the_modes_the_rule_has():
+    # One list: a mode added to the rule is one the door lets through, and no other.
+    from backend.features.workspace.domain.modes import _WITHOUT_ASKING, MODES
+
+    assert sorted(MODES) == sorted(_WITHOUT_ASKING)
 
 
 def test_a_tool_nobody_knows_is_never_asked_about():

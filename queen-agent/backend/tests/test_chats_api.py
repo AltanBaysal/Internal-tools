@@ -5,7 +5,7 @@ import pytest
 
 from backend.features.workspace.data.file_chat_store import FileChatStore
 from backend.features.workspace.data.file_file_store import FileFileStore
-from backend.features.workspace.data.file_project_store import FileProjectStore
+from backend.features.workspace.data.file_project_store import PROJECTS_FILE, FileProjectStore
 from backend.features.workspace.data.live_turns import LiveTurns
 from backend.features.workspace.domain.black_box import REFUSED_SAID
 from backend.features.workspace.domain.chat import Chat, Message, ToolCall
@@ -95,12 +95,13 @@ def _tool_call(tool, **arguments):
     return {"id": "t1", "function": {"name": tool, "arguments": json.dumps(arguments)}}
 
 
-def _app(tmp_path, engine=None, store=None, files=None):
+def _app(tmp_path, engine=None, store=None, files=None, projects=None):
     """The app, its chat store and its live turns -- fresh per app, like the stores: one test's turn
     must not hold another's chat. The chat store is for a test that lays a chat down the way the
-    routes would; the turns for one that watches a turn run."""
+    routes would; the turns for one that watches a turn run. `projects` is handed in by a test that
+    flushes projects.json to read it."""
     store = store or Store(str(tmp_path))
-    projects = FileProjectStore(store)
+    projects = projects or FileProjectStore(store)
     chats = FileChatStore(store, projects)
     turns = LiveTurns()
     app = create_app(
@@ -745,145 +746,86 @@ def test_every_mode_is_offered_every_tool(tmp_path):
     assert engine.tools == [[spec["function"]["name"] for spec in TOOL_SPECS]]
 
 
-def test_the_mode_is_not_written_into_the_chat_file(tmp_path):
-    # Since Madde 463 the mode is the chat's setting, on its row in projects.json: it is not something
-    # the chat said, and its file stays what the chat said.
-    client = _client(tmp_path)
+def test_the_mode_is_written_nowhere(tmp_path):
+    # Madde 467 (the user: "diskte vs kalmasın, frontend'de kalsın, her istekle gitsin"): the browser
+    # holds it and sends it with every request. Neither the chat's file nor its row keeps a copy,
+    # and reading the chat gives none back.
+    store = Store(str(tmp_path))
+    projects = FileProjectStore(store)
+    app, _chats, _turns = _app(tmp_path, store=store, projects=projects)
+    client = app.test_client()
     pid = _project(client)
     cid = _sent(client, pid, text="hello", mode="plan").get_json()["id"]
+    _sent(client, pid, chat=cid, text="more", mode="ask")
+    projects.flush()
     kept = json.loads((tmp_path / pid / "chats" / f"{cid}.json").read_text(encoding="utf-8"))
-    assert not any("mode" in message for message in kept["messages"])
-    assert "mode" not in kept
+    assert "mode" not in kept and not any("mode" in message for message in kept["messages"])
+    rows = json.loads((tmp_path / PROJECTS_FILE).read_text(encoding="utf-8"))[pid]["chats"]
+    assert [row["id"] for row in rows] == [cid] and "mode" not in rows[0]
+    assert "mode" not in _record(client, pid, cid)
 
 
-# --- the mode is the chat's own (Madde 463) --------------------------------------------------------
-
-
-def _picked(client, pid, cid, mode):
-    return client.post(f"/api/projects/{pid}/chats/{cid}/mode", json={"mode": mode})
-
-
-def test_a_new_chat_is_in_edit(tmp_path):
+def test_there_is_no_mode_door(tmp_path):
+    # Madde 463's door went with 467. 405 rather than 404, as for every door that went: the SPA
+    # fallback answers GET for every path there is.
     client = _client(tmp_path)
     pid, cid = _started(client)
-    assert _record(client, pid, cid)["mode"] == "edit"
+    assert client.post(f"/api/projects/{pid}/chats/{cid}/mode", json={"mode": "ask"}).status_code == 405
 
 
-def test_a_draft_is_born_in_the_mode_it_was_picked_in(tmp_path):
-    client = _client(tmp_path)
-    pid = _project(client)
-    sent = _sent(client, pid, text="hello", mode="ask")
-    assert sent.get_json()["mode"] == "ask"
-    assert _record(client, pid, sent.get_json()["id"])["mode"] == "ask"
-
-
-def test_a_draft_in_a_mode_nobody_knows_is_refused_and_makes_no_chat(tmp_path):
-    client = _client(tmp_path)
-    pid = _project(client)
-    refused = _sent(client, pid, text="hello", mode="write")
-    assert (refused.status_code, refused.get_json()) == (400, {"error": "mode must be plan, ask or edit"})
-    assert client.get(f"/api/projects/{pid}/chats").get_json() == []
-
-
-def test_a_picked_mode_is_the_chats_from_then_on(tmp_path):
+@pytest.mark.parametrize("mode", ["write", "", 5])
+def test_a_mode_nobody_knows_is_refused_by_every_door_that_starts_a_turn(tmp_path, mode):
+    # A message, an edit and a Try again, each refused before anything is held or written.
     client = _client(tmp_path)
     pid, cid = _started(client)
-    picked = _picked(client, pid, cid, "plan")
-    assert (picked.status_code, picked.get_json()) == (200, {"mode": "plan"})
-    assert _record(client, pid, cid)["mode"] == "plan"
-
-
-def test_two_chats_keep_their_own_modes(tmp_path):
-    client = _client(tmp_path)
-    pid, first = _started(client)
-    second = _sent(client, pid, text="other").get_json()["id"]
-    _picked(client, pid, first, "ask")
-    _picked(client, pid, second, "plan")
-    assert (_record(client, pid, first)["mode"], _record(client, pid, second)["mode"]) == ("ask", "plan")
-
-
-def test_a_mode_sent_with_a_message_or_a_try_again_does_not_move_the_chat(tmp_path):
-    # An older tab sends the mode it holds with every message and every Try again.
-    client = _client(tmp_path)
-    pid, cid = _started(client)
-    _sent(client, pid, chat=cid, text="more", mode="plan")
-    _retried(client, pid, cid, mode="ask")
-    assert _record(client, pid, cid)["mode"] == "edit"
-
-
-def test_picking_a_mode_nobody_knows_is_refused_and_changes_nothing(tmp_path):
-    client = _client(tmp_path)
-    pid, cid = _started(client)
-    for body in ({"mode": "write"}, {}, {"mode": None}):
-        refused = client.post(f"/api/projects/{pid}/chats/{cid}/mode", json=body)
+    messages = f"/api/projects/{pid}/messages"
+    for door, body in (
+        (messages, {"text": "hello"}),
+        (messages, {"chat": cid, "text": "more"}),
+        (messages, {"chat": cid, "text": "shorter", "from": 0}),
+        (f"/api/projects/{pid}/chats/{cid}/retry", {}),
+    ):
+        refused = client.post(door, json={**body, "mode": mode})
         assert (refused.status_code, refused.get_json()) == (400, {"error": "mode must be plan, ask or edit"})
-    assert _record(client, pid, cid)["mode"] == "edit"
+    assert [chat["id"] for chat in client.get(f"/api/projects/{pid}/chats").get_json()] == [cid]
+    assert _texts(client, pid, cid) == ["hello", "Done."]
 
 
-def test_picking_a_mode_for_a_chat_or_project_that_is_not_there_is_a_404(tmp_path):
-    client = _client(tmp_path)
-    pid = _project(client)
-    for path in (f"/api/projects/{pid}/chats/ghost/mode", "/api/projects/nope/chats/c1/mode"):
-        missing = client.post(path, json={"mode": "ask"})
-        assert (missing.status_code, missing.get_json()) == (404, {"error": "chat not found"})
+def _asks(client, pid, cid):
+    """Whether the turn running in the chat asks before it ends. Read frame by frame, so a question
+    -- which waits for ever -- does not hold the test with it."""
+    for chunk in _chunks(_listen(client, pid, cid)):
+        for frame in _data([chunk]):
+            if frame["turn"] is None:
+                return False
+            if frame["turn"]["permission"]:
+                return True
+    return False
 
 
-def test_picking_a_mode_touches_no_chat_file(tmp_path):
-    client, store = _counted(tmp_path)
+@pytest.mark.parametrize("named", [{}, {"mode": None}])
+def test_a_request_that_names_no_mode_runs_in_edit(tmp_path, named):
+    # A body with no mode in it -- an older tab's Try again, any caller written before 467.
+    client, _turns = _asking_app(tmp_path)
     pid, cid = _started(client)
-    store.counted()
-    _picked(client, pid, cid, "ask")
-    assert store.counted() == (0, 0)
-
-
-class GatedRounds(ScriptedEngine):
-    """ScriptedEngine whose request number `held` waits for the gate, so a turn can be caught
-    running between its question and its first tool call."""
-
-    def __init__(self, rounds, held):
-        super().__init__(rounds)
-        self.held = held
-        self.asked = 0
-        self.gate = threading.Event()
-        self.entered = threading.Event()
-
-    def stream(self, messages, tools=None, on_open=None):
-        self.asked += 1
-        if self.asked == self.held:
-            self.entered.set()
-            self.gate.wait(5)
-        yield from super().stream(messages, tools, on_open)
-
-
-def test_a_mode_picked_while_the_turn_runs_reaches_its_next_tool_call_and_allow_puts_it_in_edit(tmp_path):
-    # Picked into Ask while the model is still thinking: the write it then asks for stops at its
-    # question. Allowed, the chat is in Edit -- the server's rule, said in the door's answer.
-    engine = GatedRounds(
-        [[{"text": "hi"}], [{"tool_calls": [_tool_call("create_file", name="plan.md", content="x")]}], [{"text": "ok"}]],
-        held=2,
-    )
-    app, _chats, _turns = _app(tmp_path, engine)
-    client = app.test_client()
-    pid, cid = _started(client)
-    running = client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": "write it"})
-    assert running.get_json()["mode"] == "edit"
-    assert engine.entered.wait(5)
-    assert _picked(client, pid, cid, "ask").get_json() == {"mode": "ask"}
-    # A refused message carries the chat's mode with the rest of its state.
-    busy = client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": "again"})
-    assert (busy.status_code, busy.get_json()["mode"]) == (409, "ask")
-    frames = _chunks(_listen(client, pid, cid))
-    engine.gate.set()
-    turn = _until_asked(frames)
-    assert turn["permission"]["tool"] == "create_file"
-    answered = client.post(
-        f"/api/projects/{pid}/chats/{cid}/permission",
-        json={"turn": turn["id"], "wait": turn["permission"]["wait"], "allowed": True},
-    )
-    assert answered.get_json()["mode"] == "edit"
-    _data(frames)
-    assert _record(client, pid, cid)["mode"] == "edit"
+    client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": "write it", **named})
+    assert not _asks(client, pid, cid)
     assert [file["name"] for file in client.get(f"/api/projects/{pid}/files").get_json()] == ["plan.md"]
+
+
+def test_an_edit_runs_in_the_mode_it_is_sent(tmp_path):
+    # The message, and Try again below: each door the browser sends the mode with.
+    client, _turns = _asking_app(tmp_path)
+    pid, cid = _started(client)
+    client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": "write it", "from": 0, "mode": "ask"})
+    frames = _chunks(_listen(client, pid, cid))
+    turn = _until_asked(frames)
+    client.post(
+        f"/api/projects/{pid}/chats/{cid}/permission",
+        json={"turn": turn["id"], "wait": turn["permission"]["wait"], "allowed": False},
+    )
+    _data(frames)
+    assert client.get(f"/api/projects/{pid}/files").get_json() == []
 
 
 # --- versions of one conversation (Madde 195) ----------------------------------------------------
@@ -1138,9 +1080,8 @@ def _until_asked(frames):
 
 def _asked(client, pid, cid):
     """A turn in Ask, sent and listened to until its question stands: the turn as it asks, and the
-    rest of the stream, still unread. The chat is picked into Ask on its own door (Madde 463)."""
-    _picked(client, pid, cid, "ask")
-    client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": "write it"})
+    rest of the stream, still unread."""
+    client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": "write it", "mode": "ask"})
     frames = _chunks(_listen(client, pid, cid))
     return _until_asked(frames), frames
 
@@ -1201,16 +1142,12 @@ def test_an_answer_naming_another_turn_or_another_question_settles_nothing(tmp_p
         )
         assert late.status_code == 200
         assert late.get_json()["turn"]["permission"]["wait"] == wait
-        # It allowed nothing, so the chat stays where it was (Madde 463).
-        assert late.get_json()["mode"] == "ask"
-    refused = client.post(
+    client.post(
         f"/api/projects/{pid}/chats/{cid}/permission",
         json={"turn": turn["id"], "wait": wait, "allowed": False},
     )
-    assert refused.get_json()["mode"] == "ask"
     _heard(client, pid, cid)
     assert client.get(f"/api/projects/{pid}/files").get_json() == []
-    assert _record(client, pid, cid)["mode"] == "ask"
 
 
 def test_a_question_waits_with_no_browser_and_is_answered_later(tmp_path):
@@ -1241,8 +1178,7 @@ def test_a_permission_with_nothing_running_does_nothing(tmp_path):
     client = _client(tmp_path)
     pid, cid = _started(client)
     answered = client.post(f"/api/projects/{pid}/chats/{cid}/permission", json={"allowed": True})
-    # And the chat's mode, as every answer to this door carries it (Madde 463).
-    assert (answered.status_code, answered.get_json()) == (200, {"turn": None, "mode": "edit"})
+    assert (answered.status_code, answered.get_json()) == (200, {"turn": None})
 
 
 # --- Stop, bound to the turn it names (Madde 462) --------------------------------------------------
@@ -1561,9 +1497,9 @@ def test_try_again_after_continue_here_keeps_the_trim(tmp_path):
     assert record["messages"][-1]["text"] == "Done."
 
 
-def test_try_again_runs_in_the_chats_own_mode_whatever_it_is_sent(tmp_path):
-    # Madde 463: the chat is in Ask, so the write stops at its question -- an Edit sent along by an
-    # older tab is not read.
+def test_try_again_runs_in_the_mode_it_is_sent(tmp_path):
+    # Madde 467: the request says it, as a message does. Asked in Ask, the write stops at its
+    # question.
     engine = ScriptedEngine(
         [[{"tool_calls": [_tool_call("create_file", name="plan.md", content="x")]}], [{"text": "ok"}]]
     )
@@ -1571,9 +1507,7 @@ def test_try_again_runs_in_the_chats_own_mode_whatever_it_is_sent(tmp_path):
     client = app.test_client()
     pid = _project(client)
     chats.add(pid, Chat(id="c1", title="go", created_at=AT, messages=(Message("user", AT, "go"),)))
-    _picked(client, pid, "c1", "ask")
-    retried = client.post(f"/api/projects/{pid}/chats/c1/retry", json={"mode": "edit"})
-    assert (retried.status_code, retried.get_json()["mode"]) == (202, "ask")
+    assert client.post(f"/api/projects/{pid}/chats/c1/retry", json={"mode": "ask"}).status_code == 202
     turn = _until_asked(_chunks(_listen(client, pid, "c1")))
     assert turn["permission"]["tool"] == "create_file"
     client.post(

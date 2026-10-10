@@ -15,11 +15,8 @@ from backend.features.workspace.domain.tools import TOOL_SPECS
 PLAN = "plan"
 ASK = "ask"
 EDIT = "edit"
-# What a chat is in until somebody picks otherwise (Madde 463): a new chat, and a row written before
-# chats had a mode.
+# What a turn runs in when its request names no mode (Madde 467).
 DEFAULT = EDIT
-# Every mode there is: what a chat's row may hold, and what a pick may ask for.
-MODES = (PLAN, ASK, EDIT)
 
 # What opens nothing and changes nothing. Madde 172 left this at one -- the schema reader went with
 # the shape it taught -- 187 made it two, and Madde 205 takes that one back out: the ready-piece
@@ -63,6 +60,8 @@ _WITHOUT_ASKING = {
         "remove_frame",
     ),
 }
+# Every mode there is: what a request may name (Madde 467), read off the rule so the two cannot part.
+MODES = tuple(_WITHOUT_ASKING)
 
 _KNOWN = {spec["function"]["name"] for spec in TOOL_SPECS}
 
@@ -73,12 +72,12 @@ def needs_permission(mode, tool):
     A tool nobody knows is never asked about. It will not run whatever the answer is, and asking
     would put a name this app does not have in front of the user for them to approve.
 
-    A mode nobody knows is the default one, for the reason the old tool list had: an older browser,
-    or a body with no mode in it at all, would otherwise start raising questions nobody expected.
+    The mode is one of MODES: the door checks it before a turn starts (advance_chat) -- refusing
+    one nobody knows, and giving a request that names none the default.
     """
     if tool not in _KNOWN:
         return False
-    return tool not in _WITHOUT_ASKING.get(mode, _WITHOUT_ASKING[DEFAULT])
+    return tool not in _WITHOUT_ASKING[mode]
 
 
 def ends_the_turn(mode, tool):

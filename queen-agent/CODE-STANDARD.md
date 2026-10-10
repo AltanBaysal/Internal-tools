@@ -31,7 +31,7 @@ The store follows the same rule:
 
 | Artifact | The question it answers | Written when |
 |---|---|---|
-| `projects.json` | which projects there are; what each is called, since when, whether it is pinned (and since when) or archived; which chats and files it holds, with what a list shows of them and each chat's settings — today its mode (Madde 463) | by the one queued writer, a moment after any of these changes |
+| `projects.json` | which projects there are; what each is called, since when, whether it is pinned (and since when) or archived; which chats and files it holds, with what a list shows of them | by the one queued writer, a moment after any of these changes |
 | `<id>/chats/<cid>.json` | what was said in this conversation, and what it answers with | after each message, on opening a version, and on a trim — before its entry |
 | `<id>/files/<name>` | what did QueenAgent produce | when a file is written — before its entry |
 | `<id>/trash/<name>` | what did the user just delete | on a file's delete |
@@ -47,11 +47,6 @@ counts, a project's last use (its newest chat's, or its createdAt while it has n
 chip are read off the entries and never written. Before adding a field, ask which question it
 answers — a field that answers a new question wants an artifact of its own, and a field that
 restates an answer already on disk wants deleting.
-
-A chat's settings live here too — its mode since Madde 463: a setting is not something the chat
-said, so it is not in the chat's file, and it repeats nothing — the row is its one home. Like a pin,
-a setting is written only while it differs from the default, so a row written before it existed
-needs no migration.
 
 ## Services (`backend/services/`)
 

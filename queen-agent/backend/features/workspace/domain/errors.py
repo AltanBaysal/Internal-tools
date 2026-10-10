@@ -34,7 +34,7 @@ class VersionNotFound(Exception):
 
 
 class UnknownMode(Exception):
-    """No mode goes by this name (Madde 463): nothing is written for it."""
+    """No mode goes by this name (Madde 467): the request is refused before anything is held."""
 
 
 class ChatHeld(Exception):

@@ -19,7 +19,7 @@ from backend.features.workspace.domain.errors import (
     ProjectNotFound,
     UnknownMode,
 )
-from backend.features.workspace.domain.modes import MODES
+from backend.features.workspace.domain.modes import DEFAULT, MODES
 from backend.features.workspace.domain.usecases.append_message import append_message
 from backend.features.workspace.domain.usecases.retry_turn import retry_turn
 from backend.features.workspace.domain.usecases.run_turn import run_turn
@@ -60,20 +60,20 @@ def advance_chat(
     line_id,
     skill="",
     branch_at=None,
-    mode="",
+    mode=None,
 ):
     """Started or Nothing. `wanted` is the chat, empty for a draft, which is held by the id it is
     about to be born as (`new_id`) -- nobody else can be holding that. `text` NO_TEXT is Try again.
 
     `clock` is asked for the question's moment here and for the answer's when the turn writes it.
 
-    `mode` is a draft's alone (Madde 463): the mode picked before the chat existed, put on the
-    newborn's row before its turn starts, or Edit when none was. A chat that exists has its mode
-    picked on its own door, so one sent here is not read -- an older tab still sends one with every
-    message, and must not move the chat with it."""
-    drafting = not wanted
+    `mode` is the request's (Madde 467): the browser holds it and sends it with every message, edit
+    and Try again, and the turn runs in it. Nothing keeps it. None is a request that named none --
+    an older tab, a caller written before 467 -- and runs in Edit."""
     # Before the hold: a refusal holds nothing and writes nothing.
-    if drafting and mode and mode not in MODES:
+    if mode is None:
+        mode = DEFAULT
+    elif mode not in MODES:
         raise UnknownMode(mode)
     held = wanted or new_id
     turn = turns.reserve(project_id, held)
@@ -86,14 +86,11 @@ def advance_chat(
         if chat is None:
             turns.release(project_id, held, turn)
             return Nothing(read)
-        # Once the row exists -- the birth wrote it -- and before the turn that reads it starts.
-        if drafting and mode:
-            chat_store.set_mode(project_id, chat.id, mode)
         turns.start(
             project_id,
             turn,
             chat,
-            run_turn(chat_store, file_store, engine, project_id, chat, clock, turn),
+            run_turn(chat_store, file_store, engine, project_id, chat, clock, turn, mode),
         )
     except BaseException:
         turns.release(project_id, held, turn)

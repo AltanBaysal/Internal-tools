@@ -10,15 +10,14 @@ the chat rather than reading it -- the door has just read it -- and writes the a
 from that record: while it runs nothing else writes the chat. Its stop and its question are its
 `control`'s, one per turn, so nothing an earlier turn left behind can reach it.
 
-Its mode is the chat's own since Madde 463, and read off the chat's row at every tool call rather
-than once: a mode picked while the turn runs -- or the Edit an Allow puts the chat in -- governs the
-next call. The read is memory; no chat file is opened for it.
+Its mode is the request's (Madde 467), handed in once: a mode picked while the turn runs governs
+the next request, not this turn. An Allow puts the rest of the turn in Edit.
 """
 from backend.features.workspace.domain.black_box import NOTHING, ask
 from backend.features.workspace.domain.chat import ToolCall, Usage, active_messages, sent_messages
 from backend.features.workspace.domain.context_box import BOX_LIMIT, files_opened
 from backend.features.workspace.domain.errors import EmptyMessage, EngineFailed
-from backend.features.workspace.domain.modes import ends_the_turn, needs_permission
+from backend.features.workspace.domain.modes import EDIT, ends_the_turn, needs_permission
 from backend.features.workspace.domain.permission import PermissionWanted, refusal_text
 from backend.features.workspace.domain.prompt import (
     FILES_HELD,
@@ -172,7 +171,7 @@ class _Noting:
         return self._files.write(project_id, name, content)
 
 
-def run_turn(chat_store, file_store, engine, project_id, chat, clock, control):
+def run_turn(chat_store, file_store, engine, project_id, chat, clock, control, mode):
     # `clock` rather than a moment (Madde 462): the answer is stamped when it is written, and a turn
     # can run for minutes after the request that started it.
     # Local to this answer and never written to the chat: what the model was told and what the tools
@@ -267,10 +266,6 @@ def run_turn(chat_store, file_store, engine, project_id, chat, clock, control):
             conversation.append({"role": "assistant", "content": answer.text, "tool_calls": calls})
             for call in calls:
                 tool = call["function"]["name"]
-                # Once a call, for both questions below. After an Allow it is not asked again: the
-                # Allow answered this call, and it put the chat in Edit for the next one before the
-                # wait returned (answer_question).
-                mode = chat_store.mode_of(project_id, chat.id)
                 if needs_permission(mode, tool):
                     # Arguments travel raw: run_tool is the one place that reads them. The wait has
                     # no end of its own (the user: "sonsuza kadar beklesin") -- only the answer or
@@ -296,6 +291,10 @@ def run_turn(chat_store, file_store, engine, project_id, chat, clock, control):
                             }
                         )
                         continue
+                    # What the rest of this turn runs in. The next call is not asked about again,
+                    # and a plan written from here on is an ordinary write -- the user said yes to
+                    # working, and ending the turn there would take that back.
+                    mode = EDIT
                 # The dashed card goes up before the tool runs: the name is not settled until it
                 # has, and the design's card carries no name anyway.
                 if tool in WRITES_FILES:
@@ -316,8 +315,6 @@ def run_turn(chat_store, file_store, engine, project_id, chat, clock, control):
                 conversation.append(
                     {"role": "tool", "tool_call_id": call["id"], "content": result.text}
                 )
-                # The mode read before the question, if one was asked: the only pair that ends a
-                # turn, (plan, create_file), never asks, so an Allow cannot change this answer.
                 if ends_the_turn(mode, tool):
                     done = True
                     break

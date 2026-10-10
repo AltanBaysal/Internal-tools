@@ -16,7 +16,7 @@ import { useChat } from "./features/workspace/useChat.js";
 import { useProjectChats } from "./features/workspace/useChatLists.js";
 import { useFile } from "./features/workspace/useFile.js";
 import { useFiles } from "./features/workspace/useFiles.js";
-import { DEFAULT_MODE } from "./features/workspace/modes.js";
+import { DEFAULT_MODE, EDIT } from "./features/workspace/modes.js";
 import { useProjects } from "./features/workspace/useProjects.js";
 import { DEFAULT_RAIL_WIDTH, railFitsIn, railWidthFor } from "./features/workspace/railWidth.js";
 import { useRememberedMap } from "./shared/remembered.js";
@@ -74,10 +74,11 @@ export default function App() {
   // birth writes the value into the newborn's entry and lets it go, so the next draft starts with
   // nothing.
   const [draftSkill, setDraftSkill] = useState("");
-  // The mode is the chat's own and the server's to hold (Madde 463). The draft has no chat yet, so
-  // what is picked in it is held here, travels with its first message, and goes back to the mode a
-  // new chat starts in -- as the draft's skill does.
-  const [draftMode, setDraftMode] = useState(DEFAULT_MODE);
+  // The last mode picked, the same in every chat, and what every message, edit and Try again is
+  // sent in (Madde 467; the user: "user en son ne seçtiyse o kalsın bütün sohbetlerde"). Unlike the
+  // skill it is never written anywhere: a new page opens in Edit ("frontend her açılıp kapandığında
+  // sıfırlanabilir"), and the server keeps no copy.
+  const [mode, setMode] = useState(DEFAULT_MODE);
   // Which picker is open, if any: null, "skills" or "mode". One value rather than a boolean each,
   // because booleans can both be true and then menus stand over the same corner of the screen. Here
   // rather than inside a picker, because App's one listener owns Escape and it can only close what
@@ -144,8 +145,6 @@ export default function App() {
       // it go -- Madde 105.
       if (draftSkill) rememberChatSkill(id, draftSkill);
       setDraftSkill("");
-      // The newborn holds the draft's mode on the server now; the next draft starts afresh.
-      setDraftMode(DEFAULT_MODE);
       openChat(route.projectId, id, { replace: true });
       return reloadProjectChats();
     },
@@ -367,27 +366,35 @@ export default function App() {
               skill={skillInForce}
               skillsOpen={pickerOpen === "skills"}
               onToggleSkills={() => togglePicker("skills")}
-              /* The chat's own mode, as the server holds it (Madde 463). */
-              mode={drafting ? draftMode : chat.chat?.mode}
+              mode={mode}
               modeOpen={pickerOpen === "mode"}
               onToggleMode={() => togglePicker("mode")}
-              onModeChange={drafting ? setDraftMode : chat.pickMode}
+              onModeChange={setMode}
               /* The second argument is where an edit starts from, and it is the screen's: which
                  message is being replaced is a state of the transcript, not of the session. */
-              onSend={(text, from) => chat.send(text, skillInForce, drafting ? draftMode : "", from)}
+              onSend={(text, from) => chat.send(text, skillInForce, mode, from)}
               onVersion={chat.version}
               /* A full chat's two ways on: the notice's New chat is the sidebar's own. */
               onNewChat={openDraft}
               onContinue={chat.trim}
               onSkillChange={changeSkill}
               onStop={chat.stop}
-              /* What an Allow does to the mode is the server's rule: the door's answer says the
-                 mode the chat is in after it, and the picker draws that. */
+              /* The question is the hook's; the mode is the session's, and the session is here.
+                 One button moves both: useChat holds no mode and knows no Allow rule -- it only
+                 carries the mode it is handed. */
               permission={chat.permission}
-              onAllow={() => chat.answer(true, "")}
+              onAllow={() => {
+                chat.answer(true, "");
+                /* The answer settles this one call, and the turn carries on in Edit; the picker
+                   settles the next request. Left on Ask, the very next message would raise the
+                   same question again. */
+                setMode(EDIT);
+              }}
               onDeny={(reason) => chat.answer(false, reason)}
-              onRetry={chat.retry}
-              onAnswerAgain={chat.answerAgain}
+              /* Both Try agains ask in the mode in force, as a send does: a question asked again
+                 in Plan or Ask must not run in Edit. */
+              onRetry={(sendBox) => chat.retry(sendBox, mode)}
+              onAnswerAgain={() => chat.answerAgain(mode)}
               focusReply={replyFor !== null && chat.chat?.id === replyFor}
               onReplyFocused={() => setReplyFor(null)}
             />
