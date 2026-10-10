@@ -71,12 +71,16 @@ the git.
 - A coder can ask the main agent at any time and wait for the answer. The main agent answers from
   what it has — the roadmap, the code, the rules, the conversation — and asks the user whenever it
   cannot answer itself.
-- Items of one wave each work in a worktree at `.claude/worktrees/m<number>` on the branch
+- An agent working alone works in the main folder, on the run's branch. A worktree is opened only
+  while two or more agents build at the same time, because each worktree's installs and suites weigh
+  on this machine (the user, 10 Ekim — "aynı anda tek agent çalışıyorsa worktree oluşturma, bilgisayarı
+  kırıyordu").
+- Then each works in a worktree at `.claude/worktrees/m<number>` on the branch
   `<run branch>-m<number>`, opened from the run's branch: the Agent tool's own worktree isolation opens
   from `main`, which lacks the run's work.
 - The main agent merges finished items from their worktrees into the run's branch one at a time, with
-  the four suites after each merge, so a break points at one item. Branches such as the run's stay, for
-  the history; a merged item's worktree can go.
+  the four suites after each merge, so a break points at one item, and removes each worktree once its
+  item is merged. Branches such as the run's stay, for the history.
 
 ## Browser
 
