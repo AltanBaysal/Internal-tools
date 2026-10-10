@@ -176,7 +176,7 @@ def _spent(frame):
 
 
 class ModelClient:
-    def __init__(self, read_key, model, base_url, opener=urllib.request.urlopen):
+    def __init__(self, read_key, model, base_url, idle_seconds, opener=urllib.request.urlopen):
         # A function rather than a string: where the key comes from is the composition root's
         # decision, and this class is built so that changing it never reaches here. It has changed
         # twice already -- an environment variable, then a settings file, then the environment
@@ -184,6 +184,11 @@ class ModelClient:
         self._read_key = read_key
         self._model = model
         self._base_url = base_url.rstrip("/")
+        # How long the service may say nothing before the request is cut (Madde 460). urllib hands
+        # it to the socket, which bounds each wait on its own -- the connect, the wait for the
+        # headers, every read of the stream -- so it measures silence, and an answer that keeps
+        # talking is never cut however long it runs.
+        self._idle_seconds = idle_seconds
         # The one line that reaches the network, and the one thing a test replaces.
         self._opener = opener
 
@@ -199,7 +204,7 @@ class ModelClient:
             tools,
         )
         try:
-            with self._opener(request) as response:
+            with self._opener(request, timeout=self._idle_seconds) as response:
                 # Before a single line is read: the wait this hands a way out of is the wait before
                 # the first word, and a cut offered after it would miss exactly that stretch.
                 if on_open:
@@ -247,7 +252,10 @@ class ModelClient:
             raise ModelFailed(str(failure)) from failure
         except OSError as failure:
             # The other shape: a handle closed under a read that was waiting on it. Also what a
-            # connection dropping mid-answer looks like, and the two are not told apart here.
+            # connection dropping mid-answer looks like, and the two are not told apart here. And
+            # a silence past the limit, before the headers or after them: TimeoutError is an
+            # OSError, and its words are the socket's (Madde 460) -- "The read operation timed out"
+            # over TLS, as every real service is, and "timed out" over plain HTTP.
             raise ModelFailed(str(failure)) from failure
 
     def _request(self, body, tools):

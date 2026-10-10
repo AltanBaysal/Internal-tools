@@ -46,6 +46,14 @@ MODELS = {
 # the browser sends none, so this line is the whole of the choice.
 DEFAULT_MODEL = "deepseek-flash"
 
+# How long a model request may say nothing before it is cut (Madde 460). Silence, not total length:
+# an answer that keeps talking runs as long as it needs, and any byte counts as talking -- the
+# keep-alive comments a service sends while it queues a request too. A cut try is one failed try of
+# the black box, so a service that has gone quiet for good costs each step of a turn five of these
+# before its card shows. 180 is where it starts; a long DeepSeek turn has not been measured against
+# it yet.
+MODEL_IDLE_SECONDS = 180
+
 
 def engine_for(model_id):
     """Which model, over which address, spending which key -- for a row of the table above.

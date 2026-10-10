@@ -2,6 +2,7 @@ import io
 import json
 import socket
 import threading
+import time
 import urllib.error
 
 import pytest
@@ -11,6 +12,8 @@ from backend.services.model.client import ModelClient, ModelFailed, ModelNotConf
 MESSAGES = [{"role": "user", "content": "hello"}]
 MODEL = "deepseek-flash"
 BASE_URL = "https://api.deepseek.com"
+# Short, so a test that waits for the limit waits a fraction of a second rather than config's 180.
+IDLE = 0.3
 
 
 class _Lines:
@@ -30,7 +33,12 @@ class _Lines:
 def _client(opener, api_key="key"):
     # A function rather than a string: where the key comes from is the composition root's decision,
     # and the client is built so that changing it never reaches here.
-    return ModelClient(lambda: api_key, MODEL, BASE_URL, opener=opener)
+    #
+    # The fakes below take the request alone: the silence limit means something only to a real
+    # socket, and the tests that hold it run against one (Madde 460).
+    return ModelClient(
+        lambda: api_key, MODEL, BASE_URL, IDLE, opener=lambda request, timeout: opener(request)
+    )
 
 
 def test_no_key_is_reported_before_anything_is_sent():
@@ -52,7 +60,9 @@ def test_the_key_is_read_at_every_request():
         seen.append(request.headers["Authorization"])
         return _Lines([b"data: [DONE]"])
 
-    client = ModelClient(lambda: keys.pop(0), MODEL, BASE_URL, opener=opener)
+    client = ModelClient(
+        lambda: keys.pop(0), MODEL, BASE_URL, IDLE, opener=lambda request, timeout: opener(request)
+    )
     list(client.stream(MESSAGES))
     list(client.stream(MESSAGES))
     # Read per request rather than held: the client stays out of the question of where the key comes
@@ -390,44 +400,63 @@ def test_cutting_a_response_that_hides_no_socket_is_quiet():
     held[0]()
 
 
-def _silent_server():
-    """A server that answers and then says nothing -- a model that is still thinking.
+# Chunked on purpose: that is how an SSE stream really arrives, and it is what decides how a cut comes
+# back.
+HEAD = b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nTransfer-Encoding: chunked\r\n\r\n"
+END = b"0\r\n\r\n"
 
-    Chunked on purpose: that is how an SSE stream really arrives, and it is what decides how a cut
-    comes back. It leaves the reader inside recv with no frame to come back for, which is the only
-    place this can be tested from.
+
+def _chunk(line):
+    """One SSE line as one chunk of the body."""
+    data = line + b"\n\n"
+    return f"{len(data):x}\r\n".encode() + data + b"\r\n"
+
+
+def _service(*replies):
+    """A model service on a local socket that answers each connection with the next reply.
+
+    A reply is a list of steps: bytes are sent, a number is a pause in seconds. Whatever a reply leaves
+    unsaid is silence -- an empty one never even sends its headers -- and the connection is held until
+    the client lets go of it, so the next one is accepted only then. `[HEAD]` is a model that is still
+    thinking: it leaves the reader inside recv with no frame to come back for.
     """
     listener = socket.socket()
     listener.bind(("127.0.0.1", 0))
-    listener.listen(1)
-    done = threading.Event()
+    listener.listen(len(replies))
 
     def serve():
-        connection, _ = listener.accept()
-        connection.recv(65536)
-        connection.sendall(
-            b"HTTP/1.1 200 OK\r\n"
-            b"Content-Type: text/event-stream\r\n"
-            b"Transfer-Encoding: chunked\r\n\r\n"
-        )
-        # Not one chunk follows. The deadline is only so that a test that fails leaves nothing
-        # running behind it.
-        done.wait(10)
-        connection.close()
-        listener.close()
+        with listener:
+            for reply in replies:
+                connection, _ = listener.accept()
+                with connection:
+                    # Only so that a test that fails leaves nothing running behind it.
+                    connection.settimeout(10)
+                    connection.recv(65536)
+                    for step in reply:
+                        if isinstance(step, bytes):
+                            connection.sendall(step)
+                        else:
+                            time.sleep(step)
+                    try:
+                        while connection.recv(65536):
+                            pass
+                    except OSError:
+                        pass  # a client that let go abruptly has let go all the same
 
     threading.Thread(target=serve, daemon=True).start()
-    return listener.getsockname()[1], done
+    return listener.getsockname()[1]
 
 
 def _blocked_read():
-    """Start a real stream against the silent server and hand back what it takes to end it.
+    """Start a real stream against a service still thinking and hand back what it takes to end it.
 
     The reading thread is a daemon: a cut that never reaches the socket leaves it blocked for good,
     and the run still has to be able to finish and say so.
     """
-    port, done = _silent_server()
-    client = ModelClient(lambda: "key", MODEL, f"http://127.0.0.1:{port}")
+    port = _service([HEAD])
+    # A limit far past the deadlines below: what ends the read here has to be the cut, on a socket
+    # that carries a timeout as every real request does since Madde 460.
+    client = ModelClient(lambda: "key", MODEL, f"http://127.0.0.1:{port}", 30)
     outcome = {}
     opened = threading.Event()
 
@@ -441,7 +470,6 @@ def _blocked_read():
             outcome["ended"] = "quietly"
         except BaseException as failure:
             outcome["ended"] = failure
-        done.set()
 
     reader = threading.Thread(target=read, daemon=True)
     reader.start()
@@ -470,3 +498,53 @@ def test_a_stream_cut_in_the_middle_comes_back_as_a_failure():
     outcome["cut"]()
     reader.join(5)
     assert isinstance(outcome["ended"], ModelFailed)
+
+
+# --- a request that goes silent is cut (Madde 460) -----------------------------------------------
+#
+# Against a real socket, because what is held is what the socket does with urllib's timeout: it bounds
+# each wait on its own -- the connect, the wait for the headers, every read of the stream -- so it
+# measures silence rather than the answer's length. That the black box counts the failure as one
+# try is test_black_box.py's: any exception is.
+
+
+def _local(port):
+    return ModelClient(lambda: "key", MODEL, f"http://127.0.0.1:{port}", IDLE)
+
+
+def _ended(run):
+    """What `run` came to, on a thread of its own -- or a failed test if it is still going after five
+    seconds, which is how a request that is never cut shows here instead of a run that hangs."""
+    outcome = {}
+
+    def target():
+        try:
+            outcome["value"] = run()
+        except BaseException as failure:
+            outcome["value"] = failure
+
+    thread = threading.Thread(target=target, daemon=True)
+    thread.start()
+    thread.join(5)
+    assert not thread.is_alive(), "the request was never cut"
+    return outcome["value"]
+
+
+@pytest.mark.parametrize("reply", [[], [HEAD]], ids=["before-the-headers", "after-the-headers"])
+def test_a_request_that_goes_silent_is_cut_in_the_sockets_own_words(reply):
+    # Two waits and two roads out: silence before the headers ends inside urlopen, silence after them
+    # inside the read of the stream. Both come out as the client's failure, carrying the socket's
+    # words. A plain socket's, here: over TLS, as every real service is, they read "The read
+    # operation timed out", and that is what the chat's card prints then.
+    port = _service(reply)
+    ended = _ended(lambda: list(_local(port).stream(MESSAGES)))
+    assert isinstance(ended, ModelFailed)
+    assert str(ended) == "timed out"
+
+
+def test_an_answer_that_keeps_talking_is_not_cut():
+    # Silence, not length: ten words a tenth of a second apart run past three times the limit, and no
+    # wait between them comes near it.
+    words = [step for _ in range(10) for step in (0.1, _chunk(b"data: " + _delta_line("a")))]
+    port = _service([HEAD, *words, _chunk(b"data: [DONE]"), END])
+    assert _ended(lambda: list(_local(port).stream(MESSAGES))) == [{"text": "a"}] * 10

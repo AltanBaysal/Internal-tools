@@ -42,6 +42,7 @@ engine = ModelEngine(
             lambda wiring=config.engine_for(model): wiring[2],
             model,
             config.engine_for(model)[1],
+            config.MODEL_IDLE_SECONDS,
         )
         for model in config.MODELS
     },
