@@ -1,12 +1,12 @@
 import json
+import threading
 
 import pytest
 
 from backend.features.workspace.data.file_chat_store import FileChatStore
 from backend.features.workspace.data.file_file_store import FileFileStore
 from backend.features.workspace.data.file_project_store import FileProjectStore
-from backend.features.workspace.data.memory_permissions import MemoryPermissions
-from backend.features.workspace.data.memory_stops import MemoryStops
+from backend.features.workspace.data.live_turns import LiveTurns
 from backend.features.workspace.domain.black_box import REFUSED_SAID
 from backend.features.workspace.domain.chat import Chat, Message
 from backend.features.workspace.domain.prompt import APPROVED
@@ -92,25 +92,27 @@ def _tool_call(tool, **arguments):
     return {"id": "t1", "function": {"name": tool, "arguments": json.dumps(arguments)}}
 
 
-def _wired(tmp_path, engine=None):
-    # A fresh registry per client, like the stores: one test's stop must not reach another's answer.
-    # The chat store comes back too, for a test that lays a chat down the way the routes would.
-    store = Store(str(tmp_path))
+def _app(tmp_path, engine=None, store=None):
+    """The app, its chat store and its live turns -- fresh per app, like the stores: one test's turn
+    must not hold another's chat. The chat store is for a test that lays a chat down the way the
+    routes would; the turns for one that watches a turn run."""
+    store = store or Store(str(tmp_path))
     projects = FileProjectStore(store)
     chats = FileChatStore(store, projects)
+    turns = LiveTurns()
     app = create_app(
         dist_dir=str(tmp_path),
         blueprints=(
             make_workspace_bp(
-                projects,
-                chats,
-                FileFileStore(store, projects),
-                engine or FakeEngine(),
-                MemoryStops(),
-                MemoryPermissions(),
+                projects, chats, FileFileStore(store, projects), engine or FakeEngine(), turns
             ),
         ),
     )
+    return app, chats, turns
+
+
+def _wired(tmp_path, engine=None):
+    app, chats, _turns = _app(tmp_path, engine)
     return app.test_client(), chats
 
 
@@ -128,13 +130,15 @@ def _frames(body):
 
 
 def _steps(body):
-    """The same list with the turn's heartbeat taken out (Madde 194).
+    """The same list with the turn's heartbeat and its dashed card taken out.
 
     A progress frame goes out at the top of every round and again whenever the count moves, so it
-    lands between any two frames a test might be comparing. Where it lands is its own test's
-    question, not every other test's.
+    lands between any two frames a test might be comparing (Madde 194). And since Madde 461 the
+    frames are told from the turn's snapshot as the stream wakes: a dashed card that came and went
+    between two wakes is never told. Where each lands is the bridge's own tests' question
+    (test_the_bridge_*), not every other test's.
     """
-    return [name for name in _frames(body) if name != "progress"]
+    return [name for name in _frames(body) if name not in ("progress", "file-start")]
 
 
 def _named(body):
@@ -249,6 +253,15 @@ def test_a_body_with_no_text_asks_again_without_writing_the_sentence_twice(tmp_p
     assert [(m["text"], m["failed"]) for m in said] == [("hello", ""), ("Done.", "")]
 
 
+def test_a_null_sentence_is_not_try_again(tmp_path):
+    # Absent asks for the answer; null is a sentence that is not one. It fails as it did before
+    # Madde 461, and nothing is written or answered.
+    client = _client(tmp_path, engine=FailsThenAnswers(5))
+    pid, cid = _started(client)
+    assert client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": None}).status_code == 500
+    assert [m["failed"] for m in _record(client, pid, cid)["messages"]] == ["", "technical"]
+
+
 def test_a_body_with_neither_a_chat_nor_text_is_400(tmp_path):
     # There is nothing to write and nothing to answer, so there is nothing this request means.
     client = _client(tmp_path)
@@ -256,14 +269,35 @@ def test_a_body_with_neither_a_chat_nor_text_is_400(tmp_path):
     assert client.post(f"/api/projects/{pid}/messages", json={}).status_code == 400
 
 
-def test_asking_again_for_a_chat_that_was_already_answered_is_400(tmp_path):
+def test_asking_again_for_a_chat_that_was_already_answered_runs_nothing_and_ends_at_once(tmp_path):
     # Nothing is waiting, so answering anyway would write a second reply to a question that has
-    # one. The rule the browser used to hold, in the one place a request has to pass.
+    # one (Madde 461). The answer was written while nobody was looking -- a connection that dropped
+    # just before its end -- and the stream ends straight away, so the screen reads the record and
+    # shows it; the 400 this used to be left the card up and the answer unseen (the backlog's loop).
     client = _client(tmp_path)
     pid, cid = _started(client)
     again = client.post(f"/api/projects/{pid}/messages", json={"chat": cid})
-    assert again.status_code == 400
+    assert again.status_code == 200
+    assert _frames(again.get_data(as_text=True)) == ["chat", "done"]
     assert len(client.get(f"/api/projects/{pid}/chats/{cid}").get_json()["messages"]) == 2
+
+
+def test_try_again_on_a_question_an_old_chat_file_left_unanswered_answers_it_once(tmp_path):
+    # A chat whose last word is the user's: an old file, or a turn that died with the server.
+    client, chats = _wired(tmp_path)
+    pid = _project(client)
+    chats.add(
+        pid,
+        Chat(
+            id="c1",
+            title="go",
+            created_at="2026-10-09T10:00:00+00:00",
+            messages=(Message(role="user", at="2026-10-09T10:00:00+00:00", text="go"),),
+        ),
+    )
+    body = client.post(f"/api/projects/{pid}/messages", json={"chat": "c1"}).get_data(as_text=True)
+    assert _frames(body)[-1] == "done"
+    assert [m["text"] for m in _record(client, pid, "c1")["messages"]] == ["go", "Done."]
 
 
 def test_a_blank_sentence_is_refused_before_the_stream_starts(tmp_path):
@@ -344,10 +378,12 @@ def test_a_chat_cannot_be_deleted(tmp_path):
 
 
 def test_the_list_comes_newest_first_and_carries_no_messages(tmp_path):
+    # Each stream is read to its end: the turn runs on its own since Madde 461, and a test that left
+    # it running would race its answer against the next line.
     client = _client(tmp_path)
     pid = _project(client)
-    client.post(f"/api/projects/{pid}/messages", json={"text": "first"})
-    client.post(f"/api/projects/{pid}/messages", json={"text": "second"})
+    client.post(f"/api/projects/{pid}/messages", json={"text": "first"}).get_data()
+    client.post(f"/api/projects/{pid}/messages", json={"text": "second"}).get_data()
     listed = client.get(f"/api/projects/{pid}/chats").get_json()
     assert [row["title"] for row in listed] == ["second", "first"]
     # The list screen does not draw messages, so sending them would be for nothing.
@@ -398,8 +434,8 @@ def test_a_projects_chats_come_back_newest_first(tmp_path):
     # The sidebar and the project screen read this one list; there is no wider one to read.
     client = _client(tmp_path)
     pid = _project(client)
-    client.post(f"/api/projects/{pid}/messages", json={"text": "older"})
-    client.post(f"/api/projects/{pid}/messages", json={"text": "newer"})
+    client.post(f"/api/projects/{pid}/messages", json={"text": "older"}).get_data()
+    client.post(f"/api/projects/{pid}/messages", json={"text": "newer"}).get_data()
     listed = client.get(f"/api/projects/{pid}/chats").get_json()
     assert [row["title"] for row in listed] == ["newer", "older"]
 
@@ -563,8 +599,10 @@ def test_a_running_turn_reaches_the_browser_as_progress(tmp_path):
     client = _client(tmp_path, engine=engine)
     _pid, _cid, body = _first_turn(client)
     assert "event: progress" in body
+    # Which round it names first depends on when the stream woke (Madde 461): what it says is where
+    # the turn is now. Counting the rounds is test_run_turn's.
     said = json.loads(body.split("event: progress\ndata: ", 1)[1].splitlines()[0])
-    assert said == {"round": 1, "of": 32, "tokens": 0}
+    assert set(said) == {"round", "of", "tokens"} and said["of"] == 32
     # Ahead of the work it is reporting on, or the first thing the screen hears is that a round it
     # never saw begin has ended.
     assert body.index("event: progress") < body.index("event: call")
@@ -678,7 +716,7 @@ def test_answering_an_unknown_chat_is_400(tmp_path):
 def test_a_new_chat_shows_up_in_the_project_count(tmp_path):
     client = _client(tmp_path)
     pid = _project(client)
-    client.post(f"/api/projects/{pid}/messages", json={"text": "hello"})
+    client.post(f"/api/projects/{pid}/messages", json={"text": "hello"}).get_data()
     assert client.get("/api/projects").get_json()[0]["chats"] == 1
 
 
@@ -981,38 +1019,55 @@ def test_the_mode_is_not_written_to_the_record(tmp_path):
 # --- the door the answer comes in by (Madde 99) --------------------------------------------------
 
 
-def _asking(tmp_path):
-    """A client whose second turn wants to write, and a first turn to be born in.
+def _asking_engine():
+    """An engine whose second turn wants to write, and a first turn to be born in.
 
     The chat has to exist before an answer can be left at its door, and a chat is born by being
     answered -- so the first round is an ordinary sentence with no tool in it.
     """
-    engine = ScriptedEngine(
+    return ScriptedEngine(
         [
             [{"text": "hi"}],
             [{"tool_calls": [_tool_call("create_file", name="plan.md", content="x")]}],
             [{"text": "ok"}],
         ]
     )
-    return _client(tmp_path, engine)
 
 
-def _write(client, pid, cid):
-    return client.post(
+def _asking(tmp_path):
+    return _client(tmp_path, _asking_engine())
+
+
+def _chunks(response):
+    for chunk in response.response:
+        yield chunk.decode() if isinstance(chunk, bytes) else chunk
+
+
+def _write(client, pid, cid, decision):
+    """A turn that asks, answered at its door the moment the question arrives.
+
+    Read frame by frame and answered from this same thread: the turn is waiting on its question
+    while the decision is left. Left before the question, the decision would be nobody's: it can
+    only be a late answer to an earlier card (Madde 461).
+    """
+    response = client.post(
         f"/api/projects/{pid}/messages", json={"chat": cid, "text": "write it", "mode": "ask"}
-    ).get_data(as_text=True)
+    )
+    read = []
+    for chunk in _chunks(response):
+        read.append(chunk)
+        if chunk.startswith("event: permission"):
+            client.post(f"/api/projects/{pid}/chats/{cid}/permission", json=decision)
+    return "".join(read)
 
 
-def test_the_answer_left_at_the_door_lets_the_turn_finish(tmp_path):
-    # Answered before the question is asked, on purpose: the registry carries that race already,
-    # and the alternative here is a second thread whose timing decides whether the test passes.
+def test_the_answer_at_the_door_lets_the_turn_finish(tmp_path):
     client = _asking(tmp_path)
     pid, cid = _started(client)
-    client.post(f"/api/projects/{pid}/chats/{cid}/permission", json={"allowed": True})
-    body = _write(client, pid, cid)
+    body = _write(client, pid, cid, {"allowed": True})
     # Madde 194's progress frames are dropped: this test is about the order of the door, the work
     # and the answer, and a signal that fires every round says nothing about that order.
-    assert _steps(body) == ["chat", "permission", "file-start", "file", "call", "done"]
+    assert _steps(body) == ["chat", "permission", "file", "call", "done"]
     assert [file["name"] for file in client.get(f"/api/projects/{pid}/files").get_json()] == [
         "plan.md"
     ]
@@ -1021,8 +1076,7 @@ def test_the_answer_left_at_the_door_lets_the_turn_finish(tmp_path):
 def test_the_question_names_the_tool_and_its_arguments(tmp_path):
     client = _asking(tmp_path)
     pid, cid = _started(client)
-    client.post(f"/api/projects/{pid}/chats/{cid}/permission", json={"allowed": True})
-    body = _write(client, pid, cid)
+    body = _write(client, pid, cid, {"allowed": True})
     asked = json.loads(body.split("event: permission\ndata: ", 1)[1].splitlines()[0])
     assert asked["tool"] == "create_file"
     assert json.loads(asked["arguments"]) == {"name": "plan.md", "content": "x"}
@@ -1031,11 +1085,7 @@ def test_the_question_names_the_tool_and_its_arguments(tmp_path):
 def test_a_refusal_at_the_door_writes_no_file_and_the_turn_still_ends(tmp_path):
     client = _asking(tmp_path)
     pid, cid = _started(client)
-    client.post(
-        f"/api/projects/{pid}/chats/{cid}/permission",
-        json={"allowed": False, "reason": "not that one"},
-    )
-    body = _write(client, pid, cid)
+    body = _write(client, pid, cid, {"allowed": False, "reason": "not that one"})
     assert _steps(body) == ["chat", "permission", "call", "done"]
     assert client.get(f"/api/projects/{pid}/files").get_json() == []
 
@@ -1131,13 +1181,470 @@ def test_editing_in_a_chat_that_does_not_exist_is_refused(tmp_path):
     assert refused.get_json() == {"error": "chat not found"}
 
 
-def test_the_beat_is_a_frame_the_browser_drops(tmp_path):
-    # parseFrame keeps only what carries an event line, so a beat has to carry none. Measured on
-    # this side because the front end is Madde 102's work and nothing here touches it. Reached
-    # through _sse rather than over HTTP: a real beat costs fifteen seconds of waiting.
-    from backend.features.workspace.domain.permission import Waiting
-    from backend.features.workspace.presentation.routes import _sse
+# --- the bridge: today's frames, told from the running turn (Madde 461, until 462) ----------------
 
-    written = "".join(_sse("c1", iter([Waiting()])))
-    beat = written.split("\n\n")[1]
-    assert beat and not beat.startswith("event:")
+
+def test_the_beat_is_a_frame_the_browser_drops(monkeypatch):
+    # parseFrame keeps only what carries an event line, so a beat has to carry none. It goes out
+    # whenever the turn has been quiet for BEAT_SECONDS -- thinking as well as waiting -- so a tunnel
+    # never sees the stream idle. Shortened here: a real beat costs fifteen seconds of waiting.
+    from backend.features.workspace.presentation import routes
+
+    monkeypatch.setattr(routes, "BEAT_SECONDS", 0.01)
+    frames = routes._sse("c1", LiveTurns().reserve("p1", "c1"))
+    assert next(frames).startswith("event: chat")
+    beat = next(frames)
+    assert beat == ": waiting\n\n" and not beat.startswith("event:")
+
+
+def test_the_bridge_tells_what_changed_in_the_order_a_turn_does_it():
+    from backend.features.workspace.domain.chat import ToolCall
+    from backend.features.workspace.domain.turn import Progress, Question, Snapshot
+    from backend.features.workspace.presentation.routes import _told
+
+    before = Snapshot(id="t1")
+    after = Snapshot(
+        id="t1",
+        version=5,
+        progress=Progress(2, 32, 140),
+        files=("plan.md",),
+        calls=(ToolCall("create_file", "plan.md", "Saved"),),
+        permission=Question(5, "edit_file", "{}"),
+    )
+    assert _frames("".join(_told(before, after))) == ["progress", "file", "call", "permission"]
+    assert _frames("".join(_told(before, Snapshot(id="t1", creating=True)))) == ["file-start"]
+
+
+def test_the_next_dashed_card_is_told_when_it_came_with_the_last_ones_end():
+    # One write ended and the next began with no disk between them, so the stream woke once on
+    # both: the file and its step close the first card on screen, and the second has to be told
+    # after them, or its whole write runs with no card.
+    from backend.features.workspace.domain.chat import ToolCall
+    from backend.features.workspace.domain.turn import Snapshot
+    from backend.features.workspace.presentation.routes import _told
+
+    before = Snapshot(id="t1", version=3, creating=True)
+    after = Snapshot(
+        id="t1",
+        version=6,
+        creating=True,
+        files=("a.md",),
+        calls=(ToolCall("create_file", "a.md", "Saved"),),
+    )
+    assert _frames("".join(_told(before, after))) == ["file", "call", "file-start"]
+    # Still the same write, nothing new: no second card.
+    assert list(_told(after, Snapshot(id="t1", version=7, creating=True, files=after.files, calls=after.calls))) == []
+
+
+def test_every_write_of_a_round_gets_its_dashed_card(tmp_path):
+    # Two files in one round. Each write waits until the stream has told its card, so the test
+    # holds the turn exactly where the card must already be on screen.
+    told = [threading.Event(), threading.Event()]
+
+    class Waits(FileFileStore):
+        written = 0
+
+        def write(self, project_id, name, content):
+            index, Waits.written = Waits.written, Waits.written + 1
+            told[index].wait(5)
+            return super().write(project_id, name, content)
+
+    engine = ScriptedEngine(
+        [
+            [{"text": "hi"}],
+            [
+                {
+                    "tool_calls": [
+                        _tool_call("create_file", name="a.md", content="x"),
+                        {**_tool_call("create_file", name="b.md", content="y"), "id": "t2"},
+                    ]
+                }
+            ],
+            [{"text": "ok"}],
+        ]
+    )
+    store = Store(str(tmp_path))
+    projects = FileProjectStore(store)
+    app = create_app(
+        dist_dir=str(tmp_path),
+        blueprints=(
+            make_workspace_bp(
+                projects, FileChatStore(store, projects), Waits(store, projects), engine, LiveTurns()
+            ),
+        ),
+    )
+    client = app.test_client()
+    pid, cid = _started(client)
+    response = client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": "two"})
+    read, cards = [], 0
+    for chunk in _chunks(response):
+        read.append(chunk)
+        if chunk.startswith("event: file-start"):
+            told[cards].set()
+            cards += 1
+    assert cards == 2
+    assert _steps("".join(read)) == ["chat", "file", "call", "file", "call", "done"]
+
+
+def test_the_bridge_tells_nothing_twice():
+    from backend.features.workspace.domain.chat import ToolCall
+    from backend.features.workspace.domain.turn import Progress, Snapshot, changed
+    from backend.features.workspace.presentation.routes import _told
+
+    seen = Snapshot(id="t1", progress=Progress(1, 32, 0), calls=(ToolCall("read_file", "a.md"),))
+    assert list(_told(seen, changed(seen))) == []
+
+
+def test_the_bridge_ends_on_done_or_on_the_turns_own_fault():
+    from backend.features.workspace.domain.turn import Snapshot
+    from backend.features.workspace.presentation.routes import _told
+
+    assert _frames("".join(_told(Snapshot(id="t1"), Snapshot(id="t1", ended=True)))) == ["done"]
+    broken = "".join(_told(Snapshot(id="t1"), Snapshot(id="t1", ended=True, error="disk")))
+    assert broken == 'event: error\ndata: {"error": "disk"}\n\n'
+
+
+def test_a_turn_whose_own_code_breaks_says_so_in_the_stream(tmp_path):
+    # The black box answers for the model, so what is left is a tool or the disk: the frame carries
+    # its words, and nothing is written -- the question stays, unanswered.
+    class NoDisk(FileFileStore):
+        def list_names(self, project_id):
+            raise OSError("the disk went away")
+
+    store = Store(str(tmp_path))
+    projects = FileProjectStore(store)
+    app = create_app(
+        dist_dir=str(tmp_path),
+        blueprints=(
+            make_workspace_bp(
+                projects,
+                FileChatStore(store, projects),
+                NoDisk(store, projects),
+                FakeEngine(),
+                LiveTurns(),
+            ),
+        ),
+    )
+    client = app.test_client()
+    pid = _project(client)
+    body = client.post(f"/api/projects/{pid}/messages", json={"text": "hello"}).get_data(as_text=True)
+    assert 'event: error\ndata: {"error": "the disk went away"}' in body
+    assert _texts(client, pid, _named(body)) == ["hello"]
+
+
+# --- one turn at a time in a chat, running on its own (Madde 461; 458's tests carried) -----------
+
+BUSY = "this chat is still answering -- try again once it has finished"
+PROJECT_BUSY = "a chat in this project is still answering -- try again once it has finished"
+
+
+class GatedEngine:
+    """An engine one of whose answers waits until the test opens the gate, so a turn can be held
+    running while other requests arrive. Only the call after hold_next waits: the chat is born
+    first, and another chat is answered while the held one still waits."""
+
+    def __init__(self):
+        self.gate = threading.Event()
+        self.entered = threading.Event()
+        self._hold = False
+
+    def hold_next(self):
+        self._hold = True
+
+    def stream(self, messages, tools=None, on_open=None):
+        if self._hold:
+            self._hold = False
+            self.entered.set()
+            self.gate.wait(5)
+        yield {"text": "Done."}
+
+    def stream_alone(self, system, text, on_open=None):
+        yield {"text": APPROVED}
+
+
+def _running(tmp_path, store=None):
+    """A chat whose second turn is held inside the model's request.
+
+    Nothing reads the POST's stream while the turn runs: the turn needs no listener. Hands back
+    the client, the ids, the engine whose gate releases the turn, the POST's unread response and
+    the app's live turns."""
+    engine = GatedEngine()
+    app, _chats, turns = _app(tmp_path, engine, store=store)
+    client = app.test_client()
+    pid, cid = _started(client)
+    engine.hold_next()
+    held = client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": "more"})
+    assert engine.entered.wait(5)
+    return client, pid, cid, engine, held, turns
+
+
+def _until_ended(turn):
+    """Wait for a turn's end the way the bridge does, by its snapshot."""
+    seen = turn.snapshot()
+    while not seen.ended:
+        seen = turn.changed_since(seen.version, 5)
+    return seen
+
+
+def _texts(client, pid, cid):
+    return [message["text"] for message in _record(client, pid, cid)["messages"]]
+
+
+def test_while_a_turn_runs_every_request_that_would_write_its_chat_is_refused(tmp_path):
+    # A new sentence, an edit and a Try again advance the chat; a version and Continue here write
+    # it; deleting the project would move it from under the turn. All wait for the turn's end.
+    client, pid, cid, engine, held, _turns = _running(tmp_path)
+    for body in ({"chat": cid, "text": "again"}, {"chat": cid, "text": "x", "from": 0}, {"chat": cid}):
+        refused = client.post(f"/api/projects/{pid}/messages", json=body)
+        assert (refused.status_code, refused.get_json()) == (409, {"error": BUSY})
+    for door in ("version", "trim"):
+        refused = client.post(f"/api/projects/{pid}/chats/{cid}/{door}", json={"version": ""})
+        assert (refused.status_code, refused.get_json()) == (409, {"error": BUSY})
+    refused = client.delete(f"/api/projects/{pid}")
+    assert (refused.status_code, refused.get_json()) == (409, {"error": PROJECT_BUSY})
+    assert _texts(client, pid, cid) == ["hello", "Done.", "more"]
+    engine.gate.set()
+    held.get_data()
+    assert _texts(client, pid, cid) == ["hello", "Done.", "more", "Done."]
+
+
+def test_once_the_turn_ends_the_next_request_is_answered(tmp_path):
+    client, pid, cid, engine, held, _turns = _running(tmp_path)
+    engine.gate.set()
+    held.get_data()
+    body = client.post(
+        f"/api/projects/{pid}/messages", json={"chat": cid, "text": "next"}
+    ).get_data(as_text=True)
+    assert _frames(body)[-1] == "done"
+    assert _texts(client, pid, cid) == ["hello", "Done.", "more", "Done.", "next", "Done."]
+
+
+def test_a_chat_with_a_turn_running_does_not_hold_another_chat(tmp_path):
+    client, pid, cid, engine, held, _turns = _running(tmp_path)
+    other = client.post(f"/api/projects/{pid}/messages", json={"text": "elsewhere"})
+    assert other.status_code == 200
+    assert _frames(other.get_data(as_text=True))[-1] == "done"
+    assert client.post(f"/api/projects/{pid}/messages", json={"chat": cid}).status_code == 409
+    engine.gate.set()
+    held.get_data()
+
+
+def test_a_draft_is_held_by_the_chat_it_is_born_as(tmp_path):
+    # Its first frame names the newborn while its turn still runs; a request to that chat meets the
+    # same refusal as any other.
+    engine = GatedEngine()
+    app, _chats, _turns = _app(tmp_path, engine)
+    client = app.test_client()
+    pid = _project(client)
+    engine.hold_next()
+    draft = client.post(f"/api/projects/{pid}/messages", json={"text": "hello"})
+    frames = _chunks(draft)
+    born = _named(next(frames))
+    refused = client.post(f"/api/projects/{pid}/messages", json={"chat": born, "text": "more"})
+    assert (refused.status_code, refused.get_json()) == (409, {"error": BUSY})
+    engine.gate.set()
+    assert _frames("".join(frames))[-1] == "done"
+
+
+def test_a_turn_keeps_running_after_the_browser_that_started_it_goes_away(tmp_path):
+    # The tab closed, or the tunnel dropped the stream: the turn ends on its own and writes its
+    # answer, which the next visit reads.
+    client, pid, cid, engine, held, turns = _running(tmp_path)
+    live = turns.get(pid, cid)
+    assert next(_chunks(held)).startswith("event: chat")
+    held.close()
+    engine.gate.set()
+    assert _until_ended(live).error == ""
+    assert _texts(client, pid, cid) == ["hello", "Done.", "more", "Done."]
+
+
+def test_after_a_dropped_connection_try_again_waits_for_the_old_turn_then_shows_its_answer(tmp_path):
+    # The 449 case: the card is up and the old turn still runs on the server, so Try again meets
+    # the refusal. Once the old turn has written its answer, Try again runs nothing and the stream
+    # ends at once: the screen reads the record and the answer is there, the question once.
+    client, pid, cid, engine, held, turns = _running(tmp_path)
+    live = turns.get(pid, cid)
+    held.close()
+    refused = client.post(f"/api/projects/{pid}/messages", json={"chat": cid})
+    assert (refused.status_code, refused.get_json()) == (409, {"error": BUSY})
+    engine.gate.set()
+    _until_ended(live)
+    again = client.post(f"/api/projects/{pid}/messages", json={"chat": cid})
+    assert _frames(again.get_data(as_text=True)) == ["chat", "done"]
+    assert _texts(client, pid, cid) == ["hello", "Done.", "more", "Done."]
+
+
+def test_a_stop_reaches_the_turn_it_was_pressed_for(tmp_path):
+    client, pid, cid, engine, held, _turns = _running(tmp_path)
+    assert client.post(f"/api/projects/{pid}/chats/{cid}/stop").status_code == 200
+    engine.gate.set()
+    held.get_data()
+    last = _record(client, pid, cid)["messages"][-1]
+    assert (last["text"], last["stopped"]) == ("", True)
+
+
+def test_a_stop_that_landed_after_its_turn_ended_does_not_cut_the_next_turn(tmp_path):
+    # Pressed as the last turn finished: nothing is running, so it reaches nothing, and nothing of
+    # it is left standing for the next turn.
+    client = _client(tmp_path)
+    pid, cid = _started(client)
+    assert client.post(f"/api/projects/{pid}/chats/{cid}/stop").status_code == 200
+    client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": "more"}).get_data()
+    last = _record(client, pid, cid)["messages"][-1]
+    assert (last["text"], last["stopped"]) == ("Done.", False)
+
+
+def _asking_app(tmp_path):
+    app, _chats, turns = _app(tmp_path, _asking_engine())
+    return app.test_client(), turns
+
+
+def _until_asked(response):
+    """The stream read up to its question; the rest of it, still unread."""
+    frames = _chunks(response)
+    while not next(frames).startswith("event: permission"):
+        pass
+    return frames
+
+
+def test_an_allow_left_before_the_question_does_not_settle_it(tmp_path):
+    # Left between turns, it can only be a late answer to an earlier card. Kept, it would let the
+    # write through without anybody being asked.
+    client, turns = _asking_app(tmp_path)
+    pid, cid = _started(client)
+    assert client.post(f"/api/projects/{pid}/chats/{cid}/permission", json={"allowed": True}).status_code == 200
+    asking = client.post(
+        f"/api/projects/{pid}/messages", json={"chat": cid, "text": "write it", "mode": "ask"}
+    )
+    rest = _until_asked(asking)
+    assert turns.get(pid, cid).snapshot().permission is not None
+    client.post(f"/api/projects/{pid}/chats/{cid}/permission", json={"allowed": False})
+    assert _frames("".join(rest))[-1] == "done"
+    assert client.get(f"/api/projects/{pid}/files").get_json() == []
+
+
+def test_a_question_waits_with_no_browser_and_is_answered_later(tmp_path):
+    # The user: "sonsuza kadar beklesin". The browser goes; the question stands in memory, and an
+    # answer arriving later lets the turn finish.
+    client, turns = _asking_app(tmp_path)
+    pid, cid = _started(client)
+    asking = client.post(
+        f"/api/projects/{pid}/messages", json={"chat": cid, "text": "write it", "mode": "ask"}
+    )
+    _until_asked(asking)
+    live = turns.get(pid, cid)
+    asking.close()
+    assert live.snapshot().permission.tool == "create_file"
+    client.post(f"/api/projects/{pid}/chats/{cid}/permission", json={"allowed": True})
+    _until_ended(live)
+    assert [file["name"] for file in client.get(f"/api/projects/{pid}/files").get_json()] == ["plan.md"]
+    assert _texts(client, pid, cid)[-1] == "ok"
+
+
+def test_a_request_refused_for_another_reason_lets_the_chat_go(tmp_path):
+    client = _client(tmp_path)
+    pid, cid = _started(client)
+    assert client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": " "}).status_code == 400
+    client.post(f"/api/projects/{pid}/messages", json={"chat": cid}).get_data()
+    after = client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": "more"})
+    assert after.status_code == 200
+    after.get_data()
+
+
+def test_a_request_that_breaks_before_its_turn_lets_the_chat_go(tmp_path):
+    client, chats = _wired(tmp_path)
+    pid, cid = _started(client)
+    reading = chats.get
+
+    def broken(project_id, chat_id):
+        raise OSError("Drive went away")
+
+    chats.get = broken
+    assert client.post(f"/api/projects/{pid}/messages", json={"chat": cid}).status_code == 500
+    chats.get = reading
+    after = client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": "more"})
+    assert after.status_code == 200
+    after.get_data()
+
+
+# --- what a turn costs the chat file (Madde 461) --------------------------------------------------
+
+
+class CountingStore(Store):
+    """The disk, counting reads and writes of chat files alone: projects.json is queued apart."""
+
+    def __init__(self, root):
+        super().__init__(root)
+        self.reads = 0
+        self.writes = 0
+
+    def read_text(self, rel):
+        if "/chats/" in rel:
+            self.reads += 1
+        return super().read_text(rel)
+
+    def write_text(self, rel, text):
+        if "/chats/" in rel:
+            self.writes += 1
+        return super().write_text(rel, text)
+
+    def counted(self):
+        reads, writes, self.reads, self.writes = self.reads, self.writes, 0, 0
+        return reads, writes
+
+
+def _counted(tmp_path, engine=None):
+    store = CountingStore(str(tmp_path))
+    app, _chats, _turns = _app(tmp_path, engine, store=store)
+    return app.test_client(), store
+
+
+def test_a_message_reads_its_chat_once_and_writes_it_twice(tmp_path):
+    # Once to check it, once for the question, once for the answer -- 4 reads and 2 writes before.
+    client, store = _counted(tmp_path)
+    pid, cid = _started(client)
+    store.counted()
+    client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": "more"}).get_data()
+    assert store.counted() == (1, 2)
+
+
+def test_a_first_message_reads_nothing(tmp_path):
+    client, store = _counted(tmp_path)
+    pid = _project(client)
+    client.post(f"/api/projects/{pid}/messages", json={"text": "hello"}).get_data()
+    assert store.counted() == (0, 2)
+
+
+def test_try_again_on_a_failed_answer_drops_it_and_answers_in_two_writes(tmp_path):
+    client, store = _counted(tmp_path, FailsThenAnswers(5))
+    pid, cid = _started(client)
+    store.counted()
+    client.post(f"/api/projects/{pid}/messages", json={"chat": cid}).get_data()
+    assert store.counted() == (1, 2)
+
+
+def test_try_again_on_an_answered_chat_writes_nothing(tmp_path):
+    client, store = _counted(tmp_path)
+    pid, cid = _started(client)
+    store.counted()
+    client.post(f"/api/projects/{pid}/messages", json={"chat": cid}).get_data()
+    assert store.counted() == (1, 0)
+
+
+def test_stop_and_permission_touch_no_chat_file(tmp_path):
+    client, store = _counted(tmp_path)
+    pid, cid = _started(client)
+    store.counted()
+    client.post(f"/api/projects/{pid}/chats/{cid}/stop")
+    client.post(f"/api/projects/{pid}/chats/{cid}/permission", json={"allowed": True})
+    assert store.counted() == (0, 0)
+
+
+def test_reading_a_chat_while_its_turn_runs_touches_no_disk(tmp_path):
+    store = CountingStore(str(tmp_path))
+    client, pid, cid, engine, held, _turns = _running(tmp_path, store)
+    store.counted()
+    assert _texts(client, pid, cid) == ["hello", "Done.", "more"]
+    assert store.counted() == (0, 0)
+    engine.gate.set()
+    held.get_data()

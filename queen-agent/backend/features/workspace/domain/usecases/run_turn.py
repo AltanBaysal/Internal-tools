@@ -1,18 +1,21 @@
-"""Answer a chat, reaching for tools as the model asks.
+"""Run one turn of a chat: the loop that answers it, reaching for tools as the model asks.
 
 The generator yields what the turn does as it does it -- its rounds, steps, files and questions --
 and finally the updated Chat. Telling them apart by type is simpler than carrying a separate "this
 one is the last" flag. The words are not among them since Madde 440: every request goes through the
 black box (black_box.py), the answer comes back whole, and the screen reads it off the record.
-"""
-from dataclasses import dataclass
 
-from backend.features.workspace.domain.black_box import ask
+Since Madde 461 it runs on a thread of its own (live_turns.py), whoever is listening. It is handed
+the chat rather than reading it -- the door has just read it -- and writes the answer once, built
+from that record: while it runs nothing else writes the chat. Its stop and its question are its
+`control`'s, one per turn, so nothing an earlier turn left behind can reach it.
+"""
+from backend.features.workspace.domain.black_box import NOTHING, ask
 from backend.features.workspace.domain.chat import ToolCall, Usage, active_messages, sent_messages
 from backend.features.workspace.domain.context_box import BOX_LIMIT, files_opened
-from backend.features.workspace.domain.errors import ChatNotFound, EngineFailed
+from backend.features.workspace.domain.errors import EmptyMessage, EngineFailed
 from backend.features.workspace.domain.modes import EDIT, ends_the_turn, needs_permission
-from backend.features.workspace.domain.permission import PermissionWanted, Waiting, refusal_text
+from backend.features.workspace.domain.permission import PermissionWanted, refusal_text
 from backend.features.workspace.domain.prompt import (
     FILES_HELD,
     LAST_ROUND,
@@ -29,24 +32,8 @@ from backend.features.workspace.domain.tools import (
     numbered,
     run_tool,
 )
+from backend.features.workspace.domain.turn import Progress
 from backend.features.workspace.domain.usecases.append_message import append_message
-
-
-@dataclass(frozen=True)
-class Progress:
-    """Where the turn has got to, said while it is still going (Madde 194).
-
-    It lives here rather than beside FileStarted or PermissionWanted because a piece belongs next to
-    whatever gives birth to it, and what gives birth to this is the turn itself.
-
-    `round` shadows the builtin in the generated __init__ and nowhere else, and that body never
-    calls it. What is bought is one word: the field, the frame's key and what the screen reads all
-    say the same thing.
-    """
-
-    round: int
-    of: int
-    tokens: int
 
 
 def _volume(spent):
@@ -181,47 +168,7 @@ class _Noting:
         return self._files.write(project_id, name, content)
 
 
-HEARTBEAT_SECONDS = 15
-"""How often a paused turn writes something.
-
-Not a timeout: the wait itself has no end. Nothing is holding the other side of the model's
-connection -- the tool call arrives with the round's last frame and that request is closed by the
-time the gate opens -- and the service documents no limit of its own. What this number says is how
-often the browser hears from us while nothing happens: a stream gone quiet inside a tunnel is a
-stream a tunnel may close, and a browser that went away is only discovered by writing to it.
-Comfortably under the idle window proxies usually keep, and not measured against any one of them.
-"""
-
-
-def _waited_on(permissions, stops, project_id, chat_id, call):
-    """Hold the turn until the user decides, or until somebody stops it.
-
-    A generator, because the beat has to leave down the same connection the answer is arriving on.
-    What it hands back is the decision, or None when the wait ended without one.
-
-    The stop is handed a way to wake this wait rather than a way to cut a socket: the model's
-    request closed with the round, so there is nothing left to cut, and without this the stop
-    button would do nothing for as long as the question stood. `hold` carries the other half -- a
-    press that landed before we got here runs the moment it is given.
-    """
-    yield PermissionWanted(call["function"]["name"], call["function"]["arguments"])
-    stops.hold(project_id, chat_id, lambda: permissions.wake(project_id, chat_id))
-    while True:
-        decision = permissions.wait(project_id, chat_id, HEARTBEAT_SECONDS)
-        if decision is not None:
-            return decision
-        if stops.wanted(project_id, chat_id):
-            return None
-        yield Waiting()
-
-
-def stream_answer(
-    chat_store, file_store, engine, project_id, chat_id, now, stops, permissions, mode=EDIT
-):
-    chat = chat_store.get(project_id, chat_id)
-    if chat is None:
-        raise ChatNotFound(chat_id)
-
+def run_turn(chat_store, file_store, engine, project_id, chat, now, control, mode=EDIT):
     # Local to this answer and never written to the chat: what the model was told and what the tools
     # answered back is bookkeeping. What the turn *did* is not -- that is `made`, and it reaches the
     # record.
@@ -273,11 +220,11 @@ def stream_answer(
                 # so it is offered nothing to ask with.
                 tools=None if last else TOOL_SPECS,
                 # Only the transport holds a socket, so only it can hand out a way to cut one.
-                on_open=lambda cut: stops.hold(project_id, chat_id, cut),
+                on_open=control.hold,
                 # A connection that died because we cut it is a stop; the same words from a
                 # network that dropped are a fault. Nothing in the failure says which, so the
-                # registry is asked before the black box tries again.
-                stopped=lambda: stops.wanted(project_id, chat_id),
+                # turn's control is asked before the black box tries again.
+                stopped=control.stopped,
                 # A turn that has written a file -- a new one or one it changed -- and then says
                 # nothing is finished, not empty: what it did is the answer (Madde 38; the user, 9
                 # October). Before any write, silence is tried again.
@@ -294,10 +241,10 @@ def stream_answer(
                 )
                 yield Progress(index + 1, MAX_ROUNDS, _volume(spent))
 
-            # The registry is the one thing that knows a stop. It catches both: the request the stop
+            # The control is the one thing that knows a stop. It catches both: the request the stop
             # cut, which the black box gave back empty without trying again, and the round that came
             # back whole with the press landing just as it did -- whose calls do not run.
-            if stops.wanted(project_id, chat_id):
+            if control.stopped():
                 cut_short = True
                 break
             if answer.failed:
@@ -315,7 +262,11 @@ def stream_answer(
             for call in calls:
                 tool = call["function"]["name"]
                 if needs_permission(mode, tool):
-                    decision = yield from _waited_on(permissions, stops, project_id, chat_id, call)
+                    # Arguments travel raw: run_tool is the one place that reads them. The wait has
+                    # no end of its own (the user: "sonsuza kadar beklesin") -- only the answer or
+                    # a stop ends it; nothing beats here, the turn writes to no connection.
+                    yield PermissionWanted(tool, call["function"]["arguments"])
+                    decision = control.decision()
                     if decision is None:
                         # The wait ended with nobody deciding, which leaves one reason: a stop.
                         cut_short = True
@@ -371,36 +322,40 @@ def stream_answer(
         # The black box answers for the model, so what reaches here is the turn's own code -- a
         # tool, the disk. The half answer is not kept: an answer either exists or does not.
         raise EngineFailed(str(broken)) from broken
-    finally:
-        # However this ended. Left standing, the flag would cut the next answer as it was born, and
-        # a decision nobody spent would settle the next question before it was asked.
-        stops.clear(project_id, chat_id)
-        permissions.clear(project_id, chat_id)
 
     # Everything said across the rounds becomes one message: the user read one answer. A stopped
     # turn keeps no words (Madde 440, the user: "atılsın") -- none of it was on screen yet, and none
     # of it was checked -- but it is still written, empty: a press that leaves no trace reads as a
     # press that did nothing, and the chat's last word would otherwise still be the user's, which
-    # means owed an answer, which means asked for again on the next reload. A failed turn's words
-    # are the black box's: a technical failure's own, so the card can say them, or the refusal
-    # message (Madde 445). The steps and the files stay either way: they happened.
+    # reads as a question nobody answered. A failed turn's words are the black box's: a technical
+    # failure's own, so the card can say them, or the refusal message (Madde 445). The steps and the
+    # files stay either way: they happened.
     if failure:
         text = failure.text
     elif cut_short:
         text = ""
     else:
         text = "".join(said)
-    yield append_message(
-        chat_store,
-        project_id,
-        chat_id,
-        text,
-        now,
-        role="ai",
-        files=born,
-        calls=made,
-        stopped=cut_short,
-        usage=spent,
-        failed=failure.failed if failure else "",
-        wrote=writes.wrote,
-    )
+    try:
+        # Onto the record the turn was handed, which is the chat as it stands: nothing else writes
+        # it while the turn runs (Madde 461).
+        yield append_message(
+            chat_store,
+            project_id,
+            chat,
+            text,
+            now,
+            role="ai",
+            files=born,
+            calls=made,
+            stopped=cut_short,
+            usage=spent,
+            failed=failure.failed if failure else "",
+            wrote=writes.wrote,
+        )
+    except EmptyMessage as nothing:
+        # Neither a word nor a file, so there is no answer to keep -- rare since the black box tries
+        # an empty answer again (Madde 440); what is left is a plan-mode turn that ends on a
+        # create_file which wrote nothing ("Already there"), or one that ran out of rounds only
+        # reading. It ends as the turn's own fault, in the black box's words for it.
+        raise EngineFailed(NOTHING) from nothing

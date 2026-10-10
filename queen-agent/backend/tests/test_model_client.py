@@ -230,7 +230,7 @@ def test_words_still_arrive_as_they_are_said_and_the_call_closes_the_stream():
 
 
 def test_a_stream_that_called_nothing_says_nothing_about_tools():
-    # An empty list is not "no tools": stream_answer reads anything that is not text or usage as a
+    # An empty list is not "no tools": the black box reads anything that is not text or usage as a
     # call, so an empty one would be taken for a round that asked for something.
     lines = [b"data: " + _delta_line("just words"), b"data: [DONE]"]
     assert list(_client(lambda request: _Lines(lines)).stream(MESSAGES)) == [{"text": "just words"}]

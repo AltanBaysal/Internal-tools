@@ -227,16 +227,6 @@ def _name(line):
     return "" if line is None else line.id
 
 
-def is_owed_an_answer(chat):
-    """Whether the last thing said in this chat was the user's.
-
-    This lived in the browser until Madde 88, where it could run without anybody asking -- on a
-    reload, and on a connection coming back. Here it can only be reached by a request.
-    """
-    said = active_messages(chat)
-    return bool(said) and said[-1].role == "user"
-
-
 CONTEXT_CEILING = 50_000
 """How big one chat's messages may grow before it stops taking new turns.
 

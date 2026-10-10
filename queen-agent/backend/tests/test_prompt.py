@@ -274,7 +274,7 @@ def test_the_same_call_is_not_made_twice_in_a_row():
 
 def test_independent_reads_go_in_one_round():
     # Each round is one more request, and a turn has thirty-two. The loop runs every call of a
-    # round (test_stream_answer) and the black box collects them (test_black_box).
+    # round (test_run_turn) and the black box collects them (test_black_box).
     assert _a_line_says("one round", "several calls")
 
 
@@ -348,9 +348,9 @@ def test_the_base_reads_only_what_the_answer_needs():
 #
 # Imported inside each test rather than at the top of the file: until the constant exists a module
 # level import would stop this file being collected at all, and the fourteen guards above would read
-# as errors of this item's making. The same shape allowed() and refused() use in test_stream_answer.
+# as errors of this item's making. The same shape allowed() and refused() use in test_run_turn.
 #
-# The text is only half the item -- the round really is handed no tools, and test_stream_answer
+# The text is only half the item -- the round really is handed no tools, and test_run_turn
 # measures that. What is guarded here is that the sentence says the two things the failure asked
 # for: that nothing more will run, and what the closing answer owes the reader.
 

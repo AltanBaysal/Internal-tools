@@ -57,7 +57,7 @@ Copy'nin görünüşünü aldı.
 
 *(Claude, 9 Ekim — v10'un 445'ini deneyen QA'da görüldü; 445'ten gelmiyor.)* Bir round araç
 çağrısıyla birlikte söz de söylerse, o söz son cevabın başına boşluksuz ekleniyor: ekranda *"Let me
-write that file for you.Answer to …"*. `stream_answer.py`'de roundların sözleri `"".join(said)` ile
+write that file for you.Answer to …"*. `run_turn.py`'de roundların sözleri `"".join(said)` ile
 birleşiyor. **Gerçek modelle doğrulanmadı** *(kullanıcı, 9 Ekim — "gerçek kullanımda görünen bir problem
 yok, bunu kontrol edilmedi diye işaretleyelim")*: QA sahte bir DeepSeek'le gördü; gerçek DeepSeek bir
 araç çağırırken aynı cevapta söz söylüyor mu, bilinmiyor. Gerçek kullanımda görülürse ele alınır.
@@ -94,6 +94,15 @@ diyor. Davranış eskisi gibi; yalnız docstring yanlış.
 Soru sunucuya yazılıp cevabı tarayıcıya ulaşmadan bağlantı koparsa tarayıcı soruyu gitmemiş sayar ve
 yeniden gönderince soru iki kez yazılır *(449'un sınırı)*. Tarayıcının ürettiği bir anahtar ve sunucunun
 bellekteki son gönderimler haritası bu aralığı kapatır.
+
+## Proje silinirken aynı anda gelen mesaj klasörü yeniden açabiliyor
+
+*(Claude, 10 Ekim — 461'in coder'ı ve reviewer'ı.)* Proje silmek, projenin canlı turu varsa 409 alıyor;
+ama bakış ile taşıma tek adım değil. Silme bakıp hiçbir tur görmedikten hemen sonra aynı projeye bir
+mesaj sohbeti tutarsa, sohbeti okuyup soruyu yazarken çöpe taşınan projenin klasörünü bir sohbet
+dosyasıyla yeniden açabiliyor. Listede görünmüyor, çöpteki proje bütün kalıyor; yalnız diskte sahipsiz
+bir klasör. **Önerilen çözüm** (reviewer): silme projeye bir "kapanıyor" işareti koysun, `reserve` o
+işaretli projede sohbet tutmasın — bakmak ve işaretlemek tek kilit altında.
 
 ## Bir frontend testi arada düşüyor
 

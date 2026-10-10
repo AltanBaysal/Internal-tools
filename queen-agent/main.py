@@ -9,8 +9,7 @@ from backend.features.workspace.data.file_project_store import (
     FileProjectStore,
     ProjectsUnreadable,
 )
-from backend.features.workspace.data.memory_permissions import MemoryPermissions
-from backend.features.workspace.data.memory_stops import MemoryStops
+from backend.features.workspace.data.live_turns import LiveTurns
 from backend.features.workspace.data.model_engine import ModelEngine
 from backend.features.workspace.data.old_projects import move_old_projects
 from backend.features.workspace.presentation.routes import make_workspace_bp
@@ -56,10 +55,8 @@ app = create_app(
             FileChatStore(store, projects),
             FileFileStore(store, projects),
             engine,
-            # One registry each for the whole app: two of either would be two requests unable to
-            # find each other.
-            MemoryStops(),
-            MemoryPermissions(),
+            # One for the whole app: two would be two requests unable to find each other's turn.
+            LiveTurns(),
         ),
     ),
 )

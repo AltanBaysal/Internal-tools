@@ -8,14 +8,15 @@ from backend.features.workspace.data.file_file_store import FileFileStore
 from backend.features.workspace.data.file_project_store import FileProjectStore
 from backend.features.workspace.domain.black_box import REFUSED_SAID
 from backend.features.workspace.domain.chat import Chat, ToolCall, Usage
-from backend.features.workspace.domain.errors import ChatNotFound, EmptyMessage, EngineFailed
+from backend.features.workspace.domain.black_box import NOTHING
+from backend.features.workspace.domain.errors import EngineFailed
 from backend.features.workspace.domain.prompt import APPROVED
 from backend.features.workspace.domain.skills import instruction_for
 from backend.features.workspace.domain.tools import MAX_ROUNDS, FileStarted, FileWritten
+from backend.features.workspace.domain.turn import Progress
 from backend.features.workspace.domain.usecases.append_message import append_message
 from backend.features.workspace.domain.usecases.create_project import create_project
-from backend.features.workspace.domain.usecases.append_message import append_message
-from backend.features.workspace.domain.usecases.stream_answer import Progress, stream_answer
+from backend.features.workspace.domain.usecases.run_turn import run_turn
 from backend.services.store.store import Store
 
 NOW = "2026-08-09T11:06:00.000+00:00"
@@ -57,106 +58,65 @@ def a_call(call_id="t1"):
 A_STEP = ToolCall("read_file", "ghost.md", "No file by that name")
 
 
-class NeverStops:
-    """The stop registry as most tests need it: nobody ever asks."""
+class Quiet:
+    """The turn's control as most tests need it: nobody stops it, and nothing is ever asked.
 
-    def hold(self, project_id, chat_id, cut):
-        pass
+    Raising on a decision rather than answering is the point -- a turn that started asking in a mode
+    that asks for nothing is a broken gate, and a fake that quietly said yes would hide it.
+    """
 
-    def wanted(self, project_id, chat_id):
+    def stopped(self):
         return False
 
-    def clear(self, project_id, chat_id):
+    def hold(self, cut):
         pass
 
-
-NEVER = NeverStops()
-
-
-class NeverAsked:
-    """The permission registry as most tests need it: in edit mode nothing ever reaches here.
-
-    Raising rather than answering is the point -- a turn that started asking in a mode that asks for
-    nothing is a broken gate, and a fake that quietly said yes would hide it.
-    """
-
-    def answer(self, project_id, chat_id, allowed, reason):
-        raise AssertionError("the turn answered its own question")
-
-    def wait(self, project_id, chat_id, tick):
+    def decision(self):
         raise AssertionError("nothing in this mode should have been asked")
 
-    def wake(self, project_id, chat_id):
-        raise AssertionError("nothing in this mode should have been asked")
 
-    def clear(self, project_id, chat_id):
-        # Every turn clears on its way out, asked or not.
-        pass
+NEVER = Quiet()
 
 
-UNASKED = NeverAsked()
+class Answers(Quiet):
+    """A control with its decisions written out, one per question.
 
-
-class Answers:
-    """A registry with its decisions written out, one per question.
-
-    A None in the list is a tick that passed with nobody answering, which is what makes the beat
-    visible. Running out raises: a gate that asked forever would otherwise spin this test until the
-    suite was killed.
+    Running out raises: a gate that asked forever would otherwise spin this test until the suite
+    was killed.
     """
 
-    def __init__(self, *decisions, on_wait=None):
+    def __init__(self, *decisions):
         self.decisions = list(decisions)
-        self.on_wait = on_wait
-        self.asked = []
-        self.cleared = []
+        self.asked = 0
 
-    def answer(self, project_id, chat_id, allowed, reason):
-        raise AssertionError("the turn answered its own question")
-
-    def wait(self, project_id, chat_id, tick):
-        self.asked.append((project_id, chat_id))
-        if self.on_wait:
-            self.on_wait()
+    def decision(self):
+        self.asked += 1
         if not self.decisions:
             raise AssertionError("the turn asked more than this test answers")
         return self.decisions.pop(0)
 
-    def wake(self, project_id, chat_id):
-        pass
 
-    def clear(self, project_id, chat_id):
-        self.cleared.append((project_id, chat_id))
+class StopsWhileWaiting(Quiet):
+    """A stop that lands while the turn is paused on a question: the wait ends with no decision.
 
-
-class StopsWhileWaiting:
-    """A stop that lands while the turn is paused on a question.
-
-    Cut says yes to `wanted` from the first breath, which ends the round before the tool loop is
-    ever reached -- so it cannot describe this moment. Here the press happens on the way into the
-    wait, which is the one stretch of a turn with no socket to cut.
+    Cut says it is stopped from the first breath, which ends the round before the tool loop is ever
+    reached -- so it cannot describe this moment. Here the press lands during the wait, the one
+    stretch of a turn with no socket to cut.
     """
 
     def __init__(self):
         self.pressed = False
-        self.woke = None
 
-    def hold(self, project_id, chat_id, cut):
-        self.woke = cut
-
-    def want(self, project_id, chat_id):
-        self.pressed = True
-        self.woke()
-
-    def wanted(self, project_id, chat_id):
+    def stopped(self):
         return self.pressed
 
-    def clear(self, project_id, chat_id):
-        pass
+    def decision(self):
+        self.pressed = True
+        return None
 
 
-class Cut:
-    """The registry after a stop: however this answer ended, we are the ones who ended it.
+class Cut(Quiet):
+    """The control after a stop: however this answer ended, we are the ones who ended it.
 
     Since Madde 90 nothing counts here. The flag is not asked frame by frame any more -- the cut
     ends the round on its own, and the only question left is whose cut it was.
@@ -164,16 +124,12 @@ class Cut:
 
     def __init__(self):
         self.held = []
-        self.cleared = []
 
-    def hold(self, project_id, chat_id, cut):
-        self.held.append((project_id, chat_id, cut))
+    def hold(self, cut):
+        self.held.append(cut)
 
-    def wanted(self, project_id, chat_id):
+    def stopped(self):
         return True
-
-    def clear(self, project_id, chat_id):
-        self.cleared.append((project_id, chat_id))
 
 
 CUT = object()
@@ -186,7 +142,7 @@ it is a piece the engine refuses to get past.
 BROKEN = "IncompleteRead(0 bytes read)"
 
 
-class PressedLater:
+class PressedLater(Quiet):
     """A stop nobody has asked for until a piece of the script presses it."""
 
     def __init__(self):
@@ -195,14 +151,8 @@ class PressedLater:
     def press(self):
         self.pressed = True
 
-    def hold(self, project_id, chat_id, cut):
-        pass
-
-    def wanted(self, project_id, chat_id):
+    def stopped(self):
         return self.pressed
-
-    def clear(self, project_id, chat_id):
-        pass
 
 
 class ScriptedEngine:
@@ -253,15 +203,25 @@ def _seeded(tmp_path):
     chats, files = FileChatStore(store, projects), FileFileStore(store, projects)
     now = "2026-08-09T11:04:00.000+00:00"
     create_project(projects, new_id="p1", name="Thesis", now=now)
-    # Naming no chat is what asks for one, since Madde 87.
-    append_message(chats, "p1", "", "hi", now, project_store=projects, new_id="c1")
+    # Handing no chat is what asks for one, since Madde 87.
+    append_message(chats, "p1", None, "hi", now, project_store=projects, new_id="c1")
     return chats, files
 
 
-def _run(tmp_path, rounds, stops=NEVER, **kwargs):
+def _answer(chats, files, engine, mode="edit", control=NEVER):
+    """One turn of the seeded chat, handed its record the way the door hands it (Madde 461)."""
+    return list(run_turn(chats, files, engine, "p1", chats.get("p1", "c1"), NOW, control, mode))
+
+
+def _said(chats, text, at=NOW, **fields):
+    """A message written into the seeded chat ahead of the turn under test."""
+    return append_message(chats, "p1", chats.get("p1", "c1"), text, at, **fields)
+
+
+def _run(tmp_path, rounds, control=NEVER, **kwargs):
     # The same run with nothing to ask. Edit mode is what the app defaults to and it stops for
-    # nothing, so UNASKED raising is a guard here rather than an inconvenience.
-    return _gated(tmp_path, rounds, stops=stops, mode="edit", **kwargs)
+    # nothing, so NEVER raising on a decision is a guard here rather than an inconvenience.
+    return _gated(tmp_path, rounds, control=control, mode="edit", **kwargs)
 
 
 def allowed():
@@ -276,16 +236,39 @@ def refused(reason=""):
     return Decision(False, reason)
 
 
-def _gated(tmp_path, rounds, stops=NEVER, permissions=UNASKED, mode="ask", **kwargs):
-    """_run's sibling, with the registry the turn reads its answer from.
-
-    Its own helper for one turn only: _run's shape belongs to the tests already written, and
-    breaking every one of them would bury this turn's reds. They meet in the implementation tour.
-    """
+def _gated(tmp_path, rounds, control=NEVER, mode="ask", **kwargs):
+    """_run's sibling in a mode that asks, with the control the turn reads its answers from."""
     chats, files = _seeded(tmp_path)
     engine = ScriptedEngine(rounds, **kwargs)
-    produced = list(stream_answer(chats, files, engine, "p1", "c1", NOW, stops, permissions, mode))
+    produced = _answer(chats, files, engine, mode, control)
     return chats, files, engine, produced
+
+
+class HandedOnly:
+    """A chat store that writes and counts, and cannot read: the turn works from its record."""
+
+    def __init__(self, chats):
+        self._chats = chats
+        self.written = 0
+
+    def get(self, project_id, chat_id):
+        raise AssertionError("the turn read the chat again")
+
+    def replace(self, project_id, chat):
+        self.written += 1
+        self._chats.replace(project_id, chat)
+
+
+def test_the_turn_works_from_the_record_it_is_handed_and_writes_its_answer_once(tmp_path):
+    # Madde 461: the door read the chat once; the turn neither reads it again at its start nor
+    # before its last write. On Drive each of those was a round trip.
+    chats, files = _seeded(tmp_path)
+    handed = HandedOnly(chats)
+    engine = ScriptedEngine([[{"tool_calls": [a_call()]}], [{"text": "Done."}]])
+    produced = list(run_turn(handed, files, engine, "p1", chats.get("p1", "c1"), NOW, NEVER, "edit"))
+    assert handed.written == 1
+    assert produced[-1] == chats.get("p1", "c1")
+    assert [m.text for m in produced[-1].messages] == ["hi", "Done."]
 
 
 # --- the names the project holds, handed over rather than asked for (Madde 127) ------------------
@@ -317,7 +300,7 @@ def test_the_request_carries_the_names_the_project_holds(tmp_path):
     files.write("p1", "bar-scene.json", "{}")
     files.write("p1", "bar-scene-scenes.md", "one")
     engine = ScriptedEngine([[{"text": "hi"}]])
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    _answer(chats, files, engine)
     said = _files_line(engine.seen[0])
     assert "bar-scene.json" in said and "bar-scene-scenes.md" in said
 
@@ -349,7 +332,7 @@ def test_the_names_ride_behind_the_conversation_and_before_the_instruction(tmp_p
     stored = chats.get("p1", "c1")
     chats.replace("p1", replace(stored, messages=(replace(stored.messages[0], skill="start-a-scenario"),)))
     engine = ScriptedEngine([[{"text": "hi"}]])
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    _answer(chats, files, engine)
     seen = engine.seen[0]
     assert seen[-1]["content"] == instruction_for("start-a-scenario")
     assert "This project holds no files yet." in seen[-2]["content"]
@@ -380,7 +363,7 @@ def test_the_request_carries_the_contents_of_what_was_read(tmp_path):
     files.write("p1", "plan.md", "the body of the plan")
     rounds = [[{"tool_calls": [call("read_file", name="plan.md")]}], [{"text": "done"}]]
     engine = ScriptedEngine(rounds)
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    _answer(chats, files, engine)
     # Not in the first round -- nothing had been read yet -- and in the second, whole.
     assert _box(engine.seen[0]) == ""
     assert "plan.md" in _box(engine.seen[1])
@@ -398,7 +381,7 @@ def test_the_box_is_refreshed_from_disk_every_round(tmp_path):
         [{"text": "done"}],
     ]
     engine = ScriptedEngine(rounds)
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    _answer(chats, files, engine)
     assert "first" in _box(engine.seen[1])
     assert "second" in _box(engine.seen[2])
     assert "first" not in _box(engine.seen[2])
@@ -408,12 +391,10 @@ def test_a_file_read_in_an_earlier_turn_is_still_in_the_box(tmp_path):
     # Across turns, not only rounds: the trial opened every turn by reading the same pair again.
     chats, files = _seeded(tmp_path)
     files.write("p1", "plan.md", "the body")
-    append_message(
-        chats, "p1", "c1", "read it", NOW, role="ai", calls=(ToolCall("read_file", "plan.md", "1 line"),)
-    )
-    append_message(chats, "p1", "c1", "and now?", NOW)
+    _said(chats, "read it", role="ai", calls=(ToolCall("read_file", "plan.md", "1 line"),))
+    _said(chats,"and now?", NOW)
     engine = ScriptedEngine([[{"text": "here"}]])
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    _answer(chats, files, engine)
     assert "the body" in _box(engine.seen[0])
 
 
@@ -422,13 +403,11 @@ def test_a_deleted_file_falls_out_of_the_box(tmp_path):
     # empty heading would read as an empty file.
     chats, files = _seeded(tmp_path)
     files.write("p1", "gone.md", "for now")
-    append_message(
-        chats, "p1", "c1", "read it", NOW, role="ai", calls=(ToolCall("read_file", "gone.md", "1 line"),)
-    )
-    append_message(chats, "p1", "c1", "and now?", NOW)
+    _said(chats, "read it", role="ai", calls=(ToolCall("read_file", "gone.md", "1 line"),))
+    _said(chats,"and now?", NOW)
     files.delete("p1", "gone.md")
     engine = ScriptedEngine([[{"text": "here"}]])
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    _answer(chats, files, engine)
     assert "gone.md" not in _box(engine.seen[0])
 
 
@@ -440,7 +419,7 @@ def test_the_box_numbers_the_lines_it_shows(tmp_path):
     files.write("p1", "plan.md", "alpha\nbeta")
     rounds = [[{"tool_calls": [call("read_file", name="plan.md")]}], [{"text": "done"}]]
     engine = ScriptedEngine(rounds)
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    _answer(chats, files, engine)
     assert "     1\talpha\n     2\tbeta" in _box(engine.seen[1])
 
 
@@ -452,7 +431,7 @@ def test_a_file_that_was_read_rides_the_request_once(tmp_path):
     files.write("p1", "plan.md", "alpha\nbeta")
     rounds = [[{"tool_calls": [call("read_file", name="plan.md")]}], [{"text": "done"}]]
     engine = ScriptedEngine(rounds)
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    _answer(chats, files, engine)
     whole = "\n".join(str(message.get("content") or "") for message in engine.seen[1])
     assert whole.count("alpha") == 1
     assert "alpha" in _box(engine.seen[1])
@@ -470,7 +449,7 @@ def test_a_file_edited_in_the_same_turn_rides_it_only_as_it_is_now(tmp_path):
         [{"text": "done"}],
     ]
     engine = ScriptedEngine(rounds)
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    _answer(chats, files, engine)
     whole = "\n".join(str(message.get("content") or "") for message in engine.seen[2])
     assert "omega" in whole
     assert "alpha" not in whole
@@ -485,12 +464,10 @@ def test_the_box_rides_between_the_names_and_the_instruction(tmp_path):
     chats.replace(
         "p1", replace(stored, messages=(replace(stored.messages[0], skill="start-a-scenario"),))
     )
-    append_message(
-        chats, "p1", "c1", "read it", NOW, role="ai", calls=(ToolCall("read_file", "plan.md", "1 line"),)
-    )
-    append_message(chats, "p1", "c1", "carry on", NOW, skill="start-a-scenario")
+    _said(chats, "read it", role="ai", calls=(ToolCall("read_file", "plan.md", "1 line"),))
+    _said(chats,"carry on", NOW, skill="start-a-scenario")
     engine = ScriptedEngine([[{"text": "here"}]])
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    _answer(chats, files, engine)
     seen = engine.seen[0]
     assert seen[-1]["content"] == instruction_for("start-a-scenario")
     assert seen[-2]["content"].startswith("The last 5 files")
@@ -505,7 +482,7 @@ def test_the_box_says_it_holds_the_last_five(tmp_path):
     files.write("p1", "plan.md", "alpha")
     rounds = [[{"tool_calls": [call("read_file", name="plan.md")]}], [{"text": "done"}]]
     engine = ScriptedEngine(rounds)
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    _answer(chats, files, engine)
     assert _box(engine.seen[1]).startswith("The last 5 files you opened")
 
 
@@ -637,7 +614,7 @@ def test_building_prompts_announces_itself_twice(tmp_path):
     chats, files = _seeded(tmp_path)
     files.write("p1", "frames.json", STRUCTURE)
     rounds = [[{"tool_calls": [call("build_prompts", name="frames.json")]}], [{"text": "done"}]]
-    produced = list(stream_answer(chats, files, ScriptedEngine(rounds), "p1", "c1", NOW, NEVER, UNASKED))
+    produced = _answer(chats, files, ScriptedEngine(rounds))
     # A file is born here too, so it gets the same dashed card and the same filled one.
     cards = [piece for piece in produced if isinstance(piece, (FileStarted, FileWritten))]
     assert isinstance(cards[0], FileStarted)
@@ -651,7 +628,7 @@ def test_editing_a_file_announces_nothing(tmp_path):
         [{"tool_calls": [call("edit_file", name="plan.md", old="alpha", new="beta")]}],
         [{"text": "done"}],
     ]
-    produced = list(stream_answer(chats, files, ScriptedEngine(rounds), "p1", "c1", NOW, NEVER, UNASKED))
+    produced = _answer(chats, files, ScriptedEngine(rounds))
     # An edit is not a birth: a card would claim a file the user already has is new.
     assert not any(isinstance(piece, (FileStarted, FileWritten)) for piece in produced)
     assert files.read("p1", "plan.md") == "beta"
@@ -671,7 +648,7 @@ def test_a_name_born_twice_in_one_turn_is_remembered_once(tmp_path):
         ],
         [{"text": "done"}],
     ]
-    list(stream_answer(chats, files, ScriptedEngine(rounds), "p1", "c1", NOW, NEVER, UNASKED))
+    _answer(chats, files, ScriptedEngine(rounds))
     # The card says a file exists, not how many times it was written.
     assert chats.get("p1", "c1").messages[-1].files == ("frames.py",)
 
@@ -722,7 +699,7 @@ def test_silence_after_an_edit_is_not_asked_again(tmp_path):
         [{"text": "never asked for"}],
     ]
     engine = ScriptedEngine(rounds)
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    _answer(chats, files, engine)
     kept = chats.get("p1", "c1").messages[-1]
     assert (kept.text, kept.failed) == ("", "")
     assert len(engine.seen) == 2
@@ -738,7 +715,7 @@ def test_silence_after_a_create_that_wrote_nothing_is_asked_again(tmp_path):
         [{"text": "It was already there."}],
     ]
     engine = ScriptedEngine(rounds)
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    _answer(chats, files, engine)
     assert chats.get("p1", "c1").messages[-1].text == "It was already there."
     assert len(engine.seen) == 3
     assert files.read("p1", "plan.md") == "mine"
@@ -764,8 +741,10 @@ def test_a_turn_that_only_read_and_then_fell_silent_is_a_failed_answer(tmp_path)
 
 def test_a_silent_turn_that_runs_out_of_rounds_is_not_an_answer_either(tmp_path):
     # Same rule down a different road: the loop stops at its limit rather than at a quiet round.
+    # It ends as the turn's own fault, in the black box's words for nothing (the route used to say
+    # them): the turn has no answer to write, and its question stays unanswered.
     forever = [[{"tool_calls": [a_call()]}] for _ in range(MAX_ROUNDS + 3)]
-    with pytest.raises(EmptyMessage):
+    with pytest.raises(EngineFailed, match=NOTHING):
         _run(tmp_path, forever)
 
 
@@ -773,9 +752,9 @@ def _said_with(tmp_path, *turns):
     """Run one answer over a chat whose messages were sent with the given skills."""
     chats, files = _seeded(tmp_path)
     for number, (text, skill) in enumerate(turns):
-        append_message(chats, "p1", "c1", text, f"2026-08-09T12:0{number}:00.000+00:00", skill=skill)
+        _said(chats,text, f"2026-08-09T12:0{number}:00.000+00:00", skill=skill)
     engine = ScriptedEngine([[{"text": "ok"}]])
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED))
+    _answer(chats, files, engine)
     return chats, engine.seen[0]
 
 
@@ -839,9 +818,9 @@ def test_the_instruction_moves_to_the_end_of_every_round(tmp_path):
     # block would sit behind the tool exchanges from the second round on -- and the reason this
     # item exists would stop holding after the first one.
     chats, files = _seeded(tmp_path)
-    append_message(chats, "p1", "c1", "build me the prompts", NOW, skill="edit-prompts")
+    _said(chats,"build me the prompts", NOW, skill="edit-prompts")
     engine = ScriptedEngine([[{"tool_calls": [a_call()]}], [{"text": "clean"}]])
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED))
+    _answer(chats, files, engine)
     second = engine.seen[1]
     assert second[-1] == {"role": "system", "content": instruction_for("edit-prompts")}
     # And what it moved past: the round that asked for the tool, and the tool's answer. Counted
@@ -904,9 +883,9 @@ def test_the_notice_is_the_requests_last_word(tmp_path):
     from backend.features.workspace.domain.prompt import LAST_ROUND
 
     chats, files = _seeded(tmp_path)
-    append_message(chats, "p1", "c1", "build me the prompts", NOW, skill="edit-prompts")
+    _said(chats,"build me the prompts", NOW, skill="edit-prompts")
     engine = ScriptedEngine(_asking_forever(MAX_ROUNDS))
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED))
+    _answer(chats, files, engine)
     assert [piece["content"] for piece in engine.seen[-1][-2:]] == [
         instruction_for("edit-prompts"),
         LAST_ROUND,
@@ -947,7 +926,7 @@ def test_a_stream_that_keeps_breaking_ends_in_a_failed_answer(tmp_path):
     # answer, and the turn ends there.
     chats, files = _seeded(tmp_path)
     engine = ScriptedEngine([[{"text": "half"}]], blow_up_after=0)
-    produced = list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED))
+    produced = _answer(chats, files, engine)
     assert isinstance(produced[-1], Chat)
     kept = chats.get("p1", "c1").messages
     assert [(m.text, m.failed) for m in kept] == [("hi", ""), ("connection dropped", "technical")]
@@ -969,11 +948,7 @@ def test_a_fault_outside_the_box_still_ends_the_turn_as_one(tmp_path):
     # still travels inside the stream rather than breaking it -- with nothing written.
     chats, _ = _seeded(tmp_path)
     with pytest.raises(EngineFailed, match="the disk went away"):
-        list(
-            stream_answer(
-                chats, UnreadableFiles(), ScriptedEngine([]), "p1", "c1", NOW, NEVER, UNASKED
-            )
-        )
+        _answer(chats, UnreadableFiles(), ScriptedEngine([]))
     assert [m.text for m in chats.get("p1", "c1").messages] == ["hi"]
 
 
@@ -1013,10 +988,10 @@ def test_a_failed_answer_keeps_the_steps_and_files_but_not_the_words_before_it(t
 
 def test_a_failed_answer_is_not_sent_to_the_model_on_the_next_turn(tmp_path):
     chats, files = _seeded(tmp_path)
-    append_message(chats, "p1", "c1", "HTTP 502", NOW, role="ai", failed="technical")
-    append_message(chats, "p1", "c1", "and now?", NOW)
+    _said(chats,"HTTP 502", NOW, role="ai", failed="technical")
+    _said(chats,"and now?", NOW)
     engine = ScriptedEngine([[{"text": "Here."}]])
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    _answer(chats, files, engine)
     said = [message["content"] for message in engine.seen[0] if message["role"] in ("user", "ai")]
     assert said == ["hi", "and now?"]
 
@@ -1037,18 +1012,12 @@ def test_five_refusals_end_the_turn_in_the_refusal_message(tmp_path):
 
 def test_a_refused_answer_is_not_sent_to_the_model_on_the_next_turn(tmp_path):
     chats, files = _seeded(tmp_path)
-    append_message(chats, "p1", "c1", REFUSED_SAID, NOW, role="ai", failed="refused")
-    append_message(chats, "p1", "c1", "and now?", NOW)
+    _said(chats,REFUSED_SAID, NOW, role="ai", failed="refused")
+    _said(chats,"and now?", NOW)
     engine = ScriptedEngine([[{"text": "Here."}]])
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    _answer(chats, files, engine)
     said = [message["content"] for message in engine.seen[0] if message["role"] in ("user", "ai")]
     assert said == ["hi", "and now?"]
-
-
-def test_an_unknown_chat_is_reported_before_anything_streams(tmp_path):
-    chats, files = _seeded(tmp_path)
-    with pytest.raises(ChatNotFound):
-        list(stream_answer(chats, files, ScriptedEngine([]), "p1", "nope", NOW, NEVER, UNASKED))
 
 
 def test_the_engine_is_asked_without_a_model(tmp_path):
@@ -1056,7 +1025,7 @@ def test_the_engine_is_asked_without_a_model(tmp_path):
     # the chat. ScriptedEngine.stream refuses one, so a use case that passed a model would die here.
     chats, files = _seeded(tmp_path)
     engine = ScriptedEngine([[{"text": "hi"}]])
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED))
+    _answer(chats, files, engine)
     assert len(engine.seen) == 1
 
 
@@ -1067,7 +1036,7 @@ def test_a_question_that_names_a_model_since_dropped_is_still_answered(tmp_path)
     old = chats.get("p1", "c1")
     chats.replace("p1", replace(old, messages=(replace(old.messages[0], model="deepseek-v4-pro"),)))
     engine = ScriptedEngine([[{"text": "Done."}]])
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED))
+    _answer(chats, files, engine)
     assert [m.text for m in chats.get("p1", "c1").messages] == ["hi", "Done."]
 
 
@@ -1139,26 +1108,26 @@ TWO_ROUNDS = [[{"text": "Half a "}, {"tool_calls": [a_call()]}], [{"text": "sent
 
 def test_a_stop_ends_the_answer_without_asking_the_model_again(tmp_path):
     # The first round asked for a tool, which is what would normally open a second one.
-    _, _, engine, _ = _run(tmp_path, TWO_ROUNDS, stops=Cut())
+    _, _, engine, _ = _run(tmp_path, TWO_ROUNDS, control=Cut())
     assert len(engine.seen) == 1
 
 
 def test_a_stopped_turn_keeps_no_words(tmp_path):
     # Madde 440 turned the old rule round (the user, 5 October: "atılsın"). The answer was never on
     # screen and never checked, so none of it is kept -- not even what an earlier round said.
-    chats, _, _, _ = _run(tmp_path, TWO_ROUNDS, stops=Cut())
+    chats, _, _, _ = _run(tmp_path, TWO_ROUNDS, control=Cut())
     assert chats.get("p1", "c1").messages[-1].text == ""
 
 
 def test_a_stop_in_a_later_round_keeps_the_steps_and_the_files(tmp_path):
     # Only the request in flight is dropped: what the turn did before it stays.
-    stops = PressedLater()
+    control = PressedLater()
     rounds = [
         [{"text": "Writing. "}, {"tool_calls": [call("create_file", name="plan.md", content="x")]}],
-        [{"text": "Half a"}, stops.press],
+        [{"text": "Half a"}, control.press],
         [{"text": "never"}],
     ]
-    chats, files, engine, _ = _run(tmp_path, rounds, stops=stops)
+    chats, files, engine, _ = _run(tmp_path, rounds, control=control)
     kept = chats.get("p1", "c1").messages[-1]
     assert (kept.text, kept.stopped, kept.files) == ("", True, ("plan.md",))
     assert kept.calls == (ToolCall("create_file", "plan.md", "Saved"),)
@@ -1169,17 +1138,17 @@ def test_a_stop_in_a_later_round_keeps_the_steps_and_the_files(tmp_path):
 
 def test_a_stopped_answer_says_it_was_stopped(tmp_path):
     # Half a sentence with no mark cannot be told from a model that finished on one.
-    chats, _, _, _ = _run(tmp_path, TWO_ROUNDS, stops=Cut())
+    chats, _, _, _ = _run(tmp_path, TWO_ROUNDS, control=Cut())
     assert chats.get("p1", "c1").messages[-1].stopped is True
 
 
-def test_the_running_answer_hands_the_registry_a_way_to_cut_it(tmp_path):
-    # Madde 90. The registry is reached from the thread carrying the stop and holds no socket of
-    # its own; this is the one moment where the two meet.
-    stops = Cut()
-    _, _, engine, _ = _run(tmp_path, [[{"text": "Hi"}]], stops=stops)
-    assert [(project, chat) for project, chat, _ in stops.held] == [("p1", "c1")]
-    stops.held[0][2]()
+def test_the_running_answer_hands_its_control_a_way_to_cut_it(tmp_path):
+    # Madde 90. The stop is reached from the thread carrying it and holds no socket of its own;
+    # this is the one moment where the two meet.
+    control = Cut()
+    _, _, engine, _ = _run(tmp_path, [[{"text": "Hi"}]], control=control)
+    assert len(control.held) == 1
+    control.held[0]()
     assert engine.handed == ["cut"]
 
 
@@ -1187,7 +1156,7 @@ def test_a_connection_we_cut_is_a_stop_rather_than_a_failure(tmp_path):
     # Our own cut and a network that dropped arrive as the same words -- nothing in the failure
     # says who ended it. The registry is the only thing that knows, so it is asked before the
     # failure is believed.
-    chats, _, engine, _ = _run(tmp_path, [[{"text": "Half a "}, CUT]], stops=Cut())
+    chats, _, engine, _ = _run(tmp_path, [[{"text": "Half a "}, CUT]], control=Cut())
     kept = chats.get("p1", "c1").messages[-1]
     assert kept.text == ""
     assert kept.stopped is True
@@ -1209,18 +1178,11 @@ def test_stopping_before_a_word_still_writes_that_it_was_stopped(tmp_path):
     #
     # This is the press Madde 90 was written for: it lands while the model is still thinking, and
     # the connection dies before a single word has come down it.
-    chats, _, _, _ = _run(tmp_path, [[CUT]], stops=Cut())
+    chats, _, _, _ = _run(tmp_path, [[CUT]], control=Cut())
     kept = chats.get("p1", "c1").messages
     assert [m.role for m in kept] == ["user", "ai"]
     assert kept[-1].text == ""
     assert kept[-1].stopped is True
-
-
-def test_the_request_is_cleared_when_the_answer_ends(tmp_path):
-    # Left standing it would cut the next answer as it was born.
-    stops = Cut()
-    _run(tmp_path, TWO_ROUNDS, stops=stops)
-    assert stops.cleared == [("p1", "c1")]
 
 
 # --- what the answer spent (Madde 68) ------------------------------------------------------------
@@ -1320,7 +1282,7 @@ def test_a_stopped_answer_still_says_what_its_finished_rounds_spent(tmp_path):
     # A round that came back whole was paid for, and the stop landing just after it does not undo
     # that: the record keeps the figure, though the screen draws no cost under a stopped turn.
     rounds = [[spent(1200, 900, 5), {"text": "Half a "}]]
-    chats, _, _, _ = _run(tmp_path, rounds, stops=Cut())
+    chats, _, _, _ = _run(tmp_path, rounds, control=Cut())
     assert _kept(chats).text == ""
     assert _kept(chats).usage == Usage(1200, 900, 5)
 
@@ -1330,7 +1292,7 @@ def test_an_answer_stopped_before_the_counts_arrive_spent_nothing_it_knows_of(tm
     # reports once, in a frame just before the stream closes; an answer cut short never reaches it.
     # Since Madde 440 the cut round is thrown away whole, its figure with it.
     rounds = [[spent(1200, 900, 5), {"text": "Half a "}, CUT]]
-    chats, _, _, _ = _run(tmp_path, rounds, stops=Cut())
+    chats, _, _, _ = _run(tmp_path, rounds, control=Cut())
     assert _kept(chats).text == ""
     assert _kept(chats).usage == Usage()
 
@@ -1339,9 +1301,9 @@ def test_an_answer_stopped_before_the_counts_arrive_spent_nothing_it_knows_of(tm
 
 
 def test_a_call_the_mode_does_not_cover_is_asked_about(tmp_path):
-    permissions = Answers(allowed())
-    _gated(tmp_path, [_write_round(), [{"text": "done"}]], permissions=permissions)
-    assert permissions.asked == [("p1", "c1")]
+    control = Answers(allowed())
+    _gated(tmp_path, [_write_round(), [{"text": "done"}]], control=control)
+    assert control.asked == 1
 
 
 def test_the_question_carries_the_tool_and_its_arguments(tmp_path):
@@ -1350,7 +1312,7 @@ def test_the_question_carries_the_tool_and_its_arguments(tmp_path):
     from backend.features.workspace.domain.permission import PermissionWanted
 
     _, _, _, produced = _gated(
-        tmp_path, [_write_round(), [{"text": "done"}]], permissions=Answers(allowed())
+        tmp_path, [_write_round(), [{"text": "done"}]], control=Answers(allowed())
     )
     asked = [piece for piece in produced if isinstance(piece, PermissionWanted)]
     assert asked == [
@@ -1360,13 +1322,13 @@ def test_the_question_carries_the_tool_and_its_arguments(tmp_path):
 
 def test_an_allowed_call_runs(tmp_path):
     _, files, _, _ = _gated(
-        tmp_path, [_write_round(), [{"text": "done"}]], permissions=Answers(allowed())
+        tmp_path, [_write_round(), [{"text": "done"}]], control=Answers(allowed())
     )
     assert files.list_names("p1") == ["plan.md"]
 
 
 def test_an_allowed_call_changes_the_mode_for_the_rest_of_the_turn(tmp_path):
-    # One answer for two writes. Measured by the registry running out if it is asked twice, which
+    # One answer for two writes. Measured by the control running out if it is asked twice, which
     # is exactly what a mode that did not change would do.
     rounds = [
         [
@@ -1379,15 +1341,15 @@ def test_an_allowed_call_changes_the_mode_for_the_rest_of_the_turn(tmp_path):
         ],
         [{"text": "done"}],
     ]
-    permissions = Answers(allowed())
-    _, files, _, _ = _gated(tmp_path, rounds, permissions=permissions)
-    assert len(permissions.asked) == 1
+    control = Answers(allowed())
+    _, files, _, _ = _gated(tmp_path, rounds, control=control)
+    assert control.asked == 1
     assert sorted(files.list_names("p1")) == ["one.md", "two.md"]
 
 
 def test_a_refused_call_does_not_run(tmp_path):
     _, files, _, _ = _gated(
-        tmp_path, [_write_round(), [{"text": "ok"}]], permissions=Answers(refused())
+        tmp_path, [_write_round(), [{"text": "ok"}]], control=Answers(refused())
     )
     assert files.list_names("p1") == []
 
@@ -1395,7 +1357,7 @@ def test_a_refused_call_does_not_run(tmp_path):
 def test_a_refused_call_tells_the_model_why(tmp_path):
     # A wall with nothing written on it is a wall the model walks into again.
     _, _, engine, _ = _gated(
-        tmp_path, [_write_round(), [{"text": "ok"}]], permissions=Answers(refused())
+        tmp_path, [_write_round(), [{"text": "ok"}]], control=Answers(refused())
     )
     # The conversation's last word, which since Madde 127 is no longer the request's: the file
     # names ride behind it.
@@ -1410,7 +1372,7 @@ def test_the_users_own_reason_reaches_the_model(tmp_path):
     _, _, engine, _ = _gated(
         tmp_path,
         [_write_round(), [{"text": "ok"}]],
-        permissions=Answers(refused("that file is mine")),
+        control=Answers(refused("that file is mine")),
     )
     refusal = [piece for piece in engine.seen[1] if piece["role"] == "tool"][-1]
     assert "that file is mine" in refusal["content"]
@@ -1420,46 +1382,29 @@ def test_a_refused_call_is_still_a_card(tmp_path):
     # Madde 84 and 85 do not bend for a refusal: what the turn did is what the chat shows. No file
     # name, because no file was touched.
     chats, _, _, _ = _gated(
-        tmp_path, [_write_round(), [{"text": "ok"}]], permissions=Answers(refused())
+        tmp_path, [_write_round(), [{"text": "ok"}]], control=Answers(refused())
     )
     assert chats.get("p1", "c1").messages[-1].calls == (ToolCall("create_file", "", "Not allowed"),)
 
 
 def test_a_refusal_does_not_end_the_turn(tmp_path):
     _, _, engine, _ = _gated(
-        tmp_path, [_write_round(), [{"text": "ok"}]], permissions=Answers(refused())
+        tmp_path, [_write_round(), [{"text": "ok"}]], control=Answers(refused())
     )
     assert len(engine.seen) == 2
 
 
 def test_a_stop_while_waiting_ends_the_turn(tmp_path):
-    stops = StopsWhileWaiting()
-    permissions = Answers(None, on_wait=lambda: stops.want("p1", "c1"))
     chats, files, engine, _ = _gated(
-        tmp_path,
-        [_write_round(), [{"text": "never"}]],
-        stops=stops,
-        permissions=permissions,
+        tmp_path, [_write_round(), [{"text": "never"}]], control=StopsWhileWaiting()
     )
     assert files.list_names("p1") == []
     assert len(engine.seen) == 1
     assert chats.get("p1", "c1").messages[-1].stopped
 
 
-def test_a_tick_with_no_answer_beats_and_keeps_waiting(tmp_path):
-    # The beat is what keeps a tunnel from closing a silent stream, and what notices a tab that
-    # went away. Then the answer arrives and the turn carries on as if nothing happened.
-    from backend.features.workspace.domain.permission import Waiting
-
-    _, files, _, produced = _gated(
-        tmp_path, [_write_round(), [{"text": "done"}]], permissions=Answers(None, allowed())
-    )
-    assert [piece for piece in produced if isinstance(piece, Waiting)] == [Waiting()]
-    assert files.list_names("p1") == ["plan.md"]
-
-
-def test_edit_mode_never_reaches_the_registry(tmp_path):
-    # UNASKED raises when it is touched, so this is measured rather than asserted.
+def test_edit_mode_never_asks(tmp_path):
+    # NEVER raises when it is asked, so this is measured rather than asserted.
     _, files, _, _ = _gated(tmp_path, [_write_round(), [{"text": "done"}]], mode="edit")
     assert files.list_names("p1") == ["plan.md"]
 
@@ -1479,16 +1424,10 @@ def test_the_question_comes_before_the_dashed_card(tmp_path):
     from backend.features.workspace.domain.permission import PermissionWanted
 
     _, _, _, produced = _gated(
-        tmp_path, [_write_round(), [{"text": "done"}]], permissions=Answers(allowed())
+        tmp_path, [_write_round(), [{"text": "done"}]], control=Answers(allowed())
     )
     kinds = [type(piece) for piece in produced]
     assert kinds.index(PermissionWanted) < kinds.index(FileStarted)
-
-
-def test_the_registry_is_cleared_however_the_turn_ends(tmp_path):
-    permissions = Answers(refused())
-    _gated(tmp_path, [_write_round(), [{"text": "ok"}]], permissions=permissions)
-    assert permissions.cleared == [("p1", "c1")]
 
 
 # --- what a mode decides (Madde 91, and Madde 99) ------------------------------------------------
@@ -1501,7 +1440,7 @@ def test_the_registry_is_cleared_however_the_turn_ends(tmp_path):
 def _in_mode(tmp_path, rounds, mode):
     chats, files = _seeded(tmp_path)
     engine = ScriptedEngine(rounds)
-    produced = list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, mode))
+    produced = _answer(chats, files, engine, mode)
     return chats, engine, produced
 
 
@@ -1509,7 +1448,7 @@ def test_a_turn_that_names_no_mode_carries_the_writing_tools(tmp_path):
     # The retry road sends no mode of its own, and neither does any caller written before this.
     chats, files = _seeded(tmp_path)
     engine = ScriptedEngine([[{"text": "Hi"}]])
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED))
+    list(run_turn(chats, files, engine, "p1", chats.get("p1", "c1"), NOW, NEVER))
     assert "create_file" in engine.tools[0]
 
 
@@ -1536,8 +1475,8 @@ def test_in_plan_mode_the_turn_ends_when_the_plan_is_written(tmp_path):
 def _branched(tmp_path, **edit):
     """The seeded chat, answered once, then edited back at its first message."""
     chats, files = _seeded(tmp_path)
-    append_message(chats, "p1", "c1", "Done.", NOW, role="ai")
-    append_message(chats, "p1", "c1", "hi again", NOW, branch_at=0, line_id="l2", **edit)
+    _said(chats,"Done.", NOW, role="ai")
+    _said(chats,"hi again", NOW, branch_at=0, line_id="l2", **edit)
     return chats, files
 
 
@@ -1547,7 +1486,7 @@ def test_the_request_carries_the_open_line_and_not_the_one_left_behind(tmp_path)
     # the screen shows something else entirely.
     chats, files = _branched(tmp_path)
     engine = ScriptedEngine([[{"text": "Done again."}]])
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    _answer(chats, files, engine)
     assert [
         message["content"] for message in engine.seen[0] if message["role"] in ("user", "ai")
     ] == ["hi again"]
@@ -1560,7 +1499,7 @@ def test_the_skill_comes_from_the_open_lines_newest_question(tmp_path):
 
     chats, files = _branched(tmp_path, skill="edit-prompts")
     engine = ScriptedEngine([[{"text": "Done again."}]])
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    _answer(chats, files, engine)
     said = [message["content"] for message in engine.seen[0]]
     assert instruction_for("edit-prompts") in said
 
@@ -1572,13 +1511,13 @@ def test_a_trimmed_chat_sends_only_what_follows_the_cut(tmp_path):
     # The row's own words: in a trimmed chat only the newest part goes to the model, while every
     # message stays in the record.
     chats, files = _seeded(tmp_path)
-    append_message(chats, "p1", "c1", "Done.", NOW, role="ai")
-    append_message(chats, "p1", "c1", "again", NOW)
+    _said(chats,"Done.", NOW, role="ai")
+    _said(chats,"again", NOW)
     chat = chats.get("p1", "c1")
     marked = replace(chat.messages[-1], trimmed=2)
     chats.replace("p1", replace(chat, messages=chat.messages[:-1] + (marked,)))
     engine = ScriptedEngine([[{"text": "Done again."}]])
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    _answer(chats, files, engine)
     assert [
         message["content"] for message in engine.seen[0] if message["role"] in ("user", "ai")
     ] == ["again"]

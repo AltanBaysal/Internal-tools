@@ -2,7 +2,7 @@ import pytest
 
 from backend.features.workspace.data.file_chat_store import FileChatStore
 from backend.features.workspace.data.file_project_store import FileProjectStore
-from backend.features.workspace.domain.errors import ChatNotFound, EmptyMessage
+from backend.features.workspace.domain.errors import EmptyMessage
 from backend.features.workspace.domain.usecases.append_message import append_message
 from backend.features.workspace.domain.usecases.create_project import create_project
 from backend.features.workspace.domain.usecases.list_chats import list_chats
@@ -16,10 +16,10 @@ def _stores(tmp_path):
 
 
 def _made(projects, chats, project_id, chat_id, text, now):
-    # Making a chat goes through the rule itself since Madde 87: naming no chat is what asks for
+    # Making a chat goes through the rule itself since Madde 87: handing no chat is what asks for
     # one, and the id it is handed is the id it gets.
     return append_message(
-        chats, project_id, "", text, now, project_store=projects, new_id=chat_id
+        chats, project_id, None, text, now, project_store=projects, new_id=chat_id
     )
 
 
@@ -43,7 +43,7 @@ def test_with_no_chat_named_the_rule_creates_one(tmp_path):
     chat = append_message(
         chats,
         "p1",
-        "",
+        None,
         "Write the intro",
         "2026-08-09T11:04:00.000+00:00",
         skill="create-scenario",
@@ -66,7 +66,7 @@ def test_with_no_chat_named_an_empty_message_is_still_refused(tmp_path):
         append_message(
             chats,
             "p1",
-            "",
+            None,
             "   ",
             "2026-08-09T11:04:00.000+00:00",
             project_store=projects,
@@ -77,7 +77,7 @@ def test_with_no_chat_named_an_empty_message_is_still_refused(tmp_path):
 
 def test_a_message_lands_at_the_end_and_the_title_stays(tmp_path):
     _, chats = _seeded(tmp_path)
-    chat = append_message(chats, "p1", "c1", "and a second one", "2026-08-09T11:06:00.000+00:00")
+    chat = append_message(chats, "p1", chats.get("p1", "c1"), "and a second one", "2026-08-09T11:06:00.000+00:00")
     assert [m.text for m in chat.messages] == ["Write the intro", "and a second one"]
     assert chat.title == "Write the intro"
 
@@ -87,21 +87,26 @@ def test_a_message_remembers_which_skill_sent_it(tmp_path):
     # an older turn was governed by the new one.
     _, chats = _seeded(tmp_path)
     chat = append_message(
-        chats, "p1", "c1", "and a second one", "2026-08-09T11:06:00.000+00:00", skill="split-shots"
+        chats,
+        "p1",
+        chats.get("p1", "c1"),
+        "and a second one",
+        "2026-08-09T11:06:00.000+00:00",
+        skill="split-shots",
     )
     assert chat.messages[-1].skill == "split-shots"
 
 
 def test_a_message_sent_with_no_skill_says_so(tmp_path):
     _, chats = _seeded(tmp_path)
-    chat = append_message(chats, "p1", "c1", "plain", "2026-08-09T11:06:00.000+00:00")
+    chat = append_message(chats, "p1", chats.get("p1", "c1"), "plain", "2026-08-09T11:06:00.000+00:00")
     assert chat.messages[-1].skill == ""
 
 
 def test_the_role_can_be_the_answer(tmp_path):
     # Faz 6 appends the reply through this very call.
     _, chats = _seeded(tmp_path)
-    chat = append_message(chats, "p1", "c1", "Done.", "2026-08-09T11:06:00.000+00:00", role="ai")
+    chat = append_message(chats, "p1", chats.get("p1", "c1"), "Done.", "2026-08-09T11:06:00.000+00:00", role="ai")
     assert chat.messages[-1].role == "ai"
 
 
@@ -109,7 +114,7 @@ def test_the_role_can_be_the_answer(tmp_path):
 def test_an_empty_message_is_refused_and_the_chat_is_untouched(tmp_path, blank):
     _, chats = _seeded(tmp_path)
     with pytest.raises(EmptyMessage):
-        append_message(chats, "p1", "c1", blank, "2026-08-09T11:06:00.000+00:00")
+        append_message(chats, "p1", chats.get("p1", "c1"),blank, "2026-08-09T11:06:00.000+00:00")
     assert len(chats.get("p1", "c1").messages) == 1
 
 
@@ -122,7 +127,14 @@ def test_an_answer_that_wrote_a_file_may_carry_no_words(tmp_path):
     _, chats = _seeded(tmp_path)
     step = ToolCall("edit_file", "plan.md", "Edited")
     chat = append_message(
-        chats, "p1", "c1", "", "2026-08-09T11:06:00.000+00:00", role="ai", calls=(step,), wrote=True
+        chats,
+        "p1",
+        chats.get("p1", "c1"),
+        "",
+        "2026-08-09T11:06:00.000+00:00",
+        role="ai",
+        calls=(step,),
+        wrote=True,
     )
     assert (chat.messages[-1].text, chat.messages[-1].calls) == ("", (step,))
 
@@ -133,16 +145,31 @@ def test_a_stopped_answer_may_carry_nothing(tmp_path):
     # still refused -- the test above proves that and stays where it is.
     _, chats = _seeded(tmp_path)
     chat = append_message(
-        chats, "p1", "c1", "", "2026-08-09T11:06:00.000+00:00", role="ai", stopped=True
+        chats, "p1", chats.get("p1", "c1"), "", "2026-08-09T11:06:00.000+00:00", role="ai", stopped=True
     )
     assert chat.messages[-1].text == ""
     assert chat.messages[-1].stopped is True
 
 
-def test_an_unknown_chat_is_reported(tmp_path):
+class HandedOnly:
+    """A chat store that writes and cannot read: the chat a message lands in is handed over."""
+
+    def __init__(self, chats):
+        self._chats = chats
+
+    def get(self, project_id, chat_id):
+        raise AssertionError("the chat was read again")
+
+    def replace(self, project_id, chat):
+        self._chats.replace(project_id, chat)
+
+
+def test_the_chat_handed_over_is_written_without_being_read_again(tmp_path):
+    # Madde 461: the door has just read it, and on Drive every read is a round trip.
     _, chats = _seeded(tmp_path)
-    with pytest.raises(ChatNotFound):
-        append_message(chats, "p1", "nope", "hi", "2026-08-09T11:06:00.000+00:00")
+    handed = chats.get("p1", "c1")
+    append_message(HandedOnly(chats), "p1", handed, "more", "2026-08-09T11:06:00.000+00:00")
+    assert [m.text for m in chats.get("p1", "c1").messages] == ["Write the intro", "more"]
 
 
 def test_a_later_message_lifts_its_chat_to_the_top(tmp_path):
@@ -150,7 +177,7 @@ def test_a_later_message_lifts_its_chat_to_the_top(tmp_path):
     create_project(projects, new_id="p1", name="Thesis", now="2026-08-09T10:00:00.000+00:00")
     _made(projects, chats, "p1", "c1", "older", "2026-08-09T10:00:00.000+00:00")
     _made(projects, chats, "p1", "c2", "newer", "2026-08-09T12:00:00.000+00:00")
-    append_message(chats, "p1", "c1", "still here", "2026-08-09T13:00:00.000+00:00")
+    append_message(chats, "p1", chats.get("p1", "c1"), "still here", "2026-08-09T13:00:00.000+00:00")
     assert [chat.id for chat in list_chats(chats, "p1")] == ["c1", "c2"]
 
 
@@ -168,9 +195,9 @@ LATER = "2026-08-09T12:00:00.000+00:00"
 def _answered(tmp_path):
     """A chat of two turns: asked, answered, asked again, answered again."""
     projects, chats = _seeded(tmp_path)
-    append_message(chats, "p1", "c1", "Done.", LATER, role="ai")
-    append_message(chats, "p1", "c1", "Write the ending", LATER)
-    append_message(chats, "p1", "c1", "Done twice.", LATER, role="ai")
+    append_message(chats, "p1", chats.get("p1", "c1"), "Done.", LATER, role="ai")
+    append_message(chats, "p1", chats.get("p1", "c1"), "Write the ending", LATER)
+    append_message(chats, "p1", chats.get("p1", "c1"), "Done twice.", LATER, role="ai")
     return projects, chats
 
 
@@ -179,7 +206,7 @@ def test_editing_a_message_opens_a_version_where_it_stood(tmp_path):
     # two before it and nothing after.
     _, chats = _answered(tmp_path)
     chat = append_message(
-        chats, "p1", "c1", "Write a shorter ending", LATER, branch_at=2, line_id="l2"
+        chats, "p1", chats.get("p1", "c1"), "Write a shorter ending", LATER, branch_at=2, line_id="l2"
     )
     assert [(v.id, v.parent, v.at) for v in chat.versions] == [("l2", "", 2)]
     assert [m.text for m in chat.versions[0].messages] == ["Write a shorter ending"]
@@ -190,7 +217,7 @@ def test_the_new_version_is_the_one_that_is_open(tmp_path):
 
     _, chats = _answered(tmp_path)
     chat = append_message(
-        chats, "p1", "c1", "Write a shorter ending", LATER, branch_at=2, line_id="l2"
+        chats, "p1", chats.get("p1", "c1"), "Write a shorter ending", LATER, branch_at=2, line_id="l2"
     )
     assert chat.active == "l2"
     assert [m.text for m in active_messages(chat)] == [
@@ -207,7 +234,7 @@ def test_the_message_that_was_edited_is_not_carried_over(tmp_path):
 
     _, chats = _answered(tmp_path)
     chat = append_message(
-        chats, "p1", "c1", "Write a shorter ending", LATER, branch_at=2, line_id="l2"
+        chats, "p1", chats.get("p1", "c1"), "Write a shorter ending", LATER, branch_at=2, line_id="l2"
     )
     assert "Write the ending" not in [m.text for m in active_messages(chat)]
 
@@ -216,7 +243,7 @@ def test_the_line_that_was_left_keeps_everything_it_had(tmp_path):
     # FOUNDATION 1: opening a version is not cutting the old turns off. They are still there, and
     # the arrows are what reach them.
     _, chats = _answered(tmp_path)
-    append_message(chats, "p1", "c1", "Write a shorter ending", LATER, branch_at=2, line_id="l2")
+    append_message(chats, "p1", chats.get("p1", "c1"), "Write a shorter ending", LATER, branch_at=2, line_id="l2")
     kept = chats.get("p1", "c1")
     assert [m.text for m in kept.messages] == [
         "Write the intro",
@@ -230,9 +257,9 @@ def test_a_version_of_a_version_splits_from_the_open_one(tmp_path):
     # Whichever line the user is standing on is the one that branches -- not the first line, which
     # they may have walked away from several edits ago.
     _, chats = _answered(tmp_path)
-    append_message(chats, "p1", "c1", "Write a shorter ending", LATER, branch_at=2, line_id="l2")
-    append_message(chats, "p1", "c1", "Done shortly.", LATER, role="ai")
-    chat = append_message(chats, "p1", "c1", "Shorter still", LATER, branch_at=2, line_id="l3")
+    append_message(chats, "p1", chats.get("p1", "c1"), "Write a shorter ending", LATER, branch_at=2, line_id="l2")
+    append_message(chats, "p1", chats.get("p1", "c1"), "Done shortly.", LATER, role="ai")
+    chat = append_message(chats, "p1", chats.get("p1", "c1"), "Shorter still", LATER, branch_at=2, line_id="l3")
     assert [(v.id, v.parent, v.at) for v in chat.versions] == [("l2", "", 2), ("l3", "l2", 2)]
 
 
@@ -242,8 +269,8 @@ def test_a_message_with_no_index_lands_on_the_open_line(tmp_path):
     from backend.features.workspace.domain.chat import active_messages
 
     _, chats = _answered(tmp_path)
-    append_message(chats, "p1", "c1", "Write a shorter ending", LATER, branch_at=2, line_id="l2")
-    chat = append_message(chats, "p1", "c1", "Done shortly.", LATER, role="ai")
+    append_message(chats, "p1", chats.get("p1", "c1"), "Write a shorter ending", LATER, branch_at=2, line_id="l2")
+    chat = append_message(chats, "p1", chats.get("p1", "c1"), "Done shortly.", LATER, role="ai")
     assert [m.text for m in chat.versions[0].messages] == [
         "Write a shorter ending",
         "Done shortly.",
@@ -255,12 +282,6 @@ def test_a_message_with_no_index_lands_on_the_open_line(tmp_path):
 def test_an_empty_sentence_is_refused_on_a_version_too(tmp_path):
     _, chats = _answered(tmp_path)
     with pytest.raises(EmptyMessage):
-        append_message(chats, "p1", "c1", "   ", LATER, branch_at=2, line_id="l2")
+        append_message(chats, "p1", chats.get("p1", "c1"), "   ", LATER, branch_at=2, line_id="l2")
     # And nothing was opened on the way to refusing it.
     assert chats.get("p1", "c1").versions == ()
-
-
-def test_editing_in_a_chat_that_does_not_exist_is_refused(tmp_path):
-    _, chats = _seeded(tmp_path)
-    with pytest.raises(ChatNotFound):
-        append_message(chats, "p1", "ghost", "hi", LATER, branch_at=0, line_id="l2")

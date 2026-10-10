@@ -158,7 +158,7 @@ fixed head the service files this conversation's cached prefix under; a sentence
 turn stands would change it on the one round that differs and cost the prefix on all of them. This
 rides at the tail instead, where what changes belongs.
 
-The words are half of it -- the round really is handed no tools, and stream_answer does that. Told
+The words are half of it -- the round really is handed no tools, and run_turn does that. Told
 without being enforced this would be a request, and a model that has misread how much turn is left
 is exactly the reader who would spend the round on one more call. Enforced without being told, the
 model would answer because it had no choice, which is not the same as an answer that knows it is

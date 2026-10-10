@@ -10,8 +10,7 @@ import pytest
 from backend.features.workspace.data.file_chat_store import FileChatStore
 from backend.features.workspace.data.file_file_store import FileFileStore
 from backend.features.workspace.data.file_project_store import PROJECTS_FILE, FileProjectStore
-from backend.features.workspace.data.memory_permissions import MemoryPermissions
-from backend.features.workspace.data.memory_stops import MemoryStops
+from backend.features.workspace.data.live_turns import LiveTurns
 from backend.features.workspace.domain.errors import ProjectNotFound
 from backend.features.workspace.domain.project import Project
 from backend.features.workspace.domain.prompt import APPROVED
@@ -229,8 +228,7 @@ def _wired(tmp_path):
                 FileChatStore(store, projects),
                 files,
                 FakeEngine(),
-                MemoryStops(),
-                MemoryPermissions(),
+                LiveTurns(),
             ),
         ),
     )

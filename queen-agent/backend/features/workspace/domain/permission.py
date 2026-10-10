@@ -1,4 +1,4 @@
-"""What a paused turn is made of: the question, the beat, and the answer.
+"""What a paused turn is made of: the question and the answer.
 
 Its own module rather than a corner of tools.py: none of this is a tool's own work. The gate opens
 in front of a tool, and a tool never learns it was gated.
@@ -26,16 +26,6 @@ class PermissionWanted:
 
     tool: str
     arguments: str
-
-
-@dataclass(frozen=True)
-class Waiting:
-    """A beat while the turn waits.
-
-    Neither of its two jobs is about permission: it keeps a tunnel from closing a stream that has
-    gone quiet, and it is the only thing that notices a browser which went away -- a write to a
-    connection nobody is reading is how the turn learns to end.
-    """
 
 
 def refusal_text(tool, reason):

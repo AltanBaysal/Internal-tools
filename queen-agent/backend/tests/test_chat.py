@@ -34,26 +34,6 @@ def test_a_message_written_without_a_model_carries_the_empty_one():
     assert Message(role="user", at="2026-09-02T10:00:00+00:00", text="hi").model == ""
 
 
-def test_a_chat_is_owed_an_answer_when_the_last_word_is_the_users():
-    # Madde 88 moved this question out of the browser. It used to live in useChat, where it ran on
-    # a reload and on a reconnection -- moments nobody had asked for an answer in.
-    #
-    # Imported here rather than at the top: a name that does not exist yet fails the whole file's
-    # collection, and then none of this turn's reds are visible.
-    from backend.features.workspace.domain.chat import is_owed_an_answer
-
-    at = "2026-08-09T11:04:00.000+00:00"
-    asked = Chat(
-        id="c1", title="hi", created_at=at, messages=(Message(role="user", at=at, text="hi"),)
-    )
-    answered = replace(asked, messages=asked.messages + (Message(role="ai", at=at, text="Done."),))
-    assert is_owed_an_answer(asked)
-    assert not is_owed_an_answer(answered)
-    # An empty chat cannot exist through the door, but the rule must not read past the end of a
-    # list to say so.
-    assert not is_owed_an_answer(Chat(id="c1", title="hi", created_at=at))
-
-
 # --- the ceiling on a chat's context (Madde 92; the messages alone since Madde 337) -------------
 
 AT = "2026-08-09T11:04:00.000+00:00"
@@ -205,20 +185,6 @@ def test_an_active_naming_nothing_falls_back_to_the_first_line():
 
     chat = replace(_trunk("hi", "Done."), active="gone")
     assert [m.text for m in active_messages(chat)] == ["hi", "Done."]
-
-
-def test_whether_an_answer_is_owed_is_asked_of_the_open_line():
-    # The closed line was answered and the open one was not. Reading the first line here would send
-    # the user's newest question nowhere.
-    from backend.features.workspace.domain.chat import is_owed_an_answer
-
-    chat = replace(
-        _trunk("hi", "Done."),
-        versions=(_version("l2", "", 1, "hi again"),),
-        active="l2",
-    )
-    assert is_owed_an_answer(chat)
-    assert not is_owed_an_answer(replace(chat, active=""))
 
 
 def test_the_ceiling_is_measured_on_the_open_line():

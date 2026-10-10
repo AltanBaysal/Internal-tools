@@ -21,6 +21,26 @@ class ChatNotFull(Exception):
     """Only a full chat is trimmed."""
 
 
+class ChatFull(Exception):
+    """The chat has reached its context ceiling and takes no further turn."""
+
+
+class NothingToAnswer(Exception):
+    """No sentence and no chat waiting: the request asks for nothing."""
+
+
+class VersionNotFound(Exception):
+    """The chat has no version of this name."""
+
+
+class ChatHeld(Exception):
+    """A turn holds this chat (Madde 461): one is answering in it, or its record is being written."""
+
+
+class ProjectAnswering(Exception):
+    """A chat of this project has a turn running, so the project cannot move to the trash."""
+
+
 class EngineFailed(Exception):
     """The engine could not answer. Carries the engine's own words."""
 

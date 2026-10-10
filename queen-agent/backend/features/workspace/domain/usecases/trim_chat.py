@@ -13,9 +13,15 @@ from backend.features.workspace.domain.chat import (
     with_open_line,
 )
 from backend.features.workspace.domain.errors import ChatNotFound, ChatNotFull
+from backend.features.workspace.domain.usecases.hold_chat import hold_chat
 
 
-def trim_chat(chat_store, project_id, chat_id):
+def trim_chat(chat_store, turns, project_id, chat_id):
+    # Held while it reads and writes (Madde 461): refused while a turn runs.
+    hold_chat(turns, project_id, chat_id, lambda: _trimmed(chat_store, project_id, chat_id))
+
+
+def _trimmed(chat_store, project_id, chat_id):
     chat = chat_store.get(project_id, chat_id)
     if chat is None:
         raise ChatNotFound(chat_id)

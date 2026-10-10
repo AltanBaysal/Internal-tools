@@ -1,8 +1,7 @@
 from backend.features.workspace.data.file_chat_store import FileChatStore
 from backend.features.workspace.data.file_file_store import FileFileStore
 from backend.features.workspace.data.file_project_store import FileProjectStore
-from backend.features.workspace.data.memory_permissions import MemoryPermissions
-from backend.features.workspace.data.memory_stops import MemoryStops
+from backend.features.workspace.data.live_turns import LiveTurns
 from backend.features.workspace.presentation.routes import make_workspace_bp
 from backend.services.store.store import Store
 from backend.web.app import create_app
@@ -24,8 +23,7 @@ def _wired(tmp_path):
                 FileChatStore(store, projects),
                 FileFileStore(store, projects),
                 FakeEngine(),
-                MemoryStops(),
-                MemoryPermissions(),
+                LiveTurns(),
             ),
         ),
     )

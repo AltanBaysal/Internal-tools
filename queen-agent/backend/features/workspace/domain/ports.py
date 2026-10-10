@@ -5,6 +5,7 @@ from backend.features.workspace.domain.chat import Chat, ChatSummary
 from backend.features.workspace.domain.file import File, FileBody
 from backend.features.workspace.domain.permission import Decision
 from backend.features.workspace.domain.project import Project
+from backend.features.workspace.domain.turn import Snapshot
 
 
 class ProjectStore(Protocol):
@@ -86,47 +87,62 @@ class Engine(Protocol):
         """
 
 
-class Stops(Protocol):
-    """The one cancel. What is held is the running answer's connection, never a note on disk."""
+class TurnControl(Protocol):
+    """What a running turn's loop asks of the turn it belongs to (Madde 461): its stop and its
+    question. One per turn, so nothing a turn leaves behind reaches the next one."""
 
-    def hold(self, project_id: str, chat_id: str, cut) -> None:
-        """Take the way to cut this answer's connection. Cuts at once if a stop is already waiting."""
+    def stopped(self) -> bool:
+        """Was this turn stopped. The only thing that tells a cut connection from a fault."""
 
-    def want(self, project_id: str, chat_id: str) -> None:
-        """Stop the answer running for this chat, by cutting the connection it is reading."""
+    def hold(self, cut) -> None:
+        """Take the way to cut the request this turn is reading. Cuts at once if already stopped."""
 
-    def wanted(self, project_id: str, chat_id: str) -> bool:
-        """Was this answer's connection cut by us. The only thing that tells a stop from a fault."""
-
-    def clear(self, project_id: str, chat_id: str) -> None:
-        """Forget the request and the connection both. Left standing, either would reach the
-        next answer -- one by cutting it as it is born, the other by naming a stranger's socket."""
+    def decision(self) -> Decision | None:
+        """Wait, with no limit, for the answer to the question this turn just asked; None if the
+        turn is stopped instead."""
 
 
-class Permissions(Protocol):
-    """The answer a paused turn is waiting for. Held in memory, exactly like a stop.
+class LiveTurn(TurnControl, Protocol):
+    """A turn as the requests reach it while it runs: what it holds, what it shows, and the two
+    things a person can tell it. A stop and a decision name the turn and the question they mean,
+    so one meant for another does nothing."""
 
-    What has to survive a restart is the message, and it does. A question lives as long as the turn
-    that asked it: if the process dies the turn dies with it, and there is nothing left to answer.
-    """
+    id: str
 
-    def answer(self, project_id: str, chat_id: str, allowed: bool, reason: str) -> None:
-        """Leave the user's decision. Wakes the turn if one is waiting, and keeps it if not."""
+    def record(self) -> Chat | None:
+        """The chat as this turn holds it, or None before one is handed -- then the disk has it."""
 
-    def wait(self, project_id: str, chat_id: str, tick: float) -> Decision | None:
-        """Block until the decision arrives or `tick` seconds pass, and spend what is found.
+    def snapshot(self) -> Snapshot:
+        """The turn as it stands now."""
 
-        None means nothing was decided -- the tick ran out, or somebody woke the wait. Spending is
-        what keeps a second question in the same turn a question.
-        """
+    def changed_since(self, version: int, timeout: float) -> Snapshot:
+        """The snapshot once it has moved past `version`, or as it is after `timeout` seconds."""
 
-    def wake(self, project_id: str, chat_id: str) -> None:
-        """End the wait without a decision. What a stop reaches for: there is no socket to cut
-        while a turn is paused here."""
+    def stop(self, turn_id: str) -> None:
+        """Stop this turn, if it is the one named: cut its request and end a wait on a question."""
 
-    def clear(self, project_id: str, chat_id: str) -> None:
-        """Forget the question and the answer. Left standing, an answer would settle the next
-        turn's question before anybody was asked."""
+    def decide(self, turn_id: str, wait: int, allowed: bool, reason: str) -> None:
+        """Answer the question standing, if turn and question are the ones named."""
+
+
+class Turns(Protocol):
+    """The turns running now, at most one per chat, each holding its chat while it runs. In memory:
+    a turn lives as long as the process running it."""
+
+    def reserve(self, project_id: str, chat_id: str) -> LiveTurn | None:
+        """A new turn holding this chat, or None if one already does -- in one step."""
+
+    def release(self, project_id: str, chat_id: str, turn: LiveTurn) -> None:
+        """Let go of the chat, if that turn is still the one holding it."""
+
+    def get(self, project_id: str, chat_id: str) -> LiveTurn | None:
+        """The turn holding this chat, or None."""
+
+    def any_in(self, project_id: str) -> bool:
+        """Whether any chat of the project is held."""
+
+    def start(self, project_id: str, turn: LiveTurn, chat: Chat, pieces) -> None:
+        """Run the turn's loop on its own thread, handed this record; let go of the chat at its end."""
 
 
 class FileStore(Protocol):
