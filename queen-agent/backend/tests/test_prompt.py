@@ -239,6 +239,21 @@ def test_the_base_says_the_plan_and_carries_on():
     assert _a_line_says("skill", "wait")
 
 
+def test_a_plans_steps_go_one_at_a_time_each_verified():
+    # Madde 465. The model began a plan's second step before the first was done -- the locations
+    # before every character existed -- and each step builds on what the one before it made. So a
+    # step is its own loop, gather context, take action, verify results (the user's words, from
+    # Claude Code's agentic loop), and the next starts only once this one is complete. Asked of the
+    # Planning section, where the rule about plans lives.
+    # Empty when no section is headed Planning, so a renamed heading fails on the asserts below.
+    planning = next(
+        (part for part in SYSTEM_PROMPT.split("\n\n") if part.startswith("Planning\n")), ""
+    ).lower()
+    rules = planning.splitlines()
+    assert any("one at a time" in line and "verify" in line for line in rules)
+    assert any("next step" in line and "complete" in line for line in rules)
+
+
 def test_the_base_says_what_it_did_even_when_it_did_nothing():
     # Silence is not an answer: a turn that found nothing to change and a turn that never looked
     # read exactly the same.
