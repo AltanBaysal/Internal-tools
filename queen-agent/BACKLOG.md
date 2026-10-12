@@ -125,3 +125,39 @@ bir şey yapmadan kartı kapatıyor; son cevabı başarısız ya da cevapsız bi
 "a stored answer keeps the calls it made, behind one card" testi bütün suite'te bir koşuda düştü; aynı
 gün QA'nın koşusunda da bir test düşmüştü, adı yakalanmadı. Tek başına üç kez ve suite'le bir kez
 geçti. Makine yükteyken vitest'in 5000 ms'lik süresini aşıyor olabilir — sebep gösterilmedi.
+
+## Kadın karakterin kafası görünüyorsa yüzü de görünür
+
+*(Kullanıcı, 12 Ekim — "kadın akrakterin akfası görünüyorsa ama yüzü görünüyorsa yinde yüz eitkeleride
+korunur yani kafa arkadan gibi bir yapı oluşturulamaz nedeni ise çok kırlıyor kadın aynı akdın gibi
+durmuyor"; "sdxl ayna ekleme gibi bir bir kaç kural daha eklicez".)* Claude'un anlayışı: kadın
+karakterin kafası karedeyse yüzü de görünür ve yüz etiketleri korunur; kafanın arkadan göründüğü bir
+kare kurulmaz, çünkü o karede kadın başka biri gibi çıkıyor. Ayna kuralının yanında SDXL kuralı olarak
+girer. Bugünkü `SDXL_DOCUMENT` ise kamera açısına göre etiketleri gizlenen ayrı girdiler kurulmasını
+söylüyor, gizli kafa örneğiyle *(Rule 1)*; yeni kural bununla birlikte okunacak. **Ayrıntılar
+kullanıcıyla konuşulacak.**
+
+## Saç, göz ve kıyafet sahneler arasında sabit kalır
+
+*(Kullanıcı, 12 Ekim — "karakter tanımlanıyorsa saç ve göz rengi net bir şekilde saç rengi tanımlansın
+sahnler arasında kadın değişmesin elibseler içinde rengi şekli sabitlensin yani bir sahnde beyaz bir
+sahnede siyah görmeyleim tutarlılık içöin".)* Bir karakter tanımlanırken saç ve göz rengi açıkça
+yazılır, ve kadın sahneden sahneye değişmez. Kıyafetin rengi ve biçimi de sabitlenir: bir sahnede
+beyaz, ötekinde siyah olmaz. "Elbiselerde karışıyor" girişiyle *(2 Ekim)* aynı soruna değiyor.
+**Ayrıntılar kullanıcıyla konuşulacak.**
+
+## Vücut kılı varsayılan olarak yok
+
+*(Kullanıcı, 12 Ekim — "ve default vucüt kılı olmadığı varsayılsın kullancıı söylemdiği sürece ayna
+gibi".)* Kullanıcı istemedikçe karakterlerde vücut kılı olmaz — ayna kuralı gibi, yalnız kullanıcı
+isteyince girer. **Ayrıntılar kullanıcıyla konuşulacak.**
+
+## Stil: gerçekçiye yakın mı, çizim gibi mi kullanıcıya sorulur
+
+*(Kullanıcı, 12 Ekim — "3d, cgi, photorealistic, realistic, sketch, monochrome, glow, bunları negative
+eklemdğimizde farklı bir taz çıkıyor ve eklemessek farkalı default bunların negative eklenmiş hali ama
+yinede usera sorulsun gerçekçiye yakın mı yoksa daha çim gibi ister msiiniz diye".)* `3d`, `cgi`,
+`photorealistic`, `realistic`, `sketch`, `monochrome` ve `glow` negatif listede olunca bir stil, olmayınca
+başka bir stil çıkıyor. Varsayılan: yedisi de negatif listede. Yine de kullanıcıya sorulur: gerçekçiye
+yakın mı, yoksa daha çizim gibi mi. Negatif listeyi bugün Start a scenario'nun Step 10'u ve Improve'un
+Step 5'i yazıyor. **Ayrıntılar kullanıcıyla konuşulacak.**
