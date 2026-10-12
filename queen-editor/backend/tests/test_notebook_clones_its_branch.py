@@ -23,15 +23,10 @@ NOTEBOOK = os.path.join(TOOL, "queeneditor.ipynb")
 # exception is a run being tried out: its trials happen in Colab, Colab clones from GitHub, and a
 # branch that is not named here cannot be reached at all.
 #
-# The name is written down in exactly two places, this constant and the notebook, and the test below
-# fails the moment they part.
-#
-# BEFORE MERGING: this goes back to "main", and so does the notebook. A trial changes this line and
-# the notebook's together and never one of them, and the change comes back the way it went in.
-#
-# v5's trial did not come back: it merged with both lines still on feat/queen-editor-v5, and this
-# suite stayed green the whole time -- what the tests below hold is that the two agree, not that
-# they name a branch that is still being worked on (madde 252).
+# This constant always says main, and a trial changes only the notebook's line. On the trial's branch
+# the two tests below are then red, and that is expected: the red is what stops a merge until the
+# notebook says main again. v5's trial changed both lines together, merged with both still on
+# feat/queen-editor-v5, and this suite stayed green the whole time (madde 252).
 BRANCH = "main"
 
 
