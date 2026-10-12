@@ -32,7 +32,8 @@ def test_the_positive_encoder_understands_break():
     is written -- but only for an encoder that knows the word. A plain CLIPTextEncode encodes it as
     a word instead, which does not separate anything, it pollutes.
 
-    Only this node changes, and KSampler reads the positive from its output.
+    Only this node changes. Both KSampler and ToDetailerPipe read the positive from its output, so
+    one swap covers the detailer too.
     """
     with open(config.WORKFLOW_PATH, encoding="utf-8") as f:
         workflow = json.load(f)
@@ -91,40 +92,45 @@ def test_every_graph_makes_a_portrait_frame():
         assert director["width"] < director["height"]
 
 
-def test_the_photo_graph_runs_no_detailer():
-    """Madde 430: the user tried every detailer the graph's author ships -- NSFW, hand, eyes -- and
-    none did meaningful work (219), then asked for none at all, the face one included: "abi hiç bir
-    detailer açık olmasın direkt". Asked by class rather than by id, so a detailer coming back
-    under a new id still turns this red."""
+def test_the_photo_graph_runs_the_face_detailer():
+    """Madde 469 reverses 430, the user's words: "Yüz detailer'ını geri aç ... 430'u geri alırım"
+    (12 Ekim). The face detector finds the face, SAM ViT-B masks it, FaceDetailer redraws it. Asked
+    by class rather than by id, so a new export that renumbers the nodes still passes."""
     photo = _photo()
+    classes = [node["class_type"] for node in photo.values()]
 
-    found = sorted({node["class_type"] for node in photo.values()
-                    if "Detailer" in node["class_type"] or "Detector" in node["class_type"]
-                    or node["class_type"] == "SAMLoader"})
-    assert not found, f"Fotoğraf grafiğinde detailer düğümü var: {found}"
+    assert classes.count("FaceDetailerPipe") == 1, "Fotoğraf grafiğinde tek bir FaceDetailer yok"
+    sams = [node["inputs"]["model_name"] for node in photo.values()
+            if node["class_type"] == "SAMLoader"]
+    assert sams == ["sam_vit_b_01ec64.pth"], f"Grafiğin SAM'leri: {sams}"
+    detectors = {node["inputs"]["model_name"] for node in photo.values()
+                 if node["class_type"] == "UltralyticsDetectorProvider"}
+    assert detectors == {"bbox/face_yolov9c.pt"}, f"Grafiğin dedektörleri: {detectors}"
 
 
-def test_the_photo_graph_saves_the_decoded_picture():
-    """With the detailer gone the picture is saved as the sampler made it: straight out of VAE
-    Decode, the way the user's own export reads with the detailer groups switched off."""
+def test_the_photo_graph_saves_the_detailed_picture():
+    """The picture is saved once FaceDetailer has redrawn the face, as in the user's export."""
     photo = _photo()
     savers = [node for node in photo.values() if node["class_type"] == "SaveImage"]
 
     assert len(savers) == 1, f"Grafikte {len(savers)} Save Image var"
     source = savers[0]["inputs"]["images"][0]
-    assert photo[source]["class_type"] == "VAEDecode", \
-        f"Save Image resmi VAE Decode'dan değil {photo[source]['class_type']}'dan alıyor"
+    assert photo[source]["class_type"] == "FaceDetailerPipe", \
+        f"Save Image resmi FaceDetailer'dan değil {photo[source]['class_type']}'dan alıyor"
 
 
-def test_every_node_of_the_photo_graph_feeds_the_saved_picture():
-    """What a removed branch leaves behind carries no detailer in its name: the settings it read,
-    the model patch only it used, the panel that compared its before and after. An export with the
-    branch switched off has none of them, so walking back from the saved picture has to reach
-    every node there is."""
+# The nodes that end the photo graph: the saved picture, and the panel comparing the detailer's
+# before and after.
+OUTPUT_CLASSES = {"SaveImage", "Image Comparer (rgthree)"}
+
+
+def test_every_node_of_the_photo_graph_feeds_an_output():
+    """A node no output reads is left over from a removed branch: a setting nothing uses, or a
+    model patch only a gone node read. Walking back from every output has to reach every node."""
     photo = _photo()
-    saver = next(node_id for node_id, node in photo.items() if node["class_type"] == "SaveImage")
+    waiting = [node_id for node_id, node in photo.items() if node["class_type"] in OUTPUT_CLASSES]
 
-    reached, waiting = set(), [saver]
+    reached = set()
     while waiting:
         node_id = waiting.pop()
         if node_id in reached:
@@ -134,7 +140,7 @@ def test_every_node_of_the_photo_graph_feeds_the_saved_picture():
                     if isinstance(value, list) and len(value) == 2 and isinstance(value[0], str)]
 
     hanging = sorted(set(photo) - reached)
-    assert not hanging, f"Kaydedilen resme ulaşmayan düğümler: {hanging}"
+    assert not hanging, f"Hiçbir çıkışa ulaşmayan düğümler: {hanging}"
 
 
 def _model_files(node):

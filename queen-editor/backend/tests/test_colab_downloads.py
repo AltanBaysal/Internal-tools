@@ -1005,33 +1005,44 @@ def test_a_disk_short_of_the_headroom_stops_the_run_before_anything_downloads(do
         f"Hata böyle: {failure.value}"
 
 
-def test_the_chosen_files_come_down_huggingface_first_then_civitai(downloads, monkeypatch,
-                                                                   tmp_path):
-    """Each file through its own fetcher, with the mirror and the cookie for the Civitai ones, and
-    every row handed back in order for the table."""
+def test_the_chosen_files_come_down_huggingface_then_by_address_then_civitai(downloads, monkeypatch,
+                                                                            tmp_path):
+    """Each file through its own fetcher: an addressed one -- SAM, madde 469 -- over aria2c's
+    parallel connections, the Civitai ones with the mirror and the cookie. Every row is handed
+    back in order for the table."""
     calls = []
 
     def hf_fetch(repo, path, target_dir, filename, label, *, floor=None):
         calls.append(("hf", repo, path, target_dir, filename, floor))
         return label, 1, 1.0
 
+    def fetch(url, target_dir, filename, label, *, parallel, headers=None, floor=None):
+        calls.append(("open", url, target_dir, filename, parallel, floor))
+        return label, 2, 1.0
+
     def civitai_fetch(mirror, version_id, target_dir, filename, label, cookie):
         calls.append(("civitai", mirror, version_id, target_dir, filename, cookie))
         return None
 
     monkeypatch.setattr(downloads, "hf_fetch", hf_fetch)
+    monkeypatch.setattr(downloads, "fetch", fetch)
     monkeypatch.setattr(downloads, "civitai_fetch", civitai_fetch)
-    upsc, lora = str(tmp_path / "upscale_models"), str(tmp_path / "loras")
+    upsc, sams, lora = (str(tmp_path / "upscale_models"), str(tmp_path / "sams"),
+                        str(tmp_path / "loras"))
+    sam = "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth"
 
     rows = downloads.download_models(
         [("FacehugmanIII/4x_foolhardy_Remacri", "4x.pth", upsc, "4x.pth", "Remacri", 50_000_000)],
+        [(sam, sams, "sam.pth", "SAM ViT-B", 300_000_000)],
         [(1552087, lora, "USNR.safetensors", "USNR")], MIRROR, COOKIE)
 
     assert calls == [
         ("hf", "FacehugmanIII/4x_foolhardy_Remacri", "4x.pth", upsc, "4x.pth", 50_000_000),
+        ("open", sam, sams, "sam.pth", True, 300_000_000),
         ("civitai", MIRROR, 1552087, lora, "USNR.safetensors", COOKIE)], \
         f"Dosyalar böyle inmedi: {calls}"
-    assert rows == [("Remacri", 1, 1.0), None], f"Satırlar böyle döndü: {rows}"
+    assert rows == [("Remacri", 1, 1.0), ("SAM ViT-B", 2, 1.0), None], \
+        f"Satırlar böyle döndü: {rows}"
 
 
 def test_a_huggingface_file_makes_the_folder_it_lands_in(downloads, monkeypatch, tmp_path):
