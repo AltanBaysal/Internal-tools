@@ -289,7 +289,7 @@ def test_choosing_nothing_stops_the_notebook():
 def test_the_chosen_files_come_down_through_download_models_with_the_mirror_and_the_cookie():
     """Each gated file is looked up in the user's own Hugging Face repo first (madde 311), each row is
     kept for the table (madde 312), and the loops run under test since madde 438."""
-    assert "landed = download_models(hf_jobs, civitai_jobs, HF_MIRROR, COOKIE_VALUE)" in \
+    assert "landed = download_models(hf_jobs, open_jobs, civitai_jobs, HF_MIRROR, COOKIE_VALUE)" in \
         _cell("# === Target folders ==="), "Seçilen dosyalar download_models ile inmiyor"
     assert "download_models" in _imported("colab.downloads"), \
         "Defter download_models'ı klondan import etmiyor"
@@ -313,7 +313,7 @@ def test_an_unticked_group_costs_no_bytes():
     """The whole point of the checkboxes: a group's list is only reached through its own switch."""
     source = _source()
 
-    for names, switch in ((("CIVITAI_PHOTO", "HF_PHOTO"), SWITCH["photo"]),
+    for names, switch in ((("CIVITAI_PHOTO", "OPEN_PHOTO", "HF_PHOTO"), SWITCH["photo"]),
                           (("CIVITAI_H3", "HF_H3"), SWITCH["video"]),
                           (("HF_AUDIO",), SWITCH["audio"])):
         for name in names:
@@ -406,8 +406,8 @@ def test_an_unticked_model_costs_no_bytes():
 
 
 def test_the_photo_estimate_counts_only_what_the_group_always_takes():
-    """The base is the files every photo run takes whatever was ticked -- both loras and the
-    upscaler. The checkpoints come from the model boxes, so counting one of them into
+    """The base is the files every photo run takes whatever was ticked -- both loras, the upscaler,
+    the detector, the SAM. The checkpoints come from the model boxes, so counting one of them into
     the base would warn a single-model run about disk it was never going to use."""
     assert "(INSTALL_PHOTO, PHOTO_GIB," in _cell("SIZES = ["), \
         "SIZES foto için hâlâ sabit bir sayı taşıyor"
@@ -532,18 +532,35 @@ def test_the_retired_dasiwa_h3_checkpoint_is_gone_from_the_notebook():
         assert leftover not in source, f"Defterde DaSiWa H3'ten iz kaldı: {leftover}"
 
 
-def test_the_face_detailer_s_files_are_gone_from_the_notebook():
-    """The photo graph runs no detailer since madde 430. A row left behind would still bring the
-    detector and SAM down on every photo run, and the Subpack's install with them -- the package
-    gives the graph nothing but the detector node. The folders go too: a cell making them and a
-    summary listing them would be the same leftover. SAM was the one file fetched by a plain
-    address, so the list of those and its loop go with it."""
-    source = _source()
+def _listing(name):
+    """The lines of one download list, from its opening to its closing bracket."""
+    cell = _cell(f"{name} = [")
+    listing = cell[cell.find(f"{name} = ["):]
+    return listing[:listing.find("\n]")]
 
-    for leftover in ("face_yolov9c.pt", "sam_vit_b_01ec64.pth", "Bingsu/adetailer",
-                     "ComfyUI-Impact-Subpack", "ultralytics", "models/sams", "OPEN_PHOTO",
-                     "open_jobs"):
-        assert leftover not in source, f"Defterde yüz detailer'ından iz kaldı: {leftover}"
+
+def test_the_notebook_fetches_the_face_detailer_s_files():
+    """Madde 469 brings the face detailer back (430 reversed): the detector from Hugging Face into
+    ultralytics/bbox, where UltralyticsDetectorProvider lists it as "bbox/<name>", and SAM by its
+    plain address into sams/ -- the one file fetched that way."""
+    assert re.search(r'\(\s*"Bingsu/adetailer",\s*"face_yolov9c\.pt",'
+                     r'\s*BBOX,\s*"face_yolov9c\.pt",',
+                     _listing("HF_PHOTO")), "HF_PHOTO'da yüz dedektörü satırı yok"
+    assert re.search(r'\(\s*"https://dl\.fbaipublicfiles\.com/segment_anything/'
+                     r'sam_vit_b_01ec64\.pth",\s*SAMS,\s*"sam_vit_b_01ec64\.pth",',
+                     _listing("OPEN_PHOTO")), "OPEN_PHOTO'da SAM satırı yok"
+    assert 'BBOX = f"{COMFY}/models/ultralytics/bbox"' in _cell("# === Target folders ===")
+    assert 'SAMS = f"{COMFY}/models/sams"' in _cell("# === Target folders ===")
+
+
+def test_the_models_cell_lists_the_detailer_s_folders():
+    """What each ticked folder holds is printed under the downloads; the detailer's two are the
+    photo group's."""
+    folders = _listing("FOLDERS")
+
+    for row in ('(INSTALL_PHOTO, "ultralytics/bbox", BBOX, "*.pt")',
+                '(INSTALL_PHOTO, "sams", SAMS, "*.pth")'):
+        assert row in folders, f"FOLDERS'ta bu satır yok: {row}"
 
 
 # What only WAN's graphs used (madde 435): the nodes of none of the three graphs left come from these
@@ -571,17 +588,19 @@ def test_wan_is_gone_from_the_notebook():
 
 
 def test_the_notebook_keeps_the_packages_the_photo_and_h3_graphs_read():
-    """The other half of the same cut: the nine that stay. Photo's graph reads Impact-Pack, ppm,
-    rgthree and Easy-Use; H3's reads DaSiWa and KJNodes; Manager, Custom-Scripts and Ultimate SD
-    Upscale came with the photo's own notebook."""
+    """The other half of the same cut: the ten that stay. Photo's graph reads Impact-Pack, ppm,
+    rgthree and Easy-Use, and Impact-Subpack gives its face detector node (madde 469); H3's reads
+    DaSiWa and KJNodes; Manager, Custom-Scripts and Ultimate SD Upscale came with the photo's own
+    notebook."""
     nodes = _cell("CUSTOM_NODES = [")
 
     for kept in ("ltdrdata/ComfyUI-Manager", "rgthree/rgthree-comfy", "ltdrdata/ComfyUI-Impact-Pack",
-                 "yolain/ComfyUI-Easy-Use", "pythongosssss/ComfyUI-Custom-Scripts",
-                 "ssitu/ComfyUI_UltimateSDUpscale", "kijai/ComfyUI-KJNodes",
-                 "pamparamm/ComfyUI-ppm", "darksidewalker/ComfyUI-DaSiWa-Nodes"):
+                 "ltdrdata/ComfyUI-Impact-Subpack", "yolain/ComfyUI-Easy-Use",
+                 "pythongosssss/ComfyUI-Custom-Scripts", "ssitu/ComfyUI_UltimateSDUpscale",
+                 "kijai/ComfyUI-KJNodes", "pamparamm/ComfyUI-ppm",
+                 "darksidewalker/ComfyUI-DaSiWa-Nodes"):
         assert kept in nodes, f"Defter bu paketi kurmuyor: {kept}"
-    assert nodes.count('.git"),') == 9, "Defter dokuz paketten fazlasını kuruyor"
+    assert nodes.count('.git"),') == 10, "Defter on paketten fazlasını kuruyor"
 
 
 def test_the_notebook_fetches_mystic_xxx_by_its_version_into_the_loras():

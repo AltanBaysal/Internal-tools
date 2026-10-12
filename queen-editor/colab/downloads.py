@@ -402,12 +402,14 @@ def check_disk(sizes):
         )
 
 
-def download_models(hf_jobs, civitai_jobs, mirror, cookie):
-    """The Hugging Face files, then the Civitai ones. Every file's row, in that order, for
-    download_summary."""
+def download_models(hf_jobs, open_jobs, civitai_jobs, mirror, cookie):
+    """The Hugging Face files, then those fetched by their address, then the Civitai ones. Every
+    file's row, in that order, for download_summary."""
     rows = []
     for repo, path, folder, filename, label, floor in hf_jobs:
         rows.append(hf_fetch(repo, path, folder, filename, label, floor=floor))
+    for url, folder, filename, label, floor in open_jobs:
+        rows.append(fetch(url, folder, filename, label, parallel=True, floor=floor))
     for version_id, folder, filename, label in civitai_jobs:
         rows.append(civitai_fetch(mirror, version_id, folder, filename, label, cookie))
     return rows
