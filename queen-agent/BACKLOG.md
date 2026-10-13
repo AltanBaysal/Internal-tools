@@ -205,3 +205,12 @@ projeyi bütünüyle atlayıp log'a yazıyor, ve eski dosyalara dokunmuyor.
 
 **Kullanıcıdan gereken:** hangi projeler kayboldu ve en son ne zaman görüldüler; Drive'daki klasörleri
 duruyor mu; arşivde mi; ve mümkünse projelerin kaybolduğu Colab oturumunun sunucu log'u.
+
+## Birden çok proje tek seferde arşivlenecek
+
+*(Kullanıcı, 13 Ekim — "arşivleme için tek tek seçtiriyor bunuda düzeltelim".)* Bugün bir proje,
+All projects'te kendi satırının `⋯`'sindeki `Archive`'la arşivleniyor *(v9'un 363'ü)*; birkaç proje
+için bu birkaç ayrı basış. **Claude'un anlayışı, henüz onaylanmadı:** All projects'te birden çok proje
+seçilir ve tek basışla birlikte arşivlenir. **Ayrıntılar kullanıcıyla konuşulacak:** seçimin ekranda
+nasıl göründüğü — tasarımcının mı, Claude'un mu çizeceği —, Unarchive'ın ve Delete'in de toplu olup
+olmayacağı, ve `<ad> archived · Undo` satırının birden çok projede ne diyeceği.
