@@ -192,6 +192,25 @@ Editor'de DeepSeek'e Queen AI'ın prompt'ları ve agent gidiyor. **Ayrıntılar 
 konuşulacak:** nerede görüneceği — agent'ın cevabında, prompt'un kartında, projenin toplamında —, ve
 kontrol isteklerinin (418) de sayılıp sayılmayacağı.
 
+### Notebook GPU'suz oturumda da açılacak — üretici seçilmediyse
+
+*(Kullanıcı, 5 Ekim — "gpusuz oturumda bir üretim araçı seçilyse hata versin bütün üretim araçları
+kapalıysa çalışsın", "ama şuan bunu değiştirme"; v9'un 413'üne not olarak düşülmüştü. 13 Ekim —
+"Şimdilik BACKLOG'a yazayım, sonraki roadmap'le birlikte gelsin".)*
+
+**Claude'un geri söylediği, henüz onaylanmadı:** GPU'suz bir Colab oturumunda fotoğraf, video ve ses
+kutularının hiçbiri işaretli değilse notebook GPU sormaz, sonuna kadar çalışır ve uygulamanın linki
+gelir — projeler açılır, bakılır, export edilir, üretim yok. En az bir üretici işaretliyse ve GPU
+yoksa notebook CONFIG'de bugünkü *"GPU yok"* hatasıyla durur.
+
+**Bilinenler:**
+- CONFIG bugün tam tersini yapıyor: hiçbir üretici işaretli değilse *"Hiçbir üretici seçilmedi"*
+  diye duruyor *(13 Ağustos'un kurulum seçimi kararı; bu istek onu geri alıyor)*, ve GPU yoksa ne
+  seçildiğine bakmadan duruyor.
+- GPU'suz oturumda ComfyUI kalkmaz, ve ComfyUI hücresi 433'ten beri kalkmayan ComfyUI'de hata
+  veriyor: üretici seçilmediyse ComfyUI'nin kurulup başlatılmaması gerekecek. Nasıl yapılacağı
+  spec'te, kod okunduktan sonra.
+
 ---
 
 ## Hedefler
