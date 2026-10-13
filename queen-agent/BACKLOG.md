@@ -161,3 +161,32 @@ yinede usera sorulsun gerçekçiye yakın mı yoksa daha çim gibi ister msiiniz
 başka bir stil çıkıyor. Varsayılan: yedisi de negatif listede. Yine de kullanıcıya sorulur: gerçekçiye
 yakın mı, yoksa daha çizim gibi mi. Negatif listeyi bugün Start a scenario'nun Step 10'u ve Improve'un
 Step 5'i yazıyor. **Ayrıntılar kullanıcıyla konuşulacak.**
+
+## Süren tur ekranda canlı akmıyor, F5'le güncelleniyor
+
+*(Kullanıcı, 13 Ekim — "queen agenttta o arkaplanda çalışıyor ama değişikleri steam etmiyor token
+artışını toolcalları vs ben f5 e basınca güncelleniyor neden incelerm sin"; incelemeden sonra:
+"backloa aekle bunu".)* Tur sunucuda sürüyor, ama token sayısı ve araç çağrıları ekrana tur
+sürerken gelmiyor; sayfa yenilenince o anki hâl görünüyor. **Sebep gösterilmedi**, ve gösterilmeden
+düzeltilmez.
+
+**Bilinenler** *(Claude, 13 Ekim)*:
+- Kodda bir kusur bulunmadı: tur her değişiklikte sürümünü artırıp dinleyenleri uyandırıyor
+  (`live_turns.py`'nin `apply`'ı), `GET …/events` her değişiklikte bütün snapshot'ı bir kare olarak
+  gönderiyor (`routes.py`'nin `_listened`'ı), ve ekran her kareyi çiziyor (`useChat.js`'in `heard`'ü).
+- Canlı akışı 462 kurdu *(10 Ekim)*: tarayıcı turu EventSource'la, SSE olarak dinliyor. QA onu
+  yalnız yerelde, tünelsiz denedi.
+- Notebook uygulamayı bir Cloudflare Quick Tunnel'dan (trycloudflare) açıyor, ve Cloudflare'in
+  belgesi *"Quick Tunnels do not support Server-Sent Events (SSE)"* diyor
+  *([Limitations](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/))*.
+  Tünel kareleri tutuyorsa görülen tam bu: tur sürerken hiçbir şey, F5'te o anki hâl, sonda cevap.
+- Bununla bağdaşmayan: 461'den önceki akış da `text/event-stream`'di, ama POST'tu ve `fetch`'le
+  okunuyordu. O akış Colab'da canlı aktıysa tüneli bozan SSE'nin kendisi değil GET/EventSource farkı
+  olabilir — düzeltmenin şeklini bu belirler.
+
+**Sebebi gösterecek iki yol:** (1) Claude bu bilgisayarda cloudflared'le saniyede bir satır gönderen
+küçük bir test sunucusunu bir dakikalığına Quick Tunnel'dan açar, GET ile POST'u ve `text/event-stream`
+ile başka bir türü yan yana ölçer — bir dakikalığına internete açık bir adres oluştuğu için
+kullanıcının onayıyla. (2) Kullanıcı Colab'da tur sürerken F12 → Network → `events` → EventStream'e
+bakar: satırlar canlı mı, tur bitince topluca mı geliyor. **Kullanıcıya sorulacak:** v10'dan önce
+*(10 Ekim'den önce)* Colab'da token ve araç çağrıları canlı akıyor muydu.
