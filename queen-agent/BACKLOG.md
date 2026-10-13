@@ -190,3 +190,18 @@ ile başka bir türü yan yana ölçer — bir dakikalığına internete açık 
 kullanıcının onayıyla. (2) Kullanıcı Colab'da tur sürerken F12 → Network → `events` → EventStream'e
 bakar: satırlar canlı mı, tur bitince topluca mı geliyor. **Kullanıcıya sorulacak:** v10'dan önce
 *(10 Ekim'den önce)* Colab'da token ve araç çağrıları canlı akıyor muydu.
+
+## Bazı projeler kayboldu
+
+*(Kullanıcı, 13 Ekim — "şuan queenagentta projeer kayboldu bazıalrı nasıl olduğunu anlamadık backloga
+at bunu araştırmamzı alzım".)* Bazı projeler QueenAgent'ın listesinde artık görünmüyor; nasıl olduğu
+anlaşılmadı. **Sebep gösterilmedi**, ve gösterilmeden düzeltilmez.
+
+**Araştırmanın bakacağı yerler** *(Claude, 13 Ekim — commit'lerden, sebep sayılmadan)*: v10'da proje
+kaydı değişti. 447'den beri projelerin bilgisi tek bir `projects.json`'da, sunucu onu açılışta bir
+kez okuyup bellekte tutuyor ve değişiklikleri sıralı bir yazıcıyla diske yazıyor. 448 eski projeleri
+her açılışta bir kerelik oraya taşıyor; okunamayan, diskin reddettiği ya da zamanı metin olmayan bir
+projeyi bütünüyle atlayıp log'a yazıyor, ve eski dosyalara dokunmuyor.
+
+**Kullanıcıdan gereken:** hangi projeler kayboldu ve en son ne zaman görüldüler; Drive'daki klasörleri
+duruyor mu; arşivde mi; ve mümkünse projelerin kaybolduğu Colab oturumunun sunucu log'u.
