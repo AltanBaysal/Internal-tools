@@ -212,6 +212,45 @@ Claude'un anlayışı, henüz onaylanmadı: Drive'a ulaşılamazsa QueenAgent hi
 yazmış gibi devam etmez — boş bir liste göstermez, diske bir şey yazmaz —, ekranda bunu söyleyen bir
 hata gösterir. Tahmin, sebep gösterilene kadar tahmin.
 
+**İnceleme, 13 Ekim** *(bir subagent; kodda ve gerçek backend sınıflarıyla bir betikte denendi, Colab'da
+değil. Hangisinin kullanıcıya olduğu kullanıcının kanıtıyla belli olur)*. 447'den *(9 Ekim)* beri
+açılan bir projenin klasöründe `project.json` yok: satırı `projects.json`'dan düşerse onu bir daha hiçbir
+şey listelemez, çünkü 448'in taşıması yalnız `project.json`'lu klasörleri okuyor. Daha eski projeler
+sonraki açılışta eski dosyalarından geri gelir.
+- **A — gösterildi, en güçlüsü:** açılışta `projects.json` bulunamazsa sunucu onu "hiç proje yok" sayar
+  *(`file_project_store.py`'nin `_loaded`'ı)*, ve 448'in taşıması aynı açılışta eski projeleri bulup
+  `projects.json`'ı yalnız onlarla **yeniden yazar** *(`old_projects.py`'nin `move_old_projects`'i,
+  `take_in`)*. Drive'ın Colab bağlantısı duran bir dosyaya "bulunamadı" diyebiliyor
+  *([colabtools #5970](https://github.com/googlecolab/colabtools/issues/5970), Mayıs 2026)*. Görülen: 9
+  Ekim'den sonra açılan bütün projeler gider; eskiler 447'den önceki ad, iğne ve arşiv hâlleriyle geri
+  gelir; kaybolanların klasörleri Drive'da durur.
+- **B — gösterildi:** Drive oturum ortasında koparsa *([colabtools #3441](https://github.com/googlecolab/colabtools/issues/3441))*
+  değişiklikler yalnız bellekte ya da makinenin kendi diskinde kalır, ekran başarılı der; sonraki
+  açılışta gider. Yazıcı üç denemeden sonra yalnız log'a yazıp bırakıyor.
+- **C — gösterildi:** aynı `projects.json`'da iki sunucu — başka bir Colab oturumu, ya da Serve
+  hücresi yeniden çalışırken kapanmamış eski sunucu —: her biri kendi kopyasını bütün olarak yazar,
+  sonuncu ötekinin eklediklerini siler.
+- **D — şüphe:** oturum bittiğinde Drive'ın yerel önbelleğinde kalmış yazmalar; notebook Drive'ın
+  `flush_and_unmount`'unu hiç çağırmıyor.
+- **E — gösterildi:** 448 okuyamadığı eski bir projeyi her açılışta atlıyor; v9 onu listeliyordu.
+- **F — şüphe, kayıp yok:** 12 Ekim 12:16'dan *(`e6bedf8b`)* önce açılmış bir oturum hâlâ v9'u
+  çalıştırır, ve v9 v10'da açılan projeleri göstermez.
+- **Elendi:** sohbet satırı yazmaları (463, 467) proje satırına dokunmuyor; proje yalnız onaylanan
+  Delete'le gidiyor; ekran yalnız Archived sekmesi ve aramayla gizliyor.
+
+**Drive hatasının yutulduğu ya da boş sonuca döndüğü yerler** *(kullanıcının isteği için, aynı
+inceleme)*: `projects.json` bulunamazsa boş liste; `store.py`'nin `list_dir`'i olmayan klasörü boş liste
+sayıyor; `_into_folder` "bulunamadı" alan her yazmada bütün klasör zincirini yeniden açıyor; yazıcının
+düşen yazması yalnız log'da; silmede "bulunamadı" yok sayılıyor; bulunamayan sohbet ve dosya "chat not
+found" / "file not found" oluyor; başka her disk hatası ekrana yalnız "HTTP 500" olarak geliyor; sağlık
+kontrolü kökü hiç yoklamıyor, ve notebook kökün gerçekten Drive'da olduğuna bakmıyor.
+
+**Kullanıcıya sorulacak ve bakılacak:** kaybolan projelerin hepsi 9 Ekim'den sonra mı açıldı (evetse
+A–D). Serve hücresinin log'unda ilk v10 açılışından sonraki bir açılışta *"Moving projects of the old
+layout into projects.json"* satırı A'yı gösterir; *"projects.json was not written … [Errno 107]"* B'yi;
+*"Old project … was not moved"* E'yi. Drive'da `projects.json`'ın sürüm geçmişi ya da Drive'ın
+çöp kutusu eski `projects.json`'ı tutuyor olabilir.
+
 ## Birden çok proje tek seferde arşivlenecek
 
 *(Kullanıcı, 13 Ekim — "arşivleme için tek tek seçtiriyor bunuda düzeltelim".)* Bugün bir proje,
