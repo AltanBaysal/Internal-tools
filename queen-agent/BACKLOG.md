@@ -251,6 +251,11 @@ layout into projects.json"* satırı A'yı gösterir; *"projects.json was not wr
 *"Old project … was not moved"* E'yi. Drive'da `projects.json`'ın sürüm geçmişi ya da Drive'ın
 çöp kutusu eski `projects.json`'ı tutuyor olabilir.
 
+**Kullanıcı baktı, 13 Ekim** *("durmuyorlar baktım muhtmelen mount koptu ama kullanırken bir hata
+lamadığım için fark edemedim")*: eski `projects.json` ne sürüm geçmişinde ne çöp kutusunda. Kullanırken
+hiçbir hata görülmedi. Bu B'yle bağdaşıyor: kopuk bağlantıda yazmalar Drive'a hiç ulaşmaz, ekran yine
+başarılı der — Drive'ın geçmişinde de bu yüzden iz kalmaz. Gösterilmedi; log yok.
+
 ## Birden çok proje tek seferde arşivlenecek
 
 *(Kullanıcı, 13 Ekim — "arşivleme için tek tek seçtiriyor bunuda düzeltelim".)* Bugün bir proje,
