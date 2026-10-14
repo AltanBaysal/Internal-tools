@@ -264,3 +264,21 @@ için bu birkaç ayrı basış. **Claude'un anlayışı, henüz onaylanmadı:** 
 seçilir ve tek basışla birlikte arşivlenir. **Ayrıntılar kullanıcıyla konuşulacak:** seçimin ekranda
 nasıl göründüğü — tasarımcının mı, Claude'un mu çizeceği —, Unarchive'ın ve Delete'in de toplu olup
 olmayacağı, ve `<ad> archived · Undo` satırının birden çok projede ne diyeceği.
+
+## Karakter karışması negatif listeyle düzeltilecek
+
+*(Kullanıcı, 14 Ekim — "backlgoa karakter karışmasının negatif düzeltilmesini ekle".)* Bugün Start a
+scenario'nun Step 10'u, Improve'un Step 5'i ve negatif listenin ortak metni *(`prompt.py`)* negatif
+listeyi karakterlerin özelliklerinin karışmasına — birinin saçının ötekinde çıkmasına — odaklıyor:
+karakterin bir özelliği listeye yazılmaz, onun yerine karşıt etiketler yazılır. **Claude'un anlayışı,
+henüz onaylanmadı:** karakter karışmasını negatif listeyle önlemenin bu yolu düzeltilecek. Neyin
+yanlış çıktığı ve yerine ne isteneceği bilinmiyor. "Elbiselerde karışıyor" *(2 Ekim)* ve "Saç, göz ve
+kıyafet sahneler arasında sabit kalır" *(12 Ekim)* girişleriyle aynı soruna değiyor. **Ayrıntılar
+kullanıcıyla konuşulacak.**
+
+## Sahnelere alkol eklenmeyecek
+
+*(Kullanıcı, 14 Ekim — "alkol eklmesini yasakalylaım".)* **Claude'un anlayışı, henüz onaylanmadı:**
+ajan sahnelere alkol — kadeh, şişe, içki — eklemez. Kullanıcı açıkça isterse girip girmeyeceği, ve
+kuralın yalnız sahnelere mi yoksa negatif listeye de mi yazılacağı bilinmiyor. **Ayrıntılar
+kullanıcıyla konuşulacak.**
