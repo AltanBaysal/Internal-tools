@@ -1,5 +1,6 @@
-"""Custom node installs for the notebook: each node cloned into ComfyUI's custom_nodes and its own
-requirements installed, save the lines in SKIPPED.
+"""Custom node installs for the notebook: each node cloned into ComfyUI's custom_nodes, from the
+branch BRANCHES names or else its default one, and its own requirements installed, save the lines in
+SKIPPED.
 
 The list of nodes stays in the notebook, where it is counted against the heading over it; what is here
 is how the nodes come in, which a cell could not test (madde 314, and the loop over the list since
@@ -15,6 +16,12 @@ from colab.console import log, run
 # photo graph loads SAM's first version through segment-anything, and Impact-Pack imports sam2 only
 # when it is installed.
 SKIPPED = {"git+https://github.com/facebookresearch/sam2"}
+
+# The branch a node is cloned from when its default branch is not the code we run, by clone address.
+# On 2026-10-15 rgthree made `dev` its default branch: a tree of 2023 without Power Lora Loader,
+# whose patch of ComfyUI's execution module fails the import. Its current code is on `main`
+# (madde 470).
+BRANCHES = {"https://github.com/rgthree/rgthree-comfy.git": "main"}
 
 
 def _kept(req, name):
@@ -41,15 +48,17 @@ def install_nodes(nodes, folder):
 
 
 def install_node(name, url, folder):
-    """One node into folder/name: cloned shallow with its submodules, and its requirements installed.
-    A node already there is left alone, so a second Run all costs nothing. The line a node starts with
-    carries the time, and the gap to the next one is how long the node took."""
+    """One node into folder/name: cloned shallow with its submodules, from the branch BRANCHES names
+    or else its default one, and its requirements installed. A node already there is left alone, so
+    a second Run all costs nothing. The line a node starts with carries the time, and the gap to the
+    next one is how long the node took."""
     target = os.path.join(folder, name)
     if os.path.exists(target) and os.listdir(target):
         log(f"{name}: zaten var")
         return
     log(f"{name}: cloning...")
-    run(["git", "clone", "--progress", "--depth", "1", "--recurse-submodules", url, target],
+    branch = ["--branch", BRANCHES[url]] if url in BRANCHES else []
+    run(["git", "clone", "--progress", "--depth", "1", "--recurse-submodules", *branch, url, target],
         f"clone {name}", timeout=180)
     if not os.listdir(target):
         raise RuntimeError(f"{name}: klon sonrası klasör boş")
