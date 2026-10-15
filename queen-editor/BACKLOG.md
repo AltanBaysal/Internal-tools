@@ -240,6 +240,13 @@ aynı oturumda hücre yeniden çalışınca *"zaten var"* sayılıyor — `insta
 olmasına bakıyor. Hücre geçer, ama düğümün listesinden hiçbir şey kurulmamış olur; bu kez hatayı
 gizlerdi.
 
+### H3'ün yeni sürümüne geçilecek
+
+*(Kullanıcı, 15 Ekim — "backloga h3 ün yeni sürümüne geçi ekle".)* Bugün kullanılan H3 dosyası
+`MiniMaxH3/10Eros_Max_h3_TURBO-hybrid_beta5_int8.safetensors`; adını
+`backend/features/producers/domain/model_groups.py` ve iki H3 grafiği *(`assets/workflow_video_h3_api.json`,
+`…_first_last_api.json`)* okuyor. **Ayrıntılar kullanıcıyla konuşulacak:** hangi sürüme geçileceği.
+
 ---
 
 ## Hedefler
