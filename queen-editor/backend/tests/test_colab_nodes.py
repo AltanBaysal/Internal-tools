@@ -14,6 +14,7 @@ import pytest
 IMPACT = "https://github.com/ltdrdata/ComfyUI-Impact-Pack.git"
 DASIWA = "https://github.com/darksidewalker/ComfyUI-DaSiWa-Nodes.git"
 MATH = "https://github.com/evanspearman/ComfyMath.git"
+RGTHREE = "https://github.com/rgthree/rgthree-comfy.git"
 
 SAM2 = "git+https://github.com/facebookresearch/sam2"
 
@@ -172,6 +173,20 @@ def test_a_node_is_cloned_shallow_with_its_submodules_into_its_own_folder(
     assert (tmp_path / "ComfyMath" / "__init__.py").exists(), "Node kendi adlı klasörüne klonlanmadı"
     assert re.search(r"\[\d\d:\d\d:\d\d\] ComfyMath", capsys.readouterr().out), \
         "Konsol node'un başladığını saatle yazmıyor"
+
+
+def test_rgthree_alone_is_cloned_from_the_branch_we_name(nodes, monkeypatch, tmp_path):
+    """rgthree comes from `main`, every other node from its default branch (madde 470)."""
+    commands, _ = _github(monkeypatch, nodes, {RGTHREE: {"__init__.py": ""},
+                                               MATH: {"__init__.py": ""}})
+
+    nodes.install_node("rgthree-comfy", RGTHREE, str(tmp_path))
+    nodes.install_node("ComfyMath", MATH, str(tmp_path))
+
+    rgthree, other = commands
+    assert "--branch" in rgthree and rgthree[rgthree.index("--branch") + 1] == "main", \
+        f"rgthree main dalından klonlanmıyor: {rgthree}"
+    assert "--branch" not in other, f"ComfyMath kendi varsayılan dalından klonlanmıyor: {other}"
 
 
 def test_a_node_s_clone_and_pip_show_their_progress(nodes, monkeypatch, tmp_path):
