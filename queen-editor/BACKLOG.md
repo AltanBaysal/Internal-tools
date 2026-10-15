@@ -247,6 +247,29 @@ gizlerdi.
 `backend/features/producers/domain/model_groups.py` ve iki H3 grafiği *(`assets/workflow_video_h3_api.json`,
 `…_first_last_api.json`)* okuyor. **Ayrıntılar kullanıcıyla konuşulacak:** hangi sürüme geçileceği.
 
+### ComfyUI ve düğümler bizim sabitlediğimiz sürümden gelecek
+
+*(Kullanıcı, 15 Ekim — rgthree'nin bozulmasından sonra: "comfyuiın kendi verisyonumuz hf ye vs bir
+yere kaydedelim ordan indirelim daha tutarlı olur".)*
+
+**Claude'un geri söylediği, henüz onaylanmadı:** Dışarıda yeni bir sürüm çıktı diye yeni bir oturum
+bozulmaz. ComfyUI da düğümler de en son denenip çalışan sürümden gelir, ve sürüm ancak biz
+güncellediğimizde değişir.
+
+**Bilinenler:**
+- Son beş günde dışarıdan iki kırılma geldi, ikisi de bir düğümden, ComfyUI'nin kendisinden değil.
+  DaSiWa listesine `llama-cpp-python` ekledi, hücre zaman aşımına düştü (yukarıdaki madde). rgthree
+  15 Ekim'de varsayılan dalını 2023'ten kalma `dev`'e çevirdi, Power Lora Loader kayboldu ve fotoğraf
+  grafiği reddedildi — 470 rgthree'yi `main`'den klonlatarak kapattı.
+- Bugün sabitlenmiş bir şey yok: `colab/comfy.py` ComfyUI'yi klonlayıp `git pull` yapıyor,
+  `colab/nodes.py` düğümleri varsayılan dallarından en son hâlleriyle alıyor.
+- İki yol konuşuldu, nasıl yapılacağı spec'te: **(a)** kullanıcının önerisi, kendi kopyamızı HF'ye ya
+  da başka bir yere koyup oradan indirmek; **(b)** Claude'un önerisi, ComfyUI'yi ve her düğümü bir
+  commit'e sabitlemek (`git checkout <sha>`) — taşınacak kopya yok, (a) yalnız kaynak silinirse öne
+  geçer.
+- İki yol da düğüm listelerindeki aralıklı pip paketlerini *(ör. `transformers>=4.45.0`)* sabitlemez:
+  onlar PyPI'dan güncel gelmeye devam eder.
+
 ---
 
 ## Hedefler
