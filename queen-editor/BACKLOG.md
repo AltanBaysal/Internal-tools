@@ -211,6 +211,35 @@ yoksa notebook CONFIG'de bugünkü *"GPU yok"* hatasıyla durur.
   veriyor: üretici seçilmediyse ComfyUI'nin kurulup başlatılmaması gerekecek. Nasıl yapılacağı
   spec'te, kod okunduktan sonra.
 
+### Notebook DaSiWa'yı kurarken zaman aşımına düşüyor — llama-cpp-python
+
+*(Kullanıcı, 15 Ekim — Colab'da ComfyUI hücresi `RuntimeError: pip install ComfyUI-DaSiWa-Nodes:
+timeout (300s)` ile düştü, hücre 6 dk 49 sn sürdü; "backloga yaz".)*
+
+**Claude'un geri söylediği, henüz onaylanmadı:** ComfyUI hücresi DaSiWa'yı kurarken zaman aşımına
+düşmez: `llama-cpp-python` kurulmaz, günlükte sam2'ninki gibi *"… kurulmuyor — grafiklerimiz
+kullanmıyor"* satırı görünür, ve hücre yaklaşık beş dakika kısalır.
+
+**Bilinenler:**
+- DaSiWa'nın listesinde bugün `llama-cpp-python>=0.3.26` var. 314'ün 23 Eylül'de okuduğu listede
+  yoktu *(testteki kopyası `backend/tests/test_colab_nodes.py`'de)*; DaSiWa listeyi 25–26 Eylül'de
+  değiştirdi, ve aynı arada `safetensors`, `nvidia-ml-py` ve yalnız Windows'ta `amd-adlx` da geldi.
+- Neden takıldığı: llama-cpp-python PyPI'da Linux için hazır paket vermiyor *(Claude'un bildiği, bu
+  oturumda doğrulanmadı)*, pip llama.cpp'yi Colab'da derlemeye girişiyor, ve 300 saniye derleme
+  bitmeden doluyor — 314'te sam2'nin yaşadığının aynısı.
+- Bize gerekmiyor: DaSiWa `llama_cpp`'yi yalnız `nodes/llm_runtime.py`'de, yerel GGUF dil modelini
+  yükleyen fonksiyonun içinde ve `try/except ImportError` ile alıyor — paket yoksa DaSiWa yine
+  yüklenir. H3 grafiklerimiz *(`assets/workflow_video_h3_api.json`, `…_first_last_api.json`)* LLM
+  düğümü kullanmıyor, ve `MiniMaxH3Director` bu satırdan önce de çalışıyordu.
+- Düzelene kadar yeni bir oturumda hücre her seferinde aynı yere düşüyor: H3 kurulamıyor.
+- Atlanan satırlar `colab/nodes.py`'nin `SKIPPED`'inde satırın tam metniyle duruyor; DaSiWa sürüm
+  sınırını değiştirirse eşleşme kaçar. Nasıl yapılacağı spec'te, kod okunduktan sonra.
+
+**Bağlı ama ayrı bir sorun, ayrı madde olup olmayacağı kararlaşmadı:** pip'i yarıda kalan bir düğüm,
+aynı oturumda hücre yeniden çalışınca *"zaten var"* sayılıyor — `install_node` yalnız klasörün dolu
+olmasına bakıyor. Hücre geçer, ama düğümün listesinden hiçbir şey kurulmamış olur; bu kez hatayı
+gizlerdi.
+
 ---
 
 ## Hedefler
