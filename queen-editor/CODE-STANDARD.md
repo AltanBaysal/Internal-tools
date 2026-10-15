@@ -111,9 +111,6 @@ The data stays in the notebook, next to what it is about:
 - which nodes to install, in the ComfyUI cell;
 - the `QE_*` settings the app is told, in the last cell.
 
-How one node comes in stays in `colab/nodes.py`: the requirement lines it skips (`SKIPPED`) and the
-branch it is cloned from when its default is not the code we run (`BRANCHES`).
-
 What runs before the clone stays in cells too, since `colab/` arrives with the clone:
 - CONFIG, with the GPU check and the one secret the clone needs, `GITHUB_TOKEN`;
 - the Drive mount;

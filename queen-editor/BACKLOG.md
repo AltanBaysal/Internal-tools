@@ -262,9 +262,7 @@ güncellediğimizde değişir.
   15 Ekim'de varsayılan dalını 2023'ten kalma `dev`'e çevirdi, Power Lora Loader kayboldu ve fotoğraf
   grafiği reddedildi — 470 rgthree'yi `main`'den klonlatarak kapattı.
 - Bugün sabitlenmiş bir şey yok: `colab/comfy.py` ComfyUI'yi klonlayıp `git pull` yapıyor,
-  `colab/nodes.py` düğümleri varsayılan dallarından en son hâlleriyle alıyor — rgthree hariç, o
-  470'ten beri `main`'den, ama yine en son hâliyle. 470'in `BRANCHES` tablosu bu maddenin kuracağı
-  yapının içine katılır: her düğüm bir sürüm alınca dal ayrı bir tablo olarak kalmaz.
+  `colab/nodes.py` düğümleri varsayılan dallarından en son hâlleriyle alıyor.
 - İki yol konuşuldu, nasıl yapılacağı spec'te: **(a)** kullanıcının önerisi, kendi kopyamızı HF'ye ya
   da başka bir yere koyup oradan indirmek; **(b)** Claude'un önerisi, ComfyUI'yi ve her düğümü bir
   commit'e sabitlemek (`git checkout <sha>`) — taşınacak kopya yok, (a) yalnız kaynak silinirse öne

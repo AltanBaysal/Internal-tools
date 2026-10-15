@@ -636,18 +636,6 @@ def test_hmcumshot_comes_through_the_mirror():
     assert "HMCumshot_V1.0.safetensors" not in MIRRORLESS
 
 
-def test_every_branch_colab_names_is_for_an_address_the_notebook_clones():
-    """BRANCHES in colab/nodes.py is keyed by the clone address the ComfyUI cell lists. Were the
-    cell's address to change, the lookup would miss without a word, and the node would come from its
-    default branch again (madde 470)."""
-    from colab.nodes import BRANCHES
-
-    nodes = _cell("CUSTOM_NODES = [")
-
-    for url in BRANCHES:
-        assert f'"{url}"' in nodes, f"Defterin node listesinde bu adres yok: {url}"
-
-
 def test_no_huggingface_file_is_fetched_by_its_address():
     """An address sends the file through HF's bridge, which cuts a plain download to 8.7 MB/s on most
     of its servers (xet-core #821) -- the user timed H3's install at about a hundred minutes (madde
