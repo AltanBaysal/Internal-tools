@@ -72,8 +72,8 @@ class ExportRunner:
     def _closed(self, mode, was, now):
         """The steps to carry forward once the run moves off the step it was on.
 
-        A run that went back to idle was cancelled, and its steps say nothing about anything: the
-        folder is gone and so is the reason to read them.
+        A run that went back to idle was cancelled, and its steps say nothing about anything: its
+        own files are gone and so is the reason to read them.
 
         Called under the lock, and it marks the new step's start as it goes -- the same clock
         reading ends one step and begins the next, so no second of the run falls between two.
@@ -85,6 +85,19 @@ class ExportRunner:
             return was["steps"]
         return (*was["steps"],
                 {"step": was["state"], "seconds": round(self._started[mode] - start, 1)})
+
+    def others_writing(self, mode, target):
+        """Whether a mode other than `mode` is busy writing into `target` right now.
+
+        What a failed export asks before it takes the photos the two modes share (madde 474): a
+        merged export that is still running has nothing on Drive yet but those photos, so only
+        this state knows it is there. A finished one is not counted here -- its files on disk say
+        so for themselves.
+        """
+        with self._lock:
+            return any(other != mode and state["state"] not in RESTING
+                       and state["target"] == target
+                       for other, state in self._state.items())
 
     def cancel(self, mode):
         with self._lock:

@@ -7,8 +7,10 @@ the same one the badge counts from. Numbering follows it: 01 is the start of the
 Nothing is moved. Every file written here is a copy; the project's own videos and sounds stay where
 they are, which is what makes an export repeatable.
 
-A run that fails takes its folder with it (madde 94). Half an export is worse than none: the folder
-would look like a finished one, and the next run opens a new dated folder anyway.
+A run that fails takes back what it wrote (madde 94). Half an export is worse than none: the folder
+would look like a finished one, and the next run opens a new dated folder anyway. What it wrote, and
+not the folder: the two modes share the minute's folder, and the other's files are not this run's
+to take (madde 474).
 """
 from functools import partial
 
@@ -18,6 +20,12 @@ from backend.features.photo_generation.domain.usecases.list_frames import list_f
 from backend.features.photo_generation.domain.usecases.start_batch import ProjectMissing
 
 MERGED = "merged"
+
+# What a merged export's join is cut as on the machine, beside its pieces. Pieces are named by their
+# two-digit place (01.mp4 …) and the merger keeps pieces.txt and NN-sound.mp4 there too, so a join
+# named after the project could be one of them -- a project named 01 had ffmpeg write over its own
+# first piece (madde 474). Drive still gets the project's name.
+JOINED = "birlesik.mp4"
 
 
 def start_export(runner, store, record, plan_store, order_store, exporter, now, project, mode):
@@ -66,21 +74,22 @@ def run_export(runner, store, record, plan_store, order_store, exporter, now, pr
     pieces_dir = store.make_pieces_dir()
     runner.report(mode, state="running", written=0, total=len(frames), target=folder,
                   error=None)
+    own = []                           # the videos this run has put on Drive, what it takes back
     try:
-        finished = _write(runner, store, exporter, frames, project, stamp, pieces_dir, mode)
+        finished = _write(runner, store, exporter, frames, project, stamp, pieces_dir, mode, own)
     except Exception as failure:
         # The run's own reason is what the user is told first. A cleanup that fails too -- the
         # mount dropped, most likely, which is often why the run failed -- leaves a half export on
         # Drive, and the screen has to say so (madde 94): the runner shows one sentence, so both go
         # into it, the run's error kept as the cause.
         try:
-            _clean(store, project, stamp, pieces_dir)
+            _clean(runner, store, project, stamp, pieces_dir, mode, folder, own)
         except OSError as cleanup:
             raise RuntimeError(f"{failure} — Yarım export silinemedi: {cleanup}") from failure
         raise
     if not finished:
         # Taken down here, once, outside the work: a cleanup that fails is the run's error then.
-        _clean(store, project, stamp, pieces_dir)
+        _clean(runner, store, project, stamp, pieces_dir, mode, folder, own)
         runner.report(mode, state="idle", written=0, target=None)
         return None
     # The export is on Drive; the pieces on the machine have nothing left to say. The videos a
@@ -90,8 +99,12 @@ def run_export(runner, store, record, plan_store, order_store, exporter, now, pr
     return folder
 
 
-def _write(runner, store, exporter, frames, project, stamp, pieces_dir, mode):
-    """The export's work; False when it was cancelled.
+def _write(runner, store, exporter, frames, project, stamp, pieces_dir, mode, own):
+    """The export's work; False when it was cancelled. Each video it puts on Drive is added to
+    `own` once its save has returned -- a save is whole or absent, so nothing half written is
+    listed. The names are this run's, not necessarily the files': a run of the same mode finished
+    earlier in the same minute wrote the same names into the same folder, this run wrote over
+    them, and its cleanup takes those too.
 
     The cancel is asked between work units, never inside one: cutting ffmpeg off mid-file would
     leave half a video, and a copy stopped halfway leaves half a picture.
@@ -115,6 +128,7 @@ def _write(runner, store, exporter, frames, project, stamp, pieces_dir, mode):
         else:
             # So the counter below counts what Drive holds, not what the machine cut.
             store.copy_video(project, stamp, piece, name)
+            own.append(name)
         runner.report(mode, written=index)
     # Its own step, in both modes: the counter has finished counting and the work has not, so a
     # screen still reading N/N would be naming the wrong one (madde 287).
@@ -140,21 +154,27 @@ def _write(runner, store, exporter, frames, project, stamp, pieces_dir, mode):
         # ffmpeg used to write the encoded stream onto the Drive mount a piece at a time, which is a
         # known Colab slowness (madde 282); and while it runs, the Drive folder holds nothing, so a
         # half written mp4 is never there to be seen (madde 94).
-        joined = store.piece_path(pieces_dir, f"{project}.mp4")
+        joined = store.piece_path(pieces_dir, JOINED)
         exporter.merge(pieces, joined)
         # The trip to Drive is its own step: it used to run under the disclaimer's name, which is
-        # the step the user wonders about most (madde 287).
+        # the step the user wonders about most (madde 287). It is the run's last step and one
+        # save, so a merged run that fails has no file of its own on Drive to take back.
         runner.report(mode, state="saving")
         store.copy_export(project, stamp, joined, f"{project}.mp4")
     return True
 
 
-def _clean(store, project, stamp, pieces_dir):
-    """A run that did not finish leaves neither folder: half an export looks like a finished one
+def _clean(runner, store, project, stamp, pieces_dir, mode, folder, own):
+    """A run that did not finish takes back what it wrote: half an export looks like a finished one
     (madde 94), and pieces nobody carried to Drive are so much scaffolding. The machine's own
-    pieces go first: nothing stops their going, and a Drive that refuses must not keep them."""
+    pieces go first: nothing stops their going, and a Drive that refuses must not keep them.
+
+    On Drive it takes its own videos, and the photos only if no other export needs them: the two
+    modes share the folder and its photos (madde 474). Whether the other mode is writing here now
+    only the runner knows; whether one left its output here, the store sees on disk.
+    """
     store.remove_pieces(pieces_dir)
-    store.remove_export(project, stamp)
+    store.remove_export(project, stamp, own, in_use=runner.others_writing(mode, folder))
 
 
 def _audio(store, project, frame):

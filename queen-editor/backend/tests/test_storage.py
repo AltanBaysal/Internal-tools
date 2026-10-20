@@ -97,6 +97,7 @@ CALLS = {
     "list_dirs": lambda storage, source: storage.list_dirs(),
     "make_dir": lambda storage, source: storage.make_dir("yeni"),
     "delete_dir": lambda storage, source: storage.delete_dir("düğün"),
+    "remove_empty_dir": lambda storage, source: storage.remove_empty_dir(("düğün", "boş")),
     "rename_dir": lambda storage, source: storage.rename_dir("düğün", "nikah"),
     "dir_exists": lambda storage, source: storage.dir_exists("düğün"),
     "path": lambda storage, source: storage.path("düğün", "a.png"),
@@ -480,6 +481,43 @@ def test_deleting_a_folder_inside_a_project(tmp_path):
 
     assert (tmp_path / "düğün" / "export").is_dir()
     assert not (tmp_path / "düğün" / "export" / "2026-08-12 14-32").exists()
+
+
+def test_an_empty_folder_is_removed(tmp_path):
+    storage = with_project(tmp_path)
+    (tmp_path / "düğün" / "video").mkdir()
+
+    assert storage.remove_empty_dir(("düğün", "video")) is True
+
+    assert not (tmp_path / "düğün" / "video").exists()
+
+
+def test_a_folder_holding_anything_is_left_as_it_is(tmp_path):
+    """What is left in it is somebody's: a cleanup that took only its own files must not take
+    the rest with the folder (madde 474)."""
+    storage = with_project(tmp_path)
+    (tmp_path / "düğün" / "foto").mkdir()
+    (tmp_path / "düğün" / "foto" / "01.png").write_bytes(b"PNG")
+
+    assert storage.remove_empty_dir(("düğün", "foto")) is False
+    assert storage.remove_empty_dir("düğün") is False
+
+    assert (tmp_path / "düğün" / "foto" / "01.png").read_bytes() == b"PNG"
+
+
+def test_removing_a_folder_that_is_not_there_says_so(tmp_path):
+    storage = with_project(tmp_path)
+
+    assert storage.remove_empty_dir(("düğün", "yok")) is False
+
+
+def test_the_root_itself_is_never_removed_even_empty(tmp_path):
+    storage = Storage(str(tmp_path))
+
+    with pytest.raises(NameRefused):
+        storage.remove_empty_dir(())
+
+    assert tmp_path.is_dir()
 
 
 def test_list_dirs_returns_name_and_mtime(tmp_path):

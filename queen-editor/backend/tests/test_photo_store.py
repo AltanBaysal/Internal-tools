@@ -182,7 +182,7 @@ def test_an_old_export_inside_the_project_is_left_where_it_is(tmp_path):
     joined.write_bytes(b"MP4")
 
     store.copy_export("düğün", STAMP, str(joined), "düğün.mp4")
-    store.remove_export("düğün", STAMP)
+    store.remove_export("düğün", STAMP, [], in_use=False)
 
     assert (old / "düğün.mp4").read_bytes() == b"OLD"
     assert [path.name for path in (tmp_path / "düğün" / "export").iterdir()] == [
@@ -237,17 +237,84 @@ def test_the_merged_file_is_copied_into_the_export_folder(tmp_path):
     assert not any(path.name.startswith(TEMP_PREFIX) for path in landed.parent.iterdir())
 
 
-def test_an_export_that_did_not_finish_takes_its_folder_and_nothing_else(tmp_path):
+def a_piece(tmp_path, name="01.mp4", data=b"MP4"):
+    """A file standing where ffmpeg would leave one on the machine's own disk."""
+    piece = tmp_path / name
+    piece.write_bytes(data)
+    return str(piece)
+
+
+def half_separate_export(tmp_path):
+    """An export store whose separate run has carried one video and one picture to Drive."""
     store = export_at(tmp_path)
     store.save("düğün", "0_a.png", b"PNG")
+    store.copy_video("düğün", STAMP, a_piece(tmp_path), "01.mp4")
     store.copy_photo("düğün", "0_a.png", STAMP, "01.png")
+    return store
 
-    store.remove_export("düğün", STAMP)
+
+def test_an_export_that_did_not_finish_alone_takes_its_folder_and_nothing_else(tmp_path):
+    """Nobody else wrote into the folder, so nothing in it is anybody's: half an export is worse
+    than none (madde 94)."""
+    store = half_separate_export(tmp_path)
+
+    store.remove_export("düğün", STAMP, ["01.mp4"], in_use=False)
 
     assert not export_folder(tmp_path).exists()
     # The exports folder is every export's, and stays.
     assert (tmp_path / EXPORTS).is_dir()
     assert (tmp_path / "düğün" / "0_a.png").read_bytes() == b"PNG"
+
+
+def test_a_merged_export_that_did_not_finish_alone_leaves_nothing_behind(tmp_path):
+    """A merged run has nothing of its own on Drive but the photos when it fails or is cancelled --
+    its join goes up last, in one save -- and with nobody else in the folder they go too."""
+    store = export_at(tmp_path)
+    store.save("düğün", "0_a.png", b"PNG")
+    store.copy_photo("düğün", "0_a.png", STAMP, "01.png")
+
+    store.remove_export("düğün", STAMP, [], in_use=False)
+
+    assert list((tmp_path / EXPORTS).iterdir()) == []
+
+
+def test_a_failed_separate_export_leaves_the_merged_one_beside_it(tmp_path):
+    """Madde 474: the two modes share a folder named down to the minute, and the cleanup used to
+    take the whole of it. The merged file is the other export's, and the photos are the folder's:
+    the merged export found them there and counts on them."""
+    store = half_separate_export(tmp_path)
+    store.copy_export("düğün", STAMP, a_piece(tmp_path, "birlesik.mp4", b"JOINED"), "düğün.mp4")
+
+    store.remove_export("düğün", STAMP, ["01.mp4"], in_use=False)
+
+    folder = export_folder(tmp_path)
+    assert sorted(path.name for path in folder.iterdir()) == ["düğün.mp4", "foto"]
+    assert (folder / "düğün.mp4").read_bytes() == b"JOINED"
+    assert (folder / "foto" / "01.png").read_bytes() == b"PNG"
+
+
+def test_a_failed_merged_export_leaves_the_separate_one_beside_it(tmp_path):
+    """A merged run never has a file of its own on Drive when it fails -- its join goes up last, in
+    one save -- so it takes nothing, and the separate export's videos say the photos are needed."""
+    store = half_separate_export(tmp_path)
+
+    store.remove_export("düğün", STAMP, [], in_use=False)
+
+    folder = export_folder(tmp_path)
+    assert (folder / "video" / "01.mp4").read_bytes() == b"MP4"
+    assert (folder / "foto" / "01.png").read_bytes() == b"PNG"
+
+
+def test_the_photos_stay_while_the_other_export_is_writing_into_the_folder(tmp_path):
+    """A merged export still running has nothing on Drive but the photos it shares: only the
+    runner knows it is there, and says so through in_use."""
+    store = half_separate_export(tmp_path)
+
+    store.remove_export("düğün", STAMP, ["01.mp4"], in_use=True)
+
+    folder = export_folder(tmp_path)
+    assert sorted(path.name for path in folder.iterdir()) == ["foto"]
+    assert (folder / "foto" / "01.png").read_bytes() == b"PNG"
 
 
 def test_the_pieces_are_cut_off_drive(tmp_path):

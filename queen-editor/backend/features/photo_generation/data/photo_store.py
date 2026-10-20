@@ -121,10 +121,26 @@ class DrivePhotoStore:
         """
         self._storage.save_file(self._dated(project, stamp), filename, source)
 
-    def remove_export(self, project, stamp):
-        """Take a dated export folder and everything in it -- a run that failed or was cancelled
-        (madde 94)."""
-        self._storage.delete_dir(self._dated(project, stamp))
+    def remove_export(self, project, stamp, videos, in_use):
+        """Take back what a run that failed or was cancelled wrote, and nothing of anybody else's
+        (madde 94, 474).
+
+        The two modes share a folder named down to the minute, so the folder is not the run's to
+        take. Its own are its videos. The photos are the folder's -- whichever run reached a
+        picture first wrote it, and the other counts on it -- so they go only when no other export
+        needs them: none is writing here now (`in_use`, which only the runner knows) and none has
+        left its output here, videos or a merged file, which is all that stands in this folder
+        beside the photos. Then each folder goes if it is empty.
+        """
+        folder = self._dated(project, stamp)
+        videos_dir = (*folder, VIDEOS_DIR)
+        for name in videos:
+            self._storage.delete_file(videos_dir, name)
+        if not in_use and not (self._storage.list_files(videos_dir)
+                               or self._storage.list_files(folder)):
+            self._storage.delete_dir((*folder, PHOTOS_DIR))
+        self._storage.remove_empty_dir(videos_dir)
+        self._storage.remove_empty_dir(folder)
 
     def make_pieces_dir(self):
         """An empty folder on the machine's own disk, for files that are thrown away again.

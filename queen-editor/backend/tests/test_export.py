@@ -5,8 +5,11 @@ import pytest
 
 from backend import config
 from backend.features.photo_generation.data.ffmpeg_video_exporter import FfmpegVideoExporter
+from backend.features.photo_generation.data.photo_store import DrivePhotoStore
 from backend.features.photo_generation.domain.usecases.run_export import run_export
 from backend.features.photo_generation.export_runner import ExportRunner
+from backend.features.projects.domain import name_rules
+from backend.services.storage.storage import Storage
 from backend.tests.test_photo_usecases import (
     FakeOrderStore,
     FakePlanStore,
@@ -56,8 +59,11 @@ class ExportStore(FakeStore):
     def remove_pieces(self, path):
         self.removed.append(path)
 
-    def remove_export(self, project, stamp):
+    def remove_export(self, project, stamp, videos, in_use):
+        """What the run handed its cleanup is written down; what the real one does with it is
+        tested against real folders in test_photo_store.py."""
         self.removed.append(self._folder(project, stamp))
+        self.taken_back = (list(videos), in_use)
 
     def copy_photo(self, project, photo, stamp, filename):
         """Every call is written down and none is skipped.
@@ -331,8 +337,10 @@ def test_merged_export_writes_one_file_named_after_the_project():
 
     # The join happens on the machine's own disk, beside the pieces: ffmpeg used to write the
     # encoded stream onto the Drive mount a piece at a time, which is a known Colab slowness
-    # (madde 282). The name is still the project's.
-    assert exporter.merged == ([f"{PIECES}/01.mp4", f"{PIECES}/02.mp4"], f"{PIECES}/düğün.mp4")
+    # (madde 282). It is cut under a name no piece can have (madde 474); Drive still gets the
+    # project's.
+    assert exporter.merged == ([f"{PIECES}/01.mp4", f"{PIECES}/02.mp4"], f"{PIECES}/birlesik.mp4")
+    assert store.exports == [(f"{PIECES}/birlesik.mp4", MINUTE, "düğün.mp4")]
 
 
 def test_a_merged_export_cuts_its_pieces_outside_the_drive_folder():
@@ -419,7 +427,7 @@ def test_the_merged_file_reaches_drive_once_it_is_whole():
 
     export(store, record, plan_store, FakeExporter(), mode="merged")
 
-    assert store.exports == [(f"{PIECES}/düğün.mp4", MINUTE, "düğün.mp4")]
+    assert store.exports == [(f"{PIECES}/birlesik.mp4", MINUTE, "düğün.mp4")]
 
 
 def test_a_merged_export_carries_no_piece_to_drive():
@@ -476,7 +484,7 @@ def test_a_merged_export_stamps_the_disclaimer_after_the_photos_are_in():
 
 def test_a_join_that_blew_up_copies_nothing_to_drive():
     store, record, plan_store = with_videos()
-    exporter = FakeExporter(fails_on=f"{PIECES}/düğün.mp4")
+    exporter = FakeExporter(fails_on=f"{PIECES}/birlesik.mp4")
 
     with pytest.raises(RuntimeError):
         export(store, record, plan_store, exporter, mode="merged")
@@ -542,7 +550,7 @@ class DriveGoneAtCleanup(ExportStore):
         super().__init__(*args, **kwargs)
         self.cleanups = 0
 
-    def remove_export(self, project, stamp):
+    def remove_export(self, project, stamp, videos, in_use):
         self.cleanups += 1
         raise OSError(107, "Transport endpoint is not connected")
 
@@ -589,7 +597,7 @@ def test_a_cancel_drive_refuses_is_cleaned_up_once():
     assert store.removed == [PIECES]
 
 
-def test_cancelling_stops_between_pieces_and_removes_the_folder():
+def test_cancelling_stops_between_pieces_and_takes_its_export_back():
     store, record, plan_store = with_videos()
     runner = sync_runner()
     runner.cancel("separate")
@@ -614,12 +622,12 @@ class ExporterThatCancelsOnTheLastPiece(FakeExporter):
             self._runner.cancel(self._mode)
 
 
-def test_cancelling_once_the_videos_are_done_leaves_no_photos_and_no_folder():
+def test_cancelling_once_the_videos_are_done_writes_no_photos_and_takes_its_export_back():
     """The second loop carries a cancel check of its own, and it sits at the top of it -- so
     "before the first photo" and "between two photos" are one line (FOUNDATION 3).
 
     The stop stays between work units: half a copied picture is as bad as half a cut video, and
-    the folder goes either way (madde 94).
+    the run takes back what it wrote either way (madde 94, 474).
     """
     store, record, plan_store = with_videos()
     runner = sync_runner()
@@ -629,6 +637,117 @@ def test_cancelling_once_the_videos_are_done_leaves_no_photos_and_no_folder():
     assert len(exporter.pieces) == 2
     assert store.photos == []
     assert store.removed == [PIECES, FOLDER]
+
+
+def test_a_failed_separate_export_takes_back_the_videos_it_carried_to_drive():
+    """Madde 474: its cleanup is handed what it wrote, not the folder -- the other mode may be
+    writing into the same one. 02 never reached Drive: a save is whole or absent."""
+    store, record, plan_store = with_videos()
+
+    with pytest.raises(RuntimeError):
+        export(store, record, plan_store, FakeExporter(fails_on=f"{PIECES}/02.mp4"))
+
+    assert store.taken_back == (["01.mp4"], False)
+
+
+def test_a_failed_merged_export_has_no_file_of_its_own_on_drive():
+    """Its join goes up last, in one save: a run that fails never left it there."""
+    store, record, plan_store = with_videos()
+
+    with pytest.raises(RuntimeError):
+        export(store, record, plan_store, FakeExporter(fails_on=f"{PIECES}/birlesik.mp4"),
+               mode="merged")
+
+    assert store.taken_back == ([], False)
+
+
+def test_a_failed_export_leaves_the_photos_to_the_one_writing_beside_it():
+    """A merged export still running has nothing on Drive yet but the photos the two share; the
+    runner is the one that knows it is there."""
+    store, record, plan_store = with_videos()
+    runner = ExportRunner(spawn=lambda fn: None)
+    runner.start("merged", lambda: None)
+    runner.report("merged", state="photos", target=FOLDER)
+
+    with pytest.raises(RuntimeError):
+        export(store, record, plan_store, FakeExporter(fails_on=f"{PIECES}/02.mp4"),
+               runner=runner)
+
+    assert store.taken_back == (["01.mp4"], True)
+
+
+class CuttingExporter:
+    """Writes real files the way ffmpeg does: the output is opened, and emptied, before any input
+    is read (`-y`). So a join whose output is one of its own pieces reads that piece back empty --
+    the fault madde 474 found."""
+
+    def __init__(self, fails_on=None):
+        self.fails_on = fails_on          # the piece name whose cut blows up
+
+    def piece(self, video, audio, target):
+        if os.path.basename(target) == self.fails_on:
+            raise RuntimeError("ffmpeg: disk dolu")
+        with open(target, "wb") as handle:
+            handle.write(os.path.basename(video).encode())
+
+    def merge(self, pieces, target):
+        with open(target, "wb") as joined:
+            for piece in pieces:
+                with open(piece, "rb") as handle:
+                    joined.write(handle.read() + b"|")
+
+
+def on_drive(tmp_path, project):
+    """A real store over a Drive root holding the project and its two pictures."""
+    drive = tmp_path / "drive"
+    (drive / project).mkdir(parents=True)
+    for photo in ("0_a.png", "1_a.png"):
+        (drive / project / photo).write_bytes(photo.encode())
+    return drive, DrivePhotoStore(Storage(str(drive)), name_rules.EXPORTS_DIR)
+
+
+def export_to(store, runner, project, mode, exporter):
+    _, record, plan_store = with_videos()
+    return run_export(runner, store, record, plan_store, FakeOrderStore(), exporter,
+                      lambda: MINUTE, project, mode)
+
+
+def test_a_project_named_like_a_piece_gets_a_whole_merged_file(tmp_path):
+    """The join was cut as <proje>.mp4 beside pieces named 01.mp4, 02.mp4 …, so a project named 01
+    had ffmpeg write over its own first piece. It is cut as birlesik.mp4 now, and Drive still gets
+    the project's name."""
+    drive, store = on_drive(tmp_path, "01")
+
+    export_to(store, sync_runner(), "01", "merged", CuttingExporter())
+
+    landed = drive / name_rules.EXPORTS_DIR / f"{MINUTE} 01" / "01.mp4"
+    assert landed.read_bytes() == b"0_a_V1_0.mp4|1_a_V1_0.mp4|"
+
+
+def test_a_failed_export_leaves_the_one_finished_beside_it_in_the_same_minute(tmp_path):
+    """Madde 474: the two modes share the minute's folder, and a failed run used to take all of it.
+    Now it takes back its own videos; the merged file and the photos it counts on stay."""
+    drive, store = on_drive(tmp_path, "düğün")
+    runner = sync_runner()
+    export_to(store, runner, "düğün", "merged", CuttingExporter())
+
+    with pytest.raises(RuntimeError):
+        export_to(store, runner, "düğün", "separate", CuttingExporter(fails_on="02.mp4"))
+
+    folder = drive / name_rules.EXPORTS_DIR / f"{MINUTE} düğün"
+    assert sorted(path.name for path in folder.iterdir()) == ["düğün.mp4", "foto"]
+    assert sorted(path.name for path in (folder / "foto").iterdir()) == ["01.png", "02.png"]
+    assert (folder / "düğün.mp4").read_bytes() == b"0_a_V1_0.mp4|1_a_V1_0.mp4|"
+
+
+def test_a_failed_export_alone_leaves_nothing_but_the_exports_folder(tmp_path):
+    """Nobody else wrote into the folder, so half an export goes whole (madde 94)."""
+    drive, store = on_drive(tmp_path, "düğün")
+
+    with pytest.raises(RuntimeError):
+        export_to(store, sync_runner(), "düğün", "separate", CuttingExporter(fails_on="02.mp4"))
+
+    assert list((drive / name_rules.EXPORTS_DIR).iterdir()) == []
 
 
 def test_the_state_counts_what_has_been_written():
@@ -720,8 +839,8 @@ def test_a_mode_writing_its_photos_is_busy():
 
 
 def test_a_cancelled_run_leaves_no_steps_on_the_screen():
-    """The steps of a run that was called off say nothing about anything: the folder is gone and
-    so is the reason to read them."""
+    """The steps of a run that was called off say nothing about anything: its own files are gone
+    and so is the reason to read them."""
     store, record, plan_store = with_videos()
     runner = timed_runner(FakeClock())
     exporter = ExporterThatCancelsOnTheLastPiece(runner, "separate", total=2)
@@ -738,6 +857,22 @@ def test_a_second_run_of_the_same_mode_is_refused_while_one_is_going():
     assert runner.start("separate", lambda: None) is False
     # The other mode is free: the design lets the two run side by side.
     assert runner.start("merged", lambda: None) is True
+
+
+def test_the_runner_says_whether_the_other_mode_is_writing_into_a_folder():
+    """What a failed export asks before taking the shared photos away (madde 474): only the other
+    mode counts, only while it is busy, and only in the same folder."""
+    runner = ExportRunner(spawn=lambda fn: None)
+    runner.start("merged", lambda: None)
+    runner.report("merged", state="photos", target=FOLDER)
+
+    assert runner.others_writing("separate", FOLDER) is True
+    assert runner.others_writing("merged", FOLDER) is False
+    assert runner.others_writing("separate", "/fake/Exportlar/başka") is False
+
+    runner.report("merged", state="done")
+
+    assert runner.others_writing("separate", FOLDER) is False
 
 
 class _Answer:

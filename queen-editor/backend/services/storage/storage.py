@@ -21,6 +21,7 @@ So:
 And no name leaves the root: every folder part and file name is checked before it is joined, so a
 name taken from a URL cannot reach above the root or across it.
 """
+import errno
 import os
 import shutil
 import stat
@@ -145,6 +146,22 @@ class Storage:
             shutil.rmtree(self._folder(folder))
         except FileNotFoundError:
             return False
+        return True
+
+    def remove_empty_dir(self, folder):
+        """Remove the folder only if nothing is in it. False when it holds something or is not
+        there: what is left in a folder is somebody's, and this never takes it along."""
+        if not _parts(folder):
+            raise NameRefused("Proje kökü silinemez.")
+        try:
+            os.rmdir(self._folder(folder))
+        except FileNotFoundError:
+            return False
+        except OSError as exc:
+            # POSIX allows either number for a folder that is not empty.
+            if exc.errno in (errno.ENOTEMPTY, errno.EEXIST):
+                return False
+            raise
         return True
 
     def rename_dir(self, old, new):
