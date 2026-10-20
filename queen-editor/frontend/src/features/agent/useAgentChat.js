@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   answerPermission,
@@ -27,9 +27,17 @@ function kept(project) {
 // The agent's chats in one project: the open one as the server last told it, which chats' agents
 // work, the list, the box, and the presses. The agent runs on the server (madde 420), so the screen
 // only asks -- and asks again only while something works.
-export function useAgentChat(project) {
+//
+// `onChanged` is told once a change the user allowed has been made (madde 481). The agent makes it on
+// the server after the answer, and writes it as a step of its own right after İzin ver; that step is
+// finished when the agent moves on -- to its next call, or to the end of the question. So the
+// change is made once the step in its place is finished, or the question has ended.
+export function useAgentChat(project, onChanged = () => {}) {
   const memory = kept(project);
   const [chat, setChat] = useState(null);
+  // The change allowed and not yet made: { project, chat, step }, the place its step takes in the
+  // question. A chat's number names it only within its project.
+  const allowed = useRef(null);
   const [working, setWorking] = useState([]);
   // The changes the project's agents wait on the user for, as /working last said (madde 480).
   const [asking, setAsking] = useState([]);
@@ -139,6 +147,15 @@ export function useAgentChat(project) {
     };
   }, [project, working, list, id]);
 
+  useEffect(() => {
+    const waited = allowed.current;
+    if (!waited || !chat || waited.project !== project || chat.id !== waited.chat) return;
+    const live = chat.questions.at(-1);
+    if (!live || !(live.outcome || live.steps[waited.step]?.finished)) return;
+    allowed.current = null;
+    onChanged();
+  }, [chat]);
+
   function write(text) {
     memory.drafts[id] = text;
     setDraft(text);
@@ -185,8 +202,11 @@ export function useAgentChat(project) {
   async function permit(allow) {
     if (!permission || answering) return;
     setAnswering(true);
+    // Counted before the answer: the step the change writes once allowed comes after these.
+    const step = chat.questions.at(-1)?.steps.length ?? 0;
     try {
       look(await answerPermission(project, permission.chat, permission.id, allow));
+      if (allow) allowed.current = { project, chat: permission.chat, step };
       setFailure(null);
     } catch (err) {
       setFailure({ text: err.message, lookClears: true });

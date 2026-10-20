@@ -156,8 +156,8 @@ async function settle(ms = 0) {
   await act(async () => { await vi.advanceTimersByTimeAsync(ms); });
 }
 
-async function open(project = PROJECT) {
-  const view = render(<AgentPanel project={project} heading={<h2>AI agent</h2>} />);
+async function open(project = PROJECT, props = {}) {
+  const view = render(<AgentPanel project={project} heading={<h2>AI agent</h2>} {...props} />);
   await settle();
   return view;
 }
@@ -662,7 +662,7 @@ describe("AgentPanel — permission", () => {
       { label: "Fotoğraf", text: "Eski fotoğraf silinecek; yenisi aynı yerde üretilecek." },
     ],
   };
-  const FIXING = ["3 numaralı kareyi düzeltiyor…", "3 numaralı kareyi düzeltti"];
+  const FIXING = ["3 numaralı kareyi düzeltiyor…", "3 numaralı karenin düzeltmesini işledi"];
   // The step before the change is finished: the model read it to ask for the change (480's loop).
   const ASKING = { id: 1, questions: [question(
     "Karışan kareleri düzelt", ASKED, [step(LOOKING), step(READING_3)])] };
@@ -817,6 +817,159 @@ describe("AgentPanel — permission", () => {
     await settle();
 
     expect(card()).toBeNull();
+  });
+
+  it("says (boş) where a field was empty, rather than a bare Eski", async () => {
+    const change = { title: "3 numaralı kare düzeltilecek", details: [
+      { label: "Negatif prompt", before: "", after: "white hair" }] };
+    fakeServer({ chats: [ASKING], working: [1], asking: [{ ...WAITING, change }] });
+    await open();
+
+    const before = card().querySelector(".qe-chat-permit-before");
+    expect(before.textContent).toBe("Eski(boş)");
+    expect(card().querySelector(".qe-chat-permit-after").textContent).toBe("Yeniwhite hair");
+  });
+
+  it("says (boş) where a field becomes empty, rather than a bare Yeni", async () => {
+    const change = { title: "3 numaralı kare düzeltilecek", details: [
+      { label: "Negatif prompt", before: "white hair", after: "" }] };
+    fakeServer({ chats: [ASKING], working: [1], asking: [{ ...WAITING, change }] });
+    await open();
+
+    expect(card().querySelector(".qe-chat-permit-before").textContent).toBe("Eskiwhite hair");
+    expect(card().querySelector(".qe-chat-permit-after").textContent).toBe("Yeni(boş)");
+  });
+});
+
+// Madde 481: the change the user allowed is made on the server after the answer, by the agent. The
+// screen around the panel -- the gallery -- is told once it has been: when the change's own step is
+// finished, which the agent does as it moves on, or when the question ends.
+describe("AgentPanel — telling the screen a change was made", () => {
+  const CHANGE = { title: "3 numaralı kare düzeltilecek", details: [
+    { label: "Fotoğraf", text: "Eski fotoğraf silinecek; yenisi aynı yerde üretilecek." }] };
+  const FIXING = ["3 numaralı kareyi düzeltiyor…", "3 numaralı karenin düzeltmesini işledi"];
+  const ASKING = { id: 1, questions: [question(
+    "Karışan kareleri düzelt", ASKED, [step(LOOKING), step(READING_3)])] };
+
+  async function allowed(onChanged) {
+    const server = fakeServer({ chats: [ASKING], working: [1],
+                                asking: [{ chat: 1, id: 7, change: CHANGE }] });
+    await open(PROJECT, { onChanged });
+    fireEvent.click(screen.getByRole("button", { name: "İzin ver" }));
+    await settle();
+    return server;
+  }
+
+  it("tells it once the allowed change's step is done and the question has ended", async () => {
+    const onChanged = vi.fn();
+    const server = await allowed(onChanged);
+    expect(onChanged).not.toHaveBeenCalled();
+
+    server.step(1, FIXING);
+    await settle(POLL_MS);
+    expect(onChanged).not.toHaveBeenCalled();
+
+    server.end(1, answered("3 düzeltildi."));
+    await settle(POLL_MS);
+    expect(onChanged).toHaveBeenCalledTimes(1);
+
+    await settle(POLL_MS * 3);
+    expect(onChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it("tells it when the agent moves on to the next change, before that one is answered",
+     async () => {
+       const onChanged = vi.fn();
+       const server = await allowed(onChanged);
+       server.step(1, FIXING);
+       await settle(POLL_MS);
+
+       // The loop finishes the fix's step before it asks about the next frame.
+       server.chats[0].questions[0].steps.at(-1).finished = true;
+       server.asking = [{ chat: 1, id: 8, change: CHANGE }];
+       await settle(POLL_MS);
+
+       expect(onChanged).toHaveBeenCalledTimes(1);
+     });
+
+  it("tells it nothing when İzin ver does not land: the change no longer waited", async () => {
+    const onChanged = vi.fn();
+    const server = fakeServer({ chats: [ASKING], working: [1],
+                                asking: [{ chat: 1, id: 7, change: CHANGE }] });
+    await open(PROJECT, { onChanged });
+    // Answered from another tab, say: the server answers 409.
+    server.asking = [];
+    fireEvent.click(screen.getByRole("button", { name: "İzin ver" }));
+    await settle();
+    expect(screen.getByText(GONE)).toBeTruthy();
+
+    server.end(1, answered("Bitti."));
+    await settle(POLL_MS * 2);
+
+    expect(onChanged).not.toHaveBeenCalled();
+  });
+
+  it("tells it once when the question is stopped after İzin ver: the work may have run",
+     async () => {
+       const onChanged = vi.fn();
+       const server = await allowed(onChanged);
+       server.step(1, FIXING);
+       await settle(POLL_MS);
+
+       fireEvent.click(screen.getByRole("button", { name: "Durdur" }));
+       await settle(POLL_MS * 3);
+
+       expect(onChanged).toHaveBeenCalledTimes(1);
+     });
+
+  it("tells it nothing while another chat is open, nor for that chat's questions", async () => {
+    const onChanged = vi.fn();
+    const server = await allowed(onChanged);
+    server.chats.push({ id: 2, questions: [question("Kaç kare var?", ASKED, [step(LOOKING)],
+                                                    answered("3 kare."))] });
+
+    fireEvent.click(screen.getByRole("button", { name: "Sohbetler" }));
+    await settle();
+    fireEvent.click(screen.getByText("Kaç kare var?"));
+    await settle();
+    server.step(1, FIXING);
+    server.end(1, answered("3 düzeltildi."));
+    await settle(POLL_MS * 3);
+
+    expect(onChanged).not.toHaveBeenCalled();
+  });
+
+  it("tells another project nothing about a change allowed in this one", async () => {
+    const onChanged = vi.fn();
+    const server = fakeServer({ chats: [ASKING], working: [1],
+                                asking: [{ chat: 1, id: 7, change: CHANGE }] });
+    const view = await open(PROJECT, { onChanged });
+    fireEvent.click(screen.getByRole("button", { name: "İzin ver" }));
+    await settle();
+
+    view.rerender(<AgentPanel project="başka" heading={<h2>AI agent</h2>}
+                              onChanged={onChanged} />);
+    await settle();
+    // The same server answers every project here: chat 1 of başka ends as chat 1 of düğün would.
+    server.step(1, FIXING);
+    server.end(1, answered("Bitti."));
+    await settle(POLL_MS * 3);
+
+    expect(onChanged).not.toHaveBeenCalled();
+  });
+
+  it("tells it nothing on Reddet: nothing was changed", async () => {
+    const onChanged = vi.fn();
+    const server = fakeServer({ chats: [ASKING], working: [1],
+                                asking: [{ chat: 1, id: 7, change: CHANGE }] });
+    await open(PROJECT, { onChanged });
+    fireEvent.click(screen.getByRole("button", { name: "Reddet" }));
+    await settle();
+
+    server.end(1, answered("Dokunmadım."));
+    await settle(POLL_MS * 2);
+
+    expect(onChanged).not.toHaveBeenCalled();
   });
 });
 

@@ -1,8 +1,9 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { generateBatch, getStatus, listFrames, listProducers, listReferences, produceFromReferences,
-         resumeBatch, saveReferenceSettings, uploadReferences } from "../../shared/api.js";
+import { answerPermission, generateBatch, getStatus, listChats, listFrames, listProducers,
+         listReferences, openChat, produceFromReferences, resumeBatch, saveReferenceSettings,
+         uploadReferences, workingChats } from "../../shared/api.js";
 import { navigate } from "../../shared/router.js";
 import { VERSION } from "../../shared/version.js";
 import ProjectScreen from "./ProjectScreen.jsx";
@@ -14,6 +15,14 @@ vi.mock("../../shared/router.js", () => ({
 }));
 
 vi.mock("../../shared/api.js", () => ({
+  // The agent's doors, for the panel in the column (madde 425, 480).
+  answerPermission: vi.fn(),
+  askQuestion: vi.fn(),
+  listChats: vi.fn().mockResolvedValue([]),
+  newChat: vi.fn().mockResolvedValue({ id: 1, questions: [] }),
+  openChat: vi.fn(),
+  stopAgent: vi.fn(),
+  workingChats: vi.fn().mockResolvedValue({ working: [], asking: [] }),
   cancelGeneration: vi.fn(),
   deletePhotos: vi.fn(),
   generateBatch: vi.fn(),
@@ -480,6 +489,60 @@ describe("ProjectScreen — a stopped queue does not look like a moving one", ()
     await open({ status: "running", project: "komşu" }, "bizim");
 
     expect(screen.getByText("video bekliyor")).toBeTruthy();
+  });
+});
+
+// Madde 481's QA: after İzin ver the gallery kept the deleted photo until a reload -- the agent's fix
+// starts the queue on the server, and this page had started nothing to follow.
+describe("ProjectScreen — the gallery follows a change the agent was allowed to make", () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => vi.useRealTimers());
+
+  const CHANGE = { title: "2 numaralı kare düzeltilecek", details: [
+    { label: "Fotoğraf", text: "Eski fotoğraf silinecek; yenisi aynı yerde üretilecek." }] };
+  const step = (running, done, finished) => ({ running, done, finished });
+  const chat = (steps, outcome = null) => ({ id: 1, questions: [{
+    text: "Karışan kareleri düzelt", askedAt: "2026-10-20T10:00:00+00:00", steps, outcome }] });
+  const LOOKED = step("Projeye bakıyor…", "Projeye baktı", true);
+  const FIXED = step("2 numaralı kareyi düzeltiyor…", "2 numaralı karenin düzeltmesini işledi",
+                     true);
+
+  it("reads the gallery again and follows the run once the change's step is done", async () => {
+    listFrames.mockResolvedValue([{ id: "P1_0", file: "P1_0.png", status: "done",
+                                    layers: { photo: "P1_0.png" }, owed: [], failed: [] }]);
+    getStatus.mockResolvedValue({ status: "idle" });
+    listChats.mockResolvedValue([{ id: 1, firstQuestion: "Karışan kareleri düzelt",
+                                   lastAskedAt: "2026-10-20T10:00:00+00:00" }]);
+    workingChats.mockResolvedValue({ working: [1], asking: [{ chat: 1, id: 7, change: CHANGE }] });
+    openChat.mockResolvedValue(chat([LOOKED]));
+    renderScreen("düzeltilen");
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    fireEvent.click(screen.getByLabelText("AI agent"));
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(document.getElementById("tile-P1_0")).toBeTruthy();
+
+    answerPermission.mockResolvedValue({ working: [1], asking: [] });
+    fireEvent.click(screen.getByRole("button", { name: "İzin ver" }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    const asked = listFrames.mock.calls.length;
+
+    // The agent made the fix and answered: the new frame stands in the old one's place, pending,
+    // and the queue runs.
+    workingChats.mockResolvedValue({ working: [], asking: [] });
+    openChat.mockResolvedValue(chat([LOOKED, FIXED], { kind: "answer", text: "2 düzeltildi." }));
+    listFrames.mockResolvedValue([{ id: "P3_0", file: "P3_0.png", status: "pending", layers: {},
+                                    owed: ["photo"], failed: [] }]);
+    getStatus.mockResolvedValue({ status: "running", project: "düzeltilen",
+                                  current: { id: "P3_0", type: "photo" } });
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+
+    expect(listFrames.mock.calls.length).toBe(asked + 1);
+    // The old frame's tile is gone, and the new one stands in the gallery.
+    expect(document.getElementById("tile-P1_0")).toBeNull();
+    expect(document.getElementById("tile-P3_0")).toBeTruthy();
+    const statuses = getStatus.mock.calls.length;
+    await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
+    expect(getStatus.mock.calls.length).toBe(statuses + 1);
   });
 });
 

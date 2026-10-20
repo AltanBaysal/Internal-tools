@@ -6,6 +6,8 @@ import { useAgentChat } from "./useAgentChat.js";
 // The wait before the server has said what the agent is doing: the question is on its way, or the
 // agent has started and written no step yet (the designer's 211).
 const WAITING = "Çalışıyor…";
+// What a change's empty field reads as.
+const EMPTY = "(boş)";
 
 // Drawn, not typed: ↑ and ■ come out at different sizes in different fonts (the design's sohbet.js).
 const SEND_ICON = (
@@ -55,11 +57,13 @@ function Permission({ waiting, answering, onAnswer }) {
           <div className="qe-chat-permit-label">{detail.label}</div>
           {detail.text != null ? <div>{detail.text}</div> : (
             <>
+              {/* An empty field is said, not left as a bare tag, before and after alike: a
+                  negative that had nothing, or is emptied, is an answer of its own (madde 481). */}
               <div className="qe-chat-permit-before">
-                <span className="qe-chat-permit-tag">Eski</span>{detail.before}
+                <span className="qe-chat-permit-tag">Eski</span>{detail.before || EMPTY}
               </div>
               <div className="qe-chat-permit-after">
-                <span className="qe-chat-permit-tag">Yeni</span>{detail.after}
+                <span className="qe-chat-permit-tag">Yeni</span>{detail.after || EMPTY}
               </div>
             </>
           )}
@@ -123,9 +127,10 @@ function ChatList({ rows, open, working, failure, onOpen }) {
 
 // The AI agent panel (madde 425, the designer's 207, 208, 210, 211, 212): the open project's chats
 // with the agent, which runs on the server. The column hands over its heading, and the chat's two
-// buttons stand beside it.
-export default function AgentPanel({ project, heading }) {
-  const agent = useAgentChat(project);
+// buttons stand beside it. `onChanged` is told once a change the user allowed has been made, so the
+// screen around the panel can read what changed (madde 481); the hook gives it its default.
+export default function AgentPanel({ project, heading, onChanged }) {
+  const agent = useAgentChat(project, onChanged);
   const { chat, list, draft, pending, failure, busy } = agent;
   const log = useRef(null);
   const box = useRef(null);

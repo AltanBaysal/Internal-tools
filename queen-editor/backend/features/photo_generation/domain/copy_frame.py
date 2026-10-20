@@ -7,11 +7,12 @@ between them.
 A copy frame keeps its source's prompt number and takes the next variant, so its name still says
 what produced the picture (design v3, madde 97).
 """
-from backend.features.photo_generation.domain import queue
+from backend.features.photo_generation.domain import layers, queue
 from backend.features.photo_generation.domain.photo_name import (
     copy_id,
     copy_parts,
     frame_id,
+    frame_id_of,
     number_of,
     variant_of,
 )
@@ -59,6 +60,20 @@ def family(frame):
     number, variant = number_of(frame["id"]), variant_of(frame["id"])
     return (number if number is not None else frame.get("number"),
             variant if variant is not None else frame.get("variant"))
+
+
+def made_by(plan, frame):
+    """The plan line that made the frame's picture -- what model, lora and orientation it was made
+    with -- or {} when there is none.
+
+    The frame's own line, or for a copy frame its source's: a copy holds its source's picture, and
+    its own rows in the record carry none of those settings. The picture's file names the frame that
+    made it. The plan is never trimmed, so a deleted source's line is still there; a frame from
+    before the plan kept its lines has none, and reads as made then (orientation.of).
+    """
+    maker = frame_id_of(frame["file"])
+    lines = [job for job in plan if job["id"] == maker and queue.type_of(job) == layers.PHOTO]
+    return lines[-1] if lines else {}
 
 
 def placed(gallery, born):

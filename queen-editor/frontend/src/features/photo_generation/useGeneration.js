@@ -377,8 +377,14 @@ export function useGeneration(project) {
     .map((layer) => ({ layer, count: failedByKind[layer] }))
     .filter((card) => card.count > 0);
 
+  // A change made somewhere else that this page should see (madde 481): the agent's fix replaces a
+  // frame and starts the queue on the server, where this page started nothing. Read the gallery and
+  // the worker again; a run that goes keeps the chain going, the way a mount finds one. No running
+  // state is assumed: whether the queue runs is the server's answer -- another project may hold it.
+  const follow = poll;
+
   return { job: told, known, frames, framesError, error, errorField, stopping, queue, failures,
-           current, currentLayer, startedAt, batch,
+           current, currentLayer, startedAt, batch, follow,
            retryAll, queueLayer, regenerate, removeLayer,
            generate, stop, resume, cancel, retry, clearError, reorder, removePhotos, copyPhotos };
 }

@@ -74,6 +74,28 @@ saçma şeyler ortaya çıkıyor".)* **v7'nin ilk maddesi olarak yazıldı, koş
 
 ## Diğer
 
+### Kopya karenin fotoğrafını Yeniden üret, modelini ve LoRA'sını kaybediyor
+
+*(481'in reviewer'ı buldu, 20 Ekim.)* `regenerate.py` modeli ve LoRA'yı karenin kartından alıyor; kopya
+karenin kartı kayıttan gelir ve ikisini taşımaz. Bu yüzden kopya karede fotoğrafı Yeniden üret,
+uyarı vermeden grafiğin kendi modeline, LoRA'sız düşüyor. Doğru ayar, resmi yapan plan satırında —
+481'in `copy_frame.py`'deki kuralı bunu buluyor; Yeniden üret de onu kullanabilir.
+
+### Silinmiş bir kareye bağlanan kuyruktaki video
+
+*(481'in reviewer'ı buldu, 20 Ekim.)* Bağlantılı modda bir videonun işi bir sonraki karenin kimliğini
+taşır (`linkedTo`). O kare silinirse, `run_loop`'un `_end_for`'u hücrenin silindiğine bakmıyor
+(`not cell`, `is_taken` değil) ve üreticiye boş bir son kare veriyor; iş her denemede düşer. Kare
+silme (`remove_frames`) bugün bu yola varıyor. 481'in düzeltmesi böyle bir kareye hiç dokunmaz.
+
+### Eski adla yeniden çizilen fotoğraf tarayıcıda eski görünebilir
+
+*(481'in coder'ı buldu, 20 Ekim.)* Fotoğraflar bir yıl boyunca değişmez diye önbelleğe alınıyor
+(`Cache-Control: … immutable`), çünkü bir ad hiç yeniden kullanılmıyor. İki yer bu kuralı bozuyor:
+`retry_frame`'in "kırmızı bir şey yok" yolu silinmiş bir fotoğrafı aynı adla yeniden üretiyor, ve
+`run_loop` fotoğrafı silinmiş bir kartta videonun ilk karesini `photo_file(fid)` adıyla kaydediyor.
+İkisinde de o fotoğrafı daha önce görmüş bir tarayıcı eskisini göstermeye devam edebilir.
+
 ### Kodda var olmayan BEHAVIOUR.md'ye bağlantılar
 
 *(480'in reviewer'ı buldu, 20 Ekim.)* `queen-editor/backend`'de 8 dosyada 14 yorum "BEHAVIOUR.md, Agent

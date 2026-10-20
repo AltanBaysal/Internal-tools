@@ -6,7 +6,9 @@ no tools, so it answers with what it has, QueenAgent's way at its limit (Madde 1
 
 The agent first looks at the project: the gallery's cards go to the model before the question, one
 line each, numbered the way the gallery's badge numbers them (the user: "kart yapılı"). Then it reads
-a frame, looks at its photo or checks it for mixed-up characters as the model asks.
+a frame, looks at its photo, checks it for mixed-up characters or fixes its photo as the model asks.
+The fix is decided by the model, so its instruction carries the image model's rules and how a prompt
+is fixed (madde 481).
 
 Everything it does is a step on the chat with two sentences, and a step goes on until the next one
 begins or the question ends: the model reads what a tool brought in the round after the tool ran, so
@@ -48,7 +50,8 @@ def _conversation(cards, earlier, question):
     The chat so far is its questions and the answers the agent gave: a question that got none goes
     alone. Steps and what the tools said stay out, as QueenAgent leaves them out.
     """
-    messages = [{"role": "system", "content": prompt.INSTRUCTION + prompt.SYSTEM_PROMPT_SUFFIX}]
+    messages = [{"role": "system", "content": prompt.INSTRUCTION + prompt.MIXUP_RULES
+                 + prompt.FIX_RULES + prompt.SYSTEM_PROMPT_SUFFIX}]
     for asked in earlier:
         messages.append({"role": "user", "content": asked["text"]})
         outcome = asked["outcome"] or {}
@@ -60,12 +63,13 @@ def _conversation(cards, earlier, question):
     return messages
 
 
-def answer_question(box, frames, picture, run, project, earlier, question):
+def answer_question(box, frames, picture, fix, run, project, earlier, question):
     """Answer `question` about `project`, writing every step and the outcome through `run`.
 
     `frames(project)` is the gallery's cards, top first; `picture(project, file)` a file's bytes or
-    None; `earlier` the chat's questions before this one. Neither reader writes, and neither is asked
-    about any project but this one.
+    None; `fix(project, card, prompt, negative)` the photo feature's fix of one frame (madde 481),
+    run only once the user allows it; `earlier` the chat's questions before this one. Neither reader
+    writes, and none of the three is asked about any project but this one.
     """
     run.add_step(*LOOKING)
     cards = numbered(frames(project))
@@ -101,7 +105,7 @@ def answer_question(box, frames, picture, run, project, earlier, question):
             # round can hold a call for every frame.
             if run.stopped():
                 return
-            step, work, change = run_tool(box.ask, cards, picture, project, call)
+            step, work, change = run_tool(box.ask, cards, picture, fix, project, call)
             # The look at the project is always the first step, so there is always one going on to
             # finish. After a rejection the next call finishes it again, which changes nothing.
             if step or change is not None:

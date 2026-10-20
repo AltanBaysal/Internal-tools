@@ -133,7 +133,10 @@ export default function SidePanel({ job, known, error, errorField, busyElsewhere
                                     onGenerate, onStop, onResume, onCancel, onClearError,
                                     onRetryAll, onRetrySettings, poolShown, pool,
                                     // A column drawn on its own has no middle to show a pool in.
-                                    onShowPool = () => {} }) {
+                                    onShowPool = () => {},
+                                    // Passed through to the agent's panel, whose hook gives it
+                                    // its default (madde 481).
+                                    onAgentChanged }) {
   // Which panel is open is this column's own business: neither the project screen nor the server
   // has a reason to know it. null means none of them -- pressing the open panel's own icon closes
   // it and gives the width back to the gallery, the way a code editor's side bar behaves.
@@ -203,7 +206,9 @@ export default function SidePanel({ job, known, error, errorField, busyElsewhere
                       producers={producers?.producers || null}
                       onInstall={producers?.install} />
         )}
-        {open === "agent" && <AgentPanel project={project} heading={heading} />}
+        {open === "agent" && (
+          <AgentPanel project={project} heading={heading} onChanged={onAgentChanged} />
+        )}
         {open === "producers" && (
           <ProducersPanel producers={producers?.producers || null}
                           error={producers?.error || null}

@@ -46,7 +46,7 @@ export default function ProjectScreen({ project, settings, settingsError, onRetr
           currentLayer,
           startedAt, batch, retryAll, queueLayer,
           generate, stop, resume, cancel, retry, clearError,
-          reorder, removePhotos, copyPhotos, removeLayer } = useGeneration(project);
+          reorder, removePhotos, copyPhotos, removeLayer, follow } = useGeneration(project);
   // Asked here rather than in the hook every screen shares: looking at a photo has no use for it.
   const { models, loras, error: modelsError } = useModels();
   // The machine's own question, not this project's: which producers are here.
@@ -151,7 +151,8 @@ export default function ProjectScreen({ project, settings, settingsError, onRetr
                    frames={frames} selected={selected} onQueueLayer={queueLayer}
                    onGenerate={handleGenerate} onStop={stop} onResume={resume} onCancel={cancel}
                    onClearError={clearError} onRetryAll={retryAll}
-                   poolShown={poolShown} onShowPool={setPoolShown} pool={pool} />
+                   poolShown={poolShown} onShowPool={setPoolShown} pool={pool}
+                   onAgentChanged={follow} />
       </div>
 
     </div>

@@ -26,13 +26,13 @@ NO_FRAMES = ("Projede henüz kare yok. Prompt'ları yazıp kuyruğa eklediğinde
 # bottom, so P0_0 is frame 1 and P2_0 is frame 3.
 CARDS = [
     {"id": "P2_0", "status": "pending", "layers": {}, "owed": ["photo"], "failed": [],
-     "errors": {}, "scene": "", "prompts": {"photo": "mavi elbiseli kadın"}},
+     "errors": {}, "scene": "", "prompts": {"photo": "mavi elbiseli kadın"}, "negative": ""},
     {"id": "P1_0", "status": "done", "layers": {"photo": "P1_0.png"}, "owed": [],
      "failed": ["video"], "errors": {"video": "ComfyUI: out of memory"}, "scene": "Kadın döner.",
-     "prompts": {"photo": "yeşil elbiseli kadın", "video": "she turns"}},
+     "prompts": {"photo": "yeşil elbiseli kadın", "video": "she turns"}, "negative": "lowres"},
     {"id": "P0_0", "status": "done", "layers": {"photo": "P0_0.png", "video": "P0_0.mp4"},
      "owed": ["audio"], "failed": [], "errors": {}, "scene": "Kadın tahtta oturur.",
-     "prompts": {"photo": "kırmızı elbiseli kadın", "video": "she sits"}},
+     "prompts": {"photo": "kırmızı elbiseli kadın", "video": "she sits"}, "negative": ""},
 ]
 # What the model is shown of each card before the question, frame 1 first.
 LINES = [
@@ -40,9 +40,9 @@ LINES = [
     {"frame": 2, "status": "done", "layers": ["photo"], "owed": [], "failed": ["video"]},
     {"frame": 3, "status": "pending", "layers": [], "owed": ["photo"], "failed": []},
 ]
-# Frame 2 whole, the way read_frame gives it.
+# Frame 2 whole, the way read_frame gives it: the negative too, which a fix needs (madde 481).
 FRAME_2 = {**LINES[1], "errors": {"video": "ComfyUI: out of memory"}, "scene": "Kadın döner.",
-           "prompts": {"photo": "yeşil elbiseli kadın", "video": "she turns"}}
+           "prompts": {"photo": "yeşil elbiseli kadın", "video": "she turns"}, "negative": "lowres"}
 # Only frame 1's photo is on disk: frame 2 has a photo layer whose file is gone.
 PHOTO = b"PNGDATA"
 
@@ -117,12 +117,15 @@ class FakeRun:
 
 
 class Project:
-    """The two readers main.py hands the agent, noting which project each was asked about."""
+    """The two readers main.py hands the agent, noting which project each was asked about, and the
+    photo feature's fix (madde 481), which answers `fixing` and notes what it was asked."""
 
-    def __init__(self, cards=CARDS, pictures=None):
+    def __init__(self, cards=CARDS, pictures=None, fixing="fixed"):
         self.cards = cards
         self.pictures = {"P0_0.png": PHOTO} if pictures is None else pictures
+        self.fixing = fixing
         self.asked = []
+        self.fixed = []
 
     def frames(self, project):
         self.asked.append(("frames", project))
@@ -132,13 +135,18 @@ class Project:
         self.asked.append(("picture", project, file))
         return self.pictures.get(file)
 
+    def fix(self, project, seen, prompt, negative):
+        self.fixed.append((project, seen, prompt, negative))
+        return self.fixing
+
 
 def answering(box, project=None, earlier=(), question=QUESTION, run=None):
     """The agent answers one question in düğün; what it wrote comes back."""
     from backend.features.agent.domain.usecases.answer_question import answer_question
     project = project or Project()
     run = run or FakeRun()
-    answer_question(box, project.frames, project.picture, run, "düğün", list(earlier), question)
+    answer_question(box, project.frames, project.picture, project.fix, run, "düğün",
+                    list(earlier), question)
     return run.wrote
 
 
@@ -195,8 +203,10 @@ def test_the_first_request_is_the_instruction_the_cards_and_the_question():
 
     (messages, offered), = box.asked
     system, cards, asked = messages
+    # The rules of the image model and how a prompt is fixed: the agent decides a fix (madde 481).
     assert system == {"role": "system",
-                      "content": prompt().INSTRUCTION + prompt().SYSTEM_PROMPT_SUFFIX}
+                      "content": prompt().INSTRUCTION + prompt().MIXUP_RULES + prompt().FIX_RULES
+                      + prompt().SYSTEM_PROMPT_SUFFIX}
     assert cards["role"] == "system"
     assert frames_of(cards) == (prompt().FRAMES, LINES)
     assert asked == {"role": "user", "content": QUESTION}
@@ -224,19 +234,24 @@ def test_the_instruction_ends_with_the_prompt_writers_suffix():
     )
 
 
-def test_the_tools_only_read_and_name_no_project():
-    """The user: "yani bir değişilik yapamasın", "sadec açık projeye erişebilir". Three readers, and
-    a frame number is all any of them takes."""
+def test_the_tools_name_no_project():
+    """The user: "sadec açık projeye erişebilir". Three readers, which a frame number is all they
+    take, and the fix (madde 481), which takes the frame's whole new prompt and negative."""
     offered = tools()
 
     assert [tool["function"]["name"] for tool in offered] == ["read_frame", "look_at_frame",
-                                                              "check_frame"]
+                                                              "check_frame", "fix_frame"]
     for tool in offered:
         assert tool["type"] == "function"
         parameters = tool["function"]["parameters"]
-        assert list(parameters["properties"]) == ["frame"]
         assert parameters["properties"]["frame"]["type"] == "integer"
+    for tool in offered[:3]:
+        parameters = tool["function"]["parameters"]
+        assert list(parameters["properties"]) == ["frame"]
         assert parameters["required"] == ["frame"]
+    fix = offered[3]["function"]["parameters"]
+    assert list(fix["properties"]) == fix["required"] == ["frame", "prompt", "negative"]
+    assert fix["properties"]["prompt"]["type"] == fix["properties"]["negative"]["type"] == "string"
 
 
 def test_words_alone_are_the_answer():
@@ -590,8 +605,8 @@ def test_a_stop_between_two_calls_of_one_round_sends_nothing_more():
 # --- the permission gate (madde 480) -------------------------------------------------------------
 #
 # A call that would change something comes with what it would change, and runs only once the user
-# allows it; the agent is never told that permission exists. No changing tool ships in 480 -- 481's
-# fix is the first -- so a fake one is put in front of the loop's run_tool here, and here alone.
+# allows it; the agent is never told that permission exists. The gate is held apart from 481's fix:
+# a fake fix_frame stands in front of the loop's run_tool here, and here alone.
 
 FIXING = ("2 numaralı kareyi düzeltiyor…", "2 numaralı kareyi düzeltti")
 # The shape 481's fix fills in: a title naming the frame, then the details, each either what it was
@@ -606,16 +621,15 @@ REJECTED = "The user rejected this change, so nothing was changed."
 
 @pytest.fixture
 def fix_frame(monkeypatch):
-    """fix_frame, a changing tool that exists only in these tests: its change is CHANGE, and its work
-    writes down the call it was run for in the list handed back. Any other call goes to the real
-    tools."""
+    """A stand-in for fix_frame: its change is CHANGE, and its work writes down the call it was run
+    for in the list handed back. Any other call goes to the real tools."""
     from backend.features.agent.domain.usecases import answer_question as loop
     real = loop.run_tool
     changed = []
 
-    def run_tool(ask, frames, picture, project, call):
+    def run_tool(ask, frames, picture, fix, project, call):
         if call["function"]["name"] != "fix_frame":
-            return real(ask, frames, picture, project, call)
+            return real(ask, frames, picture, fix, project, call)
 
         def work():
             changed.append(call["id"])
@@ -721,3 +735,164 @@ def test_reading_tools_run_without_asking():
 
     assert wrote[-1] == ("answer", "Okudum.")
     assert not [line for line in wrote if line[0] == "permit"]
+
+
+# --- the fix (madde 481) -------------------------------------------------------------------------
+#
+# fix_frame changes a frame's prompt and negative, and the photo feature makes its photo again in the
+# frame's own place. One call per frame, behind the gate; the agent goes on without waiting for the
+# photo. Frame 2 is fixable: a photo, its prompt, and a video that failed -- no video was made.
+
+NEW_PROMPT = "mavi elbiseli kadın"
+NEW_NEGATIVE = "lowres, white hair"
+PHOTO_LINE = {"label": "Fotoğraf", "text": "Eski fotoğraf silinecek; yenisi aynı yerde üretilecek."}
+
+
+def fixing(number, prompt=NEW_PROMPT, negative=NEW_NEGATIVE, call_id="call_1"):
+    return call("fix_frame", json.dumps({"frame": number, "prompt": prompt, "negative": negative},
+                                        ensure_ascii=False), call_id)
+
+
+def fix_step(number):
+    """The finished sentence says the fix was handled, not that it succeeded: the step is written
+    before the work, and the work may find the frame changed."""
+    return (f"{number} numaralı kareyi düzeltiyor…", f"{number} numaralı karenin düzeltmesini işledi")
+
+
+def test_a_fix_shows_what_changes_waits_for_the_user_and_hands_the_frame_to_the_photo_feature():
+    """The user: "prompt'u güncelle ... eski fotoyu sil runı başlat sonraki fotoya geçe". The change
+    names each field before and after, and the frame goes as the change was described from it, so
+    the photo feature can tell whether it is still that frame."""
+    box = FakeBox(calling(fixing(2)), Answer("2 düzeltildi."))
+    project = Project()
+
+    wrote = answering(box, project, run=FakeRun(permits=[True]))
+
+    change = {"title": "2 numaralı kare düzeltilecek",
+              "details": [{"label": "Prompt", "before": "yeşil elbiseli kadın", "after": NEW_PROMPT},
+                          {"label": "Negatif prompt", "before": "lowres", "after": NEW_NEGATIVE},
+                          PHOTO_LINE]}
+    assert wrote == [step(LOOKING), DONE, ("permit", change), step(fix_step(2)),
+                     ("answer", "2 düzeltildi.")]
+    assert project.fixed == [("düğün", CARDS[1], NEW_PROMPT, NEW_NEGATIVE)]
+    assert box.asked[1][0][4] == {
+        "role": "tool", "tool_call_id": "call_1",
+        "content": "Frame 2 was fixed: its prompt and negative were changed, its old photo was "
+                   "deleted, and its new photo is in the queue in the frame's own place."}
+
+
+def test_a_field_that_does_not_change_is_left_off_the_change():
+    box = FakeBox(calling(fixing(2, prompt="yeşil elbiseli kadın")), Answer("2 düzeltildi."))
+    run = FakeRun(permits=[True])
+
+    answering(box, run=run)
+
+    (asked,) = [line[1] for line in run.wrote if line[0] == "permit"]
+    assert asked["details"] == [{"label": "Negatif prompt", "before": "lowres",
+                                 "after": NEW_NEGATIVE}, PHOTO_LINE]
+
+
+def test_space_around_the_words_is_not_a_change_and_does_not_reach_the_frame():
+    box = FakeBox(calling(fixing(2, prompt=f"  {NEW_PROMPT}\n", negative=" lowres ")),
+                  Answer("2 düzeltildi."))
+    project = Project()
+    run = FakeRun(permits=[True])
+
+    answering(box, project, run=run)
+
+    (asked,) = [line[1] for line in run.wrote if line[0] == "permit"]
+    assert [detail["label"] for detail in asked["details"]] == ["Prompt", "Fotoğraf"]
+    assert project.fixed[0][2:] == (NEW_PROMPT, "lowres")
+
+
+def test_a_rejected_fix_hands_nothing_to_the_photo_feature():
+    box = FakeBox(calling(fixing(2)), Answer("Dokunmadım."))
+    project = Project()
+
+    answering(box, project, run=FakeRun(permits=[False]))
+
+    assert project.fixed == []
+    assert box.asked[1][0][4]["content"] == REJECTED
+
+
+@pytest.mark.parametrize("fixing_said, told", [
+    ("waiting", "Frame 2 was fixed: its prompt and negative were changed and its old photo was "
+                "deleted, but another project's generation is running now, so its new photo waits "
+                "in the queue until this project's queue runs."),
+    ("changed", "Frame 2 changed after you read it, so nothing was changed. It is read again at "
+                "the user's next question; do not call fix_frame on it again now."),
+    ("linked", "Frame 2 is where another frame's queued video ends, so it is not changed."),
+], ids=["another-project-runs", "frame-changed", "linked-video-target"])
+def test_what_the_photo_feature_says_is_what_the_model_is_told(fixing_said, told):
+    box = FakeBox(calling(fixing(2)), Answer("Tamam."))
+
+    answering(box, Project(fixing=fixing_said), run=FakeRun(permits=[True]))
+
+    assert box.asked[1][0][4]["content"] == told
+
+
+def test_frames_are_fixed_one_by_one_each_asked_about_on_its_own():
+    """The agent does not wait for a photo: the round's next frame is asked about at once."""
+    cards = [{**CARDS[1], "id": "P1_0"}, {**CARDS[1], "id": "P0_0", "layers": {"photo": "P0_0.png"}}]
+    box = FakeBox(calling(fixing(1, call_id="call_1"), fixing(2, call_id="call_2")),
+                  Answer("İkisi düzeltildi."))
+    project = Project(cards=cards)
+
+    wrote = answering(box, project, run=FakeRun(permits=[True, True]))
+
+    assert [seen["id"] for _project, seen, _prompt, _negative in project.fixed] == ["P0_0", "P1_0"]
+    assert [line[0] for line in wrote].count("permit") == 2
+
+
+@pytest.mark.parametrize("cards, number, said", [
+    (CARDS, 1, "Frame 1 has a video, so it is not changed."),
+    (one_card(owed=["video"]), 1, "Frame 1 has a video in the queue, so it is not changed."),
+    (CARDS, 3, "Frame 3 has no photo to fix."),
+    (one_card(failed=["photo"]), 1, "Frame 1 has no photo to fix."),
+    (one_card(prompts={}), 1, "Frame 1 has no photo prompt to fix."),
+    (one_card(negative=NEW_NEGATIVE, prompts={"photo": NEW_PROMPT}), 1,
+     "Frame 1 already has this prompt and negative, so nothing would change."),
+], ids=["video", "video-queued", "no-photo", "failed-photo", "no-prompt", "nothing-changes"])
+def test_a_frame_that_is_not_fixed_is_told_from_its_card_with_no_question_and_no_step(
+        cards, number, said):
+    """The user: "Videosu olan kareye ajan dokunmasın" -- and a video in the queue would be made from a
+    photo deleted under it (ana ajan, 20 Ekim), so the agent lists it as "videosu sırada, atlandı"."""
+    box = FakeBox(calling(fixing(number)), Answer("Atlandı."))
+    project = Project(cards=cards)
+
+    wrote = answering(box, project)
+
+    assert project.fixed == []
+    assert box.asked[1][0][4]["content"] == said
+    assert wrote == [step(LOOKING), ("answer", "Atlandı.")]
+
+
+@pytest.mark.parametrize("arguments", [
+    {"frame": 2, "negative": "x"},
+    {"frame": 2, "prompt": "  ", "negative": "x"},
+    {"frame": 2, "prompt": 3, "negative": "x"},
+    {"frame": 2, "prompt": "p"},
+    {"frame": 2, "prompt": "p", "negative": None},
+], ids=["no-prompt", "empty-prompt", "number-prompt", "no-negative", "null-negative"])
+def test_a_fix_without_its_words_is_told_what_it_needs(arguments):
+    box = FakeBox(calling(call("fix_frame", json.dumps(arguments))), Answer("Tamam."))
+    project = Project()
+
+    wrote = answering(box, project)
+
+    assert project.fixed == []
+    assert box.asked[1][0][4]["content"] == (
+        "A fix needs the frame's whole new prompt, which cannot be empty, and its whole new "
+        "negative prompt, which can.")
+    assert wrote == [step(LOOKING), ("answer", "Tamam.")]
+
+
+def test_the_fix_rules_say_the_three_fixes_queen_agent_names():
+    """479 left them out of the check, which only finds; the agent decides a fix with them (copied
+    from QueenAgent's Rule 4, Rule 5 and Step 8, not imported)."""
+    rules = prompt().FIX_RULES
+
+    assert "remove the extra part" in rules
+    assert "make the part simpler, and keep the same moment" in rules
+    assert "remove the hidden tag" in rules
+    assert "remove the extra part" not in prompt().MIXUP_RULES

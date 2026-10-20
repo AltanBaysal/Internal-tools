@@ -73,6 +73,12 @@ class FakeBox:
         raise AssertionError("No check_frame is called in these questions.")
 
 
+def _no_fix(project, seen, prompt, negative):
+    """The photo feature's fix (madde 481): the gate's questions here put a stand-in fix_frame in
+    front of the loop, so the real one is never reached."""
+    raise AssertionError("No real fix is run in these questions.")
+
+
 def app_over(drive, dist, box, cards=CARDS, hold=False, threaded=False):
     """(client, held) over `drive`, wired the way main.py wires it -- built again over the same
     folder, it is a restart. With `hold`, the work started waits in `held` until the test runs it;
@@ -99,7 +105,7 @@ def app_over(drive, dist, box, cards=CARDS, hold=False, threaded=False):
     runner = AgentRunner(record, spawn=on_a_thread if threaded
                          else held.append if hold else lambda work: work())
     agent = partial(answer_question, box, lambda project: copy.deepcopy(cards),
-                    lambda project, file: b"PNG")
+                    lambda project, file: b"PNG", _no_fix)
     app = create_app(dist_dir=str(dist), blueprints=[
         make_chats_blueprint(new_chat=partial(chats.new_chat, record),
                              list_chats=partial(chats.list_chats, record),
@@ -343,10 +349,10 @@ def test_a_disk_error_answers_in_the_systems_own_words(dist, method, url):
 
 # --- the permission gate (madde 480) -------------------------------------------------------------
 #
-# A change waits on the screen until the user answers it through its door. No changing tool ships in
-# 480, so a fake one, fix_frame, is put in front of the loop's run_tool here alone. The run waits for
-# real, so it runs on its own thread, and the test looks for the question the way the screen does --
-# through /working -- for at most a few seconds.
+# A change waits on the screen until the user answers it through its door. The gate is held apart
+# from 481's fix: a stand-in fix_frame is put in front of the loop's run_tool here alone. The run
+# waits for real, so it runs on its own thread, and the test looks for the question the way the
+# screen does -- through /working -- for at most a few seconds.
 
 PERMISSION = f"{CHATS}/1/permission"
 CHANGE = {"title": "2 numaralı kare düzeltilecek",
@@ -366,9 +372,9 @@ def fix_frame(monkeypatch):
     real = loop.run_tool
     changed = []
 
-    def run_tool(ask, frames, picture, project, call):
+    def run_tool(ask, frames, picture, fix, project, call):
         if call["function"]["name"] != "fix_frame":
-            return real(ask, frames, picture, project, call)
+            return real(ask, frames, picture, fix, project, call)
 
         def work():
             changed.append(call["id"])

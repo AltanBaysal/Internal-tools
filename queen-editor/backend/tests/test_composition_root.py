@@ -252,7 +252,7 @@ def test_the_agent_reads_the_open_project_through_the_box_and_changes_nothing(
     assert run.wrote[-1] == ("answer", "Projede tek kare var: kırmızı elbiseli kadın.")
     first, checked, _approved, second, _check = http.calls
     assert [tool["function"]["name"] for tool in first["body"]["tools"]] == [
-        "read_frame", "look_at_frame", "check_frame"]
+        "read_frame", "look_at_frame", "check_frame", "fix_frame"]
     asked = checked["body"]["messages"][1]["content"]
     assert asked == [{"type": "image_url", "image_url": {
                           "url": "data:image/png;base64," + base64.b64encode(b"PNG").decode()}},
@@ -266,6 +266,62 @@ def test_the_agent_reads_the_open_project_through_the_box_and_changes_nothing(
                 for part in message["content"] if part["type"] == "image_url"]
     assert pictures == ["data:image/png;base64," + base64.b64encode(b"PNG").decode()]
     assert {path.name: path.read_bytes() for path in project.iterdir()} == before
+
+
+class AllowingRun(FakeRun):
+    """A run whose user presses İzin ver on every change (madde 480)."""
+
+    def permit(self, change):
+        self.wrote.append(("permit", change))
+        return True
+
+
+def test_the_agent_fixes_a_frame_through_the_photo_feature(import_main, monkeypatch, tmp_path):
+    """Madde 481, as main.py wires it: fix_frame reaches the photo feature's fix over the very
+    stores the gallery reads. The new line goes into the plan with the frame's seed, model and
+    orientation, stands in the old frame's place, the old photo leaves the disk, and the queue is
+    started -- held here, so no render leaves this machine."""
+    project = tmp_path / "düğün"
+    project.mkdir()
+    (project / "P0_0.png").write_bytes(b"PNG")
+    planned = {"id": "P0_0", "type": "photo", "number": 0, "variant": 0,
+               "prompt": "1girl, white hair", "negative": "lowres", "seed": 42,
+               "model": "nova.safetensors", "lora": "", "orientation": "yatay"}
+    (project / "plan.json").write_text(json.dumps({"frames": [planned]}), encoding="utf-8")
+    row = {"file": "P0_0.png", "frame": "P0_0", "layer": "photo", "status": "done",
+           "prompt": "1girl, white hair", "negative": "lowres", "seed": 42}
+    (project / "photos.jsonl").write_text(json.dumps(row) + "\n", encoding="utf-8")
+    monkeypatch.setenv("QE_DRIVE_ROOT", str(tmp_path))
+    monkeypatch.setenv("QE_DEEPSEEK_API_KEY", "k-1")
+    main = import_main()
+    started = []
+    monkeypatch.setattr(main._photo_runner, "start",
+                        lambda name, job: started.append(name) or True)
+    fix = {"id": "call_1", "type": "function",
+           "function": {"name": "fix_frame", "arguments": json.dumps(
+               {"frame": 1, "prompt": "1girl, black hair", "negative": "lowres, white hair"})}}
+    http = Answers([calling(fix), answering("1 düzeltildi."), answering("APPROVED")])
+    monkeypatch.setattr(requests, "post", http.post)
+    run = AllowingRun()
+
+    main._agent(run, "düğün", [], "düzelt")
+
+    assert run.wrote[-1] == ("answer", "1 düzeltildi.")
+    assert ("permit", {"title": "1 numaralı kare düzeltilecek", "details": [
+        {"label": "Prompt", "before": "1girl, white hair", "after": "1girl, black hair"},
+        {"label": "Negatif prompt", "before": "lowres", "after": "lowres, white hair"},
+        {"label": "Fotoğraf", "text": "Eski fotoğraf silinecek; yenisi aynı yerde üretilecek."},
+    ]}) in run.wrote
+    plan = json.loads((project / "plan.json").read_text(encoding="utf-8"))["frames"]
+    assert plan[-1] == {"id": "P1_0", "type": "photo", "number": 1, "variant": 0,
+                        "prompt": "1girl, black hair", "negative": "lowres, white hair",
+                        "seed": 42, "model": "nova.safetensors", "lora": "",
+                        "orientation": "yatay"}
+    assert json.loads((project / "order.json").read_text(encoding="utf-8")) == {"order": ["P1_0"]}
+    assert not (project / "P0_0.png").exists()
+    last = json.loads((project / "photos.jsonl").read_text(encoding="utf-8").splitlines()[-1])
+    assert (last["frame"], last["layer"], last["status"]) == ("P0_0", "photo", "deleted")
+    assert started == ["düğün"]
 
 
 PHOTO = ("P0_0.png", b"PNG")

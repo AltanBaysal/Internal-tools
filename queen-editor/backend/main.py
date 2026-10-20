@@ -55,6 +55,7 @@ from backend.features.photo_generation.domain.usecases.export_summary import exp
 from backend.features.photo_generation.domain.usecases.run_export import start_export
 from backend.features.photo_generation.export_runner import MODES, ExportRunner
 from backend.features.photo_generation.domain.usecases.cancel_generation import cancel_generation
+from backend.features.photo_generation.domain.usecases.fix_photo import fix_photo
 from backend.features.photo_generation.domain.usecases.get_status import get_status
 from backend.features.photo_generation.domain.usecases.follow_rename import follow_rename
 from backend.features.photo_generation.domain.usecases.halt_project import halt_project
@@ -342,10 +343,17 @@ _chats_bp = make_chats_blueprint(new_chat=partial(new_chat, _chat_record),
 
 # The agent (madde 420): Queen AI reading the open project through the box. It reads what the gallery
 # shows -- the photo feature's own answer, handed in here because a feature never imports another --
-# and a frame's photo, and nothing it is handed can write.
+# and a frame's photo. The one thing it can change is a frame's photo (madde 481): the photo
+# feature's fix, handed in the same way and run only once the user allows it, over the same queue
+# every other way in reaches.
 _agent = partial(answer_question, _queen_ai,
                  partial(list_frames, _photo_record, _photo_store, _plan_store, _order_store),
-                 _photo_store.read)
+                 _photo_store.read,
+                 partial(fix_photo, _photo_runner, _photo_store, _photo_record, _plan_store,
+                         _order_store, _producers,
+                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                         log=_timing, writers=_writers, stills=_stills,
+                         references=_reference_files))
 # Which chats' agents are working: in this process alone, so a restart ends them all.
 _agent_runner = AgentRunner(_chat_record)
 _agent_bp = make_agent_blueprint(

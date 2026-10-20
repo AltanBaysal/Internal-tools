@@ -307,6 +307,48 @@ describe("useGeneration", () => {
     expect(getStatus).toHaveBeenCalledTimes(3);
   });
 
+  it("follows a run started somewhere else once told: the gallery again, then the run while it goes",
+     async () => {
+       // Madde 481: the agent's fix starts the queue on the server, and this page started nothing.
+       getStatus.mockResolvedValue({ status: "idle" });
+       listFrames.mockResolvedValue([{ id: "P1_0", status: "done", owed: [], failed: [] }]);
+       const { result } = renderHook(() => useGeneration("düğün"));
+       await settle();
+       await settle(10_000);
+       expect(getStatus).toHaveBeenCalledTimes(1);
+
+       getStatus.mockResolvedValue(RUNNING);
+       listFrames.mockResolvedValue([{ id: "P3_0", status: "pending", owed: ["photo"],
+                                       failed: [] }]);
+       act(() => result.current.follow());
+       await settle();
+
+       expect(listFrames).toHaveBeenCalledTimes(2);
+       expect(result.current.frames.map((frame) => frame.id)).toEqual(["P3_0"]);
+       expect(result.current.job.status).toBe("running");
+       await settle(2000);
+       expect(getStatus).toHaveBeenCalledTimes(3);
+     });
+
+  it("keeps one chain when told to follow while it already follows a run", async () => {
+    getStatus.mockResolvedValue(RUNNING);
+    listFrames.mockResolvedValue([]);
+    const { result } = renderHook(() => useGeneration("düğün"));
+    await settle();
+    expect(getStatus).toHaveBeenCalledTimes(1);
+
+    // Between two ticks: the follow asks at once, and the chain goes on from there alone.
+    await settle(1000);
+    act(() => result.current.follow());
+    await settle();
+    expect(getStatus).toHaveBeenCalledTimes(2);
+
+    await settle(2000);
+    expect(getStatus).toHaveBeenCalledTimes(3);
+    await settle(2000);
+    expect(getStatus).toHaveBeenCalledTimes(4);
+  });
+
   it("shows the error when a poll fails, keeps trying, and clears it once the connection returns", async () => {
     const dead = new Error("Sunucuya ulaşılamadı — bağlantıyı kontrol et.\nZaman aşımı (10 sn)");
     getStatus.mockRejectedValue(dead);
