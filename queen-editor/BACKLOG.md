@@ -265,6 +265,18 @@ güncellediğimizde değişir.
 - İki yol da düğüm listelerindeki aralıklı pip paketlerini *(ör. `transformers>=4.45.0`)* sabitlemez:
   onlar PyPI'dan güncel gelmeye devam eder.
 
+### Uygulamanın mimari çizimi, ve yapıyı değiştiren işte önce çizim
+
+*(Kullanıcı, 20 Ekim — "mimari diagram blok diagram uygulama için aslında bundan olsa çpk işime
+yarardı kodu okumadan anlayabilirdim yada önce sende burda tasarlar sonra kodunu yazardın";
+"şimdilik ypaamylaım backlgoa at".)* **Claude'un anlayışı, henüz onaylanmadı:** Queen Editor'ün bir
+mimari çizimi olur — kutularla, düz metin: ekran, backend'in özellikleri, servisler, dış servisler
+(Drive, ComfyUI, DeepSeek, xAI) —, kod okunmadan anlaşılır. Çizim kutu seviyesinde kalır, fonksiyona
+inmez, ve yapıyı değiştiren bir iş onu aynı commit'te günceller. Yapıyı değiştiren bir işin spec'i bir
+"bugün / sonra" çizimiyle başlar ve kod, kullanıcı çizimi onayladıktan sonra yazılır. QueenAgent'ın
+backlog'unda aynısı var; "önce çizim" kuralı iki aracın ortak kuralı olacağı için CLAUDE.md'ye girer,
+önce kullanıcıya gösterilerek. **Ayrıntılar kullanıcıyla konuşulacak.**
+
 ---
 
 ## Hedefler

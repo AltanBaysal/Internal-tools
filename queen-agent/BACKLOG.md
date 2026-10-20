@@ -163,3 +163,15 @@ için bu birkaç ayrı basış. **Claude'un anlayışı, henüz onaylanmadı:** 
 seçilir ve tek basışla birlikte arşivlenir. **Ayrıntılar kullanıcıyla konuşulacak:** seçimin ekranda
 nasıl göründüğü — tasarımcının mı, Claude'un mu çizeceği —, Unarchive'ın ve Delete'in de toplu olup
 olmayacağı, ve `<ad> archived · Undo` satırının birden çok projede ne diyeceği.
+
+## Uygulamanın mimari çizimi, ve yapıyı değiştiren işte önce çizim
+
+*(Kullanıcı, 20 Ekim — "mimari diagram blok diagram uygulama için aslında bundan olsa çpk işime
+yarardı kodu okumadan anlayabilirdim yada önce sende burda tasarlar sonra kodunu yazardın";
+"şimdilik ypaamylaım backlgoa at".)* **Claude'un anlayışı, henüz onaylanmadı:** QueenAgent'ın bir
+mimari çizimi olur — kutularla, düz metin: ekran, backend'in özellikleri, servisler, dış servisler
+(Drive, DeepSeek) —, kod okunmadan anlaşılır. Çizim kutu seviyesinde kalır, fonksiyona inmez, ve yapıyı
+değiştiren bir iş onu aynı commit'te günceller. Yapıyı değiştiren bir işin spec'i bir "bugün / sonra"
+çizimiyle başlar ve kod, kullanıcı çizimi onayladıktan sonra yazılır. Queen Editor'ün backlog'unda
+aynısı var; "önce çizim" kuralı iki aracın ortak kuralı olacağı için CLAUDE.md'ye girer, önce
+kullanıcıya gösterilerek. **Ayrıntılar kullanıcıyla konuşulacak.**
