@@ -265,6 +265,27 @@ güncellediğimizde değişir.
 - İki yol da düğüm listelerindeki aralıklı pip paketlerini *(ör. `transformers>=4.45.0`)* sabitlemez:
   onlar PyPI'dan güncel gelmeye devam eder.
 
+### Düşük çözünürlükle video üretim hızı
+
+*(Kullanıcı, 20 Ekim — haftalık planın 14. maddesi: "Video çözünürlüğünü düşürerek üretim hızını
+artır"; "Risk: Kalite hedefleriyle (1. hedef, backlog'daki "ilk 1 dakika kalitesi") çelişebilir; HD
+altına inilirse platformdaki HD avantajı kaybolabilir. Alternatif: düşük çözünürlükte üretip upscale
+etmek." Aynı gün v10-5 olarak yazıldı, hizalanmadan döndü — "bu taskı backloga ekle".)*
+
+**Bilinenler:**
+- H3 videoyu bugün 576×864'te, 24 kare/saniyede üretiyor *(`assets/workflow_video_h3_api.json`,
+  `…_first_last_api.json`)*; birleşik export onu 1920×1080'lik tuvale büyütüyor. Bir videonun ne
+  kadar sürdüğü ölçülmedi.
+- Düşürülecek boyut da H3'ün çalıştığı çözünürlüklerden biri olmalı *(kullanıcı, 20 Ekim, v10-3 için
+  — "h3 ün çalıştığı oranlar var o oranlarda olmalı pixel sayılarındadikka et")*, ve v10-3'ün
+  yatayından sonra o boyuttan ölçülür.
+- *"İlk 1 dakika kalitesi"* bu deponun backlog'unda yok; ne dediği kullanıcıya sorulacak.
+- Fotoğraf tarafının hızı ayrı bir iş: yukarıdaki *"Fotoğraf üretim hızı — hız LoRA'ları"*.
+
+**Claude'un önerisi, henüz onaylanmadı:** aynı kare bugünkü ve H3'ün desteklediği bir alt boyutta
+üretilir, iki süre ve iki video yan yana konur, kullanıcı seçer; upscale yalnız kalite yetmezse
+denenir. **Ayrıntılar kullanıcıyla konuşulacak.**
+
 ### Uygulamanın mimari çizimi, ve yapıyı değiştiren işte önce çizim
 
 *(Kullanıcı, 20 Ekim — "mimari diagram blok diagram uygulama için aslında bundan olsa çpk işime
