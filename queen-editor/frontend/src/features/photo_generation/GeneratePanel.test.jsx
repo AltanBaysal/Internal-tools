@@ -277,6 +277,65 @@ describe("GeneratePanel — the lora field (madde 237, 238)", () => {
   });
 });
 
+// Madde 477: yatay or dikey, set per generation the way the negative is.
+const facing = (label) => screen.getByRole("button", { name: label });
+
+describe("GeneratePanel — the orientation", () => {
+  it("opens on Yatay when the project has never saved one", () => {
+    renderPanel();
+
+    expect(facing("Yatay").getAttribute("aria-pressed")).toBe("true");
+    expect(facing("Dikey").getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("stands under the negative, the box it is set like", () => {
+    renderPanel();
+
+    expect(screen.getByText("Negatif prompt").compareDocumentPosition(screen.getByText("Yön"))
+      & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText("Yön").compareDocumentPosition(screen.getByText("Varyant"))
+      & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("sends Yatay when it was left alone", async () => {
+    // What the segment shows is what goes, the lora box's rule.
+    const onGenerate = vi.fn().mockResolvedValue({ added: 4 });
+    renderPanel({ onGenerate });
+
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    expect(onGenerate).toHaveBeenCalledWith(expect.objectContaining({ orientation: "yatay" }));
+  });
+
+  it("sends Dikey once it is picked", async () => {
+    const onGenerate = vi.fn().mockResolvedValue({ added: 4 });
+    renderPanel({ onGenerate });
+
+    fireEvent.click(facing("Dikey"));
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    expect(facing("Dikey").getAttribute("aria-pressed")).toBe("true");
+    expect(facing("Yatay").getAttribute("aria-pressed")).toBe("false");
+    expect(onGenerate).toHaveBeenCalledWith(expect.objectContaining({ orientation: "dikey" }));
+  });
+
+  it("opens on the orientation the project was last sent with", () => {
+    renderPanel({ settings: { ...SETTINGS, orientation: "dikey" } });
+
+    expect(facing("Dikey").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("takes a field's error back once it is changed, like typing does", () => {
+    const onClearError = vi.fn();
+    renderPanel({ error: "Yön şunlardan biri olmalı: yatay, dikey.", errorField: "orientation",
+                  onClearError });
+
+    fireEvent.click(facing("Dikey"));
+
+    expect(onClearError).toHaveBeenCalled();
+  });
+});
+
 describe("GeneratePanel — the confirmation", () => {
   beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }));
   afterEach(() => vi.useRealTimers());
@@ -423,12 +482,13 @@ describe("GeneratePanel — coming back to the form", () => {
     expect(promptBox().value).toBe('["yazdım ama göndermedim"]');
   });
 
-  it("keeps the negative, the model, the lora and the variant count too", () => {
+  it("keeps the negative, the model, the lora, the orientation and the variant count too", () => {
     const first = renderPanel();
 
     fireEvent.change(screen.getByDisplayValue(""), { target: { value: "bulanık" } });
     fireEvent.change(modelBox(), { target: { value: "dasiwa" } });
     fireEvent.change(loraBox(), { target: { value: "slime" } });
+    fireEvent.click(facing("Dikey"));
     fireEvent.change(variantBox(), { target: { value: "9" } });
     first.unmount();
 
@@ -439,6 +499,7 @@ describe("GeneratePanel — coming back to the form", () => {
     expect(screen.getByDisplayValue("bulanık")).toBeTruthy();
     expect(modelBox().value).toBe("dasiwa");
     expect(loraBox().value).toBe("slime");
+    expect(facing("Dikey").getAttribute("aria-pressed")).toBe("true");
     expect(variantBox().value).toBe("9");
   });
 

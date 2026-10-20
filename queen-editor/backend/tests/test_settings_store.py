@@ -1,7 +1,8 @@
 from backend.features.projects.data.settings_store import DriveSettingsStore
 from backend.services.storage.storage import Storage
 
-EMPTY = {"prompts": "", "negative": "", "variants": None, "model": "", "lora": ""}
+EMPTY = {"prompts": "", "negative": "", "variants": None, "model": "", "lora": "",
+         "orientation": ""}
 
 
 def store_at(path):
@@ -17,9 +18,18 @@ def test_write_then_read_round_trips(tmp_path):
     (tmp_path / "düğün").mkdir()
     store = store_at(tmp_path)
     settings = {"prompts": '["kraliçe tahtta"]', "negative": "bulanık", "variants": 4,
-                "model": "nova3dcg", "lora": "slime"}
+                "model": "nova3dcg", "lora": "slime", "orientation": "dikey"}
     store.write("düğün", settings)
     assert store.read("düğün") == settings
+
+
+def test_settings_saved_before_the_orientation_was_kept_read_it_as_no_pick(tmp_path):
+    """Empty rather than a word: the panel opens an empty one on its own default (madde 477)."""
+    (tmp_path / "düğün").mkdir()
+    (tmp_path / "düğün" / "settings.json").write_text(
+        '{"prompts": "", "negative": "", "variants": 2, "model": "nova3dcg", "lora": "usnr"}',
+        encoding="utf-8")
+    assert store_at(tmp_path).read("düğün")["orientation"] == ""
 
 
 def test_settings_saved_before_the_lora_was_kept_read_it_as_no_pick(tmp_path):
@@ -48,7 +58,8 @@ def test_an_unreadable_file_reads_as_empty_settings(tmp_path):
 def test_fields_of_the_wrong_type_read_as_empty(tmp_path):
     (tmp_path / "düğün").mkdir()
     (tmp_path / "düğün" / "settings.json").write_text(
-        '{"prompts": 5, "negative": null, "variants": true, "lora": 7}', encoding="utf-8")
+        '{"prompts": 5, "negative": null, "variants": true, "lora": 7, "orientation": 1}',
+        encoding="utf-8")
     assert store_at(tmp_path).read("düğün") == EMPTY
 
 

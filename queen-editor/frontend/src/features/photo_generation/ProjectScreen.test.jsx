@@ -182,7 +182,7 @@ describe("ProjectScreen — a prompt list the server cannot read (madde 323)", (
 
     await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
-    expect(produceFromReferences).toHaveBeenCalledWith("liste-a", "gotik kız", 1);
+    expect(produceFromReferences).toHaveBeenCalledWith("liste-a", "gotik kız", 1, "yatay");
     expect(screen.getByText("Format hatası — liste okunamadı")).toBeTruthy();
   });
 });
@@ -535,6 +535,25 @@ describe("ProjectScreen — the lora is kept with the project (madde 238)", () =
     await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
     expect(onSaveSettings).toHaveBeenCalledWith(expect.objectContaining({ lora: "slime" }));
+  });
+});
+
+describe("ProjectScreen — the orientation is kept with the project (madde 477)", () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => vi.useRealTimers());
+
+  it("saves the pick beside the negative and sends it with the batch", async () => {
+    const onSaveSettings = vi.fn().mockResolvedValue();
+    generateBatch.mockResolvedValue({ job: "running", added: 1, frames: [] });
+    render(<ProjectScreen project="yon" onSaveSettings={onSaveSettings}
+                          settings={{ ...SETTINGS, prompts: '["a"]', orientation: "dikey" }} />);
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    expect(onSaveSettings).toHaveBeenCalledWith(expect.objectContaining({ orientation: "dikey" }));
+    expect(generateBatch).toHaveBeenCalledWith("yon",
+                                               expect.objectContaining({ orientation: "dikey" }));
   });
 });
 

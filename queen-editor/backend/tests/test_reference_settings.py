@@ -16,7 +16,7 @@ from backend.features.projects.domain.usecases.get_settings import ProjectMissin
 from backend.services.storage.storage import Storage
 from backend.web.app import create_app
 
-EMPTY = {"prompts": "", "variants": None}
+EMPTY = {"prompts": "", "variants": None, "orientation": ""}
 URL = "/api/projects/düğün/reference-settings"
 
 
@@ -44,12 +44,21 @@ def test_what_is_written_reads_back_as_it_was_typed(tmp_path):
     (tmp_path / "düğün").mkdir()
     store = store_at(tmp_path)
     typed = '[\n  "gotik kız",\n]'
-    store.write("düğün", {"prompts": typed, "variants": 3})
-    assert store.read("düğün") == {"prompts": typed, "variants": 3}
+    store.write("düğün", {"prompts": typed, "variants": 3, "orientation": "dikey"})
+    assert store.read("düğün") == {"prompts": typed, "variants": 3, "orientation": "dikey"}
+
+
+def test_a_record_written_before_the_orientation_was_kept_reads_it_as_no_pick(tmp_path):
+    # Empty rather than a word: the tab opens an empty one on its own default (madde 477).
+    (tmp_path / "düğün").mkdir()
+    (tmp_path / "düğün" / "reference_settings.json").write_text(
+        '{"prompts": "[\\"a\\"]", "variants": 2}', encoding="utf-8")
+    assert store_at(tmp_path).read("düğün") == {"prompts": '["a"]', "variants": 2,
+                                                 "orientation": ""}
 
 
 @pytest.mark.parametrize("raw", ["{ yarım", "[]", '{"prompts": 5, "variants": true}',
-                                 '{"prompts": null, "variants": "4"}'])
+                                 '{"prompts": null, "variants": "4", "orientation": 7}'])
 def test_an_unreadable_record_reads_empty(tmp_path, raw):
     # The record only refills boxes: what cannot be read must not keep the tab from opening.
     (tmp_path / "düğün").mkdir()
@@ -78,8 +87,8 @@ class FakeStore:
 
 def test_saving_stores_what_it_was_given():
     store = FakeStore()
-    save(store, "düğün", '["a"]', 3)
-    assert store.saved == {"düğün": {"prompts": '["a"]', "variants": 3}}
+    save(store, "düğün", '["a"]', 3, "dikey")
+    assert store.saved == {"düğün": {"prompts": '["a"]', "variants": 3, "orientation": "dikey"}}
 
 
 def test_saving_refuses_a_project_that_is_not_there():
@@ -122,9 +131,10 @@ def test_a_new_project_answers_with_an_empty_record(tmp_path):
 def test_a_record_put_down_comes_back(tmp_path):
     client, drive = make_client(tmp_path)
     (drive / "düğün").mkdir()
-    resp = client.put(URL, json={"prompts": '["a"]', "variants": 3})
+    resp = client.put(URL, json={"prompts": '["a"]', "variants": 3, "orientation": "dikey"})
     assert resp.status_code == 204
-    assert client.get(URL).get_json() == {"prompts": '["a"]', "variants": 3}
+    assert client.get(URL).get_json() == {"prompts": '["a"]', "variants": 3,
+                                          "orientation": "dikey"}
 
 
 def test_an_unknown_project_is_a_404(tmp_path):
@@ -162,5 +172,5 @@ def test_fields_of_the_wrong_type_are_stored_empty(tmp_path, variants):
     # bool is an int in Python, and True would silently mean "1 variant".
     client, drive = make_client(tmp_path)
     (drive / "düğün").mkdir()
-    client.put(URL, json={"prompts": 5, "variants": variants})
+    client.put(URL, json={"prompts": 5, "variants": variants, "orientation": 7})
     assert client.get(URL).get_json() == EMPTY

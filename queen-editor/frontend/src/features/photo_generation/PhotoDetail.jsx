@@ -12,6 +12,7 @@ import { CopyGlyph, PlayGlyph, ScenarioGlyph, SoundGlyph } from "./glyphs.jsx";
 import Arriving from "./Arriving.jsx";
 import { lostLayers } from "./layer_words.js";
 import LayerPlayer from "./LayerPlayer.jsx";
+import { FIRST_ORIENTATION, OrientationSegment, shapeOf } from "./orientation.jsx";
 import { LINKED, MODES, STANDARD, labelOf, nounOf } from "./production_modes.js";
 import { useGeneration } from "./useGeneration.js";
 import { useModels } from "./useModels.js";
@@ -400,6 +401,14 @@ export default function PhotoDetail({ project, frame: fid }) {
   // What the video should be made in next. Untouched until the box is used, so the default can
   // follow the poll: null means this video's own mode, whatever the record last said it was.
   const [newMode, setNewMode] = useState(null);
+  // Which way a photo made again should stand (madde 477), the same way: null until the segment is
+  // used, so it opens on the frame's own.
+  const [newOrientation, setNewOrientation] = useState(null);
+  // The shape of the picture the stage has loaded, with the file it belongs to. Page state outlives
+  // a step to another frame, so without the file the previous frame's shape would stand until the
+  // new picture arrives; a reset in the fid effect would still paint it for one render. Keyed by
+  // file, a copy frame also takes its source's shape at once.
+  const [seen, setSeen] = useState(null);                  // { file, facing }
 
   // By identity, never by file: a copy frame shows its source's picture, and the two of them are
   // different frames at different places in the sequence.
@@ -476,6 +485,15 @@ export default function PhotoDetail({ project, frame: fid }) {
   const arrivesAt = (frame?.endsOn || {})[open];
   // The mode the form would send. This video's own until the box is touched (madde 94).
   const picked = newMode ?? madeIn ?? STANDARD;
+  // The orientation the form would send: the frame's own until the segment is touched, the way the
+  // negative box opens on the frame's own negative (madde 477). The frame's own is its picture's
+  // shape: a line from before 476, a copy frame and a pool card's first frame name none, and their
+  // picture still has one. Until it has loaded, the line's word, or the first one.
+  const shapeSeen = seen && seen.file === frame?.file ? seen.facing : null;
+  const facing = newOrientation ?? shapeSeen ?? frame?.orientation ?? FIRST_ORIENTATION;
+  // What the stage's picture says about its shape once it is here; no request of its own.
+  const learnShape = (event) => setSeen({
+    file: frame.file, facing: shapeOf(event.target.naturalWidth, event.target.naturalHeight) });
   // The same question the server asks: the gallery's top is the film's last frame, and a next whose
   // picture has not landed is no target either. A sentence when linking is dead here, nothing when
   // it is alive -- the closing and its reason never come apart.
@@ -525,8 +543,10 @@ export default function PhotoDetail({ project, frame: fid }) {
     setWords({});
     setSent([]);
     setRefusedAct(null);
-    // The box belongs to the video behind it, so it goes with the frame.
+    // The box belongs to the video behind it, so it goes with the frame -- and the orientation's
+    // segment to the photo.
     setNewMode(null);
+    setNewOrientation(null);
   }, [fid]);
 
   useEffect(() => {
@@ -564,10 +584,11 @@ export default function PhotoDetail({ project, frame: fid }) {
     setRefusedAct(null);
     const layer = open;
     // undefined off the video tab: a body with no mode is what the server has always read, and a
-    // mode on a sound would be refused outright. The negative travels the other way round -- only a
-    // photo is made from one.
+    // mode on a sound would be refused outright. The negative and the orientation travel the other
+    // way round -- only a photo is made from them.
     return regenerate(frame.id, layer, typed, layer === "video" ? picked : undefined,
-                      layer === "photo" ? typedNegative : undefined)
+                      layer === "photo" ? typedNegative : undefined,
+                      layer === "photo" ? facing : undefined)
       .then((body) => {
         if (!body) return setRefusedAct("Kare yeniden üretilemedi");
         setSent((layers) => [...layers, { layer, retry: false }]);
@@ -701,7 +722,8 @@ export default function PhotoDetail({ project, frame: fid }) {
                 {({ onReady, onFail }) => (
                   <div style={FRAMED}>
                     <img src={fileUrl(project, frame.file)} alt={frame.file} style={PICTURE}
-                         onLoad={onReady} onError={onFail} />
+                         onLoad={(event) => { learnShape(event); onReady(); }}
+                         onError={onFail} />
                     {scenarioCard(false)}
                   </div>
                 )}
@@ -795,6 +817,15 @@ export default function PhotoDetail({ project, frame: fid }) {
                 <TextBlock label={`${LAYER_LABEL.photo} negatif prompt'u`}
                            height={NEGATIVE_HEIGHT} text={frame.negative} />
               ))}
+
+              {holds && open === "photo" && (
+                /* Under the negative, as on the photo panel (madde 477): a photo is made again in
+                   one of two shapes. Opens on the frame's own, like the boxes above it. */
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <Mono size={10} style={LABEL}>Yön</Mono>
+                  <OrientationSegment value={facing} onChange={setNewOrientation} />
+                </div>
+              )}
 
               {holds && open === "video" && (
                 /* Only a video arrives at a picture, so only its form has this to ask. */

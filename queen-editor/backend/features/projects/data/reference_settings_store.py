@@ -11,7 +11,7 @@ FILE = "reference_settings.json"
 
 
 def _empty():
-    return {"prompts": "", "variants": None}
+    return {"prompts": "", "variants": None, "orientation": ""}
 
 
 def _text(value):
@@ -40,7 +40,10 @@ class DriveReferenceSettingsStore:
             return _empty()
         if not isinstance(data, dict):
             return _empty()
-        return {"prompts": _text(data.get("prompts")), "variants": _count(data.get("variants"))}
+        # The orientation is empty in a record written before it was kept (madde 477), and the tab
+        # opens an empty one on its own default.
+        return {"prompts": _text(data.get("prompts")), "variants": _count(data.get("variants")),
+                "orientation": _text(data.get("orientation"))}
 
     def write(self, project, settings):
         self._storage.write_text(

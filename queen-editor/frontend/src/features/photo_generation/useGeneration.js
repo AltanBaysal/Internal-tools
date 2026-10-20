@@ -50,7 +50,7 @@ export function useGeneration(project) {
   // would be (madde 472). Apart from `error` because /api/status never reads Drive, so it goes on
   // answering while the mount is gone -- and its success clears `error`.
   const [framesError, setFramesError] = useState(null);
-  // Which input the server blamed, when it named one: "prompts" | "variants" | null.
+  // The input the server's 400 named in its "field", or null.
   const [errorField, setErrorField] = useState(null);
   const [stopPressed, setStopPressed] = useState(false);
   const timer = useRef(null);
@@ -202,11 +202,12 @@ export function useGeneration(project) {
 
   // Hang a layer on every frame in scope. Resolves with the server's answer so the panel can quote
   // how many the queue took, or null when it was refused.
-  const queueLayer = useCallback((kind, files, variants, mode, prompts) => (
+  const queueLayer = useCallback((kind, files, variants, mode, prompts, orientation) => (
     // From the pool it is not a layer job at all: no frame is involved and cards are what come
-    // back, so it goes to its own door (madde 302).
+    // back, so it goes to its own door (madde 302). Only it carries an orientation: a video hung on
+    // a frame follows that frame's photo (madde 476).
     (mode === FROM_POOL
-      ? produceFromReferences(project, prompts, variants)
+      ? produceFromReferences(project, prompts, variants, orientation)
       : postLayer(project, kind, files, variants, mode))
       .then((body) => {
         if (!alive.current) return null;
@@ -223,8 +224,8 @@ export function useGeneration(project) {
   // One layer of one frame, made again from the words on screen. Resolves with the server's answer
   // -- it names the frame the result will land on, which is never this one -- or null when it was
   // refused; the page has to tell those apart to know whether to say anything.
-  const regenerate = useCallback((frame, kind, prompt, mode, negative) => (
-    regenerateFrame(project, frame, kind, prompt, mode, negative)
+  const regenerate = useCallback((frame, kind, prompt, mode, negative, orientation) => (
+    regenerateFrame(project, frame, kind, prompt, mode, negative, orientation)
       .then((body) => {
         if (!alive.current) return null;
         startPolling();

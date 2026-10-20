@@ -101,6 +101,7 @@ def make_projects_blueprint(list_projects, create_project, check_name, delete_pr
         prompts, negative, variants = (body.get("prompts"), body.get("negative"),
                                        body.get("variants"))
         model, lora = body.get("model"), body.get("lora")
+        orientation = body.get("orientation")
         try:
             save_settings(
                 project,
@@ -110,6 +111,7 @@ def make_projects_blueprint(list_projects, create_project, check_name, delete_pr
                 variants if isinstance(variants, int) and not isinstance(variants, bool) else None,
                 model if isinstance(model, str) else "",
                 lora if isinstance(lora, str) else "",
+                orientation if isinstance(orientation, str) else "",
             )
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404

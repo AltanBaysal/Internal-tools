@@ -567,10 +567,13 @@ describe("useGeneration — producing from the reference pool", () => {
     await settle();
 
     await act(async () => {
-      await result.current.queueLayer("video", null, 3, "reference", '["gotik kız", "dans"]');
+      await result.current.queueLayer("video", null, 3, "reference", '["gotik kız", "dans"]',
+                                      "dikey");
     });
 
-    expect(produceFromReferences).toHaveBeenCalledWith("düğün", '["gotik kız", "dans"]', 3);
+    // The orientation rides along (madde 477): a card has no photo whose shape its video follows.
+    expect(produceFromReferences).toHaveBeenCalledWith("düğün", '["gotik kız", "dans"]', 3,
+                                                       "dikey");
     expect(queueLayer).not.toHaveBeenCalled();
   });
 });

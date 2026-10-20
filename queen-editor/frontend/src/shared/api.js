@@ -92,11 +92,12 @@ export async function getSettings(project) {
   return request(`/api/projects/${encodeURIComponent(project)}/settings`);
 }
 
-export async function saveSettings(project, { prompts, negative, variants, model, lora }) {
+export async function saveSettings(project, { prompts, negative, variants, model, lora,
+                                               orientation }) {
   return request(`/api/projects/${encodeURIComponent(project)}/settings`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompts, negative, variants, model, lora }),
+    body: JSON.stringify({ prompts, negative, variants, model, lora, orientation }),
   });
 }
 
@@ -107,11 +108,11 @@ export async function getReferenceSettings(project) {
   return request(`/api/projects/${encodeURIComponent(project)}/reference-settings`);
 }
 
-export async function saveReferenceSettings(project, { prompts, variants }) {
+export async function saveReferenceSettings(project, { prompts, variants, orientation }) {
   return request(`/api/projects/${encodeURIComponent(project)}/reference-settings`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompts, variants }),
+    body: JSON.stringify({ prompts, variants, orientation }),
   });
 }
 
@@ -146,11 +147,13 @@ export async function saveHappyEnding(project, on) {
   });
 }
 
-export async function generateBatch(project, { prompts, negative, variants, model, lora }) {
+// `orientation` is yatay or dikey (madde 477): the size the batch's photos are made at.
+export async function generateBatch(project, { prompts, negative, variants, model, lora,
+                                               orientation }) {
   return request(`/api/projects/${encodeURIComponent(project)}/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompts, negative, variants, model, lora }),
+    body: JSON.stringify({ prompts, negative, variants, model, lora, orientation }),
   });
 }
 
@@ -176,11 +179,12 @@ export async function queueLayer(project, kind, files, variants, mode) {
 //
 // The frame is named by its identity rather than by a file, here and in removeLayer: a copy frame
 // shares its source's picture, so one file name can belong to two frames.
-export async function regenerateFrame(project, frame, layer, prompt, mode, negative) {
+// `orientation`, like `negative`, is a photo's alone (madde 477): undefined leaves it out of the body.
+export async function regenerateFrame(project, frame, layer, prompt, mode, negative, orientation) {
   return request(`/api/projects/${encodeURIComponent(project)}/regenerate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ frame, layer, prompt, mode, negative }),
+    body: JSON.stringify({ frame, layer, prompt, mode, negative, orientation }),
   });
 }
 
@@ -334,11 +338,12 @@ export async function removeReference(project, name) {
 
 // A production made of the pool rather than of a frame: no frames go up, and what comes back are
 // cards (madde 302, 303). Its own door for that reason -- the layer one is about frames that exist.
-export async function produceFromReferences(project, prompts, variants) {
+// A card has no photo whose shape its video could follow, so it carries an orientation (madde 477).
+export async function produceFromReferences(project, prompts, variants, orientation) {
   return request(`/api/projects/${encodeURIComponent(project)}/references/produce`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompts, variants }),
+    body: JSON.stringify({ prompts, variants, orientation }),
   });
 }
 

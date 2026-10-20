@@ -316,9 +316,9 @@ def test_get_settings_rejects_a_missing_project():
 
 def test_save_settings_stores_what_it_was_given():
     store = FakeSettingsStore()
-    save_settings(store, "düğün", '["a"]', "neg", 4, "nova3dcg", "slime")
+    save_settings(store, "düğün", '["a"]', "neg", 4, "nova3dcg", "slime", "dikey")
     assert store.saved["düğün"] == {"prompts": '["a"]', "negative": "neg", "variants": 4,
-                                    "model": "nova3dcg", "lora": "slime"}
+                                    "model": "nova3dcg", "lora": "slime", "orientation": "dikey"}
 
 
 def test_save_settings_keeps_text_the_server_would_reject():

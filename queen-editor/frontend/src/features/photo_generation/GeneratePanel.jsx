@@ -4,6 +4,7 @@ import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
 import { Mono, Note } from "../../vendor/kit.jsx";
 import InstallCard from "../producers/InstallCard.jsx";
 import { PhotoGlyph } from "./glyphs.jsx";
+import { FIRST_ORIENTATION, OrientationSegment } from "./orientation.jsx";
 
 const LABEL = { color: "var(--ink-2)", letterSpacing: ".08em", textTransform: "uppercase" };
 
@@ -35,7 +36,8 @@ const REMEMBERED = new Map();
  *
  * This is also the one place the record's shape becomes the boxes' shape: the boxes carry text, the
  * record carries a number that may be null, and a model and a lora that may be empty -- an empty
- * box is filled with the server's first row once the list is here.
+ * box is filled with the server's first row once the list is here. An orientation that is empty --
+ * a record from before it was kept -- opens on the first one (madde 477).
  */
 function opening(project, settings) {
   const draft = REMEMBERED.get(project);
@@ -45,6 +47,7 @@ function opening(project, settings) {
     negative: settings.negative,
     model: settings.model || "",
     lora: settings.lora || "",
+    orientation: settings.orientation || FIRST_ORIENTATION,
     variants: settings.variants === null ? FIRST_VARIANTS : String(settings.variants),
   };
 }
@@ -88,6 +91,7 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
   const [negative, setNegative] = useState(boxes.negative);
   const [model, setModel] = useState(boxes.model);
   const [lora, setLora] = useState(boxes.lora);
+  const [orientation, setOrientation] = useState(boxes.orientation);
   const [variants, setVariants] = useState(boxes.variants);
   const [submitting, setSubmitting] = useState(false);
   // How many frames the last submission added, straight from the server; null once it has faded.
@@ -102,8 +106,8 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
   // the server's list when nothing was saved -- and a store written in six places would be six
   // chances to forget one.
   useEffect(() => {
-    REMEMBERED.set(project, { prompts, negative, model, lora, variants });
-  }, [project, prompts, negative, model, lora, variants]);
+    REMEMBERED.set(project, { prompts, negative, model, lora, orientation, variants });
+  }, [project, prompts, negative, model, lora, orientation, variants]);
 
   // Nothing saved yet: the field has to show a real choice rather than a blank, so the first row
   // the server lists is taken. Only ever fills an empty box -- a saved choice is never moved.
@@ -157,6 +161,12 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
     };
   }
 
+  // A pick is the start of the next attempt too, like a keystroke.
+  function pickOrientation(value) {
+    setOrientation(value);
+    clearAnswers();
+  }
+
   function editVariants(e) {
     if (!acceptsVariants(e.target.value)) return;
     setVariants(e.target.value);
@@ -174,6 +184,7 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
       variants: Number.isInteger(perPrompt) && variants.trim() !== "" ? perPrompt : null,
       model,
       lora,
+      orientation,
     })
       .then((result) => {
         if (result && typeof result.added === "number") {
@@ -257,6 +268,14 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
         <Mono size={11} style={LABEL}>Negatif prompt</Mono>
         <input className="wf-input" value={negative} onChange={edit(setNegative)}
                style={{ fontSize: 12.5 }} />
+      </div>
+
+      {/* Under the negative, because it is set the way the negative is -- per batch, kept with the
+          project (madde 477; the user: "üretim başına negative prompt gibi 2 opsiyon"). The place
+          is ours until the designer draws one. */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <Mono size={11} style={LABEL}>Yön</Mono>
+        <OrientationSegment value={orientation} onChange={pickOrientation} />
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

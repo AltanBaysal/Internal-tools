@@ -23,12 +23,14 @@ def make_reference_settings_blueprint(get_reference_settings, save_reference_set
     def put_reference_record(project):
         body = request.get_json(silent=True) or {}
         prompts, variants = body.get("prompts"), body.get("variants")
+        orientation = body.get("orientation")
         try:
             save_reference_settings(
                 project,
                 prompts if isinstance(prompts, str) else "",
                 # bool is an int in Python, and True would silently mean "1 variant".
                 variants if isinstance(variants, int) and not isinstance(variants, bool) else None,
+                orientation if isinstance(orientation, str) else "",
             )
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404

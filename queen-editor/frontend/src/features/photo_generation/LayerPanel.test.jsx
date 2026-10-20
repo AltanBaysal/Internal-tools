@@ -856,7 +856,7 @@ describe("LayerPanel — producing from the reference pool", () => {
     fireEvent.change(promptBox(), { target: { value: "gotik kız" } });
     await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
-    expect(onQueue).toHaveBeenCalledWith(null, 1, "reference", "gotik kız");
+    expect(onQueue).toHaveBeenCalledWith(null, 1, "reference", "gotik kız", "yatay");
     expect(screen.queryByText(/biçiminde olmalı/)).toBeNull();
   });
 
@@ -868,8 +868,65 @@ describe("LayerPanel — producing from the reference pool", () => {
     fireEvent.change(variantBox(), { target: { value: "3" } });
     await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
-    // No frames: what the queue is handed is the words and how many of each.
-    expect(onQueue).toHaveBeenCalledWith(null, 3, "reference", '["gotik kız", "dans"]');
+    // No frames: what the queue is handed is the words, how many of each, and which way the cards
+    // stand -- Yatay when the segment was left alone (madde 477).
+    expect(onQueue).toHaveBeenCalledWith(null, 3, "reference", '["gotik kız", "dans"]', "yatay");
+  });
+});
+
+// Madde 477: a card has no photo whose shape its video follows, so Referanstan asks the photo
+// panel's question, and keeps the answer in its own record the way it keeps its prompt list.
+describe("LayerPanel — Referanstan's orientation", () => {
+  const promptBox = () => screen.getByLabelText("Prompt listesi");
+  const facing = (label) => screen.getByRole("button", { name: label });
+
+  it("opens on Yatay when the record has none, and only on Referanstan", async () => {
+    renderPanel();
+    expect(screen.queryByRole("button", { name: "Dikey" })).toBeNull();
+
+    await act(async () => { fireEvent.click(tab("Referanstan")); });
+
+    expect(facing("Yatay").getAttribute("aria-pressed")).toBe("true");
+    expect(facing("Dikey").getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("opens on the record's orientation", async () => {
+    getReferenceSettings.mockResolvedValue({ prompts: '["kayıt"]', variants: 4,
+                                             orientation: "dikey" });
+    renderPanel();
+
+    await act(async () => { fireEvent.click(tab("Referanstan")); });
+
+    expect(facing("Dikey").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("writes the pick into the record and sends it with the work", async () => {
+    const onQueue = vi.fn().mockResolvedValue({ added: 1 });
+    const project = freshProject();
+    render(<LayerPanel layer="video" project={project} frames={FRAMES} selected={[]}
+                       producer={null} onQueue={onQueue} onInstall={() => {}} poolShown={false}
+                       onShowPool={() => {}} />);
+    await act(async () => { fireEvent.click(tab("Referanstan")); });
+    fireEvent.change(promptBox(), { target: { value: '["gotik kız"]' } });
+    fireEvent.click(facing("Dikey"));
+
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    expect(saveReferenceSettings).toHaveBeenCalledWith(
+      project, { prompts: '["gotik kız"]', variants: 1, orientation: "dikey" });
+    expect(onQueue).toHaveBeenCalledWith(null, 1, "reference", '["gotik kız"]', "dikey");
+  });
+
+  it("keeps the pick when the panel is built again", async () => {
+    const first = renderPanel({ project: "yon-a" });
+    await act(async () => { fireEvent.click(tab("Referanstan")); });
+    fireEvent.click(facing("Dikey"));
+    first.unmount();
+
+    renderPanel({ project: "yon-a" });
+    await act(async () => { fireEvent.click(tab("Referanstan")); });
+
+    expect(facing("Dikey").getAttribute("aria-pressed")).toBe("true");
   });
 });
 
@@ -892,7 +949,7 @@ describe("LayerPanel — the two tabs", () => {
 
     expect(tab("Referanstan").className).toContain("is-on");
     expect(tab("Kareden").className).not.toContain("is-on");
-    expect(labels(view)).toEqual(["Model", "Referanslar", "Prompt listesi", "Varyant"]);
+    expect(labels(view)).toEqual(["Model", "Referanslar", "Prompt listesi", "Yön", "Varyant"]);
   });
 
   it("gives the sound panel no tabs", () => {
@@ -985,8 +1042,8 @@ describe("LayerPanel — what Referanstan keeps", () => {
     await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
     expect(saveReferenceSettings).toHaveBeenCalledWith(
-      "düğün-e", { prompts: '["gotik kız"]', variants: 3 });
-    expect(onQueue).toHaveBeenCalledWith(null, 3, "reference", '["gotik kız"]');
+      "düğün-e", { prompts: '["gotik kız"]', variants: 3, orientation: "yatay" });
+    expect(onQueue).toHaveBeenCalledWith(null, 3, "reference", '["gotik kız"]', "yatay");
     expect(saveReferenceSettings.mock.invocationCallOrder[0])
       .toBeLessThan(onQueue.mock.invocationCallOrder[0]);
 
@@ -1194,7 +1251,8 @@ describe("LayerPanel — the H3 video length (madde 424)", () => {
     await act(async () => { fireEvent.click(tab("Referanstan")); });
 
     expect(labels(view))
-      .toEqual(["Model", "Video uzunluğu", "Mutlu son", "Referanslar", "Prompt listesi", "Varyant"]);
+      .toEqual(["Model", "Video uzunluğu", "Mutlu son", "Referanslar", "Prompt listesi", "Yön",
+                "Varyant"]);
   });
 
   it("opens on the length the project saved", async () => {

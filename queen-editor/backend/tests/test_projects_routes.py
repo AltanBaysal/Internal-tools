@@ -372,20 +372,22 @@ def test_settings_start_empty_for_a_new_project(tmp_path):
     client, _ = make_client(tmp_path)
     client.post("/api/projects", json={"name": "düğün"})
     assert client.get("/api/projects/düğün/settings").get_json() == {
-        "prompts": "", "negative": "", "variants": None, "model": "", "lora": ""}
+        "prompts": "", "negative": "", "variants": None, "model": "", "lora": "",
+        "orientation": ""}
 
 
 def test_settings_survive_a_put_and_come_back(tmp_path):
     # The lora rides with the model: a project opens on the pick it was last sent with (madde 238).
+    # The orientation the same way, beside the negative it is set like (madde 477).
     client, _ = make_client(tmp_path)
     client.post("/api/projects", json={"name": "düğün"})
     resp = client.put("/api/projects/düğün/settings",
                       json={"prompts": '["a"]', "negative": "neg", "variants": 4,
-                            "model": "nova3dcg", "lora": "slime"})
+                            "model": "nova3dcg", "lora": "slime", "orientation": "dikey"})
     assert resp.status_code == 204
     assert client.get("/api/projects/düğün/settings").get_json() == {
         "prompts": '["a"]', "negative": "neg", "variants": 4, "model": "nova3dcg",
-        "lora": "slime"}
+        "lora": "slime", "orientation": "dikey"}
 
 
 def test_settings_of_an_unknown_project_return_404(tmp_path):
@@ -407,6 +409,8 @@ def test_settings_of_the_wrong_type_are_coerced(tmp_path):
     client, _ = make_client(tmp_path)
     client.post("/api/projects", json={"name": "düğün"})
     client.put("/api/projects/düğün/settings",
-               json={"prompts": 5, "negative": None, "variants": "4", "model": 7, "lora": 7})
+               json={"prompts": 5, "negative": None, "variants": "4", "model": 7, "lora": 7,
+                     "orientation": True})
     assert client.get("/api/projects/düğün/settings").get_json() == {
-        "prompts": "", "negative": "", "variants": None, "model": "", "lora": ""}
+        "prompts": "", "negative": "", "variants": None, "model": "", "lora": "",
+        "orientation": ""}

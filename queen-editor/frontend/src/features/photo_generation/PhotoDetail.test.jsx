@@ -958,8 +958,10 @@ describe("PhotoDetail — the new mode", () => {
     await act(async () => { fireEvent.click(regenButton()); });
 
     // No negative on a video: only a photo is made from one (Fark 98).
+    // No orientation either: a video follows the shape of the photo under it (madde 476).
     expect(regenerateFrame)
-      .toHaveBeenCalledWith("düğün", "P0_0", "video", "kadın dönüyor", "loop", undefined);
+      .toHaveBeenCalledWith("düğün", "P0_0", "video", "kadın dönüyor", "loop", undefined,
+                            undefined);
   });
 
   it("sends the mode that was picked", async () => {
@@ -970,7 +972,7 @@ describe("PhotoDetail — the new mode", () => {
     await act(async () => { fireEvent.click(regenButton()); });
 
     expect(regenerateFrame).toHaveBeenCalledWith("düğün", "P0_0", "video", "kadın dönüyor",
-                                                 "standard", undefined);
+                                                 "standard", undefined, undefined);
   });
 
   it("marks the box once the mode is no longer the video's own", async () => {
@@ -1366,7 +1368,7 @@ describe("PhotoDetail — regenerating", () => {
 
     // The frame's identity, not its file: a copy frame shares its source's picture.
     expect(regenerateFrame).toHaveBeenCalledWith("düğün", "P0_0", "video", "kadın yürüyor",
-                                                 "standard", undefined);
+                                                 "standard", undefined, undefined);
   });
 
   it("says the job went into the queue and refuses a second press", async () => {
@@ -1879,7 +1881,8 @@ describe("PhotoDetail — the negative prompt", () => {
     // An accent border promising a different frame while the negative never leaves the screen
     // would be the box lying about what it did.
     expect(regenerateFrame)
-      .toHaveBeenCalledWith("düğün", "P0_0", "photo", "kırmızı elbise", undefined, "gürültü");
+      .toHaveBeenCalledWith("düğün", "P0_0", "photo", "kırmızı elbise", undefined, "gürültü",
+                            "yatay");
   });
 
   it("reads a prompt in the same face the panel reads it in", async () => {
@@ -2159,5 +2162,113 @@ describe("PhotoDetail — Mutlu son on a new video (madde 426)", () => {
     await openIn({ frames: [LOOPED], project: "kına-426d" });
 
     expect(screen.getByText(`${NOTE} 8 sn.`)).toBeTruthy();
+  });
+});
+
+// Madde 477: a photo made again gets yatay or dikey the way it gets its negative -- the box opens on
+// the frame's own, and the frame's own is the shape of the picture the page is showing. A line from
+// before 476, a copy frame and a pool card's first frame name none, and their picture still has one.
+describe("PhotoDetail — the orientation of a photo made again", () => {
+  const facing = (label) => screen.getByRole("button", { name: label });
+  const pressed = (label) => facing(label).getAttribute("aria-pressed");
+
+  // jsdom loads no pictures: the size a real one would arrive at is put on the element, then its
+  // load is fired the way the browser would.
+  function arrives(file, width, height) {
+    const img = screen.getByAltText(file);
+    Object.defineProperty(img, "naturalWidth", { value: width, configurable: true });
+    Object.defineProperty(img, "naturalHeight", { value: height, configurable: true });
+    fireEvent.load(img);
+  }
+
+  it("opens on the frame's own line while its picture is on its way", async () => {
+    await open("P0_0", { frames: [{ ...LAYERED, orientation: "dikey" }] });
+
+    expect(pressed("Dikey")).toBe("true");
+    expect(pressed("Yatay")).toBe("false");
+  });
+
+  it("opens on Yatay while a picture whose line names none is on its way", async () => {
+    await open("P0_0", { frames: [LAYERED] });
+
+    expect(pressed("Yatay")).toBe("true");
+  });
+
+  it("follows the picture's own shape once it has arrived", async () => {
+    // A frame from before the choice: its line names nothing, and it was made standing up.
+    await open("P0_0", { frames: [LAYERED] });
+
+    arrives("P0_0.png", 1024, 1536);
+
+    expect(pressed("Dikey")).toBe("true");
+  });
+
+  it("reads a wide picture as Yatay whatever its line says", async () => {
+    await open("P0_0", { frames: [{ ...LAYERED, orientation: "dikey" }] });
+
+    arrives("P0_0.png", 1536, 864);
+
+    expect(pressed("Yatay")).toBe("true");
+  });
+
+  it("sends the orientation that was picked, and the picture's own when none was", async () => {
+    regenerateFrame.mockResolvedValue({ frame: "P1_0" });
+    await open("P0_0", { frames: [LAYERED] });
+    arrives("P0_0.png", 1024, 1536);
+
+    await act(async () => { fireEvent.click(regenButton()); });
+    expect(regenerateFrame).toHaveBeenLastCalledWith("düğün", "P0_0", "photo", "kırmızı elbise",
+                                                     undefined, "bulanık", "dikey");
+  });
+
+  it("keeps a pick over the picture's shape", async () => {
+    regenerateFrame.mockResolvedValue({ frame: "P1_0" });
+    await open("P0_0", { frames: [LAYERED] });
+
+    fireEvent.click(facing("Dikey"));
+    arrives("P0_0.png", 1536, 864);
+
+    expect(pressed("Dikey")).toBe("true");
+    await act(async () => { fireEvent.click(regenButton()); });
+    expect(regenerateFrame).toHaveBeenLastCalledWith("düğün", "P0_0", "photo", "kırmızı elbise",
+                                                     undefined, "bulanık", "dikey");
+  });
+
+  it("is a photo's alone: a video follows the photo under it", async () => {
+    await open("P0_0", { frames: [LAYERED] });
+
+    fireEvent.click(tab("Video"));
+
+    expect(screen.queryByRole("button", { name: "Dikey" })).toBeNull();
+  });
+
+  it("does not lend one picture's shape to the next frame's", async () => {
+    // The shape is page state and outlives the step; kept with its file, it speaks for no other.
+    listFrames.mockResolvedValue([LAYERED, SECOND]);
+    getStatus.mockResolvedValue(IDLE);
+    listModels.mockResolvedValue({ models: [], loras: LORAS });
+    const { rerender } = render(<PhotoDetail project="düğün" frame="P0_0" />);
+    await settle();
+    arrives("P0_0.png", 1024, 1536);
+    expect(pressed("Dikey")).toBe("true");
+
+    rerender(<PhotoDetail project="düğün" frame="P1_0" />);
+    await settle();
+
+    expect(pressed("Yatay")).toBe("true");
+  });
+
+  it("forgets the pick when another frame is opened", async () => {
+    listFrames.mockResolvedValue([LAYERED, SECOND]);
+    getStatus.mockResolvedValue(IDLE);
+    listModels.mockResolvedValue({ models: [], loras: LORAS });
+    const { rerender } = render(<PhotoDetail project="düğün" frame="P0_0" />);
+    await settle();
+    fireEvent.click(facing("Dikey"));
+
+    rerender(<PhotoDetail project="düğün" frame="P1_0" />);
+    await settle();
+
+    expect(pressed("Yatay")).toBe("true");
   });
 });

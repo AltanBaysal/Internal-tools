@@ -162,7 +162,8 @@ describe("SidePanel — the icon rail", () => {
   it("passes the reference prompt list through to the queue", async () => {
     // Madde 325: the panel hands onQueue four arguments from the pool, and the column's wiring
     // passed on three -- the prompts were dropped on the way and the server got none. The panel's
-    // own test cannot see this; only the column's wiring can.
+    // own test cannot see this; only the column's wiring can. Five since madde 477: the cards'
+    // orientation rides last, Yatay when the segment was left alone.
     // The press writes Referanstan's record before it sends the work (madde 317).
     vi.stubGlobal("fetch", recordServer());
     const onQueueLayer = vi.fn().mockResolvedValue({ added: 2 });
@@ -175,7 +176,7 @@ describe("SidePanel — the icon rail", () => {
     await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
     expect(onQueueLayer).toHaveBeenCalledWith("video", null, 1, "reference",
-                                              '["gotik kız", "dans"]');
+                                              '["gotik kız", "dans"]', "yatay");
   });
 
   it("opens the video panel on Kareden again, with Referanstan's words still there", async () => {

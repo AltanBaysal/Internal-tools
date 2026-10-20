@@ -4,6 +4,7 @@ import { getReferenceSettings, saveReferenceSettings } from "../../shared/api.js
 import { Mono, Note } from "../../vendor/kit.jsx";
 import InstallCard from "../producers/InstallCard.jsx";
 import { SoundGlyph, VideoGlyph } from "./glyphs.jsx";
+import { FIRST_ORIENTATION, OrientationSegment } from "./orientation.jsx";
 import {
   FROM_FRAME,
   FROM_POOL,
@@ -283,6 +284,9 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
   // Referanstan's own count. Kareden's opens at one every time, as it always has; this one is kept
   // with the prompt list it multiplies.
   const [poolVariants, setPoolVariants] = useState(kept?.variants ?? "1");
+  // Which way Referanstan's cards stand (madde 477). A card has no photo whose shape its video could
+  // follow, so this tab asks the photo panel's question, and keeps the answer with its prompt list.
+  const [poolOrientation, setPoolOrientation] = useState(kept?.orientation ?? FIRST_ORIENTATION);
   // Whether the Referanstan boxes hold this visit's words yet -- a kept draft, the project's record,
   // or a keystroke. Until then there is nothing to keep, and the record is still worth asking for.
   const settled = useRef(Boolean(kept));
@@ -334,6 +338,8 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
         settled.current = true;
         setPrompts(record.prompts);
         setPoolVariants(record.variants === null ? "1" : String(record.variants));
+        // Empty in a record from before it was kept.
+        setPoolOrientation(record.orientation || FIRST_ORIENTATION);
       })
       .catch(() => {});
   }, [fromPool, project]);
@@ -342,9 +348,9 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
   // leave an empty draft, and the record would never be asked again this visit.
   useEffect(() => {
     if (layer === "video" && settled.current) {
-      DRAFTS.set(project, { prompts, variants: poolVariants });
+      DRAFTS.set(project, { prompts, variants: poolVariants, orientation: poolOrientation });
     }
-  }, [layer, project, prompts, poolVariants]);
+  }, [layer, project, prompts, poolVariants, poolOrientation]);
 
   const listed = promptCount(prompts);
   const counts = { missing: missing.length, selected: inSelection.length };
@@ -420,8 +426,8 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
     // written means the work could not be either, and nothing is sent. The words ride along only
     // when they are what the press is about: every other call keeps the shape it has always had.
     const asked = fromPool
-      ? saveReferenceSettings(project, { prompts, variants: count })
-        .then(() => onQueue(null, count, sent, prompts))
+      ? saveReferenceSettings(project, { prompts, variants: count, orientation: poolOrientation })
+        .then(() => onQueue(null, count, sent, prompts, poolOrientation))
       : onQueue(files, count, sent);
     asked
       .then((body) => {
@@ -529,6 +535,19 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
                     placeholder={'["ilk prompt", "ikinci prompt"]'}
                     onChange={(e) => { settled.current = true; setPrompts(e.target.value); }}
                     style={{ fontSize: 11.5, flex: 1, fontFamily: "IBM Plex Mono, monospace" }} />
+        </div>
+      )}
+
+      {fromPool && (
+        /* Under the prompt list, where the photo panel has it under its own words (madde 477). A
+           pick is this visit's words like a keystroke: the record no longer writes over it. */
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <Mono size={11} data-label style={LABEL}>Yön</Mono>
+          <OrientationSegment value={poolOrientation}
+                              onChange={(value) => {
+                                settled.current = true;
+                                setPoolOrientation(value);
+                              }} />
         </div>
       )}
 

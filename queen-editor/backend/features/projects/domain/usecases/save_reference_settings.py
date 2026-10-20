@@ -8,7 +8,7 @@ from backend.features.projects.domain import name_rules
 from backend.features.projects.domain.usecases.get_settings import ProjectMissing
 
 
-def save_reference_settings(store, project, prompts, variants):
+def save_reference_settings(store, project, prompts, variants, orientation=""):
     if name_rules.is_reserved(project) or not store.project_exists(project):
         raise ProjectMissing(f"Proje yok: {project}")
-    store.write(project, {"prompts": prompts, "variants": variants})
+    store.write(project, {"prompts": prompts, "variants": variants, "orientation": orientation})

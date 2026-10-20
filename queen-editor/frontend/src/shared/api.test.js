@@ -171,7 +171,8 @@ describe("api.request", () => {
 
     // Through the module, so a missing export fails this test rather than the file.
     await api.getReferenceSettings("düğün");
-    await api.saveReferenceSettings("düğün", { prompts: '["a"]', variants: 2 });
+    await api.saveReferenceSettings("düğün", { prompts: '["a"]', variants: 2,
+                                               orientation: "dikey" });
 
     const url = `/api/projects/${encodeURIComponent("düğün")}/reference-settings`;
     expect(fetchMock.mock.calls[0][0]).toBe(url);
@@ -179,7 +180,46 @@ describe("api.request", () => {
     const [putUrl, put] = fetchMock.mock.calls[1];
     expect(putUrl).toBe(url);
     expect(put.method).toBe("PUT");
-    expect(JSON.parse(put.body)).toEqual({ prompts: '["a"]', variants: 2 });
+    expect(JSON.parse(put.body)).toEqual({ prompts: '["a"]', variants: 2, orientation: "dikey" });
+  });
+
+  // Madde 477: the orientation is set per generation the way the negative is, so every request
+  // that starts a photo -- or a pool card, which has no photo to follow -- carries it, and the
+  // panel's record keeps it beside the negative.
+  it("carries the orientation in a batch and in the panel's record", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse({ added: 1 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const form = { prompts: '["a"]', negative: "bulanık", variants: 2, model: "nova3dcg",
+                   lora: "usnr", orientation: "dikey" };
+
+    await api.generateBatch("düğün", form);
+    await api.saveSettings("düğün", form);
+
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual(form);
+    expect(fetchMock.mock.calls[1][1].method).toBe("PUT");
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual(form);
+  });
+
+  it("carries the orientation when a photo is made again", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse({ frame: "P1_0" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.regenerateFrame("düğün", "P0_0", "photo", "kraliçe", undefined, "bulanık", "dikey");
+
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      frame: "P0_0", layer: "photo", prompt: "kraliçe", negative: "bulanık", orientation: "dikey" });
+  });
+
+  it("carries the orientation when cards are made from the pool", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse({ added: 2 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.produceFromReferences("düğün", '["a"]', 2, "dikey");
+
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(url).toBe(`/api/projects/${encodeURIComponent("düğün")}/references/produce`);
+    expect(JSON.parse(options.body)).toEqual({ prompts: '["a"]', variants: 2,
+                                               orientation: "dikey" });
   });
 
   it("reads and writes the project's video length at its own address", async () => {
