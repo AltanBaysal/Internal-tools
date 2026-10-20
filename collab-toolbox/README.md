@@ -31,3 +31,6 @@ Both notebooks take their work order from a file you upload, so nothing is picke
 Usage: [Colab](https://colab.research.google.com/) → **File → Upload notebook** → **Runtime → Change runtime type** and pick the hardware from the table → fill in the first **CONFIG** cell → **Run all**.
 
 [video_experiments/](video_experiments/) — visual workflow experiments in the ComfyUI UI (no Drive).
+
+[photo_experiments/](photo_experiments/) — the same for photo models: `qwen-image-21/` tries Qwen Image
+2.1, a notebook each for the normal model and Turbo, on the official ComfyUI templates.
