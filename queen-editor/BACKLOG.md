@@ -175,13 +175,6 @@ konuşulacak.**
 *(Kullanıcı, 2 Ekim — "queen editorde videoların promptları üretilriken usera bir feedback verelim
 dondur snaıyor user".)* **Ayrıntılar kullanıcıyla konuşulacak.**
 
-### Export'u Drive'da bulmak zor
-
-*(Kullanıcı, 3 Ekim — "queen editorun exportunu driveda bulmak çok zor çünkü ilk proje dosyasını
-sonra içidne export bulmak lazım", "Exporltar ve projeler iki klasöre ayrılsa ve exportlarda export
-tarhi ve proje adı olarak adlandırılsa bulması oldukça kolaylaşırdı".)* **Ayrıntılar kullanıcıyla
-konuşulacak.**
-
 ### Harcanan token görünecek: ne kadarı önbellekten, ne kadarı değil
 
 *(Kullanıcı, 9 Ekim — "queen editor backlgounda queen eagetn gibi harcanan token ne kadar miss ne
