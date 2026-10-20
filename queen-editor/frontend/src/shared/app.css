@@ -209,6 +209,47 @@ a.wf-btn {
   color: var(--danger);
   overflow-wrap: anywhere;
 }
+/* A change waiting for the user's İzin ver / Reddet (madde 480): Claude's placing until the
+   designer's comes. A card edged in the accent, so it reads as the thing waiting on the user; each
+   detail a label over its lines, the old one dimmed above the new. */
+.qe-chat-permit {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--accent);
+  border-radius: var(--r-md);
+  background: var(--bg-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.qe-chat-permit-title {
+  font-weight: 600;
+}
+.qe-chat-permit-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.qe-chat-permit-label {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.qe-chat-permit-before {
+  color: var(--ink-3);
+}
+.qe-chat-permit-tag {
+  margin-right: 6px;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.qe-chat-permit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
 .qe-chat-compose {
   position: relative;
 }

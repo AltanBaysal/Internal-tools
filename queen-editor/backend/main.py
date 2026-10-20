@@ -8,6 +8,7 @@ from backend import config
 from backend.features.agent.data.chat_record import DriveChatRecord
 from backend.features.agent.domain.usecases.answer_question import answer_question
 from backend.features.agent.domain.usecases.chats import (
+    answer_permission,
     ask_question,
     list_chats,
     new_chat,
@@ -351,7 +352,8 @@ _agent_bp = make_agent_blueprint(
     ask_question=partial(ask_question, _chat_record, _agent_runner, _agent,
                          lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
     stop_agent=partial(stop_agent, _chat_record, _agent_runner),
-    working_chats=partial(working_chats, _chat_record, _agent_runner))
+    working_chats=partial(working_chats, _chat_record, _agent_runner),
+    answer_permission=partial(answer_permission, _chat_record, _agent_runner))
 
 app = create_app(blueprints=[_projects_bp, _reference_settings_bp, _photo_bp, _references_bp,
                              _video_length_bp, _happy_ending_bp, _producers_bp, _chats_bp,

@@ -6,8 +6,10 @@ from flask import Blueprint, jsonify, request
 
 from backend.features.agent.domain.usecases.chats import (
     AgentBusy,
+    BadPermission,
     ChatMissing,
     EmptyQuestion,
+    NotAsked,
     ProjectMissing,
 )
 
@@ -31,8 +33,8 @@ def make_chats_blueprint(new_chat, list_chats, open_chat):
     return bp
 
 
-def make_agent_blueprint(ask_question, stop_agent, working_chats):
-    """The agent's doors (madde 420). Every argument is a use case already bound (see main.py).
+def make_agent_blueprint(ask_question, stop_agent, working_chats, answer_permission):
+    """The agent's doors (madde 420, 480). Every argument is a use case already bound (see main.py).
 
     `/chats/working` stands beside `/chats/<int:chat_id>` without a clash: the int converter does not
     take a word.
@@ -51,7 +53,14 @@ def make_agent_blueprint(ask_question, stop_agent, working_chats):
 
     @bp.get("/api/projects/<project>/chats/working")
     def get_working(project):
-        return _answer(lambda: {"working": working_chats(project)})
+        return _answer(lambda: working_chats(project))
+
+    @bp.post("/api/projects/<project>/chats/<int:chat_id>/permission")
+    def post_permission(project, chat_id):
+        body = request.get_json(silent=True)
+        body = body if isinstance(body, dict) else {}
+        return _answer(lambda: answer_permission(project, chat_id, body.get("id"),
+                                                 body.get("allow")))
 
     return bp
 
@@ -61,7 +70,7 @@ def _answer(ask):
         return jsonify(ask())
     except (ProjectMissing, ChatMissing) as exc:
         return jsonify({"error": str(exc)}), 404
-    except EmptyQuestion as exc:
+    except (EmptyQuestion, BadPermission) as exc:
         return jsonify({"error": str(exc)}), 400
-    except AgentBusy as exc:
+    except (AgentBusy, NotAsked) as exc:
         return jsonify({"error": str(exc)}), 409

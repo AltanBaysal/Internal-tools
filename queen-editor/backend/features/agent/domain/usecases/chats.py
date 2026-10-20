@@ -1,5 +1,6 @@
 """The agent's chats at the door: a new chat, the list, one chat opened (madde 417); a question
-asked, the agent stopped, and which chats' agents are working (madde 420).
+asked, the agent stopped, and which chats' agents are working (madde 420); and the user's answer to
+a change an agent waits on (madde 480).
 
 The messages are user-facing Turkish; presentation forwards them untouched. ProjectMissing is this
 feature's own, since a feature never imports another, and says what the projects feature says.
@@ -20,6 +21,15 @@ class EmptyQuestion(Exception):
 
 class AgentBusy(Exception):
     """The chat's agent is still working on its last question (message is the user-facing text)."""
+
+
+class BadPermission(Exception):
+    """An answer to a change that names no change or gives no yes or no (user-facing text)."""
+
+
+class NotAsked(Exception):
+    """The chat's agent is not waiting on that change -- answered, stopped or never asked
+    (user-facing text)."""
 
 
 def _require(record, project):
@@ -90,7 +100,26 @@ def stop_agent(record, runner, project, chat_id):
 
 
 def working_chats(record, runner, project):
-    """The ids of the project's chats whose agent works now: the list's live dot and the open chat's
-    ■ read this, since it lives in the process and not in the record."""
+    """{"working": the ids of the project's chats whose agent works now, "asking": the changes they
+    wait on}. The list's live dot, the open chat's ■ and its İzin ver / Reddet read this, since it
+    lives in the process and not in the record."""
     _require(record, project)
-    return runner.working(project)
+    return runner.now(project)
+
+
+def answer_permission(record, runner, project, chat_id, number, allow):
+    """The user's İzin ver (`allow` True) or Reddet to change `number` of the chat's agent; the
+    project's working chats come back as they stand, so the screen drops the question at once.
+
+    Nothing is read from the record: the run is the only one that knows what it waits on, so a chat
+    that does not exist is simply one with nothing asked.
+    """
+    # The run alone would answer an unknown project with "nothing asked"; the check stays so this
+    # door answers 404 for it, as every other door of the agent's does.
+    _require(record, project)
+    # bool before int, because in Python True is an int: id=true would quietly mean change 1.
+    if isinstance(number, bool) or not isinstance(number, int) or not isinstance(allow, bool):
+        raise BadPermission("İzin cevabı geçersiz.")
+    if not runner.reply(project, chat_id, number, allow):
+        raise NotAsked("Bu değişiklik artık izin beklemiyor.")
+    return runner.now(project)

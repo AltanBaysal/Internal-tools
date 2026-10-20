@@ -83,14 +83,25 @@ class FakeBox:
 
 
 class FakeRun:
-    """The question being answered: writes down what the agent writes to the chat."""
+    """The question being answered: writes down what the agent writes to the chat.
 
-    def __init__(self):
+    A change asked about (madde 480) is written down too, and answered with the next of `permits`;
+    an entry may be a function, which runs while the user is asked -- where a stop can land -- and
+    returns the answer. A run with no permit left was never meant to be asked: reading is not."""
+
+    def __init__(self, permits=()):
         self.wrote = []
         self.halted = False
+        self.permits = list(permits)
 
     def stopped(self):
         return self.halted
+
+    def permit(self, change):
+        self.wrote.append(("permit", change))
+        assert self.permits, f"Permission asked where nothing changes: {change}"
+        allowed = self.permits.pop(0)
+        return allowed() if callable(allowed) else allowed
 
     def add_step(self, running, done):
         self.wrote.append(("step", running, done))
@@ -574,3 +585,139 @@ def test_a_stop_between_two_calls_of_one_round_sends_nothing_more():
 
     assert len(box.checked) == 1
     assert len(box.asked) == 1
+
+
+# --- the permission gate (madde 480) -------------------------------------------------------------
+#
+# A call that would change something comes with what it would change, and runs only once the user
+# allows it; the agent is never told that permission exists. No changing tool ships in 480 -- 481's
+# fix is the first -- so a fake one is put in front of the loop's run_tool here, and here alone.
+
+FIXING = ("2 numaralı kareyi düzeltiyor…", "2 numaralı kareyi düzeltti")
+# The shape 481's fix fills in: a title naming the frame, then the details, each either what it was
+# and what it becomes, or a sentence.
+CHANGE = {"title": "2 numaralı kare düzeltilecek",
+          "details": [{"label": "Prompt", "before": "yeşil elbiseli kadın",
+                       "after": "mavi elbiseli kadın"},
+                      {"label": "Fotoğraf",
+                       "text": "Eski fotoğraf silinecek; yenisi aynı yerde üretilecek."}]}
+REJECTED = "The user rejected this change, so nothing was changed."
+
+
+@pytest.fixture
+def fix_frame(monkeypatch):
+    """fix_frame, a changing tool that exists only in these tests: its change is CHANGE, and its work
+    writes down the call it was run for in the list handed back. Any other call goes to the real
+    tools."""
+    from backend.features.agent.domain.usecases import answer_question as loop
+    real = loop.run_tool
+    changed = []
+
+    def run_tool(ask, frames, picture, project, call):
+        if call["function"]["name"] != "fix_frame":
+            return real(ask, frames, picture, project, call)
+
+        def work():
+            changed.append(call["id"])
+            return "Frame 2 was fixed.", None
+
+        return FIXING, work, CHANGE
+
+    monkeypatch.setattr(loop, "run_tool", run_tool)
+    return changed
+
+
+def test_a_change_is_asked_about_before_its_step_and_runs_once_allowed(fix_frame):
+    """The step before it is done -- the model read it to ask for this -- so what is on the screen
+    while the user decides is the change alone."""
+    box = FakeBox(calling(call("fix_frame", '{"frame": 2}')), Answer("2 düzeltildi."))
+    run = FakeRun(permits=[True])
+
+    wrote = answering(box, run=run)
+
+    assert wrote == [step(LOOKING), DONE, ("permit", CHANGE), step(FIXING),
+                     ("answer", "2 düzeltildi.")]
+    assert fix_frame == ["call_1"]
+    assert box.asked[1][0][4] == {"role": "tool", "tool_call_id": "call_1",
+                                  "content": "Frame 2 was fixed."}
+
+
+def test_a_rejected_change_changes_nothing_the_agent_is_told_and_goes_on(fix_frame):
+    """The user: "reddedilirse hiçbir şey değişmez ve ajana 'kullanıcı reddetti' döner". No step
+    either: nothing was done. The round's next call runs as it would have."""
+    box = FakeBox(calling(call("fix_frame", '{"frame": 2}', "call_1"),
+                          call("read_frame", '{"frame": 2}', "call_2")),
+                  Answer("Reddettin, 2'ye dokunmadım."))
+    run = FakeRun(permits=[False])
+
+    wrote = answering(box, run=run)
+
+    assert fix_frame == []
+    messages = box.asked[1][0]
+    assert messages[4] == {"role": "tool", "tool_call_id": "call_1", "content": REJECTED}
+    assert json.loads(messages[5]["content"]) == FRAME_2
+    assert wrote == [step(LOOKING), DONE, ("permit", CHANGE), DONE, step(reading(2)),
+                     ("answer", "Reddettin, 2'ye dokunmadım.")]
+
+
+def test_a_stop_while_the_user_is_asked_changes_nothing_and_sends_nothing_more(fix_frame):
+    """■ while the question is on the screen: a rejection, and the end of the question."""
+    run = FakeRun()
+
+    def stopped_while_asked():
+        run.halted = True
+        return False
+
+    run.permits = [stopped_while_asked]
+    box = FakeBox(calling(call("fix_frame", '{"frame": 2}', "call_1"),
+                          call("read_frame", '{"frame": 2}', "call_2")),
+                  Answer("Hiç gitmemeli."))
+
+    wrote = answering(box, run=run)
+
+    assert fix_frame == []
+    assert len(box.asked) == 1
+    assert wrote == [step(LOOKING), DONE, ("permit", CHANGE)]
+
+
+def test_a_stop_after_the_change_is_allowed_and_before_its_work_changes_nothing(fix_frame):
+    """■ lands while the allowed change's step is being written: the work never begins."""
+    class StoppedAsTheStepIsWritten(FakeRun):
+        def add_step(self, running, done):
+            super().add_step(running, done)
+            if ("permit", CHANGE) in self.wrote:
+                self.halted = True
+
+    box = FakeBox(calling(call("fix_frame", '{"frame": 2}')), Answer("Hiç gitmemeli."))
+    run = StoppedAsTheStepIsWritten(permits=[True])
+
+    answering(box, run=run)
+
+    assert fix_frame == []
+    assert len(box.asked) == 1
+
+
+def test_each_change_of_a_round_is_asked_about_on_its_own(fix_frame):
+    """481 fixes frame after frame: one answer never stands for the next change."""
+    box = FakeBox(calling(call("fix_frame", '{"frame": 2}', "call_1"),
+                          call("fix_frame", '{"frame": 2}', "call_2")),
+                  Answer("Biri düzeltildi."))
+    run = FakeRun(permits=[False, True])
+
+    wrote = answering(box, run=run)
+
+    assert fix_frame == ["call_2"]
+    assert [line[0] for line in wrote].count("permit") == 2
+
+
+def test_reading_tools_run_without_asking():
+    """FakeRun refuses a permission it was not given: the three readers ask none."""
+    box = FakeBox(calling(call("read_frame", '{"frame": 2}', "call_1"),
+                          call("look_at_frame", '{"frame": 1}', "call_2"),
+                          call("check_frame", '{"frame": 2}', "call_3")),
+                  Answer("Okudum."), checks=[Answer("OK")])
+
+    wrote = answering(box, with_photo_2())
+
+    assert wrote[-1] == ("answer", "Okudum.")
+    assert not [line for line in wrote if line[0] == "permit"]

@@ -42,14 +42,53 @@ function Steps({ steps, live }) {
   );
 }
 
+// A change the agent waits on the user for (madde 480), in the server's words: its title, then each
+// detail -- what a field is and what it becomes, or a sentence -- and the two answers. The permission
+// is the app's: there is no button that answers for more than this one change.
+function Permission({ waiting, answering, onAnswer }) {
+  const { change } = waiting;
+  return (
+    <div className="qe-chat-permit">
+      <div className="qe-chat-permit-title">{change.title}</div>
+      {change.details.map((detail, index) => (
+        <div key={index} className="qe-chat-permit-detail">
+          <div className="qe-chat-permit-label">{detail.label}</div>
+          {detail.text != null ? <div>{detail.text}</div> : (
+            <>
+              <div className="qe-chat-permit-before">
+                <span className="qe-chat-permit-tag">Eski</span>{detail.before}
+              </div>
+              <div className="qe-chat-permit-after">
+                <span className="qe-chat-permit-tag">Yeni</span>{detail.after}
+              </div>
+            </>
+          )}
+        </div>
+      ))}
+      <div className="qe-chat-permit-actions">
+        <button type="button" className="wf-btn wf-btn--sm" disabled={answering}
+                onClick={() => onAnswer(false)}>
+          Reddet
+        </button>
+        <button type="button" className="wf-btn wf-btn--sm wf-btn--primary" disabled={answering}
+                onClick={() => onAnswer(true)}>
+          İzin ver
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // One question: its bubble, its steps and how it ended, as siblings in the conversation -- so the
-// element just before a long answer is its steps.
-function Question({ asked, live }) {
+// element just before a long answer is its steps. A change waiting for the user, the children -- given
+// only to the live question -- stands where the wait line would: it is what goes on.
+function Question({ asked, live, children }) {
   const { outcome } = asked;
   return (
     <>
       <div className="qe-chat-q">{asked.text}</div>
-      <Steps steps={asked.steps} live={live} />
+      <Steps steps={asked.steps} live={live && !children} />
+      {children}
       {outcome?.kind === "answer" && <div className="qe-chat-a">{outcome.text}</div>}
       {outcome?.kind === "failure" && <div className="qe-chat-err">{outcome.text}</div>}
       {outcome?.kind === "stopped" && <div className="qe-chat-stopped">Durduruldu</div>}
@@ -178,10 +217,17 @@ export default function AgentPanel({ project, heading }) {
               {!asked.length && !failure && (
                 <span className="qe-chat-empty wf-note">Projeyle ilgili bir şey sor.</span>
               )}
-              {asked.map((one, index) => (
-                <Question key={index} asked={one}
-                          live={busy && index === asked.length - 1 && !one.outcome} />
-              ))}
+              {asked.map((one, index) => {
+                const live = busy && index === asked.length - 1 && !one.outcome;
+                return (
+                  <Question key={index} asked={one} live={live}>
+                    {live && agent.permission && (
+                      <Permission waiting={agent.permission} answering={agent.answering}
+                                  onAnswer={agent.permit} />
+                    )}
+                  </Question>
+                );
+              })}
               {failure?.question && <div className="qe-chat-q">{failure.question}</div>}
               {failure && <div className="qe-chat-err">{failure.text}</div>}
             </div>

@@ -74,6 +74,12 @@ saçma şeyler ortaya çıkıyor".)* **v7'nin ilk maddesi olarak yazıldı, koş
 
 ## Diğer
 
+### Kodda var olmayan BEHAVIOUR.md'ye bağlantılar
+
+*(480'in reviewer'ı buldu, 20 Ekim.)* `queen-editor/backend`'de 8 dosyada 14 yorum "BEHAVIOUR.md, Agent
+panel" gibi bir yere bağlanıyor, ama repo'da — git geçmişinde de — öyle bir dosya hiç olmamış. Ya
+bağlantılar doğru belgeye çevrilir ya kaldırılır. Kullanıcının göreceği bir şey değişmez.
+
 ### Karakter LoRA'sı eklenecek
 
 *(Kullanıcı, 6 Eylül.)* Aynı kişinin her karede aynı çıkması için. Bugün bunu tutan tek şey etiket:

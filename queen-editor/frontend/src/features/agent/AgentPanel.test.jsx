@@ -22,6 +22,7 @@ const ASKED = "2026-10-06T10:00:00+00:00";
 const REFUSED = "Model hata döndü, farklı şekilde dene.";
 const UNREACHED = "Sunucuya ulaşılamadı — bağlantıyı kontrol et.";
 const BUSY = "Bu sohbette agent hâlâ çalışıyor.";
+const GONE = "Bu değişiklik artık izin beklemiyor.";
 
 // Each step carries both of the server's sentences: the one while it goes on, the one when done.
 const LOOKING = ["Projeye bakıyor…", "Projeye baktı"];
@@ -43,18 +44,21 @@ const SECOND = { id: 2, questions: [question(
 const WORKING = { id: 1, questions: [question(
   "12 numaralı karenin prompt'u ne?", ASKED, [step(LOOKING), step(READING_3, false)])] };
 
-// A server that keeps the project's chats and answers the six doors of 417 and 420 in their shape.
-// A test changes what it holds -- a step written, an answer given, the network gone, a question
-// held on its way -- and moves the clock: what the screen then shows came through its own requests.
-function fakeServer({ chats = [], working = [] } = {}) {
+// A server that keeps the project's chats and answers the seven doors of 417, 420 and 480 in their
+// shape. A test changes what it holds -- a step written, an answer given, a change waiting for the
+// user, the network gone, a question held on its way -- and moves the clock: what the screen then
+// shows came through its own requests.
+function fakeServer({ chats = [], working = [], asking = [] } = {}) {
   const server = {
     chats: structuredClone(chats),
     working: [...working],
+    asking: structuredClone(asking), // { chat, id, change }: the changes the agents wait on
     calls: [],          // "METHOD path", the project's name as it was before encoding
     bodies: [],         // every JSON body sent
     down: false,        // no request reaches it
     refusal: null,      // { status, error } every question gets
     hold: false,        // a question stays on its way until release()
+    holdAnswer: false,  // an answer to a change stays on its way until release()
     release: null,
   };
   const find = (id) => server.chats.find((chat) => chat.id === id);
@@ -107,9 +111,9 @@ function fakeServer({ chats = [], working = [] } = {}) {
       }
       return reply(200, chat);
     }
-    if (rest === "/working") {
-      return reply(200, { working: [...server.working].sort((a, b) => a - b) });
-    }
+    const now = () => ({ working: [...server.working].sort((a, b) => a - b),
+                         asking: structuredClone(server.asking) });
+    if (rest === "/working") return reply(200, now());
     const [, number, door] = rest.match(/^\/(\d+)(?:\/(\w+))?$/);
     const id = Number(number);
     if (!find(id)) return reply(404, { error: `Sohbet yok: ${id}` });
@@ -120,12 +124,25 @@ function fakeServer({ chats = [], working = [] } = {}) {
       if (!server.hold) return ask(id, text);
       return new Promise((resolve) => { server.release = () => resolve(ask(id, text)); });
     }
-    // The stop door: the finished steps stay, the one going on is dropped (420's record). A chat
-    // that does not work is left as it is.
+    // The answer to a change: taken only for the very change the chat's agent waits on (480).
+    if (door === "permission") {
+      const { id: number } = JSON.parse(options.body);
+      const answer = () => {
+        const waiting = server.asking.find((one) => one.chat === id && one.id === number);
+        if (!waiting) return reply(409, { error: GONE });
+        server.asking = server.asking.filter((one) => one !== waiting);
+        return reply(200, now());
+      };
+      if (!server.holdAnswer) return answer();
+      return new Promise((resolve) => { server.release = () => resolve(answer()); });
+    }
+    // The stop door: the finished steps stay, the one going on is dropped (420's record), and a
+    // change waiting for the user is rejected. A chat that does not work is left as it is.
     if (server.working.includes(id)) {
       last(id).steps = last(id).steps.filter((one) => one.finished);
       last(id).outcome = { kind: "stopped" };
       server.working = server.working.filter((one) => one !== id);
+      server.asking = server.asking.filter((one) => one.chat !== id);
     }
     return reply(200, find(id));
   });
@@ -633,6 +650,173 @@ describe("AgentPanel — the list", () => {
     fireEvent.click(screen.getByText("Kaç karede video var?"));
     await settle();
     expect(box().value).toBe("ikinciye yarım");
+  });
+});
+
+describe("AgentPanel — permission", () => {
+  // A change an agent waits on, as 481's fix fills it in: the screen draws whatever the server says.
+  const CHANGE = {
+    title: "3 numaralı kare düzeltilecek",
+    details: [
+      { label: "Prompt", before: "kadın beyaz saçlı", after: "kadın siyah saçlı" },
+      { label: "Fotoğraf", text: "Eski fotoğraf silinecek; yenisi aynı yerde üretilecek." },
+    ],
+  };
+  const FIXING = ["3 numaralı kareyi düzeltiyor…", "3 numaralı kareyi düzeltti"];
+  // The step before the change is finished: the model read it to ask for the change (480's loop).
+  const ASKING = { id: 1, questions: [question(
+    "Karışan kareleri düzelt", ASKED, [step(LOOKING), step(READING_3)])] };
+  const WAITING = { chat: 1, id: 7, change: CHANGE };
+
+  const card = () => document.querySelector(".qe-chat-permit");
+  const allow = () => screen.getByRole("button", { name: "İzin ver" });
+  const reject = () => screen.getByRole("button", { name: "Reddet" });
+  const answers = (server) => server.calls.filter((call) => call.endsWith("/permission"));
+
+  it("comes back after a reload with the change and İzin ver / Reddet, in place of the wait line",
+     async () => {
+       fakeServer({ chats: [ASKING], working: [1], asking: [WAITING] });
+
+       await open();
+
+       expect(card().textContent).toContain("3 numaralı kare düzeltilecek");
+       const details = [...card().querySelectorAll(".qe-chat-permit-detail")];
+       expect(details.map((one) => one.querySelector(".qe-chat-permit-label").textContent))
+         .toEqual(["Prompt", "Fotoğraf"]);
+       expect(details[0].querySelector(".qe-chat-permit-before").textContent)
+         .toContain("kadın beyaz saçlı");
+       expect(details[0].querySelector(".qe-chat-permit-after").textContent)
+         .toContain("kadın siyah saçlı");
+       expect(details[1].textContent)
+         .toContain("Eski fotoğraf silinecek; yenisi aynı yerde üretilecek.");
+       expect(allow().disabled).toBe(false);
+       expect(reject().disabled).toBe(false);
+       // The change is what goes on now: no wait line, and the steps before it are done.
+       expect(screen.queryByText("Çalışıyor…")).toBeNull();
+       expect(lines()).toEqual(["Projeye baktı", "3 numaralı kareyi okudu"]);
+       expect(stop()).toBeTruthy();
+     });
+
+  it("draws the change as the agent asks for it, on the next look", async () => {
+    const server = fakeServer({ chats: [WORKING], working: [1] });
+    await open();
+    expect(card()).toBeNull();
+
+    server.chats[0].questions[0].steps.at(-1).finished = true;
+    server.asking = [WAITING];
+    await settle(POLL_MS);
+
+    expect(card()).toBeTruthy();
+  });
+
+  it.each([["İzin ver", true], ["Reddet", false]])(
+    "sends %s with the change's number, and the card leaves at once", async (name, allowed) => {
+      const server = fakeServer({ chats: [ASKING], working: [1], asking: [WAITING] });
+      await open();
+
+      fireEvent.click(screen.getByRole("button", { name }));
+      await settle();
+
+      expect(answers(server)).toEqual([`POST ${chatsUrl("/1/permission")}`]);
+      expect(server.bodies).toEqual([{ id: 7, allow: allowed }]);
+      expect(card()).toBeNull();
+      expect(liveLines()).toEqual(["Çalışıyor…"]);
+    });
+
+  it("goes on with the step the agent writes once allowed", async () => {
+    const server = fakeServer({ chats: [ASKING], working: [1], asking: [WAITING] });
+    await open();
+
+    fireEvent.click(allow());
+    await settle();
+    server.step(1, FIXING);
+    await settle(POLL_MS);
+
+    expect(liveLines()).toEqual(["3 numaralı kareyi düzeltiyor…"]);
+  });
+
+  it("keeps both buttons off while the answer is on its way, so one press is one answer",
+     async () => {
+       const server = fakeServer({ chats: [ASKING], working: [1], asking: [WAITING] });
+       server.holdAnswer = true;
+       await open();
+
+       fireEvent.click(allow());
+       await settle();
+
+       expect(allow().disabled).toBe(true);
+       expect(reject().disabled).toBe(true);
+       fireEvent.click(reject());
+       await settle();
+       expect(answers(server)).toHaveLength(1);
+
+       server.release();
+       await settle();
+       expect(card()).toBeNull();
+     });
+
+  it("says so in the server's words when the change no longer waits, and the next look drops it",
+     async () => {
+       const server = fakeServer({ chats: [ASKING], working: [1], asking: [WAITING] });
+       await open();
+       // Answered from another tab, say: the screen has not looked since.
+       server.asking = [];
+
+       fireEvent.click(allow());
+       await settle();
+
+       expect(screen.getByText(GONE).className).toContain("qe-chat-err");
+       await settle(POLL_MS);
+       expect(card()).toBeNull();
+       // The look that dropped the card takes the words back too: they were about that card.
+       expect(screen.queryByText(GONE)).toBeNull();
+     });
+
+  it("keeps the card when the answer does not reach the server, the buttons back on and the words",
+     async () => {
+       const server = fakeServer({ chats: [ASKING], working: [1], asking: [WAITING] });
+       await open();
+
+       server.down = true;
+       fireEvent.click(allow());
+       await settle();
+
+       expect(card()).toBeTruthy();
+       expect(allow().disabled).toBe(false);
+       expect(reject().disabled).toBe(false);
+       expect(screen.getByText(UNREACHED).className).toContain("qe-chat-err");
+
+       // Back again: the next look clears the words, and the same change can be answered.
+       server.down = false;
+       await settle(POLL_MS);
+       expect(screen.queryByText(UNREACHED)).toBeNull();
+       fireEvent.click(allow());
+       await settle();
+       expect(server.bodies).toEqual([{ id: 7, allow: true }, { id: 7, allow: true }]);
+       expect(card()).toBeNull();
+     });
+
+  it("drops the card on ■, which rejects the change and stops the agent", async () => {
+    const server = fakeServer({ chats: [ASKING], working: [1], asking: [WAITING] });
+    await open();
+
+    fireEvent.click(stop());
+    await settle();
+
+    expect(answers(server)).toEqual([]);
+    expect(card()).toBeNull();
+    expect(screen.getByText("Durduruldu")).toBeTruthy();
+  });
+
+  it("draws a change only under its own chat", async () => {
+    fakeServer({ chats: [ASKING, { id: 2, questions: [] }], working: [1],
+                 asking: [WAITING] });
+    await open();
+
+    fireEvent.click(newChat());
+    await settle();
+
+    expect(card()).toBeNull();
   });
 });
 

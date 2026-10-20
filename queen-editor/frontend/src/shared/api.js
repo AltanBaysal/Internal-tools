@@ -383,11 +383,21 @@ export async function stopAgent(project, chat) {
                  { method: "POST" });
 }
 
-// Which chats' agents work now. It lives in the server's memory, not in the chats' record, so it is
-// a door of its own.
+// { working, asking }: which chats' agents work now, and the changes they wait on the user for
+// (madde 480), each { chat, id, change }. It lives in the server's memory, not in the chats' record,
+// so it is a door of its own.
 export async function workingChats(project) {
-  const body = await request(`/api/projects/${encodeURIComponent(project)}/chats/working`);
-  return body.working;
+  return request(`/api/projects/${encodeURIComponent(project)}/chats/working`);
+}
+
+// İzin ver (`allow` true) or Reddet to change `id`; answers with { working, asking } as they stand
+// after it. A change no longer waiting is refused in the server's words.
+export async function answerPermission(project, chat, id, allow) {
+  return request(`/api/projects/${encodeURIComponent(project)}/chats/${chat}/permission`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, allow }),
+  });
 }
 
 // What an export would write: how many videos, how long they run, and the folder they would land

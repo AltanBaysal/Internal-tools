@@ -115,8 +115,9 @@ def test_the_app_serves_the_agents_chats(import_main, root):
 
 @pytest.mark.parametrize("method, url", [("post", "/api/projects/m420-yok/chats/1/questions"),
                                          ("post", "/api/projects/m420-yok/chats/1/stop"),
-                                         ("get", "/api/projects/m420-yok/chats/working")],
-                         ids=["ask", "stop", "working"])
+                                         ("get", "/api/projects/m420-yok/chats/working"),
+                                         ("post", "/api/projects/m420-yok/chats/1/permission")],
+                         ids=["ask", "stop", "working", "permission"])
 def test_the_app_serves_the_agents_doors(import_main, root, method, url):
     """Madde 420: the doors' own tests wire them by hand, so only this one reads main.py's wiring. A
     project that does not exist answers in the doors' words -- a door never hung would not."""

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import {
+  answerPermission,
   askQuestion,
   listChats,
   newChat,
@@ -30,18 +31,30 @@ export function useAgentChat(project) {
   const memory = kept(project);
   const [chat, setChat] = useState(null);
   const [working, setWorking] = useState([]);
+  // The changes the project's agents wait on the user for, as /working last said (madde 480).
+  const [asking, setAsking] = useState([]);
+  // An answer to a change on its way: both buttons are off, so one press is one answer.
+  const [answering, setAnswering] = useState(false);
   const [list, setList] = useState(memory.list);
   const [rows, setRows] = useState(null);
   const [draft, setDraft] = useState("");
   // The question on its way: drawn at once, before the server has it.
   const [pending, setPending] = useState(null);
-  // { text, question, poll }: the request's own words, the question it carried if it was one, and
-  // whether it was a look at the server -- which the next good look takes back.
+  // { text, question, lookClears }: the request's own words, the question it carried if it was one,
+  // and whether the next good look at the server takes it back -- a look that failed, or an answer to
+  // a change, which that look shows as it now stands.
   const [failure, setFailure] = useState(null);
   const id = chat ? chat.id : null;
   const busy = id !== null && (working.includes(id) || pending !== null);
+  const permission = (busy && asking.find((one) => one.chat === id)) || null;
 
   const fail = (err, question = null) => setFailure({ text: err.message, question });
+
+  // What /working said, and the permission door after an answer: both halves at once.
+  function look(now) {
+    setWorking(now.working);
+    setAsking(now.asking);
+  }
 
   // The chat the server sent is the open one now, with its own draft.
   function take(fresh) {
@@ -57,9 +70,9 @@ export function useAgentChat(project) {
   // the working list in one hold, so a chat read after "not working" carries its outcome.
   async function show(chatId) {
     try {
-      const ids = await workingChats(project);
+      const now = await workingChats(project);
       const fresh = await openChat(project, chatId);
-      setWorking(ids);
+      look(now);
       take(fresh);
     } catch (err) {
       fail(err);
@@ -104,16 +117,16 @@ export function useAgentChat(project) {
     let gone = false;
     const timer = setTimeout(async () => {
       try {
-        const ids = await workingChats(project);
-        const read = !list && id !== null && (working.includes(id) || ids.includes(id));
+        const now = await workingChats(project);
+        const read = !list && id !== null && (working.includes(id) || now.working.includes(id));
         const fresh = read ? await openChat(project, id) : null;
         if (gone) return;
         if (fresh) setChat(fresh);
-        setWorking(ids);
-        setFailure((shown) => (shown && shown.poll ? null : shown));
+        look(now);
+        setFailure((shown) => (shown && shown.lookClears ? null : shown));
       } catch (err) {
         if (gone) return;
-        setFailure({ text: err.message, poll: true });
+        setFailure({ text: err.message, lookClears: true });
         // One look that did not arrive must not end the loop: the same list, new, arms the next.
         setWorking((ids) => [...ids]);
       }
@@ -157,10 +170,28 @@ export function useAgentChat(project) {
     try {
       const fresh = await stopAgent(project, stopped);
       setWorking((ids) => ids.filter((one) => one !== stopped));
+      // A stop rejects the change its agent waited on.
+      setAsking((waiting) => waiting.filter((one) => one.chat !== stopped));
       setChat(fresh);
       setFailure(null);
     } catch (err) {
       fail(err);
+    }
+  }
+
+  // İzin ver or Reddet to the change the open chat's agent waits on, named by its number: the server
+  // takes it only for that very change. One that did not land leaves the card, its buttons back on,
+  // and the words; the next good look clears them -- a change no longer waiting leaves with it.
+  async function permit(allow) {
+    if (!permission || answering) return;
+    setAnswering(true);
+    try {
+      look(await answerPermission(project, permission.chat, permission.id, allow));
+      setFailure(null);
+    } catch (err) {
+      setFailure({ text: err.message, lookClears: true });
+    } finally {
+      setAnswering(false);
     }
   }
 
@@ -176,5 +207,5 @@ export function useAgentChat(project) {
   const toggleList = () => (list ? reopen() : openList());
 
   return { chat, working, list, rows, open: memory.open, draft, pending, failure, busy,
-           write, send, stop, startNew, toggleList, show };
+           permission, answering, write, send, stop, permit, startNew, toggleList, show };
 }

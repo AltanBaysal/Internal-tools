@@ -12,6 +12,12 @@ Everything it does is a step on the chat with two sentences, and a step goes on 
 begins or the question ends: the model reads what a tool brought in the round after the tool ran, so
 that is when the step is really going on. The record lets the answer or the failure finish the last
 step, and a stop drop it (BEHAVIOUR.md, Agent panel).
+
+A call that would change something waits for the user first (madde 480): the step before it is
+finished -- the model read it to make this call -- and the run asks the user about the change. Only
+on İzin ver does the call's step begin and its work run. On Reddet the model is told so and nothing
+is done; a stop while the user is asked ends the question. Nothing here, and nothing the model is
+told before a rejection, says that permission exists.
 """
 import json
 
@@ -25,6 +31,9 @@ LOOKING = ("Projeye bakıyor…", "Projeye baktı")
 # asked.
 NO_FRAMES = ("Projede henüz kare yok. Prompt'ları yazıp kuyruğa eklediğinde kareler galeride "
              "belirir; sonra sorularını kareler üzerinden cevaplayabilirim.")
+# What the model is told when the user presses Reddet -- the user's "kullanıcı reddetti", in the
+# English every tool answers in.
+REJECTED = "The user rejected this change, so nothing was changed."
 
 
 def numbered(cards):
@@ -92,13 +101,23 @@ def answer_question(box, frames, picture, run, project, earlier, question):
             # round can hold a call for every frame.
             if run.stopped():
                 return
-            step, work = run_tool(box.ask, cards, picture, project, call)
-            if step:
-                # Before the work, so the chat says what goes on while it does. The look at the
-                # project is always the first step, so there is always one going on for the new one
-                # to finish.
+            step, work, change = run_tool(box.ask, cards, picture, project, call)
+            # The look at the project is always the first step, so there is always one going on to
+            # finish. After a rejection the next call finishes it again, which changes nothing.
+            if step or change is not None:
                 run.finish_step()
+            if change is not None and not run.permit(change):
+                if run.stopped():
+                    return
+                messages.append({"role": "tool", "tool_call_id": call["id"], "content": REJECTED})
+                continue
+            if step:
+                # Before the work, so the chat says what goes on while it does.
                 run.add_step(*step)
+            # Asked once more: a stop that lands after İzin ver, before the work begins, leaves the
+            # change undone -- and a stopped run does no more work of any kind.
+            if run.stopped():
+                return
             try:
                 told, parts = work()
             except QueenAIFailed as exc:

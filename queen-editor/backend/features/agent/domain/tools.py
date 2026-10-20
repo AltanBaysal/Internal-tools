@@ -5,6 +5,11 @@ no other (the user: "sadec açık projeye erişebilir", "yani bir değişilik ya
 answered from the cards the question started with, so a frame's number means the same frame for the
 whole question.
 
+A tool that changes something says so with its call: alongside its step and its work it hands back
+the change, which the user allows or rejects on the screen before the work may run (madde 480). The
+permission is the app's, not the agent's -- no tool's description mentions it. A reading call, and a
+call that misses, has no change. Today every tool reads; 481's fix is the first that changes.
+
 check_frame asks Queen AI about one frame in a question of its own -- the photo and the prompt it
 was made from -- and tells the conversation the verdict in words. A picture put into the
 conversation would be sent again with every later round; a verdict in words is sent once.
@@ -128,8 +133,20 @@ def _look(picture, project, number, frame):
 
 
 def run_tool(ask, frames, picture, project, call):
-    """One call -> (the step's two sentences or None, work). `work()` does the call's reading and
-    returns (what the model is told, parts to show it or None); the loop writes the step first.
+    """One call -> (the step's two sentences or None, work, change or None). `work()` does the call's
+    reading and returns (what the model is told, parts to show it or None); the loop writes the step
+    first.
+
+    `change` is what the call would change, in Turkish for the screen, and it is None unless the
+    work writes: {"title": "<what changes, the frame named>", "details": [detail]}, where a detail is
+    {"label", "before", "after"} -- what a field is and what it becomes -- or {"label", "text"}, a
+    sentence, such as that the old photo will be deleted. A call with a change runs its work only once
+    the user allows it (madde 480).
+
+    That can be much later -- the user may answer after minutes, while the gallery has moved on -- so
+    a changing call's work must not trust what was true when the change was described: it finds its
+    frame by what names it on disk (its id), never by its number in the gallery, and if the frame is
+    no longer what `change`'s `before` describes, it changes nothing and tells the model so.
 
     `ask` is Queen AI's question with pictures, which check_frame asks; `frames` is {number: card};
     `picture(project, file)` is the file's bytes, or None when it is not on disk. A picture cannot
@@ -139,23 +156,26 @@ def run_tool(ask, frames, picture, project, call):
     """
     name = call["function"]["name"]
     if name not in _NAMES:
-        return None, _told(f"There is no tool called {name}.")
+        return None, _told(f"There is no tool called {name}."), None
     try:
         number = json.loads(call["function"]["arguments"] or "{}").get("frame")
     except (ValueError, AttributeError):
         number = None
     # bool before int, because in Python True is an int: frame=true would quietly mean frame 1.
     if isinstance(number, bool) or not isinstance(number, int):
-        return None, _told(NAMED_BY_NUMBER)
+        return None, _told(NAMED_BY_NUMBER), None
     if number not in frames:
         return None, _told(f"There is no frame {number}; the frames are numbered 1 to "
-                           f"{len(frames)}.")
+                           f"{len(frames)}."), None
 
     frame = frames[number]
     if name == "check_frame":
-        return _check(ask, picture, project, number, frame)
-    if name == "look_at_frame":
-        return _look(picture, project, number, frame)
-    # Turkish prompts reach the model as they read, not as escapes.
-    return ((f"{number} numaralı kareyi okuyor…", f"{number} numaralı kareyi okudu"),
-            _told(json.dumps(card(number, frame, whole=True), ensure_ascii=False)))
+        step, work = _check(ask, picture, project, number, frame)
+    elif name == "look_at_frame":
+        step, work = _look(picture, project, number, frame)
+    else:
+        # Turkish prompts reach the model as they read, not as escapes.
+        step, work = ((f"{number} numaralı kareyi okuyor…", f"{number} numaralı kareyi okudu"),
+                      _told(json.dumps(card(number, frame, whole=True), ensure_ascii=False)))
+    # The three only read: nothing to ask the user about.
+    return step, work, None

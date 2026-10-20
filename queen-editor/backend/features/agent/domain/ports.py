@@ -71,6 +71,11 @@ class Run(Protocol):
     def stopped(self) -> bool:
         ...
 
+    def permit(self, change: dict) -> bool:
+        """Show the user `change` (tools.py, run_tool) and wait for their answer: True on İzin ver,
+        False on Reddet and on a stop, which ends the wait (madde 480). A stopped run asks nothing."""
+        ...
+
     def add_step(self, running: str, done: str) -> None:
         ...
 

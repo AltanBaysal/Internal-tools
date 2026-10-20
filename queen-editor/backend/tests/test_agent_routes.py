@@ -73,9 +73,13 @@ class FakeBox:
         raise AssertionError("No check_frame is called in these questions.")
 
 
-def app_over(drive, dist, box, cards=CARDS, hold=False):
+def app_over(drive, dist, box, cards=CARDS, hold=False, threaded=False):
     """(client, held) over `drive`, wired the way main.py wires it -- built again over the same
-    folder, it is a restart. With `hold`, the work started waits in `held` until the test runs it."""
+    folder, it is a restart. With `hold`, the work started waits in `held` until the test runs it;
+    with `threaded`, it runs on a thread of its own, which `held` then holds -- a run that waits for
+    the user's answer (madde 480) cannot run inline."""
+    import threading
+
     from backend.features.agent.data.chat_record import DriveChatRecord
     from backend.features.agent.domain.usecases import chats
     from backend.features.agent.domain.usecases.answer_question import answer_question
@@ -86,7 +90,14 @@ def app_over(drive, dist, box, cards=CARDS, hold=False):
     from backend.features.agent.runner import AgentRunner
     record = DriveChatRecord(Storage(str(drive)))
     held = []
-    runner = AgentRunner(record, spawn=held.append if hold else lambda work: work())
+
+    def on_a_thread(work):
+        thread = threading.Thread(target=work, daemon=True)
+        held.append(thread)
+        thread.start()
+
+    runner = AgentRunner(record, spawn=on_a_thread if threaded
+                         else held.append if hold else lambda work: work())
     agent = partial(answer_question, box, lambda project: copy.deepcopy(cards),
                     lambda project, file: b"PNG")
     app = create_app(dist_dir=str(dist), blueprints=[
@@ -96,7 +107,8 @@ def app_over(drive, dist, box, cards=CARDS, hold=False):
         make_agent_blueprint(ask_question=partial(chats.ask_question, record, runner, agent,
                                                   lambda: ASKED),
                              stop_agent=partial(chats.stop_agent, record, runner),
-                             working_chats=partial(chats.working_chats, record, runner)),
+                             working_chats=partial(chats.working_chats, record, runner),
+                             answer_permission=partial(chats.answer_permission, record, runner)),
     ])
     return app.test_client(), held
 
@@ -147,7 +159,7 @@ def test_the_door_returns_at_once_and_the_answer_lands_later(drive, dist):
 
     assert response.status_code == 200
     assert response.get_json()["questions"][0]["outcome"] is None
-    assert client.get(WORKING).get_json() == {"working": [1]}
+    assert client.get(WORKING).get_json() == {"working": [1], "asking": []}
     # The page reloaded: the chat is read again, and the agent is still at it.
     assert opened(client)["questions"][0]["outcome"] is None
 
@@ -156,7 +168,7 @@ def test_the_door_returns_at_once_and_the_answer_lands_later(drive, dist):
     question = opened(client)["questions"][0]
     assert question["steps"] == [LOOKED]
     assert question["outcome"] == {"kind": "answer", "text": "Projede 2 kare var."}
-    assert client.get(WORKING).get_json() == {"working": []}
+    assert client.get(WORKING).get_json() == {"working": [], "asking": []}
 
 
 def test_a_working_chat_takes_no_second_question(drive, dist):
@@ -180,7 +192,7 @@ def test_two_chats_work_at_once(drive, dist):
 
     assert client.post(f"{CHATS}/2/questions", json={"text": "İkinci"}).status_code == 200
 
-    assert client.get(WORKING).get_json() == {"working": [1, 2]}
+    assert client.get(WORKING).get_json() == {"working": [1, 2], "asking": []}
 
 
 def test_a_stop_keeps_the_finished_steps_and_says_stopped_with_no_half_answer(drive, dist):
@@ -206,7 +218,7 @@ def test_a_stop_keeps_the_finished_steps_and_says_stopped_with_no_half_answer(dr
     assert stops[0].status_code == 200
     assert stops[0].get_json()["questions"][0] == question
     assert len(box.asked) == 2
-    assert client.get(WORKING).get_json() == {"working": []}
+    assert client.get(WORKING).get_json() == {"working": [], "asking": []}
 
 
 def test_a_stopped_chat_takes_a_new_question_at_once(drive, dist):
@@ -267,7 +279,7 @@ def test_after_a_restart_an_unanswered_question_is_not_working_and_takes_a_new_o
 
     restarted, _held = app_over(drive, dist, FakeBox(), hold=True)
 
-    assert restarted.get(WORKING).get_json() == {"working": []}
+    assert restarted.get(WORKING).get_json() == {"working": [], "asking": []}
     assert opened(restarted)["questions"][0]["outcome"] is None
     assert restarted.post(QUESTIONS, json={"text": "Peki 7?"}).status_code == 200
 
@@ -287,7 +299,8 @@ def test_an_empty_question_is_refused(drive, dist, body):
 
 @pytest.mark.parametrize("method, url", [("post", "/api/projects/yok/chats/1/questions"),
                                          ("post", "/api/projects/yok/chats/1/stop"),
-                                         ("get", "/api/projects/yok/chats/working")])
+                                         ("get", "/api/projects/yok/chats/working"),
+                                         ("post", "/api/projects/yok/chats/1/permission")])
 def test_an_unknown_project_is_a_404_and_no_folder_is_made(drive, dist, method, url):
     client, _held = app_over(drive, dist, FakeBox(), hold=True)
 
@@ -312,15 +325,150 @@ def broken_drive(*_args):
     raise OSError("[Errno 107] Transport endpoint is not connected")
 
 
-@pytest.mark.parametrize("method, url", [("post", QUESTIONS), ("post", STOP), ("get", WORKING)])
+@pytest.mark.parametrize("method, url", [("post", QUESTIONS), ("post", STOP), ("get", WORKING),
+                                         ("post", f"{CHATS}/1/permission")])
 def test_a_disk_error_answers_in_the_systems_own_words(dist, method, url):
     from backend.features.agent.presentation.routes import make_agent_blueprint
     client = create_app(dist_dir=str(dist), blueprints=[
         make_agent_blueprint(ask_question=broken_drive, stop_agent=broken_drive,
-                             working_chats=broken_drive)]).test_client()
+                             working_chats=broken_drive,
+                             answer_permission=broken_drive)]).test_client()
 
     response = getattr(client, method)(url, json={"text": "Kaç kare var?"})
 
     # The app's one handler answers for the door (web/app.py, madde 472).
     assert response.status_code == 503
     assert response.get_json() == {"error": "[Errno 107] Transport endpoint is not connected"}
+
+
+# --- the permission gate (madde 480) -------------------------------------------------------------
+#
+# A change waits on the screen until the user answers it through its door. No changing tool ships in
+# 480, so a fake one, fix_frame, is put in front of the loop's run_tool here alone. The run waits for
+# real, so it runs on its own thread, and the test looks for the question the way the screen does --
+# through /working -- for at most a few seconds.
+
+PERMISSION = f"{CHATS}/1/permission"
+CHANGE = {"title": "2 numaralı kare düzeltilecek",
+          "details": [{"label": "Prompt", "before": "yeşil elbiseli kadın",
+                       "after": "mavi elbiseli kadın"},
+                      {"label": "Fotoğraf",
+                       "text": "Eski fotoğraf silinecek; yenisi aynı yerde üretilecek."}]}
+FIXED = finished("2 numaralı kareyi düzeltiyor…", "2 numaralı kareyi düzeltti")
+REJECTED = "The user rejected this change, so nothing was changed."
+GONE = "Bu değişiklik artık izin beklemiyor."
+
+
+@pytest.fixture
+def fix_frame(monkeypatch):
+    """The calls fix_frame's work ran for: it writes nothing anywhere, it only says it ran."""
+    from backend.features.agent.domain.usecases import answer_question as loop
+    real = loop.run_tool
+    changed = []
+
+    def run_tool(ask, frames, picture, project, call):
+        if call["function"]["name"] != "fix_frame":
+            return real(ask, frames, picture, project, call)
+
+        def work():
+            changed.append(call["id"])
+            return "Frame 2 was fixed.", None
+
+        return (FIXED["running"], FIXED["done"]), work, CHANGE
+
+    monkeypatch.setattr(loop, "run_tool", run_tool)
+    return changed
+
+
+@pytest.fixture
+def asking_a_change(drive, dist, until):
+    """`asking_a_change(*answers)` -> (client, held, box, the question on the screen): chat 1 asked
+    to fix, its agent waiting. The box answers the rounds after the fix with `answers`."""
+    def ask(*answers):
+        box = FakeBox(calling(call("fix_frame", 2)), *answers)
+        client, held = app_over(drive, dist, box, threaded=True)
+        client.post(CHATS)
+        client.post(QUESTIONS, json={"text": "2'yi düzelt"})
+        (asked,) = until(lambda: client.get(WORKING).get_json()["asking"])
+        return client, held, box, asked
+
+    return ask
+
+
+def test_a_change_waits_on_the_screen_and_runs_once_allowed(asking_a_change, fix_frame, ended):
+    client, held, _box, asked = asking_a_change(Answer("2 düzeltildi."))
+
+    assert asked == {"chat": 1, "id": asked["id"], "change": CHANGE}
+    assert client.get(WORKING).get_json()["working"] == [1]
+    assert fix_frame == []
+    # The page reloaded: the chat is read again, and the question is still on /working.
+    assert opened(client)["questions"][0]["steps"] == [LOOKED]
+
+    response = client.post(PERMISSION, json={"id": asked["id"], "allow": True})
+    ended(held[0])
+
+    assert response.status_code == 200
+    assert response.get_json()["asking"] == []
+    assert fix_frame == ["call_1"]
+    question = opened(client)["questions"][0]
+    assert question["steps"] == [LOOKED, FIXED]
+    assert question["outcome"] == {"kind": "answer", "text": "2 düzeltildi."}
+
+
+def test_a_rejected_change_changes_nothing_and_the_agent_is_told(asking_a_change, fix_frame,
+                                                                 ended):
+    client, held, box, asked = asking_a_change(Answer("Dokunmadım."))
+
+    response = client.post(PERMISSION, json={"id": asked["id"], "allow": False})
+    ended(held[0])
+
+    assert response.status_code == 200
+    assert fix_frame == []
+    assert box.asked[1][0][4] == {"role": "tool", "tool_call_id": "call_1", "content": REJECTED}
+    question = opened(client)["questions"][0]
+    assert question["steps"] == [LOOKED]
+    assert question["outcome"] == {"kind": "answer", "text": "Dokunmadım."}
+
+
+def test_a_stop_while_asked_changes_nothing(asking_a_change, fix_frame, ended):
+    client, held, box, _asked = asking_a_change()
+
+    client.post(STOP)
+    ended(held[0])
+
+    assert fix_frame == []
+    assert len(box.asked) == 1
+    assert opened(client)["questions"][0]["outcome"] == {"kind": "stopped"}
+    assert client.get(WORKING).get_json() == {"working": [], "asking": []}
+
+
+def test_an_answer_to_a_question_no_longer_asked_is_refused(asking_a_change, fix_frame, ended):
+    """Another number -- a second press, a page behind the server -- or nothing asked at all: 409,
+    and nothing runs."""
+    client, held, _box, asked = asking_a_change(Answer("Dokunmadım."))
+
+    other = client.post(PERMISSION, json={"id": asked["id"] + 1, "allow": True})
+    assert (other.status_code, other.get_json()) == (409, {"error": GONE})
+    assert fix_frame == []
+
+    client.post(PERMISSION, json={"id": asked["id"], "allow": False})
+    ended(held[0])
+    again = client.post(PERMISSION, json={"id": asked["id"], "allow": True})
+
+    assert (again.status_code, again.get_json()) == (409, {"error": GONE})
+    assert fix_frame == []
+
+
+@pytest.mark.parametrize("body", [None, {}, {"id": 1}, {"allow": True},
+                                  {"id": "1", "allow": True}, {"id": True, "allow": True},
+                                  {"id": 1, "allow": "evet"}],
+                         ids=["no-body", "empty", "no-allow", "no-id", "text-id", "bool-id",
+                              "text-allow"])
+def test_a_malformed_answer_is_refused(drive, dist, body):
+    client, _held = app_over(drive, dist, FakeBox(), hold=True)
+    client.post(CHATS)
+
+    response = client.post(PERMISSION, json=body)
+
+    assert response.status_code == 400
+    assert response.get_json() == {"error": "İzin cevabı geçersiz."}
