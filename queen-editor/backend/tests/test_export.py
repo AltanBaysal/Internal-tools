@@ -1,11 +1,23 @@
 import inspect
+import json
 import os
 
 import pytest
 
 from backend import config
-from backend.features.photo_generation.data.ffmpeg_video_exporter import FfmpegVideoExporter
+from backend.features.photo_generation.data.comfy_h3_video_generator import (
+    DIRECTOR_NODE as H3_DIRECTOR,
+)
+from backend.features.photo_generation.data.comfy_h3_video_generator import SIZES as H3_SIZES
+from backend.features.photo_generation.data.ffmpeg_video_exporter import (
+    MERGED_FPS,
+    MERGED_HEIGHT,
+    MERGED_WIDTH,
+    SOUND_BITRATE,
+    FfmpegVideoExporter,
+)
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
+from backend.features.photo_generation.domain.orientation import LANDSCAPE, PORTRAIT
 from backend.features.photo_generation.domain.usecases.run_export import run_export
 from backend.features.photo_generation.export_runner import ExportRunner
 from backend.features.projects.domain import name_rules
@@ -887,24 +899,23 @@ class _Answer:
 class FakeRun:
     """subprocess.run's answer, and a note of what it was asked to run.
 
-    `sizes` maps a file name to what ffprobe prints for it; a file nobody named answers with the
-    first size, so a test that does not care about sizes says nothing about them. A probe and a
-    concat fail differently, so each carries its own exit code and message.
+    `sounds` answers the one question ffprobe is asked of a piece -- its sample rate and channel
+    layout, separated the way csv separates by itself (madde 288), or an empty line for a piece with
+    no audio at all. Nothing is the default: a set where no piece carries sound is one of the two
+    even sets, so a test that says nothing about sound asks about that (madde 286). A probe and an
+    ffmpeg run fail differently, so each carries its own exit code and message.
 
-    `sounds` answers the other probe -- a piece's sample rate and channel layout, separated the way
-    csv separates by itself (madde 288), or an empty line for a piece with no audio at all. Nothing
-    is the default: a set where no piece carries sound is one of the two even sets, so a test that
-    says nothing about sound asks about that (madde 286).
+    No piece has a size here: the join never asks one (madde 478), and ffmpeg is not on this
+    machine to measure anything.
     """
 
-    def __init__(self, returncode=0, stderr="", sizes=None, probe_returncode=0, probe_stderr="",
-                 nvenc=False, sounds=None):
+    def __init__(self, returncode=0, stderr="", probe_returncode=0, probe_stderr="", nvenc=False,
+                 sounds=None):
         self.calls = []
         self.returncode = returncode
         self.stderr = stderr
-        self.sizes = dict(sizes or {})
         self.sounds = dict(sounds or {})
-        self.joined = None                # what the concat list held when it was read
+        self.joined = None                # the pieces the join read, in the order it read them
         self.probe_returncode = probe_returncode
         self.probe_stderr = probe_stderr
         # Whether the trial encode on the card comes back. False is a machine that cannot encode
@@ -913,17 +924,13 @@ class FakeRun:
 
     def __call__(self, args, **kwargs):
         self.calls.append(args)
-        if "concat" in args:
-            # Read the list while it is still there, the way ffmpeg would: merge takes it away
-            # again, so a test can only see what it held at the moment of the call.
-            with open(args[args.index("-i") + 1], encoding="utf-8") as handle:
-                self.joined = [line.strip()[len("file '"):-1] for line in handle]
+        if "-filter_complex" in args:
+            # Every input but the last, which is the disclaimer.
+            self.joined = [args[at + 1] for at, part in enumerate(args) if part == "-i"][:-1]
         if "ffprobe" in args[0]:
-            if "a:0" in args:
-                # An empty answer is what a file with no audio stream gets, and it is an answer.
-                return _Answer(0, self.sounds.get(args[-1], "") + "\n", "")
-            size = self.sizes.get(args[-1], next(iter(self.sizes.values()), "848x480"))
-            return _Answer(self.probe_returncode, size + "\n", self.probe_stderr)
+            # An empty answer is what a file with no audio stream gets, and it is an answer.
+            return _Answer(self.probe_returncode, self.sounds.get(args[-1], "") + "\n",
+                           self.probe_stderr)
         if "nullsrc" in args:
             return _Answer(0 if self.nvenc else 1, "",
                            "" if self.nvenc else "No capable devices found")
@@ -944,12 +951,8 @@ def probe_calls(run):
     return [call for call in run.calls if "ffprobe" in call[0]]
 
 
-def size_calls(run):
-    return [call for call in probe_calls(run) if "a:0" not in call]
-
-
 def sound_calls(run):
-    """The other question asked of a piece: what sound it carries, if any (madde 286)."""
+    """The question asked of a piece: what sound it carries, if any (madde 286)."""
     return [call for call in probe_calls(run) if "a:0" in call]
 
 
@@ -974,16 +977,40 @@ def test_a_sound_is_laid_over_the_video():
                             "-c:a", "aac", "-shortest", "01.mp4"]
 
 
-# How the joined picture is made. The canvas is the user's call and it is landscape: exports are
-# taken landscape either way, and the disclaimer only becomes readable at that width (madde 259).
-# `decrease` fits rather than crops, so nothing is lost and the sides get bars; the disclaimer takes
-# 80% of the width, leaving room either side (madde 291).
+# How each piece is put on the canvas. The canvas is the user's call and it is landscape: exports
+# are taken landscape either way, and the disclaimer only becomes readable at that width (madde 259).
+# `decrease` fits rather than crops, so nothing is lost and a portrait piece gets bars; a 16:9 one
+# fills the canvas (madde 478). Each piece is fitted on its own, so pieces of two shapes can join.
 FIT = ("scale=1920:1080:force_original_aspect_ratio=decrease,"
-       "pad=1920:1080:(ow-iw)/2:(oh-ih)/2")
-STAMP = (f"[0:v]{FIT}[c];"
-         "[1:v]scale=1536:-1[d];"
-         "[c][d]overlay=(W-w)/2:H-h-43:enable='lt(t,60)'[v]")
-ENCODE = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p"]
+       "pad=1920:1080:(ow-iw)/2:(oh-ih)/2,setsar=1")
+# The disclaimer takes 80% of the width, leaving room either side (madde 291), over the joined
+# video's first minute (madde 250).
+OVER = "scale=1536:-1[d];[c][d]overlay=(W-w)/2:H-h-43:enable='lt(t,60)'[v]"
+
+
+def expected_graph(count, sounded=False):
+    """The filtergraph a join of `count` pieces is handed: each piece fitted, the fitted pieces
+    joined -- with their sound when they carry some -- and the disclaimer, the last input, laid over
+    the join."""
+    fitted = "".join(f"[{at}:v]{FIT}[v{at}];" for at in range(count))
+    if sounded:
+        joined = "".join(f"[v{at}][{at}:a]" for at in range(count))
+        joined += f"concat=n={count}:v=1:a=1[c][a];"
+    else:
+        joined = "".join(f"[v{at}]" for at in range(count))
+        joined += f"concat=n={count}:v=1:a=0[c];"
+    return f"{fitted}{joined}[{count}:v]{OVER}"
+
+
+GRAPH = expected_graph(2)
+# Each piece is an input of its own, its decoder capped at one thread (madde 478).
+INPUTS = ["-threads", "1", "-i", "a.mp4", "-threads", "1", "-i", "b.mp4"]
+# The join's frame rate, set once on its output: an `fps` filter in each piece's chain drops that
+# piece's last frame (madde 478, measured on ffmpeg 7.1).
+RATE = ["-r", "24"]
+# The joined sound, encoded at H3's own bitrate.
+SOUND = ["-map", "[a]", "-c:a", "aac", "-b:a", "192k"]
+ENCODE =["-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p"]
 # What the same work looks like on the GPU (madde 253). nvenc takes -rc/-cq where x264 takes -crf,
 # and "fast" rather than p1-p7: Colab's ffmpeg may be old enough not to know the p-levels.
 NVENC = ["-c:v", "h264_nvenc", "-preset", "fast", "-rc", "vbr", "-cq", "23",
@@ -1007,7 +1034,7 @@ def test_the_gpu_is_tried_rather_than_looked_up_in_a_list(tmp_path):
     """`ffmpeg -encoders` answers for the build, not for the machine: a box with no card, a driver
     that does not match or a card whose encoder sessions are taken all list h264_nvenc and then
     fail mid-export (madde 257). So the card is tried, on a tenth of a second written nowhere."""
-    run = FakeRun(sizes={"a.mp4": "480x720"}, nvenc=True)
+    run = FakeRun(nvenc=True)
 
     FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4"], str(tmp_path / "d.mp4"))
 
@@ -1017,7 +1044,7 @@ def test_the_gpu_is_tried_rather_than_looked_up_in_a_list(tmp_path):
 def test_an_unusable_gpu_leaves_the_export_running_on_the_cpu(tmp_path):
     """The trial failing is an answer, not an error: losing a whole export to a guess is worse than
     a slow export (FOUNDATION 1)."""
-    run = FakeRun(sizes={"a.mp4": "480x720"}, nvenc=False)
+    run = FakeRun(nvenc=False)
 
     FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4"], str(tmp_path / "d.mp4"))
 
@@ -1028,23 +1055,19 @@ def test_an_unusable_gpu_leaves_the_export_running_on_the_cpu(tmp_path):
 
 def test_a_merged_export_is_encoded_on_the_gpu_too(tmp_path):
     """The join is where the whole timeline is encoded, so it is where the GPU is worth most."""
-    # Pieces with a folder of their own, the way run_export hands them over: the concat list is
-    # written beside them (madde 284).
-    first, second = str(tmp_path / "a.mp4"), str(tmp_path / "b.mp4")
-    run = FakeRun(sizes={first: "480x720", second: "480x720"}, nvenc=True)
+    run = FakeRun(nvenc=True)
     target = str(tmp_path / "düğün.mp4")
 
-    FfmpegVideoExporter(run=run, disclaimer="d.png").merge([first, second], target)
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"], target)
 
     assert ffmpeg_calls(run)[0] == [
-        "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(tmp_path / "pieces.txt"),
-        "-i", "d.png", "-filter_complex", STAMP, "-map", "[v]", "-map", "0:a?",
-        *NVENC, "-c:a", "copy", target]
+        "ffmpeg", "-y", *INPUTS, "-i", "d.png",
+        "-filter_complex", GRAPH, "-map", "[v]", *RATE, *NVENC, target]
 
 
 def test_the_card_is_tried_once_and_not_again(tmp_path):
     """The answer cannot change while the process lives, and a trial costs a process."""
-    run = FakeRun(sizes={"a.mp4": "480x720"}, nvenc=True)
+    run = FakeRun(nvenc=True)
     exporter = FfmpegVideoExporter(run=run, disclaimer="d.png")
 
     exporter.merge(["a.mp4"], str(tmp_path / "bir.mp4"))
@@ -1077,55 +1100,35 @@ def test_a_failure_says_what_the_tool_said():
     assert str(caught.value) == "0.mp4: No such file or directory"
 
 
-def test_merging_hands_ffmpeg_a_list_and_takes_it_away_again(tmp_path):
-    run = FakeRun()
-    target = str(tmp_path / "düğün.mp4")
-
-    FfmpegVideoExporter(run=run).merge([str(tmp_path / "a.mp4"), str(tmp_path / "b.mp4")], target)
-
-    # The concat itself is unchanged; it is no longer the first thing run, because the sizes are
-    # asked first.
-    assert ffmpeg_calls(run)[0][:8] == ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i",
-                                        str(tmp_path / "pieces.txt")]
-    assert not (tmp_path / "pieces.txt").exists()
-
-
-def test_the_concat_list_lives_with_the_pieces_not_with_the_target(tmp_path):
-    """The list is the pieces' own reading order, so it belongs beside them. It used to follow the
-    target, and while the target was on Drive that put scaffolding in the user's folder for the
-    length of the export -- and left it there if the session died mid-run, since the cleanup only
-    happens while Python is alive (madde 284, the user's question).
-
-    Madde 282 moved the target onto the local disk, which took the symptom away but left the rule
-    pointing at the wrong thing: a target that goes back to Drive would take the list with it, and
-    nothing would stop it.
-    """
+def test_the_join_writes_no_list_file_anywhere(tmp_path):
+    """The pieces go to ffmpeg as its inputs, one `-i` each, in the order given, so the join needs
+    no file of its own: nothing of ours is written beside the pieces or beside the target, where a
+    session that dies mid-run would leave it (madde 284)."""
     pieces = tmp_path / "parçalar"
     drive = tmp_path / "drive"
     pieces.mkdir()
     drive.mkdir()
-    piece = str(pieces / "01.mp4")
-    run = FakeRun(sizes={piece: "480x720"})
+    first, second = str(pieces / "01.mp4"), str(pieces / "02.mp4")
+    run = FakeRun()
 
-    FfmpegVideoExporter(run=run, disclaimer="d.png").merge([piece], str(drive / "düğün.mp4"))
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge([first, second],
+                                                           str(drive / "düğün.mp4"))
 
-    said = ffmpeg_calls(run)[0]
-    listed = said[said.index("-i") + 1]
-    assert os.path.dirname(listed) == str(pieces)
-    # And nothing of ours is left in the target's folder, during the run or after it.
-    assert list(drive.iterdir()) == []
+    assert run.joined == [first, second]
+    assert list(pieces.iterdir()) == [] and list(drive.iterdir()) == []
 
 
-def test_merging_asks_every_piece_how_big_it_is(tmp_path):
-    """Streams are copied rather than re-encoded, which is only safe while every piece is the same
-    size. Nothing checked that until madde 218 made it possible for one project to hold two."""
-    run = FakeRun(sizes={"a.mp4": "848x480", "b.mp4": "848x480"})
+def test_no_piece_is_asked_its_size(tmp_path):
+    """Each piece is fitted onto the canvas by its own filter, so the join no longer has to know
+    what a piece measures: ffmpeg reads the real size as it scales. The one question left for a
+    piece is its sound (madde 286)."""
+    run = FakeRun()
 
-    FfmpegVideoExporter(run=run).merge(["a.mp4", "b.mp4"], str(tmp_path / "düğün.mp4"))
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"],
+                                                           str(tmp_path / "düğün.mp4"))
 
-    # The size question only: a piece is asked about its sound as well now (madde 286), and this
-    # test is about the older of the two.
-    assert [call[-1] for call in size_calls(run)] == ["a.mp4", "b.mp4"]
+    assert probe_calls(run) == sound_calls(run)
+    assert [call[-1] for call in probe_calls(run)] == ["a.mp4", "b.mp4"]
 
 
 def test_a_merged_export_joins_and_stamps_in_one_call(tmp_path):
@@ -1133,58 +1136,163 @@ def test_a_merged_export_joins_and_stamps_in_one_call(tmp_path):
     joined video's own: `lt(t,60)` counts the merged stream, so the minute ends exactly on the
     minute even when a frame straddles it (madde 250, user's call).
 
-    Joining is one read already, and the filter sits on top of that read -- so nothing has to know
-    which frame starts at which second, and no piece is ever encoded next to a copied one.
-
-    The sound is mapped and copied: the pieces carry their own, and `?` is for a set that has none.
+    One call: each piece is fitted, the fitted pieces are joined, and the disclaimer goes over the
+    join, all in one filtergraph -- so nothing has to know which frame starts at which second, and
+    the timeline is encoded once.
     """
-    first, second = str(tmp_path / "a.mp4"), str(tmp_path / "b.mp4")
-    run = FakeRun(sizes={first: "480x720", second: "480x720"})
+    run = FakeRun()
     target = str(tmp_path / "düğün.mp4")
 
-    FfmpegVideoExporter(run=run, disclaimer="d.png").merge([first, second], target)
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"], target)
 
-    assert ffmpeg_calls(run)[0] == [
-        "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(tmp_path / "pieces.txt"),
-        "-i", "d.png", "-filter_complex", STAMP, "-map", "[v]", "-map", "0:a?",
-        *ENCODE, "-c:a", "copy", target]
+    assert ffmpeg_calls(run) == [[
+        "ffmpeg", "-y", *INPUTS, "-i", "d.png",
+        "-filter_complex", GRAPH, "-map", "[v]", *RATE, *ENCODE, target]]
+
+
+def test_every_pieces_decoder_is_held_to_one_thread(tmp_path):
+    """Every input stays open for the whole call, so memory grows with the pieces; `-threads 1`
+    caps what each decoder holds. concat reads one segment at a time, so only one decoder works at
+    once and the cap costs no speed. The disclaimer is one picture and needs no cap."""
+    pieces = ["a.mp4", "b.mp4", "c.mp4"]
+    run = FakeRun()
+
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(pieces, str(tmp_path / "düğün.mp4"))
+
+    said = ffmpeg_calls(run)[0]
+    for piece in pieces:
+        at = said.index(piece)
+        assert said[at - 3:at] == ["-threads", "1", "-i"]
+
+
+def test_the_filtergraph_word_for_word(tmp_path):
+    """Two sounded pieces, written out in full rather than built: `expected_graph` above is the same
+    rule in a loop, and a rule checked only against its own copy checks nothing."""
+    run = FakeRun(sounds={"a.mp4": "48000,stereo", "b.mp4": "48000,stereo"})
+
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"],
+                                                           str(tmp_path / "düğün.mp4"))
+
+    assert filtergraph(run) == (
+        "[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,"
+        "pad=1920:1080:(ow-iw)/2:(oh-ih)/2,setsar=1[v0];"
+        "[1:v]scale=1920:1080:force_original_aspect_ratio=decrease,"
+        "pad=1920:1080:(ow-iw)/2:(oh-ih)/2,setsar=1[v1];"
+        "[v0][0:a][v1][1:a]concat=n=2:v=1:a=1[c][a];"
+        "[2:v]scale=1536:-1[d];"
+        "[c][d]overlay=(W-w)/2:H-h-43:enable='lt(t,60)'[v]")
+
+
+def test_a_sounded_join_maps_the_joined_sound_and_encodes_it(tmp_path):
+    """A filter's output cannot be copied, so the joined sound is encoded -- aac, which is what the
+    pieces carried, at the bitrate H3 writes them with. It is the join's own `[a]` that is mapped,
+    not any one piece's."""
+    run = FakeRun(sounds={"a.mp4": "48000,stereo"})
+    target = str(tmp_path / "düğün.mp4")
+
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4"], target)
+
+    said = ffmpeg_calls(run)[-1]
+    assert filtergraph(run) == expected_graph(1, sounded=True)
+    assert said[said.index("-filter_complex") + 2:] == [
+        "-map", "[v]", *RATE, *ENCODE, *SOUND, target]
+
+
+def test_the_joined_sound_keeps_h3s_own_bitrate():
+    """The pieces' sound is H3's, written by its Combine at `audio_bitrate`; the join encodes it
+    once more, and at a lower rate it would come out thinner than it went in."""
+    for path in (config.H3_VIDEO_WORKFLOW_PATH, config.H3_VIDEO_FIRST_LAST_WORKFLOW_PATH):
+        with open(path, encoding="utf-8") as handle:
+            graph = json.load(handle)
+        rates = {node["inputs"]["audio_bitrate"] for node in graph.values()
+                 if "audio_bitrate" in node.get("inputs", {})}
+        assert rates == {SOUND_BITRATE}
+
+
+def test_a_join_with_no_sound_anywhere_maps_none(tmp_path):
+    """The common set before sound layers: concat is told there is no audio (a=0), and nothing asks
+    for a stream that is not there."""
+    run = FakeRun()
+
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"],
+                                                           str(tmp_path / "düğün.mp4"))
+
+    said = ffmpeg_calls(run)[0]
+    assert "a=0" in filtergraph(run)
+    assert "[a]" not in said and "-c:a" not in said
 
 
 def filtergraph(run):
     """What the merged call handed -filter_complex."""
-    call = ffmpeg_calls(run)[0]
+    call = ffmpeg_calls(run)[-1]
     return call[call.index("-filter_complex") + 1]
 
 
-def merged(sizes, tmp_path, name="düğün.mp4"):
-    """One merged export over pieces of the given sizes, and the FakeRun that watched it."""
-    run = FakeRun(sizes=sizes)
-    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(list(sizes), str(tmp_path / name))
+def merged(pieces, tmp_path, name="düğün.mp4"):
+    """One merged export over the given pieces, and the FakeRun that watched it."""
+    run = FakeRun()
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(pieces, str(tmp_path / name))
     return run
 
 
-def test_the_merged_canvas_is_the_same_whatever_the_pieces_measure(tmp_path):
-    """The canvas is written down, not inherited. It used to be the first piece's own size, which is
-    why the merged file came out vertical at 480 wide and the disclaimer could not be read there
-    (madde 259).
+def test_landscape_portrait_and_mixed_sets_join_on_the_same_rule(tmp_path):
+    """Since 476 a project can hold landscape 1024x576 videos beside portrait 576x864 ones -- old
+    frames stay portrait, and every generation picks its own shape. The concat demuxer read the
+    pieces as one stream and so refused two sizes; each piece now goes through its own fit, so a
+    mixed set joins like any other (madde 478, the roadmap's "dikey videolar bugünkü gibi bantlı
+    kalır").
 
-    Two projects, one vertical and one landscape, and one frame: whatever the graph produced, the
-    export stands on the same 1920x1080. This is what makes the item need no measurement -- what
-    today's file measures cannot change the answer.
+    The rule is the same whatever the pieces measure: ffmpeg reads each piece's real size as it
+    scales it, so neither the plan line's orientation -- which copy frames and frames made before
+    476 do not carry -- nor a probe of ours decides anything.
     """
-    vertical = merged({"a.mp4": "480x720", "b.mp4": "480x720"}, tmp_path, "dikey.mp4")
-    landscape = merged({"c.mp4": "848x480", "d.mp4": "848x480"}, tmp_path, "yatay.mp4")
+    landscape = merged(["yatay1.mp4", "yatay2.mp4"], tmp_path, "yatay.mp4")
+    portrait = merged(["dikey1.mp4", "dikey2.mp4"], tmp_path, "dikey.mp4")
+    mixed = merged(["yatay1.mp4", "dikey1.mp4"], tmp_path, "karisik.mp4")
 
-    assert filtergraph(vertical) == filtergraph(landscape) == STAMP
+    assert filtergraph(landscape) == filtergraph(portrait) == filtergraph(mixed) == GRAPH
+    assert mixed.joined == ["yatay1.mp4", "dikey1.mp4"]
+
+
+def fitted(width, height):
+    """The size a picture is fitted to on the canvas and the bar left either side and above, by the
+    rule `force_original_aspect_ratio=decrease` and `pad=…:(ow-iw)/2:(oh-ih)/2` follow: each side
+    rescaled from the other, the smaller kept. It checks that H3's sizes fit the canvas as the item
+    wants; it is not ffmpeg, which is not on this machine, and Colab is where the real picture is
+    seen. Python's `round` differs from ffmpeg's av_rescale only on an exact half, which these
+    sizes never reach: both of their divisions come out whole."""
+    scaled_w = min(round(MERGED_HEIGHT * width / height), MERGED_WIDTH)
+    scaled_h = min(round(MERGED_WIDTH * height / width), MERGED_HEIGHT)
+    return scaled_w, scaled_h, (MERGED_WIDTH - scaled_w) // 2, (MERGED_HEIGHT - scaled_h) // 2
+
+
+def test_a_landscape_h3_video_fills_the_canvas_and_a_portrait_one_keeps_its_bars():
+    """The item's own sentence, on the sizes H3 is really asked for: 1024x576 is exactly 16:9, so it
+    scales to the whole 1920x1080 and the pad adds nothing; 576x864 becomes 720x1080 with 600
+    pixels of bar each side, as today. Every number is even, which yuv420p needs, and both scales
+    keep pixels square: (oh*iw)/(ow*ih) is 1 for each."""
+    assert fitted(*H3_SIZES[LANDSCAPE][:2]) == (1920, 1080, 0, 0)
+    assert fitted(*H3_SIZES[PORTRAIT][:2]) == (720, 1080, 600, 0)
+
+
+def test_the_canvas_runs_at_h3s_own_frame_rate():
+    """concat joins pieces of different rates into a stream of no known rate, and an mp4 then falls
+    back to 25 fps -- frames of a 24 fps H3 video would be doubled up to fill it. So the join's
+    output is set to the canvas's rate, and that rate is H3's own: the Director's `frame_rate` in
+    both graphs, so an H3 piece keeps every frame."""
+    for path in (config.H3_VIDEO_WORKFLOW_PATH, config.H3_VIDEO_FIRST_LAST_WORKFLOW_PATH):
+        with open(path, encoding="utf-8") as handle:
+            graph = json.load(handle)
+        assert graph[H3_DIRECTOR]["inputs"]["frame_rate"] == MERGED_FPS
 
 
 def test_a_merged_export_stands_on_a_landscape_canvas(tmp_path):
     """Fitted, never cropped: the user's word was "sığdır", and they took the bars knowingly --
-    a 480x720 frame becomes 720x1080 with 600 pixels of bar either side. `decrease` is what picks
+    a 576x864 frame becomes 720x1080 with 600 pixels of bar either side. `decrease` is what picks
     the largest size that fits inside the canvas; `increase` would fill it by cutting the frame's
     top and bottom off, and FOUNDATION 1 does not trade a user's finished frame for a tidy edge.
     """
-    said = filtergraph(merged({"a.mp4": "480x720"}, tmp_path))
+    said = filtergraph(merged(["a.mp4"], tmp_path))
 
     assert "scale=1920:1080:force_original_aspect_ratio=decrease" in said
     assert "pad=1920:1080:(ow-iw)/2:(oh-ih)/2" in said
@@ -1198,9 +1306,9 @@ def test_the_disclaimer_leaves_room_either_side(tmp_path):
     The cost was said out loud and taken: the PNG is 1902 wide, drawn for the full canvas, so at
     80% its two lines shrink with it -- about 39 pixels tall rather than 49.
 
-    The 720-pixel video still does not bound it: the disclaimer runs over the bars.
+    A portrait piece's 720 pixels still do not bound it: the disclaimer runs over the bars.
     """
-    said = filtergraph(merged({"a.mp4": "480x720"}, tmp_path))
+    said = filtergraph(merged(["a.mp4"], tmp_path))
 
     assert "[1:v]scale=1536:-1[d]" in said
     assert "scale=1920:-1" not in said             # the full width it used to take
@@ -1208,13 +1316,12 @@ def test_the_disclaimer_leaves_room_either_side(tmp_path):
 
 
 def test_every_piece_is_asked_whether_it_carries_sound(tmp_path):
-    """merge asks a piece its size and refuses a set holding two, but it never asked about the
-    streams -- and concat wants every file to carry the same ones. A piece has sound when its frame
-    had a sound layer, or when the source video carried its own (an H3 video does, madde 243); a
-    WAN video with no sound layer has none. So one project can hold both, and `-map 0:a?` does not
-    save it: that only allows a set with no sound at all (madde 286).
+    """concat joins a sound segment for every picture segment, so a set that has sound needs it in
+    every piece. A piece has sound when its frame had a sound layer, or when the source video
+    carried its own (an H3 video does, madde 243); a WAN video with no sound layer has none. So one
+    project can hold both (madde 286).
     """
-    run = FakeRun(sizes={"a.mp4": "480x720", "b.mp4": "480x720"})
+    run = FakeRun()
 
     FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"],
                                                            str(tmp_path / "düğün.mp4"))
@@ -1233,7 +1340,7 @@ def test_the_sound_question_is_written_out_word_for_word(tmp_path):
     FakeRun answers a command without judging it -- it is not ffprobe and cannot be -- so a
     malformed argument is invisible to every test that only asks whether something was asked.
     """
-    run = FakeRun(sizes={"a.mp4": "480x720"})
+    run = FakeRun()
 
     FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4"], str(tmp_path / "düğün.mp4"))
 
@@ -1242,25 +1349,9 @@ def test_the_sound_question_is_written_out_word_for_word(tmp_path):
         "-show_entries", "stream=sample_rate,channel_layout", "-of", "csv=p=0", "a.mp4"]
 
 
-def test_the_size_question_is_written_out_word_for_word(tmp_path):
-    """The sibling, and it is right: `s=x` reads back as 848x480 because x is no delimiter.
-
-    Green the day it was written, and that is the point of it -- the two questions came from one
-    pattern and the pattern is what broke (madde 288). This one keeps the half that works honest.
-    """
-    run = FakeRun(sizes={"a.mp4": "480x720"})
-
-    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4"], str(tmp_path / "düğün.mp4"))
-
-    assert size_calls(run)[0] == [
-        "ffprobe", "-v", "error", "-select_streams", "v:0",
-        "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", "a.mp4"]
-
-
 def test_a_set_that_all_carries_sound_is_joined_with_nothing_written_first(tmp_path):
     """The rule costs nothing where nothing is wrong: the join is still the only writing call."""
-    run = FakeRun(sizes={"a.mp4": "480x720", "b.mp4": "480x720"},
-                  sounds={"a.mp4": "48000,stereo", "b.mp4": "48000,stereo"})
+    run = FakeRun(sounds={"a.mp4": "48000,stereo", "b.mp4": "48000,stereo"})
 
     FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"],
                                                            str(tmp_path / "düğün.mp4"))
@@ -1270,9 +1361,9 @@ def test_a_set_that_all_carries_sound_is_joined_with_nothing_written_first(tmp_p
 
 
 def test_a_set_that_carries_no_sound_at_all_is_joined_untouched(tmp_path):
-    """The other even set, and the common one: a WAN project with no sound layers. `-map 0:a?`
-    already carries it, so silence would be work bought for nothing (FOUNDATION 3)."""
-    run = FakeRun(sizes={"a.mp4": "480x720", "b.mp4": "480x720"})
+    """The other even set: a WAN project with no sound layers. concat is told there is no sound
+    (a=0), so silence would be work bought for nothing (FOUNDATION 3)."""
+    run = FakeRun()
 
     FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"],
                                                            str(tmp_path / "düğün.mp4"))
@@ -1289,26 +1380,30 @@ def test_a_silent_piece_gets_silence_written_beside_it_when_another_has_sound(tm
     The video is copied, not encoded: only a sound track is added. `-shortest` is what stops
     anullsrc, which runs forever.
     """
-    run = FakeRun(sizes={"a.mp4": "480x720", "b.mp4": "480x720"},
-                  sounds={"a.mp4": "48000,stereo"})
+    run = FakeRun(sounds={"a.mp4": "48000,stereo"})
+    target = str(tmp_path / "düğün.mp4")
 
-    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"],
-                                                           str(tmp_path / "düğün.mp4"))
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"], target)
 
     written = ffmpeg_calls(run)[0]
     assert written == ["ffmpeg", "-y", "-i", "b.mp4",
                        "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo",
                        "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-c:a", "aac",
                        "-shortest", "b-sound.mp4"]
-    # And the join reads the repaired piece in the silent one's place, order untouched.
+    # And the join reads the repaired piece in the silent one's place, order untouched, with the
+    # set's sound joined and mapped: one sounded piece is enough to make the set a sounded one.
     assert run.joined == ["a.mp4", "b-sound.mp4"]
+    assert filtergraph(run) == expected_graph(2, sounded=True)
+    join = ffmpeg_calls(run)[-1]
+    assert join[join.index("-filter_complex") + 2:] == [
+        "-map", "[v]", *RATE, *ENCODE, *SOUND, target]
 
 
 def test_the_silence_matches_the_sound_the_other_pieces_carry(tmp_path):
-    """A guessed 48000:stereo would stop concat just as surely as no stream at all: what has to
-    match is the set's own sound, so the numbers come from the piece that has some."""
-    run = FakeRun(sizes={"a.mp4": "480x720", "b.mp4": "480x720"},
-                  sounds={"a.mp4": "44100,mono"})
+    """The silence takes the shape of the set's own sound, from the piece that has some, so the join
+    has nothing to convert -- concat would pick a common shape and convert by itself, but a shape
+    copied is one that cannot be guessed wrong."""
+    run = FakeRun(sounds={"a.mp4": "44100,mono"})
 
     FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"],
                                                            str(tmp_path / "düğün.mp4"))
@@ -1316,44 +1411,28 @@ def test_the_silence_matches_the_sound_the_other_pieces_carry(tmp_path):
     assert "anullsrc=r=44100:cl=mono" in ffmpeg_calls(run)[0]
 
 
-def test_mixed_sizes_stop_the_merge_and_name_what_was_found(tmp_path):
-    """A project made before the frames went landscape and added to afterwards. concat -c copy
-    would write a file whose later pieces are unplayable, and say nothing.
-
-    The message is a list rather than a sentence: "the pieces are different sizes" does not tell
-    anyone which frame to re-render.
-    """
-    run = FakeRun(sizes={"a.mp4": "848x480", "b.mp4": "480x720"})
+def test_a_join_that_fails_says_what_ffmpeg_said(tmp_path):
+    """A piece that cannot be read, or two that concat will not join, stop the join with ffmpeg's
+    own last line -- never a cause guessed here: only ffmpeg knows which piece it could not take,
+    and why."""
+    run = FakeRun(returncode=1, stderr="banner\nb.mp4: Invalid data found when processing input")
 
     with pytest.raises(RuntimeError) as caught:
-        FfmpegVideoExporter(run=run).merge(["a.mp4", "b.mp4"], str(tmp_path / "düğün.mp4"))
+        FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"],
+                                                               str(tmp_path / "düğün.mp4"))
 
-    said = str(caught.value)
-    assert "a.mp4" in said and "848x480" in said
-    assert "b.mp4" in said and "480x720" in said
-
-
-def test_nothing_is_merged_when_the_sizes_disagree(tmp_path):
-    """Stopping after writing half a file would leave exactly what the export's own rule forbids:
-    a folder that looks finished."""
-    run = FakeRun(sizes={"a.mp4": "848x480", "b.mp4": "480x720"})
-
-    with pytest.raises(RuntimeError):
-        FfmpegVideoExporter(run=run).merge(["a.mp4", "b.mp4"], str(tmp_path / "düğün.mp4"))
-
-    assert ffmpeg_calls(run) == []
-    assert not (tmp_path / "pieces.txt").exists()
+    assert str(caught.value) == "b.mp4: Invalid data found when processing input"
 
 
-def test_a_size_that_cannot_be_read_says_what_ffprobe_said(tmp_path):
+def test_a_sound_that_cannot_be_read_says_what_ffprobe_said(tmp_path):
     """A missing file, a file that is not a video, an ffprobe that is not installed -- three causes
     with one symptom, and only ffprobe knows which. Guessing one here would be the repo's own
-    "never invent a cause" rule broken in the place it was written for.
+    "never invent a cause" rule broken in the place it was written for. Nothing is joined then.
     """
-    run = FakeRun(sizes={"a.mp4": ""}, probe_returncode=1,
-                  probe_stderr="a.mp4: No such file or directory")
+    run = FakeRun(probe_returncode=1, probe_stderr="a.mp4: No such file or directory")
 
     with pytest.raises(RuntimeError) as caught:
         FfmpegVideoExporter(run=run).merge(["a.mp4", "b.mp4"], str(tmp_path / "düğün.mp4"))
 
-    assert "a.mp4: No such file or directory" in str(caught.value)
+    assert str(caught.value) == "a.mp4: No such file or directory"
+    assert ffmpeg_calls(run) == []

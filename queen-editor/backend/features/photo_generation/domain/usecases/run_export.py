@@ -22,9 +22,9 @@ from backend.features.photo_generation.domain.usecases.start_batch import Projec
 MERGED = "merged"
 
 # What a merged export's join is cut as on the machine, beside its pieces. Pieces are named by their
-# two-digit place (01.mp4 …) and the merger keeps pieces.txt and NN-sound.mp4 there too, so a join
-# named after the project could be one of them -- a project named 01 had ffmpeg write over its own
-# first piece (madde 474). Drive still gets the project's name.
+# two-digit place (01.mp4 …) and the merger writes NN-sound.mp4 there too, so a join named after
+# the project could be one of them -- a project named 01 had ffmpeg write over its own first piece
+# (madde 474). Drive still gets the project's name.
 JOINED = "birlesik.mp4"
 
 

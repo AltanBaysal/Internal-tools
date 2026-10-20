@@ -240,7 +240,8 @@ export default function ExportScreen({ project }) {
                           {/* Each step in its own words. The join's line is named after the work
                               that takes the time rather than after the join: the overlay is a new
                               picture, so the whole timeline is encoded on the landscape canvas
-                              (madde 250, 259), while the join itself is a concat copy (madde 255).
+                              (madde 250, 259), while the pieces stay copies and are fitted and
+                              joined inside that one encode (madde 478).
                               Still no percentage -- what the user asked for was which step, and
                               the seconds below answer which one was expensive. */}
                           {DOING[run.state] || `${run.written} / ${run.total} yazıldı…`}
