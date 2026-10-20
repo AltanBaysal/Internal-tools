@@ -6,7 +6,7 @@ no tools, so it answers with what it has, QueenAgent's way at its limit (Madde 1
 
 The agent first looks at the project: the gallery's cards go to the model before the question, one
 line each, numbered the way the gallery's badge numbers them (the user: "kart yapılı"). Then it reads
-a frame or looks at its photo as the model asks.
+a frame, looks at its photo or checks it for mixed-up characters as the model asks.
 
 Everything it does is a step on the chat with two sentences, and a step goes on until the next one
 begins or the question ends: the model reads what a tool brought in the round after the tool ran, so
@@ -16,7 +16,7 @@ step, and a stop drop it (BEHAVIOUR.md, Agent panel).
 import json
 
 from backend.features.agent.domain import prompt
-from backend.features.agent.domain.tools import TOOLS, card, run_tool
+from backend.features.agent.domain.tools import TOOLS, QueenAIFailed, card, run_tool
 
 MAX_ROUNDS = 32
 
@@ -88,12 +88,23 @@ def answer_question(box, frames, picture, run, project, earlier, question):
                          "tool_calls": said.tool_calls})
         shown = []
         for call in said.tool_calls:
-            step, told, parts = run_tool(cards, picture, project, call)
+            # Asked before each call too: a check is a paid request of its own (madde 479), and one
+            # round can hold a call for every frame.
+            if run.stopped():
+                return
+            step, work = run_tool(box.ask, cards, picture, project, call)
             if step:
-                # The look at the project is always the first step, so there is always one going on
-                # for the new one to finish.
+                # Before the work, so the chat says what goes on while it does. The look at the
+                # project is always the first step, so there is always one going on for the new one
+                # to finish.
                 run.finish_step()
                 run.add_step(*step)
+            try:
+                told, parts = work()
+            except QueenAIFailed as exc:
+                # The service failed, the way a failed round does: every later check would too.
+                run.fail(str(exc))
+                return
             messages.append({"role": "tool", "tool_call_id": call["id"], "content": told})
             shown += parts or []
         if shown:

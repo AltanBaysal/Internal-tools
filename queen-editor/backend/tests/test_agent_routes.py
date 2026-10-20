@@ -67,6 +67,11 @@ class FakeBox:
         answer = self.answers.pop(0)
         return answer() if callable(answer) else answer
 
+    def ask(self, system, text="", images=()):
+        """The box's question with pictures, which only check_frame asks (madde 479) -- and no
+        question here calls it."""
+        raise AssertionError("No check_frame is called in these questions.")
+
 
 def app_over(drive, dist, box, cards=CARDS, hold=False):
     """(client, held) over `drive`, wired the way main.py wires it -- built again over the same

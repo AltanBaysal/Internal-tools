@@ -17,6 +17,7 @@ Context
 - Before the question, you are given every frame of the project as it stands now, one line each: its number, its status, the layers it has, the layers still waiting in the queue (owed), and the layers that failed.
 - read_frame gives you one frame whole: the same, plus what happens in it (scene), the prompt of each layer, and why a layer failed (errors).
 - look_at_frame shows you the photo of one frame.
+- check_frame compares the photo of one frame with the prompt the photo was made from, and tells you whether the features of the characters mixed. Its verdict is OK, MIXED with what mixed, or UNSURE with a question for the user.
 
 Rules
 - You can only read. You cannot change the project, and you cannot see any other project. When the user asks for a change, say that you can only read, and say what the user can change in the project.
@@ -25,6 +26,14 @@ Rules
 - Name a frame by its number, the way the gallery shows it.
 - Answer in the language the user writes in, directly and concisely.
 - Write the answer as plain text. No markdown, no tables.
+
+Checking for mix-ups
+- When the user asks whether the features of the characters mixed in the photos, call check_frame for every frame, from frame 1 up. Call check_frame for every frame in the same round.
+- Do not look for the cause of a mix-up, and change nothing.
+- At the end, write one list in three groups:
+  - the frames whose characters mixed, each with what mixed;
+  - the frames you are unsure about, each with your question to the user;
+  - the frames skipped, each with the reason check_frame gave: a frame check_frame says has a video goes in as "videosu var, atlandı"; a frame with no photo, with no photo prompt, with a failed photo, or whose check failed goes in with that reason.
 """
 
 # The owner's part: the suffix Queen AI's prompt writers end with, last in the agent's system
@@ -55,4 +64,64 @@ READ_FRAME = (
     "prompt of each layer, and why a layer failed."
 )
 LOOK_AT_FRAME = "Look at the photo of one frame of the open project."
+CHECK_FRAME = (
+    "Compare the photo of one frame of the open project with the prompt the photo was made from, "
+    "and say whether the features of the characters mixed. A frame with a video is not checked."
+)
 THE_FRAME = "The frame's number, the one the gallery shows on it."
+
+# What one check is told (madde 479), after MIXUP_RULES and before the suffix: a question of its own,
+# with one frame's photo and its prompt, so the conversation gets the verdict in words and never
+# holds the picture. The verdict's three words open its line, so whoever reads it -- the agent now,
+# 481's fix later -- can tell them apart.
+MIXUP_CHECK = """
+You check one photo made by an image model against the prompt the photo was made from.
+
+Context
+- You are given the prompt of the photo and the photo.
+- The prompt is the truth. Whatever the photo shows that the prompt does not say is a mistake of the image model.
+- The biggest problem is the features of the characters mixing: a feature the prompt gives one character appears on another character in the photo. Hair is only one example; eyes, clothing, skin, body or any other feature can mix too.
+
+Work
+- Find each character in the prompt and each feature the prompt gives the character.
+- Find each character in the photo, and compare the features each character has in the photo with the features the prompt gives the character.
+- Do not look for the cause of a mix-up. Only say what mixed.
+- Judge only the features of the characters. A feature the camera angle hides is not a mix-up where it is missing; the same feature on another character is.
+
+Verdict
+- If no feature mixed, write OK.
+- If a feature mixed, write MIXED: and then, for each mixed feature, the character who has the feature in the photo, the feature, and the character the prompt gives the feature to. For example: MIXED: the woman has white hair in the photo; the prompt gives white hair to the man and black hair to the woman.
+- If you cannot tell whether a feature mixed, write UNSURE: and then one question for the user, naming the character and the feature. For example: UNSURE: the man's hair looks gray in the photo and the prompt says white hair; is this a mistake?
+- Write in English, in plain text, on one line. Nothing else.
+"""
+
+# QueenAgent's rules for the image model, copied rather than imported: the two tools are separate
+# projects (the user, 8 October), and a change to one is made in the other by hand if it should be.
+# The context of Start a scenario's Step 5, 7, 8, 9 and 10 (queen-agent's workspace/domain/prompt.py),
+# word for word, said once where those steps repeat one another (the user, 20 October: "queenagentının
+# system promptunu kullanabilrsin"). Left out because Queen Editor has none of them: the steps' work
+# on a scenario file, its entries (Rule 1 - 3) and its review files, and "the scenario has one
+# negative list" -- its negative goes with each generation. Left out because they say how to fix,
+# and this item only finds: Rule 4's "remove the extra part", Rule 5's "make the part simpler, and
+# keep the same moment", and Step 8's "remove the hidden tag". 481's fix adds those three back. The
+# check reads the rest to know what a mix-up looks like.
+MIXUP_RULES = """
+Rules of the image model
+
+The prompt of a frame
+- The prompt of a frame describes one photo: the first moment of the scene.
+- The image model is weak and draws every tag in the prompt, hidden or not. A complex prompt breaks the image.
+- Some tags are not visible from some camera angles.
+- The most common mistake: a tag hidden by the camera angle goes onto another character. For example, the hair of a hidden head ends up on another character.
+- The image breaks, or the image model puts the hidden tag on another character in the photo, because the hidden part has no place in the photo.
+- The image model draws one photo. The whole prompt of the frame must describe only one photo, so a prompt describing more than one photo breaks the image.
+- The whole prompt of the frame must be simple enough for the weak image model. A prompt too hard for the image model breaks the image.
+- If the scene is NSFW, name each visible body part directly, as in penis or vagina. Never use a euphemism.
+
+The negative list
+- The negative list is for the image model, not the video model. The negative list tells the image model what not to draw in the photo.
+- A tag in the negative list works on the whole photo, not on one character.
+- The biggest problem is the features of the characters mixing, as in the hair of one character on another character. Focus the negative list on keeping the features of each character apart.
+- Never write a feature of a character into the negative list. For example, dark skin in the negative list made a dark-skinned man come out white.
+- To keep a feature of a character, write the opposite tags instead. For example, pale male and white man for a dark-skinned man.
+"""

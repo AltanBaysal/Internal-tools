@@ -50,10 +50,14 @@ class QueenAI(Protocol):
     """The box every request to DeepSeek goes through (services/deepseek/box.py, madde 419).
 
     Its answer never raises: `text`, `tool_calls`, and `failed` with the refusal's sentence or the
-    error's own words in `text`.
+    error's own words in `text`. The conversation is the agent's; a question of its own, with
+    pictures, is check_frame's (madde 479).
     """
 
     def converse(self, messages: list, tools=()):
+        ...
+
+    def ask(self, system: str, text: str = "", images=()):
         ...
 
 

@@ -60,15 +60,25 @@ def calling(*calls):
 class FakeBox:
     """Answers each request with the next of `answers`. An entry may be a function: it runs while the
     request is out -- where a stop can land -- and returns the answer. Keeps every request as it was
-    when it was sent."""
+    when it was sent.
 
-    def __init__(self, *answers):
+    A check of a frame (madde 479) is a question of its own, `ask`: it is answered from `checks` the
+    same way and kept in `checked`."""
+
+    def __init__(self, *answers, checks=()):
         self.answers = list(answers)
         self.asked = []
+        self.checks = list(checks)
+        self.checked = []
 
     def converse(self, messages, tools=()):
         self.asked.append((copy.deepcopy(messages), tools))
         answer = self.answers.pop(0)
+        return answer() if callable(answer) else answer
+
+    def ask(self, system, text="", images=()):
+        self.checked.append((system, text, list(images)))
+        answer = self.checks.pop(0)
         return answer() if callable(answer) else answer
 
 
@@ -98,8 +108,9 @@ class FakeRun:
 class Project:
     """The two readers main.py hands the agent, noting which project each was asked about."""
 
-    def __init__(self, cards=CARDS):
+    def __init__(self, cards=CARDS, pictures=None):
         self.cards = cards
+        self.pictures = {"P0_0.png": PHOTO} if pictures is None else pictures
         self.asked = []
 
     def frames(self, project):
@@ -108,7 +119,7 @@ class Project:
 
     def picture(self, project, file):
         self.asked.append(("picture", project, file))
-        return {"P0_0.png": PHOTO}.get(file)
+        return self.pictures.get(file)
 
 
 def answering(box, project=None, earlier=(), question=QUESTION, run=None):
@@ -203,11 +214,12 @@ def test_the_instruction_ends_with_the_prompt_writers_suffix():
 
 
 def test_the_tools_only_read_and_name_no_project():
-    """The user: "yani bir değişilik yapamasın", "sadec açık projeye erişebilir". Two readers, and a
-    frame number is all either takes."""
+    """The user: "yani bir değişilik yapamasın", "sadec açık projeye erişebilir". Three readers, and
+    a frame number is all any of them takes."""
     offered = tools()
 
-    assert [tool["function"]["name"] for tool in offered] == ["read_frame", "look_at_frame"]
+    assert [tool["function"]["name"] for tool in offered] == ["read_frame", "look_at_frame",
+                                                              "check_frame"]
     for tool in offered:
         assert tool["type"] == "function"
         parameters = tool["function"]["parameters"]
@@ -371,3 +383,194 @@ def test_a_stopped_agent_sends_no_further_round():
 
     assert len(box.asked) == 1
     assert [line for line in wrote if line[0] in ("answer", "failure")] == []
+
+
+# --- the mix-up check (madde 479) ----------------------------------------------------------------
+#
+# check_frame compares one frame's photo with the prompt it was made from, in a question of its own
+# through the box: the conversation is told the verdict in words, and never holds the picture.
+
+# Frame 2's photo is on disk for these tests; frame 1 has a video, frame 3 no photo.
+PHOTO_2 = b"PNG2"
+MIXED = "MIXED: the woman has white hair in the photo; the prompt gives white hair to the man."
+
+
+def checking(number):
+    return (f"{number} numaralı kareyi prompt'uyla karşılaştırıyor…",
+            f"{number} numaralı kareyi prompt'uyla karşılaştırdı")
+
+
+def check_instruction():
+    return prompt().MIXUP_RULES + prompt().MIXUP_CHECK + prompt().SYSTEM_PROMPT_SUFFIX
+
+
+def with_photo_2():
+    return Project(pictures={"P0_0.png": PHOTO, "P1_0.png": PHOTO_2})
+
+
+def test_check_frame_asks_about_the_photo_and_its_prompt_and_tells_the_verdict_in_words():
+    box = FakeBox(calling(call("check_frame", '{"frame": 2}')), Answer("2 numaralı karede karışma var."),
+                  checks=[Answer(MIXED)])
+    project = with_photo_2()
+
+    wrote = answering(box, project)
+
+    assert box.checked == [(check_instruction(), "Prompt: yeşil elbiseli kadın",
+                            [("P1_0.png", PHOTO_2)])]
+    messages, _tools = box.asked[1]
+    assert messages[4] == {"role": "tool", "tool_call_id": "call_1", "content": f"Frame 2: {MIXED}"}
+    # The verdict is words: no picture enters the conversation, so none is sent again.
+    assert len(messages) == 5
+    assert project.asked == [("frames", "düğün"), ("picture", "düğün", "P1_0.png")]
+    assert wrote == [step(LOOKING), DONE, step(checking(2)),
+                     ("answer", "2 numaralı karede karışma var.")]
+
+
+def test_a_frame_with_a_video_is_not_checked():
+    """The user's choice: a frame with a video is not touched -- nothing is read and nothing is
+    asked, and the agent lists it as skipped."""
+    box = FakeBox(calling(call("check_frame", '{"frame": 1}')), Answer("1 atlandı."))
+    project = Project()
+
+    wrote = answering(box, project)
+
+    assert box.checked == []
+    assert project.asked == [("frames", "düğün")]
+    assert box.asked[1][0][4]["content"] == "Frame 1 has a video, so it is not checked."
+    assert wrote == [step(LOOKING), ("answer", "1 atlandı.")]
+
+
+def test_a_frame_whose_video_failed_has_no_video_and_is_checked():
+    """A failed layer stays in the card's layers (a failed slot is taken), but no video was made."""
+    cards = [{"id": "P0_0", "status": "done",
+              "layers": {"photo": "P0_0.png", "video": "P0_0.mp4"}, "owed": [],
+              "failed": ["video"], "errors": {"video": "ComfyUI: out of memory"}, "scene": "",
+              "prompts": {"photo": "kırmızı elbiseli kadın"}}]
+    box = FakeBox(calling(call("check_frame", '{"frame": 1}')), Answer("Karışma yok."),
+                  checks=[Answer("OK")])
+
+    answering(box, Project(cards=cards))
+
+    assert box.checked == [(check_instruction(), "Prompt: kırmızı elbiseli kadın",
+                            [("P0_0.png", PHOTO)])]
+    assert box.asked[1][0][4]["content"] == "Frame 1: OK"
+
+
+def one_card(**changes):
+    """A done frame with a photo and its prompt, and no video -- changed where a test says."""
+    return [{"id": "P0_0", "status": "done", "layers": {"photo": "P0_0.png"}, "owed": [],
+             "failed": [], "errors": {}, "scene": "", "prompts": {"photo": "kırmızı elbiseli kadın"},
+             **changes}]
+
+
+@pytest.mark.parametrize("cards, number, said", [
+    (CARDS, 3, "Frame 3 has no photo."),
+    (one_card(prompts={}), 1, "Frame 1 has no photo prompt to compare the photo with."),
+    (one_card(failed=["photo"], errors={"photo": "ComfyUI: out of memory"}), 1,
+     "The photo of frame 1 failed, so there is nothing to compare."),
+], ids=["no-photo-layer", "no-prompt", "failed-photo"])
+def test_a_frame_with_nothing_to_compare_is_not_read_asked_or_shown(cards, number, said):
+    """Read off the card alone: the photo is not read, Queen AI is not asked, and since nothing was
+    read there is no step. The frame's own prompt is the truth, so a photo without one has nothing to
+    be compared with; a failed photo is in the layers (a failed slot is taken), but no photo was
+    made."""
+    box = FakeBox(calling(call("check_frame", json.dumps({"frame": number}))), Answer("Atlandı."))
+    project = Project(cards=cards)
+
+    wrote = answering(box, project)
+
+    assert box.checked == []
+    assert project.asked == [("frames", "düğün")]
+    assert box.asked[1][0][4]["content"] == said
+    assert wrote == [step(LOOKING), ("answer", "Atlandı.")]
+
+
+def test_a_photo_missing_on_disk_is_read_and_not_asked_about():
+    """Frame 2 has a photo layer and a prompt, but its file is not on disk."""
+    box = FakeBox(calling(call("check_frame", '{"frame": 2}')), Answer("2'nin fotoğrafı yok."))
+    project = Project()
+
+    wrote = answering(box, project)
+
+    assert box.checked == []
+    assert project.asked == [("frames", "düğün"), ("picture", "düğün", "P1_0.png")]
+    assert box.asked[1][0][4]["content"] == "Frame 2 has no photo."
+    assert wrote == [step(LOOKING), DONE, step(checking(2)), ("answer", "2'nin fotoğrafı yok.")]
+
+
+def test_a_photo_that_cannot_be_read_is_that_frame_s_line_and_the_agent_goes_on():
+    """Drive's own words, and the verdicts before it are kept: the question does not end."""
+    class Unreadable(Project):
+        def picture(self, project, file):
+            raise OSError(107, "Transport endpoint is not connected")
+
+    box = FakeBox(calling(call("check_frame", '{"frame": 2}')), Answer("2 okunamadı."))
+
+    wrote = answering(box, Unreadable())
+
+    assert box.checked == []
+    assert box.asked[1][0][4]["content"] == ("The photo of frame 2 could not be read: "
+                                             "[Errno 107] Transport endpoint is not connected")
+    assert wrote[-1] == ("answer", "2 okunamadı.")
+
+
+def test_the_frame_s_step_is_on_the_chat_before_queen_ai_is_asked():
+    """The chat says what goes on while it goes on: a check can take a while."""
+    run = FakeRun()
+    seen = []
+
+    def asked_while_out():
+        seen.append(list(run.wrote))
+        return Answer("OK")
+
+    box = FakeBox(calling(call("check_frame", '{"frame": 2}')), Answer("Karışma yok."),
+                  checks=[asked_while_out])
+
+    answering(box, with_photo_2(), run=run)
+
+    assert seen == [[step(LOOKING), DONE, step(checking(2))]]
+
+
+def test_a_refused_check_is_that_frame_s_line_and_the_agent_goes_on():
+    """A refusal is the frame's answer: another frame may well be answered."""
+    box = FakeBox(calling(call("check_frame", '{"frame": 2}')), Answer("2 kontrol edilemedi."),
+                  checks=[Answer(REFUSED, failed=True, refused=True)])
+
+    wrote = answering(box, with_photo_2())
+
+    assert box.asked[1][0][4]["content"] == f"The check of frame 2 failed: {REFUSED}"
+    assert wrote[-1] == ("answer", "2 kontrol edilemedi.")
+
+
+def test_a_technical_failure_of_a_check_ends_the_question_in_its_own_words():
+    """The service is down, and every later check would meet it: the question fails the way a
+    failed round does, and no further check or round is sent."""
+    box = FakeBox(calling(call("check_frame", '{"frame": 2}', "call_1"),
+                          call("check_frame", '{"frame": 2}', "call_2")),
+                  checks=[Answer("DeepSeek HTTP 503\nmeşgul", failed=True), Answer("OK")])
+
+    wrote = answering(box, with_photo_2())
+
+    assert len(box.checked) == 1
+    assert len(box.asked) == 1
+    assert wrote == [step(LOOKING), DONE, step(checking(2)),
+                     ("failure", "DeepSeek HTTP 503\nmeşgul")]
+
+
+def test_a_stop_between_two_calls_of_one_round_sends_nothing_more():
+    """A check is a paid request: a stop that lands during one leaves the round's other calls
+    unasked."""
+    run = FakeRun()
+
+    def stopped_while_out():
+        run.halted = True
+        return Answer("OK")
+
+    box = FakeBox(calling(call("check_frame", '{"frame": 2}', "call_1"),
+                          call("check_frame", '{"frame": 2}', "call_2")),
+                  Answer("Hiç gitmemeli."), checks=[stopped_while_out, Answer("OK")])
+
+    answering(box, with_photo_2(), run=run)
+
+    assert len(box.checked) == 1
+    assert len(box.asked) == 1

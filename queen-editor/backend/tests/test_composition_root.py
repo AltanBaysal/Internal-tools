@@ -236,7 +236,12 @@ def test_the_agent_reads_the_open_project_through_the_box_and_changes_nothing(
             "function": {"name": "read_frame", "arguments": '{"frame": 1}'}}
     look = {"id": "call_2", "type": "function",
             "function": {"name": "look_at_frame", "arguments": '{"frame": 1}'}}
-    http = Answers([calling(read, look), answering("Projede tek kare var: kırmızı elbiseli kadın."),
+    # Madde 479: the mix-up check is a question of its own through the same box, checked like any
+    # words, and its verdict comes back to the conversation as words.
+    check = {"id": "call_3", "type": "function",
+             "function": {"name": "check_frame", "arguments": '{"frame": 1}'}}
+    http = Answers([calling(read, look, check), answering("OK"), answering("APPROVED"),
+                    answering("Projede tek kare var: kırmızı elbiseli kadın."),
                     answering("APPROVED")])
     monkeypatch.setattr(requests, "post", http.post)
     run = FakeRun()
@@ -244,10 +249,15 @@ def test_the_agent_reads_the_open_project_through_the_box_and_changes_nothing(
     main._agent(run, "düğün", [], "Projede ne var?")
 
     assert run.wrote[-1] == ("answer", "Projede tek kare var: kırmızı elbiseli kadın.")
-    first, second, _check = http.calls
-    assert [tool["function"]["name"] for tool in first["body"]["tools"]] == ["read_frame",
-                                                                             "look_at_frame"]
+    first, checked, _approved, second, _check = http.calls
+    assert [tool["function"]["name"] for tool in first["body"]["tools"]] == [
+        "read_frame", "look_at_frame", "check_frame"]
+    asked = checked["body"]["messages"][1]["content"]
+    assert asked == [{"type": "image_url", "image_url": {
+                          "url": "data:image/png;base64," + base64.b64encode(b"PNG").decode()}},
+                     {"type": "text", "text": "Prompt: kırmızı elbiseli kadın"}]
     told = second["body"]["messages"]
+    assert {"role": "tool", "tool_call_id": "call_3", "content": "Frame 1: OK"} in told
     assert any(message["role"] == "tool" and "kırmızı elbiseli kadın" in message["content"]
                for message in told)
     pictures = [part["image_url"]["url"] for message in told
