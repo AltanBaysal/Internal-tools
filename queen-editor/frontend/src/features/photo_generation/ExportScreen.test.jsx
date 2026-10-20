@@ -26,10 +26,13 @@ vi.mock("../../shared/router.js", () => ({
 // count of its own.
 vi.mock("./useGeneration.js", () => ({ useGeneration: vi.fn() }));
 
+// The folder every export lands in, beside the projects (madde 473); a run's own is named after the
+// minute it starts and the project.
 const SUMMARY = { videos: 22, seconds: 110, silent: 0, withoutVideo: 0,
-                  folder: "/drive/düğün/export" };
+                  folder: "/drive/Exportlar" };
 const EMPTY = { videos: 0, seconds: 0, silent: 0, withoutVideo: 0,
-                folder: "/drive/düğün/export" };
+                folder: "/drive/Exportlar" };
+const TARGET = "/drive/Exportlar/2026-08-12 14-32 düğün";
 
 const IDLE = { job: { status: "idle" }, frames: [], queue: [] };
 const FLOWING = { job: { status: "running", project: "düğün" }, frames: [],
@@ -91,7 +94,7 @@ describe("ExportScreen", () => {
     await open();
 
     expect(screen.getByText("Şuraya yazılacak:")).toBeTruthy();
-    expect(screen.getByText("/drive/düğün/export")).toBeTruthy();
+    expect(screen.getByText("/drive/Exportlar")).toBeTruthy();
   });
 
   it("offers the two exports side by side, both accent", async () => {
@@ -209,7 +212,7 @@ describe("ExportScreen", () => {
     // finished one would hang an hour-old green card on every open.
     await open(SUMMARY, IDLE, { ...NOTHING,
                                 separate: { state: "done", written: 3, total: 3,
-                                            target: "/drive/düğün/export/2026-08-12 14-32" } });
+                                            target: TARGET } });
 
     expect(screen.queryByText("✓ Export tamamlandı")).toBeNull();
     expect(button("Videoları ayrı export et").disabled).toBe(false);
@@ -294,12 +297,12 @@ describe("ExportScreen", () => {
   it("says where the finished export went", async () => {
     await open(SUMMARY, IDLE, { ...NOTHING,
                                 separate: { state: "done", written: 3, total: 3,
-                                            target: "/drive/düğün/export/2026-08-12 14-32" } });
+                                            target: TARGET } });
 
     await press("Videoları ayrı export et");
 
     expect(screen.getByText("✓ Export tamamlandı")).toBeTruthy();
-    expect(screen.getByText(/2026-08-12 14-32/)).toBeTruthy();
+    expect(screen.getByText(/2026-08-12 14-32 düğün/)).toBeTruthy();
   });
 
   it("says why an export failed, in the tool's own words", async () => {

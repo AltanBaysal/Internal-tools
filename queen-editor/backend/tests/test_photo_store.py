@@ -1,15 +1,20 @@
+import errno
 import os
 
 import pytest
 
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
-from backend.services.storage.storage import TEMP_PREFIX, Storage
+from backend.features.projects.domain import name_rules
+from backend.services.storage.storage import TEMP_PREFIX, Storage, StorageError
+from backend.tests.test_storage import root_stat_fails
 
 STAMP = "2026-08-12 14-32"
+# The folder main.py hands the store: the one the projects feature keeps from being a project.
+EXPORTS = name_rules.EXPORTS_DIR
 
 
 def store_at(path):
-    return DrivePhotoStore(Storage(str(path)))
+    return DrivePhotoStore(Storage(str(path)), EXPORTS)
 
 
 def project_at(path):
@@ -82,21 +87,110 @@ def test_a_photos_bytes_can_be_read_back(tmp_path):
 
 
 def export_folder(tmp_path):
-    return tmp_path / "düğün" / "export" / STAMP
+    """Beside the projects rather than inside one, named date first and project after, so the
+    newest exports stand together in Drive (madde 473)."""
+    return tmp_path / EXPORTS / f"{STAMP} düğün"
 
 
-def test_naming_the_export_folder_opens_nothing(tmp_path):
-    """The screen is told where the export lands before anything is written; the folder is opened
-    by the first file that goes into it."""
+def test_opening_an_export_opens_the_exports_folder_and_nothing_inside_it(tmp_path):
+    """A save never opens a folder directly under the root (madde 472), so the exports folder is
+    opened here, once a run. The dated folder is opened by the first file that goes into it."""
     store = project_at(tmp_path)
 
-    assert store.export_folder("düğün", STAMP) == str(export_folder(tmp_path))
-    assert store.export_dir("düğün") == str(tmp_path / "düğün" / "export")
-    assert not (tmp_path / "düğün" / "export").exists()
+    assert store.open_export("düğün", STAMP) == str(export_folder(tmp_path))
+    assert (tmp_path / EXPORTS).is_dir()
+    assert list((tmp_path / EXPORTS).iterdir()) == []
+
+
+def test_opening_an_export_leaves_the_exports_already_there_alone(tmp_path):
+    store = project_at(tmp_path)
+    earlier = tmp_path / EXPORTS / "2026-08-11 09-00 nikah"
+    earlier.mkdir(parents=True)
+    (earlier / "nikah.mp4").write_bytes(b"MP4")
+
+    store.open_export("düğün", STAMP)
+
+    assert (earlier / "nikah.mp4").read_bytes() == b"MP4"
+
+
+def test_an_export_opened_while_the_mount_is_gone_opens_nothing(tmp_path, monkeypatch):
+    """The mount check stands before the folder is made: a dropped mount must not leave an exports
+    folder on the machine's own disk."""
+    store = project_at(tmp_path)
+    root_stat_fails(monkeypatch, str(tmp_path),
+                    OSError(errno.ENOTCONN, "Transport endpoint is not connected"))
+
+    with pytest.raises(StorageError):
+        store.open_export("düğün", STAMP)
+
+    monkeypatch.undo()
+    assert not (tmp_path / EXPORTS).exists()
+
+
+def test_the_screen_is_told_the_exports_folder_and_nothing_is_opened(tmp_path):
+    """What the export screen shows before a run: where exports land. The run's own folder is named
+    after the minute it starts, which is not known yet."""
+    store = project_at(tmp_path)
+
+    assert store.export_dir() == str(tmp_path / EXPORTS)
+    assert not (tmp_path / EXPORTS).exists()
+
+
+def test_a_save_never_opens_the_exports_folder_itself(tmp_path):
+    """Why a run opens it first: it sits directly under the root, where no save opens a folder."""
+    store = project_at(tmp_path)
+    piece = tmp_path / "01.mp4"
+    piece.write_bytes(b"MP4")
+
+    with pytest.raises(FileNotFoundError):
+        store.copy_video("düğün", STAMP, str(piece), "01.mp4")
+
+    assert not (tmp_path / EXPORTS).exists()
+
+
+def export_at(path):
+    """A store over a root holding düğün, with an export of it opened the way a run opens one."""
+    store = project_at(path)
+    store.open_export("düğün", STAMP)
+    return store
+
+
+def test_an_export_lands_beside_the_projects_and_leaves_the_project_alone(tmp_path):
+    """Madde 473: "Export dosyaları proje dosyalarının içine değil, ayrı bir klasöre kaydedilsin".
+    Inside, nothing changed: foto/, and video/ or the merged file."""
+    store = export_at(tmp_path)
+    store.save("düğün", "0_a.png", b"PNG")
+    piece = tmp_path / "01.mp4"
+    piece.write_bytes(b"MP4")
+
+    store.copy_video("düğün", STAMP, str(piece), "01.mp4")
+    store.copy_photo("düğün", "0_a.png", STAMP, "01.png")
+
+    assert sorted(path.name for path in export_folder(tmp_path).iterdir()) == ["foto", "video"]
+    assert sorted(path.name for path in (tmp_path / "düğün").iterdir()) == ["0_a.png"]
+
+
+def test_an_old_export_inside_the_project_is_left_where_it_is(tmp_path):
+    """Exports written before madde 473 stay in the project's export/ folder: nothing is moved, and
+    nothing new goes there."""
+    old = tmp_path / "düğün" / "export" / "2026-08-01 10-00"
+    (old / "foto").mkdir(parents=True)
+    (old / "düğün.mp4").write_bytes(b"OLD")
+    store = store_at(tmp_path)
+    store.open_export("düğün", STAMP)
+    joined = tmp_path / "düğün.mp4"
+    joined.write_bytes(b"MP4")
+
+    store.copy_export("düğün", STAMP, str(joined), "düğün.mp4")
+    store.remove_export("düğün", STAMP)
+
+    assert (old / "düğün.mp4").read_bytes() == b"OLD"
+    assert [path.name for path in (tmp_path / "düğün" / "export").iterdir()] == [
+        "2026-08-01 10-00"]
 
 
 def test_a_photo_already_in_the_export_is_not_written_again(tmp_path):
-    store = project_at(tmp_path)
+    store = export_at(tmp_path)
     store.save("düğün", "0_a.png", b"PNG")
 
     store.copy_photo("düğün", "0_a.png", STAMP, "01.png")
@@ -115,7 +209,7 @@ def test_a_separate_exports_videos_get_a_folder_of_their_own(tmp_path):
     """The dated folder held 22 videos beside the photos folder, and the user asked for them
     gathered: "tekli ve çok videolar için klasör açalım" (madde 283). Each arrives from the machine
     whole, and nothing half written is left beside it."""
-    store = project_at(tmp_path)
+    store = export_at(tmp_path)
     piece = tmp_path / "01.mp4"
     piece.write_bytes(b"MP4")
 
@@ -130,7 +224,7 @@ def test_the_merged_file_is_copied_into_the_export_folder(tmp_path):
     """The join is written on the machine's own disk and comes here whole (madde 282). Landing in
     one save matters more here than anywhere: Drive is slow, so the window in which a half written
     file could be seen is a real one, and a folder that looks finished is what madde 94 forbids."""
-    store = project_at(tmp_path)
+    store = export_at(tmp_path)
     joined = tmp_path / "düğün.mp4"
     joined.write_bytes(b"MP4")
 
@@ -144,13 +238,15 @@ def test_the_merged_file_is_copied_into_the_export_folder(tmp_path):
 
 
 def test_an_export_that_did_not_finish_takes_its_folder_and_nothing_else(tmp_path):
-    store = project_at(tmp_path)
+    store = export_at(tmp_path)
     store.save("düğün", "0_a.png", b"PNG")
     store.copy_photo("düğün", "0_a.png", STAMP, "01.png")
 
     store.remove_export("düğün", STAMP)
 
     assert not export_folder(tmp_path).exists()
+    # The exports folder is every export's, and stays.
+    assert (tmp_path / EXPORTS).is_dir()
     assert (tmp_path / "düğün" / "0_a.png").read_bytes() == b"PNG"
 
 

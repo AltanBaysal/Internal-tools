@@ -16,7 +16,7 @@ from backend.tests.test_photo_usecases import (
 )
 
 MINUTE = "2026-08-12 14-32"         # the export's opening, which names its dated folder
-FOLDER = f"/fake/düğün/export/{MINUTE}"
+FOLDER = f"/fake/Exportlar/{MINUTE} düğün"
 # Not under /fake: every piece is cut on the machine's own disk, never on Drive (madde 235, 472).
 PIECES = "/tmp/fake-pieces"
 
@@ -35,8 +35,14 @@ class ExportStore(FakeStore):
     def file_path(self, project, filename):
         return f"/fake/{project}/{filename}"
 
-    def export_folder(self, project, stamp):
-        return f"/fake/{project}/export/{stamp}"
+    def open_export(self, project, stamp):
+        """The real one opens the exports folder beside the projects; that is tested against a
+        real folder in test_photo_store.py."""
+        self.order.append("open_export")
+        return self._folder(project, stamp)
+
+    def _folder(self, project, stamp):
+        return f"/fake/Exportlar/{stamp} {project}"
 
     def piece_path(self, pieces, filename):
         return f"{pieces}/{filename}"
@@ -44,13 +50,14 @@ class ExportStore(FakeStore):
     def make_pieces_dir(self):
         """Where every piece is cut -- the real one answers with a folder on the machine's own
         disk, and the path here is outside the Drive root on purpose."""
+        self.order.append("make_pieces_dir")
         return PIECES
 
     def remove_pieces(self, path):
         self.removed.append(path)
 
     def remove_export(self, project, stamp):
-        self.removed.append(self.export_folder(project, stamp))
+        self.removed.append(self._folder(project, stamp))
 
     def copy_photo(self, project, photo, stamp, filename):
         """Every call is written down and none is skipped.
@@ -159,6 +166,28 @@ def test_separate_export_numbers_the_videos_from_the_foot_of_the_gallery():
         "/fake/düğün/0_a_V1_0.mp4", "/fake/düğün/1_a_V1_0.mp4"]
     assert [name for _s, _stamp, name in store.videos] == ["01.mp4", "02.mp4"]
     assert folder == FOLDER
+
+
+class DriveGoneAtOpening(ExportStore):
+    """The mount has dropped before the run begins: the exports folder cannot be opened."""
+
+    def open_export(self, project, stamp):
+        raise OSError(107, "Transport endpoint is not connected")
+
+
+def test_an_export_opens_its_place_on_drive_before_anything_is_cut():
+    """Madde 473: the exports folder sits directly under the root, where no save opens a folder, so
+    the run opens it first -- and before the machine's own pieces folder, so a mount that refuses
+    leaves nothing to clean up on either disk."""
+    _, record, plan_store = with_videos()
+    store = DriveGoneAtOpening()
+    exporter = FakeExporter()
+
+    with pytest.raises(OSError):
+        export(store, record, plan_store, exporter)
+
+    assert store.order == []
+    assert exporter.pieces == [] and store.removed == []
 
 
 def test_a_frame_with_a_sound_is_written_with_it():
@@ -429,8 +458,8 @@ def test_the_videos_are_all_written_before_the_first_photo():
 
     export(store, record, plan_store, FakeExporter(store=store))
 
-    assert store.order == ["piece", "copy_video", "piece", "copy_video", "copy_photo",
-                           "copy_photo"]
+    assert store.order == ["open_export", "make_pieces_dir", "piece", "copy_video", "piece",
+                           "copy_video", "copy_photo", "copy_photo"]
 
 
 def test_a_merged_export_stamps_the_disclaimer_after_the_photos_are_in():
@@ -441,7 +470,8 @@ def test_a_merged_export_stamps_the_disclaimer_after_the_photos_are_in():
 
     export(store, record, plan_store, FakeExporter(store=store), mode="merged")
 
-    assert store.order == ["piece", "piece", "copy_photo", "copy_photo", "merge", "copy_export"]
+    assert store.order == ["open_export", "make_pieces_dir", "piece", "piece", "copy_photo",
+                           "copy_photo", "merge", "copy_export"]
 
 
 def test_a_join_that_blew_up_copies_nothing_to_drive():

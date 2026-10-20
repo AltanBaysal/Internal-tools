@@ -46,4 +46,4 @@ def export_summary(record, store, plan_store, order_store, seconds, project):
             # What the sequence will not hold: every frame with no video, produced or not.
             "withoutVideo": len(frames) - len(videos),
             # Where an export lands is the store's answer: building a path is not the domain's job.
-            "folder": store.export_dir(project)}
+            "folder": store.export_dir()}

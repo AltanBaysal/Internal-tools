@@ -90,6 +90,7 @@ from backend.features.photo_generation.runner import PhotoRunner
 from backend.features.projects.data.project_store import DriveProjectStore
 from backend.features.projects.data.reference_settings_store import DriveReferenceSettingsStore
 from backend.features.projects.data.settings_store import DriveSettingsStore
+from backend.features.projects.domain import name_rules
 from backend.features.projects.domain.usecases.archive_project import (
     archive_project,
     list_archived_projects,
@@ -127,7 +128,7 @@ _project_store = DriveProjectStore(_storage)
 _settings_store = DriveSettingsStore(_storage)
 _reference_settings_store = DriveReferenceSettingsStore(_storage)
 
-_photo_store = DrivePhotoStore(_storage)
+_photo_store = DrivePhotoStore(_storage, name_rules.EXPORTS_DIR)
 _comfy_client = ComfyClient(config.COMFY_URL, poll_interval=config.POLL_INTERVAL,
                             log_path=config.COMFY_LOG)
 _photo_generator = ComfyPhotoGenerator(_comfy_client, config.WORKFLOW_PATH, config.RENDER_TIMEOUT)

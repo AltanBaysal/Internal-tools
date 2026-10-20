@@ -1,8 +1,9 @@
 """Give one project a new name -- the folder's own name, because that is what a project is.
 
-Everything a project knows lives inside its folder: the plan, the record, the settings, the exports.
-All of it travels with the move and none of it is rewritten, and frame names were never the
-project's name to begin with.
+Everything a project knows lives inside its folder: the plan, the record, the settings, and the
+exports written before madde 473. All of it travels with the move and none of it is rewritten, and
+frame names were never the project's name to begin with. Exports since then sit in a folder beside
+the projects, under the name the project had when each was made, and stay as they are.
 
 `move` is where a running production is carried over (photo_generation's own use case). What is
 behind it is not this feature's business, the same way `halt` is not.
@@ -16,6 +17,10 @@ from backend.features.projects.domain.usecases.get_settings import ProjectMissin
 
 
 def rename_project(store, move, old, new):
+    # A reserved folder is not a project (name_rules), whatever name it is asked to take: renamed, the
+    # exports folder would turn into a project card.
+    if name_rules.is_reserved(old):
+        raise ProjectMissing(f"Proje yok: {old}")
     error = name_rules.validate(new)
     if error:
         raise InvalidName(error)

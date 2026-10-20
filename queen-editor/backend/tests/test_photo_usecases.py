@@ -86,8 +86,8 @@ class FakeStore:
     def photo_dir(self, project):
         return f"/fake/{project}"
 
-    def export_dir(self, project):
-        return f"/fake/{project}/export"
+    def export_dir(self):
+        return "/fake/Exportlar"
 
 
 class FrameFault(RuntimeError):
@@ -1246,7 +1246,7 @@ def test_the_summary_counts_the_frames_that_have_a_video():
     summary = export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5,"düğün")
 
     assert summary == {"videos": 1, "seconds": 5, "silent": 1, "withoutVideo": 1,
-                       "folder": "/fake/düğün/export"}
+                       "folder": "/fake/Exportlar"}
 
 
 def test_the_total_length_comes_from_whoever_knows_how_long_a_video_is():
@@ -1264,7 +1264,7 @@ def test_a_project_with_no_video_exports_nothing():
 
     assert export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5,"düğün") == {
         "videos": 0, "seconds": 0, "silent": 0, "withoutVideo": 1,
-        "folder": "/fake/düğün/export"}
+        "folder": "/fake/Exportlar"}
 
 
 def test_a_video_that_blew_up_is_not_counted():

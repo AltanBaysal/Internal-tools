@@ -35,6 +35,11 @@ def test_valid_names_return_none(name):
         ("arsiv", RESERVED_MESSAGE),
         ("Arsiv", RESERVED_MESSAGE),
         ("ARSIV", RESERVED_MESSAGE),
+        # Where exports land, beside the projects (madde 473). A project of that name would have
+        # every export written into it, and it would vanish from the list.
+        ("Exportlar", RESERVED_MESSAGE),
+        ("exportlar", RESERVED_MESSAGE),
+        ("EXPORTLAR", RESERVED_MESSAGE),
     ],
 )
 def test_invalid_names_return_message(name, expected):
@@ -45,3 +50,17 @@ def test_the_reserved_name_is_the_folder_the_archive_really_uses():
     """Written down once. A test spelling the name itself would keep passing after the folder was
     renamed, and the project it then failed to reserve would be the one that breaks the list."""
     assert name_rules.validate(name_rules.ARCHIVE_DIR) == RESERVED_MESSAGE
+
+
+@pytest.mark.parametrize("name, reserved", [
+    ("Exportlar", True), ("EXPORTLAR", True), ("arsiv", True), ("Arsiv", True),
+    ("düğün", False), ("Exportlar 2", False),
+])
+def test_a_reserved_name_is_told_apart_whatever_its_case(name, reserved):
+    """What every door that takes a project's name asks first: a reserved folder is not a project."""
+    assert name_rules.is_reserved(name) is reserved
+
+
+def test_the_reserved_name_is_the_folder_exports_really_use():
+    """The same reason: main.py hands this very name to the photo store as where exports land."""
+    assert name_rules.validate(name_rules.EXPORTS_DIR) == RESERVED_MESSAGE

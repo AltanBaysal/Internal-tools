@@ -21,6 +21,7 @@ from backend import config
 from backend.features.photo_generation.data.comfy_h3_video_generator import ComfyH3VideoGenerator
 from backend.features.photo_generation.data.prompt_writer import H3VideoPromptWriter
 from backend.features.photo_generation.domain import layers
+from backend.features.projects.domain import name_rules
 from backend.tests.test_deepseek_box import Answers, calling
 from backend.tests.test_deepseek_client import FakeResponse, answering
 
@@ -168,6 +169,14 @@ def test_the_queue_reads_the_projects_happy_ending(import_main, monkeypatch, tmp
     assert main._happy_ending("düğün") is False
     main.app.test_client().put("/api/projects/düğün/happy-ending", json={"on": True})
     assert main._happy_ending("düğün") is True
+
+
+def test_exports_land_in_the_folder_no_project_may_take(import_main, root, tmp_path):
+    """Madde 473: the photo store is handed the very name the projects feature keeps from being a
+    project -- otherwise a project could take the exports folder and have every export written in."""
+    main = import_main()
+
+    assert main._photo_store.export_dir() == str(tmp_path / name_rules.EXPORTS_DIR)
 
 
 def test_every_session_makes_its_videos_with_h3(import_main, monkeypatch, tmp_path):

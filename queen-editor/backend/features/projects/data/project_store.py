@@ -67,16 +67,16 @@ class DriveProjectStore:
 
     def list(self):
         marks = self._marks()
-        # An install from madde 221 still has the folder that archived projects were moved into.
-        # Nothing looks in it any more -- bringing those projects home is done by hand, in Drive --
-        # but the root's folders ARE the projects, so it would otherwise show up as one.
+        # The root's folders ARE the projects, but for the app's own (name_rules): the folder madde
+        # 221 moved archived projects into, which old installs still have, and the one exports land
+        # in (madde 473). Neither list ever draws one as a card.
         return [Project(name, mtime) for name, mtime in self.storage.list_dirs()
-                if name not in marks and name != name_rules.ARCHIVE_DIR]
+                if name not in marks and not name_rules.is_reserved(name)]
 
     def list_archived(self):
         marks = self._marks()
         return [Project(name, mtime) for name, mtime in self.storage.list_dirs()
-                if name in marks]
+                if name in marks and not name_rules.is_reserved(name)]
 
     # --- putting away and taking back -------------------------------------------------------
 

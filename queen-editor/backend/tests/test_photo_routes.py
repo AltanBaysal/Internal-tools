@@ -26,6 +26,7 @@ from backend.features.photo_generation.domain.usecases.start_batch import start_
 from backend.features.photo_generation.domain.usecases.stop_generation import stop_generation
 from backend.features.photo_generation.presentation.routes import make_photo_generation_blueprint
 from backend.features.photo_generation.runner import PhotoRunner
+from backend.features.projects.domain import name_rules
 from backend.services.storage.storage import Storage
 from backend.web.app import create_app
 
@@ -87,7 +88,7 @@ def make_client(tmp_path, generator=None, runner=None):
     (dist / "index.html").write_text("x", encoding="utf-8")
 
     storage = Storage(str(drive))
-    store = DrivePhotoStore(storage)
+    store = DrivePhotoStore(storage, name_rules.EXPORTS_DIR)
     record = DrivePhotoRecord(storage)
     plan_store = DrivePlanStore(storage)
     order_store = DriveOrderStore(storage)
@@ -965,7 +966,9 @@ def test_the_export_summary_is_json_not_a_download(tmp_path):
     assert resp.status_code == 200
     body = resp.get_json()
     assert (body["videos"], body["seconds"]) == (1, 5)
-    assert body["folder"].endswith("export")
+    # Where exports land, beside the projects (madde 473); the run's own folder is named after the
+    # minute it starts.
+    assert body["folder"] == str(drive / "Exportlar")
 
 
 def test_the_summary_of_a_project_with_no_video_is_zero(tmp_path):
@@ -1001,9 +1004,26 @@ def test_an_export_runs_and_says_where_it_wrote(tmp_path):
     assert resp.status_code == 202
     state = client.get("/api/projects/düğün/export/status").get_json()["separate"]
     assert (state["state"], state["written"], state["total"]) == ("done", 1, 1)
-    assert state["target"].endswith("2026-08-12 14-32")
-    landed = drive / "düğün" / "export" / "2026-08-12 14-32" / "video" / "01.mp4"
-    assert landed.read_bytes() == b"MP4"
+    # Madde 473: beside the projects, date first and project after, and nothing new inside the
+    # project.
+    exported = drive / "Exportlar" / "2026-08-12 14-32 düğün"
+    assert state["target"] == str(exported)
+    assert (exported / "video" / "01.mp4").read_bytes() == b"MP4"
+    assert (exported / "foto" / "01.png").is_file()
+    assert not (drive / "düğün" / "export").exists()
+
+
+def test_a_merged_export_lands_in_the_same_place(tmp_path):
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+    give_it_a_video(drive)
+
+    client.post("/api/projects/düğün/export/merged")
+
+    exported = drive / "Exportlar" / "2026-08-12 14-32 düğün"
+    assert client.get("/api/projects/düğün/export/status").get_json()["merged"]["state"] == "done"
+    assert sorted(path.name for path in exported.iterdir()) == ["düğün.mp4", "foto"]
+    assert not (drive / "düğün" / "export").exists()
 
 
 def test_an_export_of_an_unknown_project_returns_404(tmp_path):

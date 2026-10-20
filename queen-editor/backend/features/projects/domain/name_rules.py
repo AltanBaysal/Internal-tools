@@ -8,10 +8,22 @@ prints them verbatim and keeps no copy of the rules.
 
 MAX_LENGTH = 64
 FORBIDDEN_CHARS = '/\\:*?"<>|'
-# Where madde 221 used to move archived projects. Nothing is moved any more (madde 227), but the
-# name stays reserved: the store looks in this folder on startup to carry those projects home, and a
-# project called arsiv would have its own subfolders carried out as projects of their own.
+# Where madde 221 moved archived projects. The name stays reserved because old installs still have
+# that folder, and the list would show it as a project.
 ARCHIVE_DIR = "arsiv"
+# Where exports land, beside the projects (madde 473). Named here because this feature is the one
+# that says which folders under the root are projects; main.py hands the same name to the photo
+# store, so the folder exports use and the name kept from projects cannot drift apart.
+EXPORTS_DIR = "Exportlar"
+# Matched whatever the case: the app runs on Colab's Linux but the repo is developed on Windows,
+# where "Arsiv" and "arsiv" are one folder.
+_RESERVED = {ARCHIVE_DIR.casefold(), EXPORTS_DIR.casefold()}
+
+
+def is_reserved(name):
+    """Whether the name is one of the app's own folders under the root -- which is not a project,
+    whatever a URL calls it."""
+    return name.casefold() in _RESERVED
 
 
 def validate(name):
@@ -27,12 +39,9 @@ def validate(name):
         return 'Proje adında şu karakterler kullanılamaz: / \\ : * ? " < > |'
     if name.startswith(".") or name.endswith("."):
         return "Proje adı nokta ile başlayamaz veya bitemez."
-    # Whatever the case: the app runs on Colab's Linux but the repo is developed on Windows, where
-    # "Arsiv" and "arsiv" are one folder.
-    if name.casefold() == ARCHIVE_DIR:
-        # The sentence no longer explains itself: what the name is held back for is a startup repair,
-        # which is not the user's business -- and the old wording described projects living in that
-        # folder, where nothing lives any more.
+    if is_reserved(name):
+        # The sentence does not say why: what a name is held back for is the app's own folder, which
+        # is not the user's business, and one sentence serves both names.
         return "Bu ad ayrılmış, başka bir ad dene."
     return None
 

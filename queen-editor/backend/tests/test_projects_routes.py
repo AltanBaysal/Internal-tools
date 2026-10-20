@@ -1,6 +1,8 @@
 import os
 from functools import partial
 
+import pytest
+
 from backend.features.projects.data.project_store import DriveProjectStore
 from backend.features.projects.data.settings_store import DriveSettingsStore
 from backend.features.projects.domain import name_rules
@@ -161,6 +163,62 @@ def test_the_archive_name_cannot_be_taken_by_a_project(tmp_path):
 
     assert resp.status_code == 400
     assert "ayrılmış" in resp.get_json()["error"]
+
+
+def test_the_exports_folder_cannot_be_taken_by_a_project(tmp_path):
+    """Madde 473: every export would be written into such a project, and the list would not show
+    it. Neither by creating nor by renaming, and nothing is opened or moved."""
+    client, drive = make_client(tmp_path)
+    client.post("/api/projects", json={"name": "düğün"})
+
+    created = client.post("/api/projects", json={"name": "Exportlar"})
+    renamed = client.post("/api/projects/düğün/rename", json={"name": "exportlar"})
+
+    assert (created.status_code, renamed.status_code) == (400, 400)
+    assert "ayrılmış" in created.get_json()["error"]
+    assert "ayrılmış" in renamed.get_json()["error"]
+    assert sorted(path.name for path in drive.iterdir()) == ["düğün"]
+
+
+@pytest.mark.parametrize("folder", [name_rules.EXPORTS_DIR, name_rules.ARCHIVE_DIR])
+@pytest.mark.parametrize("method, url, body", [
+    ("delete", "/api/projects/{}", None),
+    ("post", "/api/projects/{}/rename", {"name": "nikah"}),
+    ("post", "/api/projects/{}/archive", None),
+], ids=["delete", "rename", "archive"])
+def test_a_reserved_folder_is_not_a_project_a_url_can_reach(tmp_path, folder, method, url, body):
+    """Madde 473: the tunnel is public and has no login, and the exports folder holds every export.
+    A reserved folder is not a project, so a URL naming it finds none -- whatever is in it stays,
+    nothing is halted, and no list draws it as a card. arsiv has had the same exposure since 221."""
+    halted = []
+    client, drive = make_client(tmp_path, halted)
+    (drive / folder / "2026-10-20 14-30 düğün").mkdir(parents=True)
+
+    resp = getattr(client, method)(url.format(folder), json=body)
+
+    assert resp.status_code == 404
+    assert resp.get_json() == {"error": f"Proje yok: {folder}"}
+    assert (drive / folder / "2026-10-20 14-30 düğün").is_dir()
+    assert not (drive / "nikah").exists()
+    assert halted == []
+    assert client.get("/api/projects").get_json()["projects"] == []
+    assert client.get("/api/projects/archived").get_json()["projects"] == []
+
+
+@pytest.mark.parametrize("folder", [name_rules.EXPORTS_DIR, name_rules.ARCHIVE_DIR])
+def test_a_reserved_folder_has_no_settings_to_read_or_write(tmp_path, folder):
+    """The panel's settings door asks the same question: a reserved folder is not a project, so a
+    URL naming it finds none, and no settings.json lands among the exports."""
+    client, drive = make_client(tmp_path)
+    (drive / folder).mkdir()
+    url = f"/api/projects/{folder}/settings"
+
+    read = client.get(url)
+    written = client.put(url, json={"prompts": "x", "negative": "", "variants": 1})
+
+    assert (read.status_code, written.status_code) == (404, 404)
+    assert written.get_json() == {"error": f"Proje yok: {folder}"}
+    assert list((drive / folder).iterdir()) == []
 
 
 def test_deleting_a_project_removes_the_folder_with_everything_in_it(tmp_path):

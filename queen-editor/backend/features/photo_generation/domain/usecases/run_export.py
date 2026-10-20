@@ -56,7 +56,8 @@ def run_export(runner, store, record, plan_store, order_store, exporter, now, pr
     """Writes into a fresh dated folder and returns where it is; None when the run was cancelled."""
     frames = exportable(list_frames(record, store, plan_store, order_store, project))
     stamp = now()
-    folder = store.export_folder(project, stamp)
+    # Before the pieces folder: a mount that refuses here leaves nothing to clean up on either disk.
+    folder = store.open_export(project, stamp)
     # Where the pieces are cut, in both modes: on the machine's own disk. A merged export's are
     # scaffolding for the join -- Drive is slow, and the set would be written there twice over
     # (madde 235). A separate export's ARE the export, and each is carried to Drive whole the moment

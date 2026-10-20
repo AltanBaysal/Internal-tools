@@ -11,6 +11,7 @@ from functools import partial
 import pytest
 
 from backend.features.projects.data.settings_store import DriveSettingsStore
+from backend.features.projects.domain import name_rules
 from backend.features.projects.domain.usecases.get_settings import ProjectMissing, get_settings
 from backend.services.storage.storage import Storage
 from backend.web.app import create_app
@@ -131,6 +132,22 @@ def test_an_unknown_project_is_a_404(tmp_path):
     assert client.get("/api/projects/yok/reference-settings").status_code == 404
     assert client.put("/api/projects/yok/reference-settings",
                       json={"prompts": "x", "variants": 1}).status_code == 404
+
+
+@pytest.mark.parametrize("folder", [name_rules.EXPORTS_DIR, name_rules.ARCHIVE_DIR])
+def test_a_reserved_folder_has_no_record_to_read_or_write(tmp_path, folder):
+    """Madde 473: a reserved folder is not a project, so a URL naming it finds none, and no
+    reference_settings.json lands among the exports."""
+    client, drive = make_client(tmp_path)
+    (drive / folder).mkdir()
+    url = f"/api/projects/{folder}/reference-settings"
+
+    read = client.get(url)
+    written = client.put(url, json={"prompts": "x", "variants": 1})
+
+    assert (read.status_code, written.status_code) == (404, 404)
+    assert read.get_json() == {"error": f"Proje yok: {folder}"}
+    assert list((drive / folder).iterdir()) == []
 
 
 def test_a_put_never_creates_a_project(tmp_path):

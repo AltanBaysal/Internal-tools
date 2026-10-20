@@ -34,7 +34,9 @@ cell, no shared file, no shared Drive folder. What we inherit is knowledge, not 
 | Proven behaviour: `/prompt` → `/history` → `/view`, and the idea that a failure is either the frame's or the run's | Copying those functions — we write them into our own layers. The stop rule itself is ours: the same frame is retried three times, not three frames in a row ([Madde 8](../docs/specs/2026-08-09-queen-editor-v4-madde-8-durma-kurali-design.md)) |
 
 Every direct subfolder of our Drive root is a project, so the root must be ours alone: point it at
-the notebook's folder and its `output/` shows up as a phantom project card. The root is never
+the notebook's folder and its `output/` shows up as a phantom project card. The two exceptions are
+the app's own and no project may take their names (`features/projects/domain/name_rules.py`):
+`Exportlar`, where every export lands, and `arsiv`, left by an old archive. The root is never
 hardcoded — the server reads `QE_DRIVE_ROOT`, and `queeneditor.ipynb`'s CONFIG cell is the one
 place that names the folder (`DRIVE_FOLDER`, currently `queenEditor`). Renaming it is a one-line
 change there, so do not repeat the name in comments, docstrings or here.
@@ -85,8 +87,9 @@ fails ([madde 472](../docs/specs/2026-10-20-queen-editor-m472-storage-design.md)
   folder, `fsync`, then `os.replace`. Listings skip the prefix. A save returning is what "saved"
   means. The two records that grow line by line, `photos.jsonl` and `chats.jsonl`, are appended to,
   with `fsync`.
-- **No write opens the root or a project folder;** only `make_dir` makes a project. Folders inside a
-  project are opened by their first file.
+- **No write opens the root or a project folder;** only `make_dir` opens a folder under the root —
+  a project, or the exports folder when an export starts. Folders inside a project are opened by
+  their first file.
 - **Missing means `FileNotFoundError` alone.** Every other `OSError` is raised, never read as empty.
 - **No name leaves the root:** every folder part and file name that is empty, `.`, `..`, or holds `/`,
   `\`, NUL or `:` (a Windows drive letter restarts the join) is refused before it is joined. A folder

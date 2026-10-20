@@ -19,8 +19,6 @@ import tempfile
 
 from backend.features.photo_generation.domain.photo_name import number_of
 
-# The project folder's own export area; a run makes a dated folder inside it (design v3, madde 92).
-EXPORT_DIR = "export"
 # The pictures ride inside the export in a folder of their own, so the mp4s stay a bare sequence.
 # Folders the user opens in Drive, so they read in Turkish like the rest of what the user sees
 # (madde 283, their own naming). An export written before this keeps the folder it was written
@@ -30,8 +28,10 @@ VIDEOS_DIR = "video"
 
 
 class DrivePhotoStore:
-    def __init__(self, storage):
+    def __init__(self, storage, exports):
+        """`exports` names the folder beside the projects that every export lands in (madde 473)."""
         self._storage = storage
+        self._exports = exports
 
     def project_exists(self, project):
         return self._storage.dir_exists(project)
@@ -61,21 +61,30 @@ class DrivePhotoStore:
 
     # --- export ------------------------------------------------------------------------------
 
-    def export_dir(self, project):
-        """Where an export lands: one folder inside the project, next to its photos.
+    def export_dir(self):
+        """Where exports land: one folder beside the projects, the same for every project, so they
+        are found without opening a project first (madde 473). What the screen shows before a run;
+        nothing is opened.
 
-        Named here rather than in the domain, which knows nothing about paths. Nothing is opened --
-        an export's first file opens its dated folder.
+        Named here rather than in the domain, which knows nothing about paths. Exports written
+        before madde 473 stay where they were, in the project's own export/ folder; nothing new is
+        written there.
         """
-        return self._storage.path((project, EXPORT_DIR))
+        return self._storage.path(self._exports)
 
-    def export_folder(self, project, stamp):
-        """Where one export opening lands, named after the moment it started -- what the screen is
-        told. Nothing is opened: its first file does that.
+    def open_export(self, project, stamp):
+        """Make ready where one export lands, and say where that is -- what the screen is told.
 
-        Down to the minute (design v3, madde 92), so two exports of the same opening land in one
-        folder and neither overwrites the other -- their file names never collide.
+        The exports folder is opened here, once a run: it sits directly under the root, and no save
+        opens a folder there (madde 472) -- a dropped mount would otherwise have it opened on the
+        machine's own disk. make_dir checks the mount first, and one already there is left as it
+        is. The dated folder inside is opened by its first file, like every folder in an export.
+
+        Named date first and project after, down to the minute (design v3, madde 92): the newest
+        exports stand together in Drive, and two exports of the same opening land in one folder
+        where neither overwrites the other -- their file names never collide.
         """
+        self._storage.make_dir(self._exports)
         return self._storage.path(self._dated(project, stamp))
 
     def copy_photo(self, project, photo, stamp, filename):
@@ -136,4 +145,4 @@ class DrivePhotoStore:
         shutil.rmtree(pieces, ignore_errors=True)
 
     def _dated(self, project, stamp):
-        return (project, EXPORT_DIR, stamp)
+        return (self._exports, f"{stamp} {project}")

@@ -2,13 +2,15 @@
 
 Deliberately unvalidated: the file exists to refill the boxes, and text the generator rejected is
 still what the user typed. The project folder must already exist -- writing would otherwise create
-one, and every folder under the root counts as a project.
+one, and every folder under the root counts as a project. A reserved folder does not (name_rules),
+so no settings file lands among the exports.
 """
+from backend.features.projects.domain import name_rules
 from backend.features.projects.domain.usecases.get_settings import ProjectMissing
 
 
 def save_settings(store, project, prompts, negative, variants, model="", lora=""):
-    if not store.project_exists(project):
+    if name_rules.is_reserved(project) or not store.project_exists(project):
         raise ProjectMissing(f"Proje yok: {project}")
     store.write(project, {"prompts": prompts, "negative": negative, "variants": variants,
                           "model": model, "lora": lora})

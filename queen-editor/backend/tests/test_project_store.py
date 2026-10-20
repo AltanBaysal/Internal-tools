@@ -1,6 +1,7 @@
 import pytest
 
 from backend.features.projects.data.project_store import DriveProjectStore
+from backend.features.projects.domain import name_rules
 from backend.services.storage.storage import Storage
 
 
@@ -235,6 +236,26 @@ def test_a_leftover_archive_folder_is_not_a_project(tmp_path):
     store.create("nikah")
 
     assert [p.name for p in store.list()] == ["nikah"]
+
+
+def test_the_exports_folder_is_not_a_project(tmp_path):
+    """Madde 473: exports land in a folder of their own beside the projects, and it is not one."""
+    (tmp_path / name_rules.EXPORTS_DIR / "2026-10-20 14-30 nikah").mkdir(parents=True)
+    store = store_at(tmp_path)
+    store.create("nikah")
+
+    assert [p.name for p in store.list()] == ["nikah"]
+
+
+def test_a_reserved_folder_marked_archived_is_no_archived_card(tmp_path):
+    """A mark left on a reserved name -- archiving it was open to a URL until madde 473 -- draws no
+    card, and whatever case the folder was written in is the same folder on Windows."""
+    (tmp_path / "exportlar").mkdir()
+    (tmp_path / "arsiv.json").write_text('{"arsiv": ["exportlar"]}', encoding="utf-8")
+    store = store_at(tmp_path)
+
+    assert store.list() == []
+    assert store.list_archived() == []
 
 
 def test_restoring_something_the_archive_does_not_hold_says_so(tmp_path):

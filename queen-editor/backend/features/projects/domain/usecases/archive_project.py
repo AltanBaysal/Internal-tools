@@ -11,12 +11,16 @@ was made to keep.
 
 There is no name to collide with either, for the same reason: the archive is not a place a folder
 could already be sitting in.
+
+A reserved folder is not a project (name_rules), so there is nothing by that name to archive: a
+card for it would carry a Sil button.
 """
+from backend.features.projects.domain import name_rules
 from backend.features.projects.domain.usecases.get_settings import ProjectMissing
 
 
 def archive_project(store, name):
-    if store.archive(name) is False:
+    if name_rules.is_reserved(name) or store.archive(name) is False:
         raise ProjectMissing(f"Proje yok: {name}")
 
 

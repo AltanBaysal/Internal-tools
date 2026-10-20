@@ -11,11 +11,17 @@ The queue needs no separate emptying: the plan lives inside the folder, so it go
 There is no separate existence check before the delete: between a check and the removal the folder
 can disappear anyway, so the store's own answer ("there was nothing to remove") is the one truth
 worth acting on.
+
+A reserved folder is not a project (name_rules): the tunnel is public, and the exports folder a URL
+could otherwise name holds every export. It is refused before anything is halted or removed.
 """
+from backend.features.projects.domain import name_rules
 from backend.features.projects.domain.usecases.get_settings import ProjectMissing
 
 
 def delete_project(store, halt, name):
+    if name_rules.is_reserved(name):
+        raise ProjectMissing(f"Proje yok: {name}")
     halt(name)
     if not store.delete(name):
         raise ProjectMissing(f"Proje yok: {name}")
