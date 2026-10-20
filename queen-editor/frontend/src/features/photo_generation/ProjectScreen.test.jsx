@@ -330,6 +330,21 @@ describe("ProjectScreen — an open project waits for the user", () => {
     expect(resumeBatch).not.toHaveBeenCalled();
   });
 
+  it("says in the gallery why the frames could not be read, though the status answers", async () => {
+    // Madde 472: the mount drops, /frames answers 503 with Drive's sentence, and /api/status --
+    // which never touches Drive -- goes on answering.
+    listFrames.mockRejectedValue(new Error(
+      "Proje köküne ulaşılamıyor: [Errno 107] Transport endpoint is not connected"));
+    getStatus.mockResolvedValue({ status: "idle" });
+
+    renderScreen("kopuk bağlantı");
+    await settle();
+
+    expect(screen.getByText(
+      "Proje köküne ulaşılamıyor: [Errno 107] Transport endpoint is not connected")).toBeTruthy();
+    expect(screen.queryByText("henüz kare yok")).toBeNull();
+  });
+
   it("leaves a waiting queue where it is even once its producer has landed", async () => {
     listFrames.mockResolvedValue(OWED);
     getStatus.mockResolvedValue({ status: "waiting", project: "düğün", waitingFor: "video" });

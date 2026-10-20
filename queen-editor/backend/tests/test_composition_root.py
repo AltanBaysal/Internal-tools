@@ -56,7 +56,28 @@ def test_the_app_comes_up_and_answers_health(import_main):
     assert response.status_code == 200
 
 
-def test_the_app_serves_referanstans_record(import_main):
+def test_a_root_that_is_not_there_is_nobodys_business_until_it_is_asked(import_main, monkeypatch,
+                                                                         tmp_path):
+    """Madde 472: building the storage door touches no disk, so the app comes up whatever the mount
+    is doing -- and the first question asked of a missing root answers with the OS's own words."""
+    monkeypatch.setenv("QE_DRIVE_ROOT", str(tmp_path / "yok"))
+    main = import_main()
+
+    response = main.app.test_client().get("/api/projects")
+
+    assert not (tmp_path / "yok").exists()
+    assert response.status_code == 503
+    assert "Proje köküne ulaşılamıyor" in response.get_json()["error"]
+
+
+@pytest.fixture
+def root(monkeypatch, tmp_path):
+    """A Drive root that is there and holds nothing: since madde 472 every question is asked of the
+    root first, so a door's own answer about a missing project needs a root to stand on."""
+    monkeypatch.setenv("QE_DRIVE_ROOT", str(tmp_path))
+
+
+def test_the_app_serves_referanstans_record(import_main, root):
     """Madde 317: the door's own tests wire it by hand, so only this one reads main.py's wiring. A
     project that does not exist answers in the door's words -- a door never hung would not."""
     main = import_main()
@@ -67,7 +88,7 @@ def test_the_app_serves_referanstans_record(import_main):
     assert response.get_json() == {"error": "Proje yok: m317-yok"}
 
 
-def test_the_app_hands_a_reference_run_to_the_use_case(import_main):
+def test_the_app_hands_a_reference_run_to_the_use_case(import_main, root):
     """Madde 326: main.py hung this door with an argument queue_references does not take, and every
     press came back 500 -- the door's own tests wire it by hand. A missing project is the use case's
     first question, so its answer proves the call got in."""
@@ -80,7 +101,7 @@ def test_the_app_hands_a_reference_run_to_the_use_case(import_main):
     assert response.get_json() == {"error": "Proje yok: m326-yok"}
 
 
-def test_the_app_serves_the_agents_chats(import_main):
+def test_the_app_serves_the_agents_chats(import_main, root):
     """Madde 417: the door's own tests wire it by hand, so only this one reads main.py's wiring. A
     project that does not exist answers in the door's words -- a door never hung would not."""
     main = import_main()
@@ -95,7 +116,7 @@ def test_the_app_serves_the_agents_chats(import_main):
                                          ("post", "/api/projects/m420-yok/chats/1/stop"),
                                          ("get", "/api/projects/m420-yok/chats/working")],
                          ids=["ask", "stop", "working"])
-def test_the_app_serves_the_agents_doors(import_main, method, url):
+def test_the_app_serves_the_agents_doors(import_main, root, method, url):
     """Madde 420: the doors' own tests wire them by hand, so only this one reads main.py's wiring. A
     project that does not exist answers in the doors' words -- a door never hung would not."""
     main = import_main()
@@ -106,7 +127,7 @@ def test_the_app_serves_the_agents_doors(import_main, method, url):
     assert response.get_json() == {"error": "Proje yok: m420-yok"}
 
 
-def test_the_app_serves_the_projects_video_length(import_main):
+def test_the_app_serves_the_projects_video_length(import_main, root):
     """Madde 422: the door's own tests wire it by hand, so only this one reads main.py's wiring. A
     project that does not exist answers in the door's words -- a door never hung would not."""
     main = import_main()
@@ -128,7 +149,7 @@ def test_the_queue_reads_the_projects_video_length(import_main, monkeypatch, tmp
     assert main._video_length("düğün") == 12
 
 
-def test_the_app_serves_the_projects_happy_ending(import_main):
+def test_the_app_serves_the_projects_happy_ending(import_main, root):
     """Madde 426: the door's own tests wire it by hand, so only this one reads main.py's wiring."""
     main = import_main()
 

@@ -11,7 +11,7 @@ from functools import partial
 
 import pytest
 
-from backend.services.drive.storage import DriveStorage
+from backend.services.storage.storage import Storage
 from backend.web.app import create_app
 
 ASKED = "2026-10-06T10:00:00+00:00"
@@ -35,7 +35,7 @@ def app_over(drive, dist):
     from backend.features.agent.data.chat_record import DriveChatRecord
     from backend.features.agent.domain.usecases.chats import list_chats, new_chat, open_chat
     from backend.features.agent.presentation.routes import make_chats_blueprint
-    record = DriveChatRecord(DriveStorage(str(drive)))
+    record = DriveChatRecord(Storage(str(drive)))
     blueprint = make_chats_blueprint(new_chat=partial(new_chat, record),
                                      list_chats=partial(list_chats, record),
                                      open_chat=partial(open_chat, record))
@@ -184,5 +184,6 @@ def test_a_disk_error_answers_in_the_systems_own_words(dist, method, url):
 
     response = getattr(client, method)(url)
 
-    assert response.status_code == 500
+    # The app's one handler answers for the door (web/app.py, madde 472).
+    assert response.status_code == 503
     assert response.get_json() == {"error": "[Errno 107] Transport endpoint is not connected"}

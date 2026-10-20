@@ -15,64 +15,66 @@ from backend.tests.test_photo_usecases import (
     frame,
 )
 
-FOLDER = "/fake/düğün/export/2026-08-12 14-32"
-# Where a separate export's videos go: the dated folder held 22 of them beside the photos folder,
-# and the user asked for them gathered (madde 283).
-VIDEOS = f"{FOLDER}/video"
-# Not under /fake: the pieces of a merged export are cut on the machine's own disk, never on Drive.
+MINUTE = "2026-08-12 14-32"         # the export's opening, which names its dated folder
+FOLDER = f"/fake/düğün/export/{MINUTE}"
+# Not under /fake: every piece is cut on the machine's own disk, never on Drive (madde 235, 472).
 PIECES = "/tmp/fake-pieces"
 
 
 class ExportStore(FakeStore):
-    """FakeStore with the paths an export asks for, and a note of what it wrote and removed."""
+    """FakeStore with what an export asks of it, and a note of what it wrote and removed."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.removed = []
         self.photos = []
+        self.videos = []
         self.exports = []
         self.order = []               # what happened, in the order it happened
 
     def file_path(self, project, filename):
         return f"/fake/{project}/{filename}"
 
-    def make_export_folder(self, project, stamp):
+    def export_folder(self, project, stamp):
         return f"/fake/{project}/export/{stamp}"
 
-    def export_path(self, folder, filename):
-        return f"{folder}/{filename}"
-
-    def remove_dir(self, path):
-        self.removed.append(path)
-
-    def make_videos_dir(self, folder):
-        """Where a separate export writes its videos -- a folder of its own inside the dated one."""
-        return f"{folder}/video"
+    def piece_path(self, pieces, filename):
+        return f"{pieces}/{filename}"
 
     def make_pieces_dir(self):
-        """Where a merged export cuts its pieces -- the real one answers with a folder on the
-        machine's own disk, and the path here is outside the Drive root on purpose."""
-        self.pieces_dir = PIECES
+        """Where every piece is cut -- the real one answers with a folder on the machine's own
+        disk, and the path here is outside the Drive root on purpose."""
         return PIECES
 
-    def copy_photo(self, source, folder, filename):
+    def remove_pieces(self, path):
+        self.removed.append(path)
+
+    def remove_export(self, project, stamp):
+        self.removed.append(self.export_folder(project, stamp))
+
+    def copy_photo(self, project, photo, stamp, filename):
         """Every call is written down and none is skipped.
 
         The real store refuses a target that is already there, and that refusal is tested against a
         real folder next door. A fake that copied the rule would leave these tests sinning against
         their own double instead of the code.
         """
-        self.photos.append((source, folder, filename))
+        self.photos.append((photo, stamp, filename))
         self.order.append("copy_photo")
 
-    def copy_export(self, source, folder, filename):
+    def copy_video(self, project, stamp, source, filename):
+        """A separate export's piece, carried to Drive as soon as it is cut."""
+        self.videos.append((source, stamp, filename))
+        self.order.append("copy_video")
+
+    def copy_export(self, project, stamp, source, filename):
         """The merged file's one trip to Drive, written down.
 
-        The real one lands in a single move, and that is tested against a real folder in
-        test_photo_store.py: ffmpeg now writes the join on the machine's own disk, and Drive sees
-        the file only once it is whole (madde 282).
+        The real one lands in a single save, and that is tested against a real folder in
+        test_photo_store.py: ffmpeg writes the join on the machine's own disk, and Drive sees the
+        file only once it is whole (madde 282).
         """
-        self.exports.append((source, folder, filename))
+        self.exports.append((source, stamp, filename))
         self.order.append("copy_export")
 
 
@@ -141,7 +143,7 @@ def with_a_copy():
 
 def export(store, record, plan_store, exporter, mode="separate", runner=None):
     return run_export(runner or sync_runner(), store, record, plan_store, FakeOrderStore(),
-                      exporter, lambda: "2026-08-12 14-32", "düğün", mode)
+                      exporter, lambda: MINUTE, "düğün", mode)
 
 
 def test_separate_export_numbers_the_videos_from_the_foot_of_the_gallery():
@@ -152,9 +154,10 @@ def test_separate_export_numbers_the_videos_from_the_foot_of_the_gallery():
 
     # The gallery reads 1_a above 0_a; the sequence starts at its foot, so 0_a is 01.
     assert [target for _v, _a, target in exporter.pieces] == [
-        f"{VIDEOS}/01.mp4", f"{VIDEOS}/02.mp4"]
+        f"{PIECES}/01.mp4", f"{PIECES}/02.mp4"]
     assert [video for video, _a, _t in exporter.pieces] == [
         "/fake/düğün/0_a_V1_0.mp4", "/fake/düğün/1_a_V1_0.mp4"]
+    assert [name for _s, _stamp, name in store.videos] == ["01.mp4", "02.mp4"]
     assert folder == FOLDER
 
 
@@ -196,8 +199,8 @@ def test_every_exported_frame_leaves_its_photo_beside_its_video():
     # The number is the video's own: the frame written as 01.mp4 puts its picture in as 01.png, so
     # the photos folder reads as the same sequence and nothing has to be matched up by hand.
     assert store.photos == [
-        ("/fake/düğün/0_a.png", FOLDER, "01.png"),
-        ("/fake/düğün/1_a.png", FOLDER, "02.png"),
+        ("0_a.png", MINUTE, "01.png"),
+        ("1_a.png", MINUTE, "02.png"),
     ]
 
 
@@ -216,9 +219,9 @@ def test_a_photo_keeps_the_extension_it_was_saved_with():
     # gallery, and the export reads the gallery from its foot. The whole list is written out rather
     # than the one row, so the order is on the page instead of inside an index.
     assert store.photos == [
-        ("/fake/düğün/2_a.jpg", FOLDER, "01.jpg"),
-        ("/fake/düğün/0_a.png", FOLDER, "02.png"),
-        ("/fake/düğün/1_a.png", FOLDER, "03.png"),
+        ("2_a.jpg", MINUTE, "01.jpg"),
+        ("0_a.png", MINUTE, "02.png"),
+        ("1_a.png", MINUTE, "03.png"),
     ]
 
 
@@ -240,7 +243,7 @@ def test_frames_sharing_one_photo_leave_one_picture_in_the_export():
 
     export(store, record, plan_store, FakeExporter())
 
-    assert store.photos == [("/fake/düğün/0_a.png", FOLDER, "01.png")]
+    assert store.photos == [("0_a.png", MINUTE, "01.png")]
 
 
 def test_a_shared_photo_is_filed_under_the_first_frame_that_uses_it():
@@ -257,8 +260,8 @@ def test_a_shared_photo_is_filed_under_the_first_frame_that_uses_it():
     # gallery, which the export reads from its foot. So the shared picture is 02, not 01, and the
     # copy frame's 03 writes nothing.
     assert store.photos == [
-        ("/fake/düğün/1_a.png", FOLDER, "01.png"),
-        ("/fake/düğün/0_a.png", FOLDER, "02.png"),
+        ("1_a.png", MINUTE, "01.png"),
+        ("0_a.png", MINUTE, "02.png"),
     ]
 
 
@@ -270,8 +273,7 @@ def test_a_copy_frames_video_is_written_all_the_same():
 
     export(store, record, plan_store, exporter)
 
-    assert [target for _v, _a, target in exporter.pieces] == [
-        f"{VIDEOS}/01.mp4", f"{VIDEOS}/02.mp4"]
+    assert [name for _s, _stamp, name in store.videos] == ["01.mp4", "02.mp4"]
     assert [video for video, _a, _t in exporter.pieces] == [
         "/fake/düğün/0_a_V1_0.mp4", "/fake/düğün/0_b_V1_0.mp4"]
 
@@ -281,7 +283,7 @@ def test_a_merged_export_writes_the_shared_photo_once_too():
 
     export(store, record, plan_store, FakeExporter(), mode="merged")
 
-    assert store.photos == [("/fake/düğün/0_a.png", FOLDER, "01.png")]
+    assert store.photos == [("0_a.png", MINUTE, "01.png")]
 
 
 def test_frames_with_pictures_of_their_own_each_leave_one():
@@ -332,37 +334,35 @@ def test_a_merged_export_leaves_the_photos_in_the_drive_folder():
 
     # The user's call: the pictures stay whichever export wrote them.
     assert store.photos == [
-        ("/fake/düğün/0_a.png", FOLDER, "01.png"),
-        ("/fake/düğün/1_a.png", FOLDER, "02.png"),
+        ("0_a.png", MINUTE, "01.png"),
+        ("1_a.png", MINUTE, "02.png"),
     ]
 
 
-def test_a_separate_export_writes_its_pieces_into_the_drive_folder_and_removes_nothing():
-    """Separate export's whole job is those files: nothing here is scaffolding."""
+def test_a_separate_export_cuts_on_the_machine_and_carries_each_piece_to_drive():
+    """Madde 472: ffmpeg wrote a separate export's pieces straight onto the Drive mount, beside the
+    storage door. It cuts them on the machine's own disk now, like the merged export's, and each
+    goes to Drive whole the moment it is cut -- so the count on screen is what Drive holds."""
     store, record, plan_store = with_videos()
     exporter = FakeExporter()
 
     export(store, record, plan_store, exporter)
 
     assert [target for _v, _a, target in exporter.pieces] == [
-        f"{VIDEOS}/01.mp4", f"{VIDEOS}/02.mp4"]
-    assert store.removed == []
+        f"{PIECES}/01.mp4", f"{PIECES}/02.mp4"]
+    assert store.videos == [(f"{PIECES}/01.mp4", MINUTE, "01.mp4"),
+                            (f"{PIECES}/02.mp4", MINUTE, "02.mp4")]
 
 
 def test_a_separate_exports_videos_are_never_taken_away_again():
-    """The trap this item walks into. A finished run removes the folder it cut into when that is
-    not the dated folder -- a rule written for a merged export's pieces on the machine's own disk
-    (madde 235). Now that the videos sit in a folder of their own, that rule would match the
-    separate export too and delete exactly what the user asked for.
-
-    So the condition belongs to the mode, not to the paths. FOUNDATION 1: the user's work is
-    sacred, and nothing this item does is worth a deleted export.
-    """
+    """A finished run takes away only what it cut on the machine. The videos on Drive are the
+    export itself -- FOUNDATION 1: the user's work is sacred, and nothing is worth a deleted
+    export."""
     store, record, plan_store = with_videos()
 
     folder = export(store, record, plan_store, FakeExporter())
 
-    assert store.removed == []
+    assert store.removed == [PIECES]
     assert folder == FOLDER
 
 
@@ -380,17 +380,26 @@ def test_a_separate_export_copies_every_piece_untouched():
     export(store, record, plan_store, exporter)
 
     assert exporter.pieces == [
-        ("/fake/düğün/0_a_V1_0.mp4", None, f"{VIDEOS}/01.mp4"),
-        ("/fake/düğün/1_a_V1_0.mp4", None, f"{VIDEOS}/02.mp4"),
+        ("/fake/düğün/0_a_V1_0.mp4", None, f"{PIECES}/01.mp4"),
+        ("/fake/düğün/1_a_V1_0.mp4", None, f"{PIECES}/02.mp4"),
     ]
 
 
 def test_the_merged_file_reaches_drive_once_it_is_whole():
     store, record, plan_store = with_videos()
 
-    folder = export(store, record, plan_store, FakeExporter(), mode="merged")
+    export(store, record, plan_store, FakeExporter(), mode="merged")
 
-    assert store.exports == [(f"{PIECES}/düğün.mp4", folder, "düğün.mp4")]
+    assert store.exports == [(f"{PIECES}/düğün.mp4", MINUTE, "düğün.mp4")]
+
+
+def test_a_merged_export_carries_no_piece_to_drive():
+    """Its pieces are scaffolding for the join; only the joined file goes to Drive."""
+    store, record, plan_store = with_videos()
+
+    export(store, record, plan_store, FakeExporter(), mode="merged")
+
+    assert store.videos == []
 
 
 def test_the_copy_to_drive_comes_after_the_join():
@@ -420,7 +429,8 @@ def test_the_videos_are_all_written_before_the_first_photo():
 
     export(store, record, plan_store, FakeExporter(store=store))
 
-    assert store.order == ["piece", "piece", "copy_photo", "copy_photo"]
+    assert store.order == ["piece", "copy_video", "piece", "copy_video", "copy_photo",
+                           "copy_photo"]
 
 
 def test_a_merged_export_stamps_the_disclaimer_after_the_photos_are_in():
@@ -442,12 +452,10 @@ def test_a_join_that_blew_up_copies_nothing_to_drive():
         export(store, record, plan_store, exporter, mode="merged")
 
     assert store.exports == []
-    assert sorted(store.removed) == sorted([FOLDER, PIECES])
+    assert store.removed == [PIECES, FOLDER]
 
 
-def test_a_separate_export_has_no_copying_step_at_all():
-    """Its pieces are the export, and they are written where the user will look for them -- 235's
-    call, and this item does not touch it."""
+def test_a_separate_export_has_no_merged_file_to_copy():
     store, record, plan_store = with_videos()
 
     export(store, record, plan_store, FakeExporter())
@@ -462,7 +470,7 @@ def test_a_merged_export_that_blows_up_leaves_neither_folder_behind():
     with pytest.raises(RuntimeError):
         export(store, record, plan_store, exporter, mode="merged")
 
-    assert sorted(store.removed) == sorted([FOLDER, PIECES])
+    assert store.removed == [PIECES, FOLDER]
 
 
 def test_a_cancelled_merged_export_leaves_neither_folder_behind():
@@ -471,18 +479,18 @@ def test_a_cancelled_merged_export_leaves_neither_folder_behind():
     runner.cancel("merged")
 
     assert export(store, record, plan_store, FakeExporter(), mode="merged", runner=runner) is None
-    assert sorted(store.removed) == sorted([FOLDER, PIECES])
+    assert store.removed == [PIECES, FOLDER]
 
 
 def test_a_failed_export_takes_its_half_written_folder_with_it():
     store, record, plan_store = with_videos()
-    exporter = FakeExporter(fails_on=f"{VIDEOS}/02.mp4")
+    exporter = FakeExporter(fails_on=f"{PIECES}/02.mp4")
     runner = sync_runner()
 
     with pytest.raises(RuntimeError):
         export(store, record, plan_store, exporter, runner=runner)
 
-    assert store.removed == [FOLDER]
+    assert store.removed == [PIECES, FOLDER]
 
 
 def test_the_reason_a_run_failed_is_the_tool_own_words():
@@ -491,10 +499,64 @@ def test_the_reason_a_run_failed_is_the_tool_own_words():
 
     runner.start("separate", lambda: run_export(
         runner, store, record, plan_store, FakeOrderStore(),
-        FakeExporter(fails_on=f"{VIDEOS}/01.mp4"), lambda: "2026-08-12 14-32", "düğün", "separate"))
+        FakeExporter(fails_on=f"{PIECES}/01.mp4"), lambda: MINUTE, "düğün", "separate"))
 
     assert runner.state()["separate"]["state"] == "error"
     assert runner.state()["separate"]["error"] == "ffmpeg: disk dolu"
+
+
+class DriveGoneAtCleanup(ExportStore):
+    """The mount drops while a run is being taken down: the dated folder cannot be removed."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.cleanups = 0
+
+    def remove_export(self, project, stamp):
+        self.cleanups += 1
+        raise OSError(107, "Transport endpoint is not connected")
+
+
+def test_a_cleanup_drive_refuses_leaves_the_machine_clear_and_both_reasons_on_screen():
+    """The pieces go first, since nothing stops their going. The screen says why the run failed
+    first, and then that its half export is still on Drive -- the folder that looks finished, which
+    madde 94 forbids leaving unsaid."""
+    _, record, plan_store = with_videos()
+    store = DriveGoneAtCleanup()
+    runner = sync_runner()
+
+    runner.start("separate", lambda: run_export(
+        runner, store, record, plan_store, FakeOrderStore(),
+        FakeExporter(fails_on=f"{PIECES}/02.mp4"), lambda: MINUTE, "düğün", "separate"))
+
+    assert runner.state()["separate"]["error"] == (
+        "ffmpeg: disk dolu — Yarım export silinemedi: "
+        "[Errno 107] Transport endpoint is not connected")
+    assert store.removed == [PIECES]
+
+
+def test_a_cleanup_drive_refuses_keeps_the_runs_own_error_as_the_cause():
+    _, record, plan_store = with_videos()
+
+    with pytest.raises(RuntimeError) as caught:
+        export(DriveGoneAtCleanup(), record, plan_store, FakeExporter(fails_on=f"{PIECES}/02.mp4"))
+
+    assert str(caught.value.__cause__) == "ffmpeg: disk dolu"
+
+
+def test_a_cancel_drive_refuses_is_cleaned_up_once():
+    """A cancelled run is taken down once, outside the work: a cleanup that fails there must not
+    land in the work's own failure path and be tried again."""
+    _, record, plan_store = with_videos()
+    store = DriveGoneAtCleanup()
+    runner = sync_runner()
+    runner.cancel("separate")
+
+    with pytest.raises(OSError):
+        export(store, record, plan_store, FakeExporter(), runner=runner)
+
+    assert store.cleanups == 1
+    assert store.removed == [PIECES]
 
 
 def test_cancelling_stops_between_pieces_and_removes_the_folder():
@@ -505,7 +567,7 @@ def test_cancelling_stops_between_pieces_and_removes_the_folder():
 
     assert export(store, record, plan_store, exporter, runner=runner) is None
     assert exporter.pieces == []
-    assert store.removed == [FOLDER]
+    assert store.removed == [PIECES, FOLDER]
 
 
 class ExporterThatCancelsOnTheLastPiece(FakeExporter):
@@ -536,7 +598,7 @@ def test_cancelling_once_the_videos_are_done_leaves_no_photos_and_no_folder():
     assert export(store, record, plan_store, exporter, runner=runner) is None
     assert len(exporter.pieces) == 2
     assert store.photos == []
-    assert store.removed == [FOLDER]
+    assert store.removed == [PIECES, FOLDER]
 
 
 def test_the_state_counts_what_has_been_written():

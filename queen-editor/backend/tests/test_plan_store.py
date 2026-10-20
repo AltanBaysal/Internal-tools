@@ -1,7 +1,9 @@
 import json
 
+import pytest
+
 from backend.features.photo_generation.data.plan_store import DrivePlanStore
-from backend.services.drive.storage import DriveStorage
+from backend.services.storage.storage import Storage
 
 FRAMES = [
     {"id": "P3_0", "type": "photo", "number": 3, "variant": 0, "prompt": "kraliçe tahtta",
@@ -12,7 +14,9 @@ FRAMES = [
 
 
 def store_at(path):
-    return DrivePlanStore(DriveStorage(str(path)))
+    """The store over a root holding düğün -- a save never opens a project's folder."""
+    (path / "düğün").mkdir(exist_ok=True)
+    return DrivePlanStore(Storage(str(path)))
 
 
 def test_append_then_read_round_trips(tmp_path):
@@ -130,6 +134,22 @@ def test_an_unreadable_plan_reserves_nothing(tmp_path):
     store = store_at(tmp_path)
     assert store.read("düğün") == {"negative": "", "frames": []}
     assert store.max_number("düğün") is None
+
+
+@pytest.mark.parametrize("raw", ["{ yarım", "[]", '{"frames": "yok"}'])
+def test_frames_are_never_added_onto_a_plan_that_cannot_be_read(tmp_path, raw):
+    """Read as empty and written back, the queue would be the new frames alone: every frame asked
+    for before them gone, and nothing on screen to say so. So the append stops, and the file stays
+    as it was for the user to look at."""
+    (tmp_path / "düğün").mkdir()
+    (tmp_path / "düğün" / "plan.json").write_text(raw, encoding="utf-8")
+    store = store_at(tmp_path)
+
+    with pytest.raises(OSError) as caught:
+        store.append("düğün", FRAMES)
+
+    assert "plan.json" in str(caught.value)
+    assert (tmp_path / "düğün" / "plan.json").read_text(encoding="utf-8") == raw
 
 
 def test_turkish_text_survives_the_round_trip(tmp_path):

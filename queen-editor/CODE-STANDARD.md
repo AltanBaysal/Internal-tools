@@ -69,8 +69,36 @@ written. Reading two places to decide one thing is what this rule exists to prev
 ## Services (`backend/services/`)
 A service does one job, lives in its own folder, and knows no feature: `comfy/` (ComfyUI
 transport — HTTP, and its socket for the done notice: submit a graph, wait for it, fetch the
-files it produced, read the card's memory; no node id, no prompt, no media concept), `drive/` (read/write/list files under one root).
+files it produced, read the card's memory; no node id, no prompt, no media concept), `storage/`
+(folders and files under the Drive root; no project, no JSON, no schema).
 A service never imports a feature and never imports another service.
+
+`storage/`'s `Storage` is the one door to Drive: every read and write of the root goes through it,
+the files a tool outside the process reads included — ffmpeg, ffprobe and Flask serving a file are
+handed a path by `Storage.path`, never one built by hand. What stays outside is the machine's own
+scratch space (`tempfile`, an export's pieces). Its rules, each because of how Colab's Drive mount
+fails ([madde 472](../docs/specs/2026-10-20-queen-editor-m472-storage-design.md)):
+- **The mount is checked before every operation:** the root is stat'ed once and its device compared
+  with the one it had on first use (not at construction, which touches no disk). A failed stat, a
+  missing root or another device stops the operation with the OS's own words.
+- **A save is whole or absent:** a temporary file with a recognisable prefix in the target's own
+  folder, `fsync`, then `os.replace`. Listings skip the prefix. A save returning is what "saved"
+  means. The two records that grow line by line, `photos.jsonl` and `chats.jsonl`, are appended to,
+  with `fsync`.
+- **No write opens the root or a project folder;** only `make_dir` makes a project. Folders inside a
+  project are opened by their first file.
+- **Missing means `FileNotFoundError` alone.** Every other `OSError` is raised, never read as empty.
+- **No name leaves the root:** every folder part and file name that is empty, `.`, `..`, or holds `/`,
+  `\`, NUL or `:` (a Windows drive letter restarts the join) is refused before it is joined. A folder
+  is one name (a project), a tuple of names, or `()` for the root itself.
+
+Every `OSError` a route lets through reaches the screen through one handler in `web/app.py` — `503
+{"error": "<the sentence it carries>"}` — so a route catches none. That is every `OSError`, disk or
+network: Drive's failures, a socket that timed out on ComfyUI, and `requests`' errors, which are
+`IOError`s, from DeepSeek. A name the door refuses (`NameRefused`) is the asker's error and has a
+handler of its own, `400`. A store that would have to write over a file it cannot read
+(`plan.json` on an append, `arsiv.json` on a mark) raises an `OSError` saying so rather than taking it
+as empty.
 
 ## Features (`backend/features/<name>/`)
 A user-facing capability, composed of three layers:
@@ -84,8 +112,8 @@ Bans (no exceptions): `feature ↛ feature`, `service ↛ feature`, `service ↛
 Concrete classes are wired only in the composition root (`backend/main.py`).
 
 ## Infrastructure (`backend/web/`)
-Cross-cutting HTTP plumbing that is not a domain feature: the app factory (`app.py`) and probes
-like `health.py`.
+Cross-cutting HTTP plumbing that is not a domain feature: the app factory (`app.py`, with the two
+error handlers — `OSError` 503, `NameRefused` 400) and probes like `health.py`.
 
 ## Notebook code (`colab/`)
 The notebook's own code: what `queeneditor.ipynb` imports from its clone, one module per job —

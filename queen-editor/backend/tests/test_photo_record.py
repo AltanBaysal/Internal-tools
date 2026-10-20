@@ -3,11 +3,15 @@ import json
 import pytest
 
 from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
-from backend.services.drive.storage import DriveStorage
+from backend.services.storage.storage import Storage
 
 
-def record_at(path):
-    return DrivePhotoRecord(DriveStorage(str(path)))
+def record_at(path, *projects):
+    """The record over a root holding düğün and any other project named -- an append never opens
+    a project's folder."""
+    for project in ("düğün", *projects):
+        (path / project).mkdir(exist_ok=True)
+    return DrivePhotoRecord(Storage(str(path)))
 
 
 def entry(file, prompt="kraliçe tahtta"):
@@ -15,7 +19,7 @@ def entry(file, prompt="kraliçe tahtta"):
             "createdAt": "2026-08-03T14:32:11+00:00"}
 
 
-class CountingStorage(DriveStorage):
+class CountingStorage(Storage):
     """A real storage that says how many times the file was actually opened."""
 
     def __init__(self, root):
@@ -34,6 +38,7 @@ def test_a_project_without_a_record_lists_nothing(tmp_path):
 def test_the_three_questions_cost_one_read(tmp_path):
     # The gallery asks all three on every poll, and the file is the same file. Opening and parsing
     # it once per question is what made a poll five Drive reads.
+    (tmp_path / "düğün").mkdir()
     storage = CountingStorage(str(tmp_path))
     record = DrivePhotoRecord(storage)
     record.append("düğün", entry("P0_0.png"))
@@ -47,6 +52,7 @@ def test_the_three_questions_cost_one_read(tmp_path):
 
 
 def test_a_changed_record_is_read_again(tmp_path):
+    (tmp_path / "düğün").mkdir()
     storage = CountingStorage(str(tmp_path))
     record = DrivePhotoRecord(storage)
     record.append("düğün", entry("P0_0.png"))
@@ -58,7 +64,7 @@ def test_a_changed_record_is_read_again(tmp_path):
 
 
 def test_one_project_never_answers_for_another(tmp_path):
-    record = record_at(tmp_path)
+    record = record_at(tmp_path, "nişan")
     record.append("düğün", entry("P0_0.png"))
     record.append("nişan", entry("P9_0.png"))
 

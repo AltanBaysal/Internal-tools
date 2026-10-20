@@ -1,4 +1,4 @@
-"""ProjectStore over DriveStorage -- the only place that knows a project IS one folder directly
+"""ProjectStore over Storage -- the only place that knows a project IS one folder directly
 under the Drive root. The root itself comes from config; the domain never learns where it is.
 
 It is also the only place that knows what archiving means, which since madde 227 is a MARK and not a
@@ -22,6 +22,17 @@ MARK_FILE = "arsiv.json"
 KEY = "arsiv"
 
 
+def _parse(raw):
+    """The archived names in the mark file's text; none when there is no file. A ValueError when
+    the text is not one this store wrote."""
+    if raw is None:
+        return []
+    data = json.loads(raw)
+    if not isinstance(data, dict) or not isinstance(data.get(KEY), list):
+        raise ValueError(f'"{KEY}" listesi yok')
+    return data[KEY]
+
+
 class DriveProjectStore:
     def __init__(self, storage):
         self.storage = storage
@@ -29,19 +40,28 @@ class DriveProjectStore:
     # --- the mark ---------------------------------------------------------------------------
 
     def _marks(self):
-        """The archived names. Anything unreadable is an empty archive, which is settings.json's own
-        rule: no broken file may make the list of projects impossible to draw."""
-        raw = self.storage.read_text("", MARK_FILE)
+        """The archived names, for drawing a list. Anything unreadable is an empty archive, which
+        is settings.json's own rule: no broken file may make the list of projects impossible to
+        draw."""
         try:
-            data = json.loads(raw) if raw else {}
+            return _parse(self.storage.read_text((), MARK_FILE))
         except ValueError:
-            data = {}
-        names = data.get(KEY) if isinstance(data, dict) else None
-        return names if isinstance(names, list) else []
+            return []
+
+    def _held_marks(self):
+        """The archived names, for a change that writes them back.
+
+        Strict where _marks is lenient: an unreadable file read as empty and written back would lose
+        every mark it held, so the change stops with the reason instead and the file stays as it is.
+        """
+        try:
+            return _parse(self.storage.read_text((), MARK_FILE))
+        except ValueError as exc:
+            raise OSError(f"{MARK_FILE} okunamıyor, üstüne yazılmadı: {exc}") from exc
 
     def _write_marks(self, names):
         self.storage.write_text(
-            "", MARK_FILE, json.dumps({KEY: names}, ensure_ascii=False, indent=2))
+            (), MARK_FILE, json.dumps({KEY: names}, ensure_ascii=False, indent=2))
 
     # --- the two lists ----------------------------------------------------------------------
 
@@ -68,13 +88,13 @@ class DriveProjectStore:
         """
         if not self.storage.dir_exists(name):
             return False
-        marks = self._marks()
+        marks = self._held_marks()
         if name not in marks:
             self._write_marks(marks + [name])
         return True
 
     def restore(self, name):
-        marks = self._marks()
+        marks = self._held_marks()
         if name not in marks:
             return False
         self._write_marks([held for held in marks if held != name])
@@ -98,21 +118,25 @@ class DriveProjectStore:
 
         The mark goes with it. A name left behind breaks no list -- there is no folder under it --
         right up until somebody makes a project with that name, which would then be born archived.
+        The marks are read before the folder goes, so a file that cannot be read stops the delete
+        while the project is still there.
         """
+        marks = self._held_marks()
         gone = self.storage.delete_dir(name)
-        marks = self._marks()
         if name in marks:
             self._write_marks([held for held in marks if held != name])
         return gone
 
     def rename(self, old, new):
-        """The renamed project, None when the new name is taken, False when the old one is gone."""
+        """The renamed project, None when the new name is taken, False when the old one is gone.
+
+        The marks are read first, for the reason delete reads them first."""
+        marks = self._held_marks()
         moved = self.storage.rename_dir(old, new)
         # `is` and not truthiness: an mtime can be 0.0 and that is a success.
         if moved is None or moved is False:
             return moved
         # The mark hangs on a name now rather than on where the folder sits, so it has to follow.
-        marks = self._marks()
         if old in marks:
             self._write_marks([new if held == old else held for held in marks])
         return Project(new, moved)

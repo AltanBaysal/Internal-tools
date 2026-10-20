@@ -65,6 +65,3 @@ def _answer(ask):
         return jsonify({"error": str(exc)}), 400
     except AgentBusy as exc:
         return jsonify({"error": str(exc)}), 409
-    except OSError as exc:
-        # The operating system's own words -- never a guessed cause.
-        return jsonify({"error": str(exc)}), 500

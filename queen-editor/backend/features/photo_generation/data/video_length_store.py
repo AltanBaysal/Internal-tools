@@ -1,4 +1,4 @@
-"""VideoLengthStore over DriveStorage -- the only place that knows the length file's name and shape.
+"""VideoLengthStore over Storage -- the only place that knows the length file's name and shape.
 
 A file of its own (CODE-STANDARD, Separation of concerns): it is written the moment the length is
 chosen and read whenever a video is put in the queue, where settings.json is overwritten by every

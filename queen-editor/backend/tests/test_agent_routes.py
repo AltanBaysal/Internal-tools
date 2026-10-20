@@ -15,7 +15,7 @@ from functools import partial
 import pytest
 
 from backend.services.deepseek.box import Answer
-from backend.services.drive.storage import DriveStorage
+from backend.services.storage.storage import Storage
 from backend.web.app import create_app
 
 ASKED = "2026-10-06T10:00:00+00:00"
@@ -79,7 +79,7 @@ def app_over(drive, dist, box, cards=CARDS, hold=False):
         make_chats_blueprint,
     )
     from backend.features.agent.runner import AgentRunner
-    record = DriveChatRecord(DriveStorage(str(drive)))
+    record = DriveChatRecord(Storage(str(drive)))
     held = []
     runner = AgentRunner(record, spawn=held.append if hold else lambda work: work())
     agent = partial(answer_question, box, lambda project: copy.deepcopy(cards),
@@ -316,5 +316,6 @@ def test_a_disk_error_answers_in_the_systems_own_words(dist, method, url):
 
     response = getattr(client, method)(url, json={"text": "Kaç kare var?"})
 
-    assert response.status_code == 500
+    # The app's one handler answers for the door (web/app.py, madde 472).
+    assert response.status_code == 503
     assert response.get_json() == {"error": "[Errno 107] Transport endpoint is not connected"}

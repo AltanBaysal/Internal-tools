@@ -1,8 +1,9 @@
 """create_app -- the Flask app factory: /api blueprints + static dist serving."""
 import os
 
-from flask import Flask, send_from_directory
+from flask import Flask, jsonify, send_from_directory
 
+from backend.services.storage.storage import NameRefused
 from backend.web.health import health_bp
 from backend import config
 
@@ -15,6 +16,22 @@ def create_app(dist_dir=config.DIST_DIR, blueprints=()):
     # any feature (CODE-STANDARD.md).
     for blueprint in blueprints:
         app.register_blueprint(blueprint)
+
+    # Every OSError a route lets through, in one place: the sentence it carries goes to the screen,
+    # which prints body.error. Without it a route that caught nothing answered with Flask's HTML
+    # page, and the screen said "HTTP 500". That is Drive's failures -- a dropped mount, a file that
+    # could not be read -- and every other OSError too: a socket that timed out on ComfyUI, and
+    # requests' errors, which are IOErrors, from DeepSeek. 503 because what failed is a service
+    # behind the request, not the request.
+    @app.errorhandler(OSError)
+    def service_failed(exc):
+        return jsonify({"error": str(exc)}), 503
+
+    # A name the storage door turned away is the asker's error. Flask answers an exception with the
+    # handler of its nearest class, so this one wins over the OSError one above.
+    @app.errorhandler(NameRefused)
+    def name_refused(exc):
+        return jsonify({"error": str(exc)}), 400
 
     @app.get("/")
     def index():

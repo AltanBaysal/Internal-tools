@@ -12,7 +12,7 @@ import threading
 
 import pytest
 
-from backend.services.drive.storage import DriveStorage
+from backend.services.storage.storage import Storage
 
 ASKED = "2026-10-06T10:00:00+00:00"
 LATER = "2026-10-06T10:05:00+00:00"
@@ -23,7 +23,7 @@ REFUSED = "Model hata döndü, farklı şekilde dene."
 
 def record_at(path):
     from backend.features.agent.data.chat_record import DriveChatRecord
-    return DriveChatRecord(DriveStorage(str(path)))
+    return DriveChatRecord(Storage(str(path)))
 
 
 @pytest.fixture

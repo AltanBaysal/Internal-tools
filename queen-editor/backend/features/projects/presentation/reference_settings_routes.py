@@ -18,8 +18,6 @@ def make_reference_settings_blueprint(get_reference_settings, save_reference_set
             return jsonify(get_reference_settings(project))
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
-        except OSError as exc:
-            return jsonify({"error": str(exc)}), 500
 
     @bp.put("/api/projects/<project>/reference-settings")
     def put_reference_record(project):
@@ -34,8 +32,6 @@ def make_reference_settings_blueprint(get_reference_settings, save_reference_set
             )
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
-        except OSError as exc:
-            return jsonify({"error": str(exc)}), 500
         # 204: the client already has what it sent; there is nothing to send back.
         return "", 204
 

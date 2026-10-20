@@ -172,9 +172,6 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
             return jsonify({"error": str(exc)}), 400
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
-        except OSError as exc:
-            # The operating system's own words -- never guess the cause.
-            return jsonify({"error": str(exc)}), 500
 
     @bp.post("/api/projects/<project>/regenerate")
     def post_regenerate(project):
@@ -273,9 +270,6 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
             return jsonify({"error": str(exc)}), 400
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
-        except OSError as exc:
-            # The operating system's own words -- never guess the cause.
-            return jsonify({"error": str(exc)}), 500
 
     # Beside the delete above, and the same shape: a list of identities in the body, because a copy
     # frame shares its source's picture and a file name would not say which of the two was asked
@@ -295,7 +289,9 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
 
     @bp.get("/photos/<project>/<filename>")
     def serve_photo(project, filename):
-        # send_from_directory rejects paths that escape the folder.
+        # The folder comes from the storage door, which holds the project's name to the root and
+        # checks the mount; send_from_directory holds the file's name to the folder, answers 404
+        # for one that is not there, and serves a video in the ranges a browser asks for.
         resp = send_from_directory(photo_dir(project), filename)
         # next_number never reuses a number, so a photo URL's bytes can never change.
         resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"

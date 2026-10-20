@@ -1,4 +1,4 @@
-"""HappyEndingStore over DriveStorage -- the only place that knows the switch file's name and shape.
+"""HappyEndingStore over Storage -- the only place that knows the switch file's name and shape.
 
 A file of its own (CODE-STANDARD, Separation of concerns): it answers whether the project's videos
 end happily, written when the switch is pressed -- not how long they run, which video_length.json

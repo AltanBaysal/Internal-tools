@@ -1,4 +1,4 @@
-"""ReferenceStore over DriveStorage -- the pool is a folder inside the project.
+"""ReferenceStore over Storage -- the pool is a folder inside the project.
 
 Turkish, because the user opens this folder in Drive with their own eyes, like the export's foto and
 video folders (madde 283, their own naming).
@@ -11,8 +11,6 @@ in cannot be had: a timestamp is coarser than the writes, so two files of one up
 one and sometimes do not, and the pool would read back differently on two machines. The order the
 USER wants is a different question anyway, and it gets a document of its own (madde 300).
 """
-import os
-
 from backend.features.photo_generation.domain import references
 
 # The project folder's own reference area.
@@ -47,12 +45,13 @@ class DriveReferenceStore:
 
     def dir_path(self, project):
         """Absolute folder the pool lives in -- presentation serves files straight from it."""
-        return self._storage.dir_path(self._subdir(project))
+        return self._storage.path(self._subdir(project))
 
     def _seconds(self, subdir, name):
         if self._clips is None or references.kind_of(name) in (None, references.PICTURE):
             return None
-        return self._clips.seconds_at(os.path.join(self._storage.dir_path(subdir), name))
+        # ffprobe reads the file where it lies, so its path is the door's to hand out.
+        return self._clips.seconds_at(self._storage.path(subdir, name))
 
     def _subdir(self, project):
-        return os.path.join(project, REFERENCE_DIR)
+        return (project, REFERENCE_DIR)

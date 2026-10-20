@@ -95,6 +95,33 @@ describe("Gallery — the empty project", () => {
   });
 });
 
+// Madde 472: a gallery the server could not read is never drawn as empty, nor as the list it had
+// before -- the screen says what went wrong instead.
+describe("Gallery — a read that failed", () => {
+  const SAID = "Proje köküne ulaşılamıyor: [Errno 107] Transport endpoint is not connected";
+
+  it("says the server's sentence instead of an empty gallery", () => {
+    renderGallery({ frames: [], failure: SAID });
+
+    expect(screen.getByText(SAID)).toBeTruthy();
+    expect(screen.queryByText("henüz kare yok")).toBeNull();
+  });
+
+  it("does not leave the list it had looking current", () => {
+    renderGallery({ failure: SAID });
+
+    expect(screen.getByText(SAID)).toBeTruthy();
+    expect(tileOf("0_a.png")).toBeNull();
+  });
+
+  it("says it on a first visit too, rather than spinning", () => {
+    const { container } = renderGallery({ frames: null, failure: SAID });
+
+    expect(screen.getByText(SAID)).toBeTruthy();
+    expect(container.querySelector(".wf-spinner")).toBeNull();
+  });
+});
+
 describe("Gallery ordering", () => {
   it("counts the badge up from the bottom, so the newest frame carries the largest number", () => {
     renderGallery();

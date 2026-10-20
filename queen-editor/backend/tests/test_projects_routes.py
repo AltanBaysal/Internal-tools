@@ -12,7 +12,7 @@ from backend.features.projects.domain.usecases.list_projects import list_project
 from backend.features.projects.domain.usecases.rename_project import rename_project
 from backend.features.projects.domain.usecases.save_settings import save_settings
 from backend.features.projects.presentation.routes import make_projects_blueprint
-from backend.services.drive.storage import DriveStorage
+from backend.services.storage.storage import Storage
 from backend.web.app import create_app
 
 
@@ -29,7 +29,7 @@ def client_for(drive_root, dist_dir, halted=None):
         list_archived_projects,
         restore_project,
     )
-    storage = DriveStorage(str(drive_root))
+    storage = Storage(str(drive_root))
     store = DriveProjectStore(storage)
     settings_store = DriveSettingsStore(storage)
     blueprint = make_projects_blueprint(
@@ -301,7 +301,7 @@ def test_get_projects_reports_the_real_error_when_root_missing(tmp_path):
     (dist / "index.html").write_text("x", encoding="utf-8")
     client = client_for(tmp_path / "olmayan-kok", dist)
     resp = client.get("/api/projects")
-    assert resp.status_code == 500
+    assert resp.status_code == 503
     assert "olmayan-kok" in resp.get_json()["error"]
 
 

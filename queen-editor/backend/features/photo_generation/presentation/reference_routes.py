@@ -92,7 +92,8 @@ def make_reference_blueprint(add_references, list_references, remove_reference,
 
     @bp.get("/references/<project>/<filename>")
     def serve_reference(project, filename):
-        # send_from_directory rejects paths that escape the folder.
+        # The folder comes from the storage door, the file's name is held to it by
+        # send_from_directory -- serve_photo's split.
         resp = send_from_directory(reference_dir(project), filename)
         # Unlike a photo, whose number is never reused: a deleted reference's name can be given to
         # another file, and bytes left in the browser would be the wrong picture.

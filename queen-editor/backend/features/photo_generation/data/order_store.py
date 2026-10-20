@@ -1,4 +1,4 @@
-"""OrderStore over DriveStorage -- the only place that knows the order file's name and shape.
+"""OrderStore over Storage -- the only place that knows the order file's name and shape.
 
 Unreadable is not an error: a missing, half-written or hand-edited file means "no manual order",
 and the gallery falls back to the record's own sequence. A project must never fail to open because

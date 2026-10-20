@@ -42,7 +42,8 @@ function scrollAtEdge(event) {
 // The panel stays put while a batch runs -- only its bottom block swaps (see GeneratePanel).
 export default function ProjectScreen({ project, settings, settingsError, onRetrySettings,
                                         onSaveSettings }) {
-  const { job, known, frames, error, errorField, stopping, queue, failures, current, currentLayer,
+  const { job, known, frames, framesError, error, errorField, stopping, queue, failures, current,
+          currentLayer,
           startedAt, batch, retryAll, queueLayer,
           generate, stop, resume, cancel, retry, clearError,
           reorder, removePhotos, copyPhotos, removeLayer } = useGeneration(project);
@@ -133,7 +134,8 @@ export default function ProjectScreen({ project, settings, settingsError, onRetr
               and as waiting once it has stopped, and only this screen knows which -- the worker is
               global, so a neighbour's batch moves nothing here. */}
           <div hidden={poolShown}>
-            <Gallery project={project} frames={frames} current={current} batch={batch}
+            <Gallery project={project} frames={frames} failure={framesError}
+                     current={current} batch={batch}
                      currentLayer={currentLayer} startedAt={startedAt} running={running}
                      onReorder={reorder} onDelete={removePhotos} onCopy={copyPhotos}
                      onRemoveLayer={removeLayer} onRetry={retry}

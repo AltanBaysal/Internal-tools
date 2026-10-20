@@ -46,6 +46,10 @@ export function useGeneration(project) {
   // null = not known yet (nothing has ever answered for this project), [] = it truly has nothing.
   const [frames, setFrames] = useState(() => REMEMBERED.get(project) || null);
   const [error, setError] = useState(null);   // rejected request or unreachable server
+  // The gallery's own read failed: the server's sentence, which the gallery draws where the frames
+  // would be (madde 472). Apart from `error` because /api/status never reads Drive, so it goes on
+  // answering while the mount is gone -- and its success clears `error`.
+  const [framesError, setFramesError] = useState(null);
   // Which input the server blamed, when it named one: "prompts" | "variants" | null.
   const [errorField, setErrorField] = useState(null);
   const [stopPressed, setStopPressed] = useState(false);
@@ -72,12 +76,17 @@ export function useGeneration(project) {
   if (shownProject.current !== project) {
     shownProject.current = project;
     setFrames(REMEMBERED.get(project) || null);
+    setFramesError(null);
   }
 
   const refreshFrames = useCallback(() => {
     listFrames(project)
-      .then((data) => { if (alive.current && !savingOrder.current) setFrames(data); })
-      .catch((err) => { if (alive.current) setError(failureText(err)); });
+      .then((data) => {
+        if (!alive.current) return;
+        setFramesError(null);
+        if (!savingOrder.current) setFrames(data);
+      })
+      .catch((err) => { if (alive.current) setFramesError(err.message); });
   }, [project]);
 
   const poll = useCallback(() => {
@@ -367,7 +376,7 @@ export function useGeneration(project) {
     .map((layer) => ({ layer, count: failedByKind[layer] }))
     .filter((card) => card.count > 0);
 
-  return { job: told, known, frames, error, errorField, stopping, queue, failures,
+  return { job: told, known, frames, framesError, error, errorField, stopping, queue, failures,
            current, currentLayer, startedAt, batch,
            retryAll, queueLayer, regenerate, removeLayer,
            generate, stop, resume, cancel, retry, clearError, reorder, removePhotos, copyPhotos };

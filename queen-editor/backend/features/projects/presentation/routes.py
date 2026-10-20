@@ -15,15 +15,11 @@ def make_projects_blueprint(list_projects, create_project, check_name, delete_pr
         # The UI shows whole seconds; the float's precision means nothing to it.
         return {"name": project.name, "modifiedAt": int(project.modified_at)}
 
+    # A disk failure is no route's to catch: the app's one handler puts the OS's own words on the
+    # screen (web/app.py).
     @bp.get("/api/projects")
     def get_projects():
-        try:
-            projects = list_projects()
-        except OSError as exc:
-            # The operating system's own words -- never guess the cause (missing mount, no
-            # permission and a wrong path all land here with different messages).
-            return jsonify({"error": str(exc)}), 500
-        return jsonify({"projects": [payload(p) for p in projects]})
+        return jsonify({"projects": [payload(p) for p in list_projects()]})
 
     @bp.post("/api/projects")
     def post_project():
@@ -34,8 +30,6 @@ def make_projects_blueprint(list_projects, create_project, check_name, delete_pr
             return jsonify({"error": str(exc)}), 400
         except NameTaken as exc:
             return jsonify({"error": str(exc)}), 409
-        except OSError as exc:
-            return jsonify({"error": str(exc)}), 500
         return jsonify(payload(project)), 201
 
     # A GET because it changes nothing: the modal asks it while the name is being typed, and the
@@ -50,8 +44,6 @@ def make_projects_blueprint(list_projects, create_project, check_name, delete_pr
             delete_project(project)
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
-        except OSError as exc:
-            return jsonify({"error": str(exc)}), 500
         # 204: the client reloads the list, which is the only thing that changed.
         return "", 204
 
@@ -66,8 +58,6 @@ def make_projects_blueprint(list_projects, create_project, check_name, delete_pr
             return jsonify({"error": str(exc)}), 409
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
-        except OSError as exc:
-            return jsonify({"error": str(exc)}), 500
         # The name is the whole answer: the screen re-reads the list, which is where the date and
         # the order come from.
         return jsonify({"name": name})
@@ -76,11 +66,7 @@ def make_projects_blueprint(list_projects, create_project, check_name, delete_pr
     # variable one whatever the order, and this path is one segment deep where those are two.
     @bp.get("/api/projects/archived")
     def get_archived_projects():
-        try:
-            projects = list_archived_projects()
-        except OSError as exc:
-            return jsonify({"error": str(exc)}), 500
-        return jsonify({"projects": [payload(p) for p in projects]})
+        return jsonify({"projects": [payload(p) for p in list_archived_projects()]})
 
     # No 409 on either of these: since madde 227 archiving marks a project rather than moving it, so
     # there is no name for it to land on. Catching something that cannot be raised would show a
@@ -91,8 +77,6 @@ def make_projects_blueprint(list_projects, create_project, check_name, delete_pr
             archive_project(project)
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
-        except OSError as exc:
-            return jsonify({"error": str(exc)}), 500
         # 204, like delete: the client re-reads both lists, which is all that changed.
         return "", 204
 
@@ -102,8 +86,6 @@ def make_projects_blueprint(list_projects, create_project, check_name, delete_pr
             restore_project(project)
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
-        except OSError as exc:
-            return jsonify({"error": str(exc)}), 500
         return "", 204
 
     @bp.get("/api/projects/<project>/settings")
@@ -112,8 +94,6 @@ def make_projects_blueprint(list_projects, create_project, check_name, delete_pr
             return jsonify(get_settings(project))
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
-        except OSError as exc:
-            return jsonify({"error": str(exc)}), 500
 
     @bp.put("/api/projects/<project>/settings")
     def put_project_settings(project):
@@ -133,8 +113,6 @@ def make_projects_blueprint(list_projects, create_project, check_name, delete_pr
             )
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
-        except OSError as exc:
-            return jsonify({"error": str(exc)}), 500
         # 204: the client already has what it sent; there is nothing to send back.
         return "", 204
 

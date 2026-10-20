@@ -116,12 +116,12 @@ from backend.features.projects.presentation.routes import make_projects_blueprin
 from backend.services.comfy.client import ComfyClient
 from backend.services.deepseek.box import Box
 from backend.services.deepseek.client import DeepSeekClient
-from backend.services.drive.storage import DriveStorage
+from backend.services.storage.storage import Storage
 from backend.web.app import create_app
 
 # One storage, shared by every feature that keeps files: they are separate features over the same
-# Drive root.
-_storage = DriveStorage(config.DRIVE_ROOT)
+# Drive root, and every read and write of it goes through this one door.
+_storage = Storage(config.DRIVE_ROOT)
 
 _project_store = DriveProjectStore(_storage)
 _settings_store = DriveSettingsStore(_storage)

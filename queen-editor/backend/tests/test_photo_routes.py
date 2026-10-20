@@ -26,7 +26,7 @@ from backend.features.photo_generation.domain.usecases.start_batch import start_
 from backend.features.photo_generation.domain.usecases.stop_generation import stop_generation
 from backend.features.photo_generation.presentation.routes import make_photo_generation_blueprint
 from backend.features.photo_generation.runner import PhotoRunner
-from backend.services.drive.storage import DriveStorage
+from backend.services.storage.storage import Storage
 from backend.web.app import create_app
 
 
@@ -61,15 +61,21 @@ class StopsAfter:
 
 
 class RecordingExporter:
-    """Writes nothing: what the endpoint tests care about is that the run was started at all."""
+    """Leaves a stand-in file where ffmpeg would leave its own -- the export carries what was cut to
+    Drive -- and notes the target: what the endpoint tests care about is that the run went."""
 
     def __init__(self):
         self.pieces = []
 
     def piece(self, video, audio, target):
-        self.pieces.append(target)
+        self._write(target)
 
     def merge(self, pieces, target):
+        self._write(target)
+
+    def _write(self, target):
+        with open(target, "wb") as handle:
+            handle.write(b"MP4")
         self.pieces.append(target)
 
 
@@ -80,7 +86,7 @@ def make_client(tmp_path, generator=None, runner=None):
     dist.mkdir()
     (dist / "index.html").write_text("x", encoding="utf-8")
 
-    storage = DriveStorage(str(drive))
+    storage = Storage(str(drive))
     store = DrivePhotoStore(storage)
     record = DrivePhotoRecord(storage)
     plan_store = DrivePlanStore(storage)
@@ -294,7 +300,7 @@ def test_a_listed_frame_carries_the_prompt_behind_it(tmp_path):
 
 def test_a_listed_frame_carries_how_long_its_layers_took(tmp_path):
     client, drive = make_client(tmp_path)
-    DrivePhotoRecord(DriveStorage(str(drive))).append(
+    DrivePhotoRecord(Storage(str(drive))).append(
         "düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done",
                   "renderSeconds": 46.3})
 
@@ -723,7 +729,7 @@ def give_it_a_video(drive, frame="P0_0", project="düğün"):
     """
     name = f"{frame}_V1_0.mp4"
     (drive / project / name).write_bytes(b"MP4")
-    DrivePhotoRecord(DriveStorage(str(drive))).append(project, {
+    DrivePhotoRecord(Storage(str(drive))).append(project, {
         "file": name, "frame": frame, "layer": "video", "status": "done",
         "prompt": "kadın dönüyor"})
     return name
@@ -996,6 +1002,8 @@ def test_an_export_runs_and_says_where_it_wrote(tmp_path):
     state = client.get("/api/projects/düğün/export/status").get_json()["separate"]
     assert (state["state"], state["written"], state["total"]) == ("done", 1, 1)
     assert state["target"].endswith("2026-08-12 14-32")
+    landed = drive / "düğün" / "export" / "2026-08-12 14-32" / "video" / "01.mp4"
+    assert landed.read_bytes() == b"MP4"
 
 
 def test_an_export_of_an_unknown_project_returns_404(tmp_path):

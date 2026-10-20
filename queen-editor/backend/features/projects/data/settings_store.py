@@ -1,4 +1,4 @@
-"""SettingsStore over DriveStorage -- the only place that knows the settings file's name and shape.
+"""SettingsStore over Storage -- the only place that knows the settings file's name and shape.
 
 The prompt text is kept exactly as it was typed. A parsed list would come back reformatted, and the
 panel has to reopen looking the way the user left it.

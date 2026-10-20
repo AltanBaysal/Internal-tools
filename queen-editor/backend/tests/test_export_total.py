@@ -13,7 +13,7 @@ from backend.features.photo_generation.domain.run_loop import make_job
 from backend.features.photo_generation.domain.usecases.copy_frames import copy_frames
 from backend.features.photo_generation.domain.usecases.export_summary import export_summary
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
-from backend.services.drive.storage import DriveStorage
+from backend.services.storage.storage import Storage
 from backend.tests.test_photo_usecases import (
     FakeGenerator,
     FakeOrderStore,
@@ -27,7 +27,8 @@ from backend.tests.test_photo_usecases import (
 def project(tmp_path, *videos):
     """Frames 0_a, 1_a, … each with its photo and a produced video. `videos` is the length each
     video's line says, None for a line that says none -- what the lines already on Drive are."""
-    record = DrivePhotoRecord(DriveStorage(str(tmp_path)))
+    (tmp_path / "düğün").mkdir()
+    record = DrivePhotoRecord(Storage(str(tmp_path)))
     plan_store = FakePlanStore(frames=[frame(number) for number in range(len(videos))])
     for number, seconds in enumerate(videos):
         fid = f"{number}_a"
@@ -119,7 +120,8 @@ def test_a_twin_holding_a_video_counts_at_that_videos_length(tmp_path):
 def test_a_video_made_at_a_chosen_length_counts_at_it(tmp_path):
     """Madde 422's line, the fold and the summary together: a video put in the queue at 12 seconds
     is counted at 12, whatever the graph says."""
-    record = DrivePhotoRecord(DriveStorage(str(tmp_path)))
+    (tmp_path / "düğün").mkdir()
+    record = DrivePhotoRecord(Storage(str(tmp_path)))
     record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done"})
     plan_store = FakePlanStore(frames=[frame(0)])
     plan_store.frames.append({"id": "0_a", "type": "video", "number": 0, "variant": 0,

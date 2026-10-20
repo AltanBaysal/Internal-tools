@@ -1,9 +1,11 @@
+import pytest
+
 from backend.features.projects.data.project_store import DriveProjectStore
-from backend.services.drive.storage import DriveStorage
+from backend.services.storage.storage import Storage
 
 
 def store_at(path):
-    return DriveProjectStore(DriveStorage(str(path)))
+    return DriveProjectStore(Storage(str(path)))
 
 
 def test_list_archived_on_a_root_that_never_archived_anything(tmp_path):
@@ -93,7 +95,7 @@ def test_restoring_only_lifts_the_mark(tmp_path):
 def test_an_archived_project_is_still_there_for_everything_that_asks_by_name(tmp_path):
     """The whole of madde 227 in one line. Nine use cases reach a project through dir_exists, and
     the moving version closed all nine at once -- which is what the user did not want."""
-    storage = DriveStorage(str(tmp_path))
+    storage = Storage(str(tmp_path))
     store = DriveProjectStore(storage)
     store.create("düğün")
 
@@ -136,6 +138,30 @@ def test_an_unreadable_mark_file_reads_as_an_empty_archive(tmp_path):
 
     assert [p.name for p in store.list()] == ["düğün"]
     assert store.list_archived() == []
+
+
+@pytest.mark.parametrize("change", [
+    lambda store: store.archive("düğün"),
+    lambda store: store.restore("düğün"),
+    lambda store: store.delete("düğün"),
+    lambda store: store.rename("düğün", "nikah"),
+], ids=["archive", "restore", "delete", "rename"])
+def test_a_mark_file_that_cannot_be_read_is_never_written_over(tmp_path, change):
+    """Read as empty and written back, the file would lose every mark it held: the whole archive back
+    on the projects list with nothing to say why. So a change that has to read it first stops, and
+    stops before it has touched the project -- a delete that went ahead and then failed on the marks
+    would leave the user an error and no project."""
+    store = store_at(tmp_path)
+    store.create("düğün")
+    (tmp_path / "arsiv.json").write_text("{bozuk", encoding="utf-8")
+
+    with pytest.raises(OSError) as caught:
+        change(store)
+
+    assert "arsiv.json" in str(caught.value)
+    assert (tmp_path / "arsiv.json").read_text(encoding="utf-8") == "{bozuk"
+    assert (tmp_path / "düğün").is_dir()
+    assert not (tmp_path / "nikah").exists()
 
 
 def test_a_name_the_archive_holds_cannot_be_created(tmp_path):

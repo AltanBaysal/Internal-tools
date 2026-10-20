@@ -1,4 +1,4 @@
-"""PhotoStore over DriveStorage -- photos live inside the project folder under the name the domain
+"""PhotoStore over Storage -- photos live inside the project folder under the name the domain
 chose (see domain/photo_name.py).
 
 Numbering never reuses a number: the next one is the highest on disk plus one, so a second run
@@ -8,6 +8,10 @@ number -- that claim is the record's to keep (see usecases/start_batch.next_numb
 
 Listing the folder is deliberately not offered: which photos a project has is the photo record's
 answer, and two ways to ask it would be two ways to disagree.
+
+Drive is reached through the storage door alone, exports included. What an export cuts on the
+machine's own disk -- its pieces, scaffolding thrown away again -- is the one thing here that is not
+Drive, and the one thing handled with tempfile and shutil.
 """
 import os
 import shutil
@@ -49,99 +53,87 @@ class DrivePhotoStore:
         self._storage.delete_file(project, filename)
 
     def photo_dir(self, project):
-        return self._storage.dir_path(project)
+        return self._storage.path(project)
 
     def file_path(self, project, filename):
         """One file's full path -- what a tool outside this process is handed."""
-        return os.path.join(self._storage.dir_path(project), filename)
+        return self._storage.path(project, filename)
 
-    def make_export_folder(self, project, stamp):
-        """A fresh folder for one export opening, named after the moment it started.
-
-        Down to the minute (design v3, madde 92), so two exports of the same opening land in one
-        folder and neither overwrites the other -- their file names never collide.
-        """
-        folder = os.path.join(self.export_dir(project), stamp)
-        os.makedirs(folder, exist_ok=True)
-        return folder
-
-    def export_path(self, folder, filename):
-        return os.path.join(folder, filename)
-
-    def remove_dir(self, path):
-        """Take a folder and everything in it. Used on a failed or cancelled export, and on the
-        pieces of a merged one."""
-        shutil.rmtree(path, ignore_errors=True)
-
-    def make_pieces_dir(self):
-        """An empty folder on the machine's own disk, for files that are thrown away again.
-
-        A merged export cuts one piece per frame only to join them: the pieces are scaffolding, and
-        Drive is the slow disk the user watches (madde 235). They also never collide with the other
-        export mode's files this way -- the two modes share one dated folder on Drive.
-        """
-        return tempfile.mkdtemp(prefix="qe-export-")
-
-    def copy_photo(self, source, folder, filename):
-        """Put one picture in the export's photos folder, unless it is already there.
-
-        Both export modes can run at once and a folder named down to the minute is one folder for
-        both, so two threads asking for the same 01.png is the expected case rather than a corner
-        one. Which is why there are two answers here and not one.
-
-        Already there means nothing to do: the other mode has written the very same bytes, and
-        writing them again buys nothing.
-
-        And the write itself lands in one move. Two threads can both find the target missing and
-        both start writing; two copies into one path is a half file. Copying to a name of its own
-        and then moving it over means the target is never seen half written, whichever thread gets
-        there last. os.replace rather than os.rename: on Windows rename refuses a target that is
-        already there, and the two have to behave alike.
-        """
-        photos = os.path.join(folder, PHOTOS_DIR)
-        os.makedirs(photos, exist_ok=True)
-        target = os.path.join(photos, filename)
-        if os.path.exists(target):
-            return
-        handle, temporary = tempfile.mkstemp(dir=photos)
-        os.close(handle)
-        shutil.copyfile(source, temporary)
-        os.replace(temporary, target)
-
-    def make_videos_dir(self, folder):
-        """Where a separate export writes its videos: a folder of its own inside the dated one.
-
-        The dated folder held one mp4 per frame beside the photos folder, and the user asked for
-        them gathered (madde 283). Unlike the pieces of a merged export, these are the export
-        itself -- they stay on Drive, and nothing takes them away again.
-        """
-        videos = os.path.join(folder, VIDEOS_DIR)
-        os.makedirs(videos, exist_ok=True)
-        return videos
-
-    def copy_export(self, source, folder, filename):
-        """Bring the merged file in from the machine's own disk, whole.
-
-        ffmpeg writes the join locally now: writing an encoded stream onto Drive's FUSE mount a
-        piece at a time is a known Colab slowness, and the known answer is to write locally and
-        copy at the end -- the call madde 235 made for the pieces, applied to the output (282).
-
-        One move, like copy_photo: Drive is slow enough that the window in which a half written
-        file could be seen is a real one, and a folder that looks finished is what madde 94 forbids.
-        os.replace rather than os.rename, so Windows behaves like Linux over a target that exists.
-
-        No "already there" answer here: the pieces' folder is this run's own, and a second run of
-        the same mode is refused by ExportRunner.
-        """
-        handle, temporary = tempfile.mkstemp(dir=folder)
-        os.close(handle)
-        shutil.copyfile(source, temporary)
-        os.replace(temporary, os.path.join(folder, filename))
+    # --- export ------------------------------------------------------------------------------
 
     def export_dir(self, project):
         """Where an export lands: one folder inside the project, next to its photos.
 
-        Named here rather than in the domain, which knows nothing about paths. The folder is not
-        created -- an export run makes its own dated one inside it when it starts.
+        Named here rather than in the domain, which knows nothing about paths. Nothing is opened --
+        an export's first file opens its dated folder.
         """
-        return os.path.join(self._storage.dir_path(project), EXPORT_DIR)
+        return self._storage.path((project, EXPORT_DIR))
+
+    def export_folder(self, project, stamp):
+        """Where one export opening lands, named after the moment it started -- what the screen is
+        told. Nothing is opened: its first file does that.
+
+        Down to the minute (design v3, madde 92), so two exports of the same opening land in one
+        folder and neither overwrites the other -- their file names never collide.
+        """
+        return self._storage.path(self._dated(project, stamp))
+
+    def copy_photo(self, project, photo, stamp, filename):
+        """Put one picture in the export's photos folder, unless it is already there.
+
+        Both export modes can run at once and a folder named down to the minute is one folder for
+        both, so two threads asking for the same 01.png is the expected case rather than a corner
+        one. Already there means nothing to do: the other mode has written the very same bytes, and
+        writing them again buys nothing. Two threads that both find it missing both save it, and a
+        save lands whole, so the last one leaves the same whole file.
+        """
+        photos = (*self._dated(project, stamp), PHOTOS_DIR)
+        if self._storage.stamp(photos, filename) is not None:
+            return
+        self._storage.save_file(photos, filename, self._storage.path(project, photo))
+
+    def copy_video(self, project, stamp, source, filename):
+        """Bring one of a separate export's videos in from the machine's own disk, whole, into a
+        folder of its own inside the dated one.
+
+        The dated folder held one mp4 per frame beside the photos folder, and the user asked for
+        them gathered (madde 283). ffmpeg cuts them on the machine now, not onto Drive's mount: what
+        reaches Drive goes through the storage door, as one whole file (madde 472).
+        """
+        self._storage.save_file((*self._dated(project, stamp), VIDEOS_DIR), filename, source)
+
+    def copy_export(self, project, stamp, source, filename):
+        """Bring the merged file in from the machine's own disk, whole.
+
+        ffmpeg writes the join locally: writing an encoded stream onto Drive's FUSE mount a piece at
+        a time is a known Colab slowness, and the known answer is to write locally and copy at the
+        end (madde 282). One save, so a half written file is never there to be seen -- a folder that
+        looks finished is what madde 94 forbids.
+        """
+        self._storage.save_file(self._dated(project, stamp), filename, source)
+
+    def remove_export(self, project, stamp):
+        """Take a dated export folder and everything in it -- a run that failed or was cancelled
+        (madde 94)."""
+        self._storage.delete_dir(self._dated(project, stamp))
+
+    def make_pieces_dir(self):
+        """An empty folder on the machine's own disk, for files that are thrown away again.
+
+        Every piece is cut here, in both modes: Drive is the slow disk the user watches (madde 235),
+        and ffmpeg writing onto its mount a piece at a time is the slowness madde 282 took away from
+        the join. A merged export's pieces are joined here; a separate export's are carried to
+        Drive one by one.
+        """
+        return tempfile.mkdtemp(prefix="qe-export-")
+
+    def piece_path(self, pieces, filename):
+        return os.path.join(pieces, filename)
+
+    def remove_pieces(self, pieces):
+        """Take the machine's own folder of pieces. What it held is either on Drive or no longer
+        wanted, so a file that will not go is not worth stopping for."""
+        shutil.rmtree(pieces, ignore_errors=True)
+
+    def _dated(self, project, stamp):
+        return (project, EXPORT_DIR, stamp)

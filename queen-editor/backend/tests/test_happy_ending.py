@@ -17,7 +17,7 @@ from backend.features.photo_generation.domain.usecases.queue_references import q
 from backend.features.photo_generation.domain.usecases.regenerate import regenerate
 from backend.features.photo_generation.domain.usecases.retry_failed import retry_failed
 from backend.features.photo_generation.domain.usecases.retry_frame import retry_frame
-from backend.services.drive.storage import DriveStorage
+from backend.services.storage.storage import Storage
 from backend.tests.test_photo_usecases import (
     FakeGenerator,
     FakeOrderStore,
@@ -53,7 +53,7 @@ def client_over(drive):
     dist = drive.parent / "dist"
     dist.mkdir(exist_ok=True)
     (dist / "index.html").write_text("x", encoding="utf-8")
-    switches = DriveHappyEndingStore(DriveStorage(str(drive)))
+    switches = DriveHappyEndingStore(Storage(str(drive)))
     blueprint = make_happy_ending_blueprint(get_happy_ending=partial(get_happy_ending, switches),
                                             save_happy_ending=partial(save_happy_ending, switches))
     return create_app(dist_dir=str(dist), blueprints=[blueprint]).test_client()

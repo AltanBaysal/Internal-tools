@@ -1,4 +1,4 @@
-"""PhotoRecord over DriveStorage -- the only place that knows the record file's name and shape.
+"""PhotoRecord over Storage -- the only place that knows the record file's name and shape.
 
 This is the log of what happened to every layer of every planned frame: one JSON object per line,
 appended right after the event itself, never rewritten. Append-only is the point -- a session that

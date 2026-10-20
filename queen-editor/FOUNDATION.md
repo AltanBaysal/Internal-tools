@@ -78,6 +78,11 @@ Everything that must survive the Colab session — outputs, project data — liv
 Drive root, and that root folder is named in exactly one place: the notebook's CONFIG cell.
 Why: Colab machines are disposable, Drive is where the user already works, and a single
 naming point makes renaming a one-line change.
+Consequence: every read and write of that root goes through one door, `services/storage/`, and a save
+counts as done only once the whole file is on the mount and in place. Colab's mount can drop
+mid-session and leave writes on the machine's own disk while the screen says they were saved, so the
+door checks the mount before each operation and the error reaches the screen in the OS's own words
+([CODE-STANDARD, Services](CODE-STANDARD.md#services-backendservices)).
 
 **8. No runtime dependency on `collab-toolbox/`.**
 Why: the tools must be able to evolve and break independently. What is inherited instead, and what

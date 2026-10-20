@@ -171,9 +171,9 @@ function Tile({ name, muted, danger, badge, pill, owns, veil, selected, onCheck,
 // Artboard 03/04/05: five columns, one sequence. Every frame stands in its own place whatever
 // became of it -- waiting, rendering, failed or produced -- and a frame turns into a photo without
 // moving. Its state changes how it looks, never where it is.
-export default function Gallery({ project, frames, current, batch = [], currentLayer, startedAt,
-                                  running, onReorder, onDelete, onCopy, onRemoveLayer, onRetry,
-                                  onSelectionChange }) {
+export default function Gallery({ project, frames, failure, current, batch = [], currentLayer,
+                                  startedAt, running, onReorder, onDelete, onCopy, onRemoveLayer,
+                                  onRetry, onSelectionChange }) {
   // Drag state belongs to the grid, not to a tile: only the grid knows what "before this one"
   // means. Indexes, not file names, because the drop slot is a position.
   const [dragIndex, setDragIndex] = useState(null);
@@ -297,6 +297,15 @@ export default function Gallery({ project, frames, current, batch = [], currentL
     });
   }
 
+  if (failure) {
+    // The server could not read the frames (madde 472): its sentence, in place of a list that is no
+    // longer known to be current -- and never an empty gallery or an endless spinner.
+    return (
+      <div style={{ ...PAD, ...EMPTY }}>
+        <Note size={14} style={{ color: "var(--danger)", lineHeight: 1.5 }}>{failure}</Note>
+      </div>
+    );
+  }
   if (frames === null) {
     // First fetch still flying: "empty" is not known yet, so spin instead of a false
     // "henüz kare yok" (spec §2.3).

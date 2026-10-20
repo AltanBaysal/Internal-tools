@@ -1,11 +1,11 @@
 from backend.features.projects.data.settings_store import DriveSettingsStore
-from backend.services.drive.storage import DriveStorage
+from backend.services.storage.storage import Storage
 
 EMPTY = {"prompts": "", "negative": "", "variants": None, "model": "", "lora": ""}
 
 
 def store_at(path):
-    return DriveSettingsStore(DriveStorage(str(path)))
+    return DriveSettingsStore(Storage(str(path)))
 
 
 def test_reading_a_project_that_never_saved_gives_empty_settings(tmp_path):

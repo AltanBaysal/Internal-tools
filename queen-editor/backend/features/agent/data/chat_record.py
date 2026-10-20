@@ -1,4 +1,4 @@
-"""ChatRecord over DriveStorage -- the only place that knows the chat file's name and its lines.
+"""ChatRecord over Storage -- the only place that knows the chat file's name and its lines.
 
 Every chat of a project lives in one file inside the project's own folder (madde 417): a renamed
 project carries its chats and a deleted one takes them, and the list, a chat opened and a new chat

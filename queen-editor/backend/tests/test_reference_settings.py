@@ -12,7 +12,7 @@ import pytest
 
 from backend.features.projects.data.settings_store import DriveSettingsStore
 from backend.features.projects.domain.usecases.get_settings import ProjectMissing, get_settings
-from backend.services.drive.storage import DriveStorage
+from backend.services.storage.storage import Storage
 from backend.web.app import create_app
 
 EMPTY = {"prompts": "", "variants": None}
@@ -23,7 +23,7 @@ def store_at(path):
     from backend.features.projects.data.reference_settings_store import (
         DriveReferenceSettingsStore,
     )
-    return DriveReferenceSettingsStore(DriveStorage(str(path)))
+    return DriveReferenceSettingsStore(Storage(str(path)))
 
 
 def save(*args):
@@ -61,7 +61,7 @@ def test_the_record_keeps_a_file_of_its_own(tmp_path):
     store_at(tmp_path).write("düğün", {"prompts": '["a"]', "variants": 2})
     assert (tmp_path / "düğün" / "reference_settings.json").exists()
     assert not (tmp_path / "düğün" / "settings.json").exists()
-    assert DriveSettingsStore(DriveStorage(str(tmp_path))).read("düğün")["prompts"] == ""
+    assert DriveSettingsStore(Storage(str(tmp_path))).read("düğün")["prompts"] == ""
 
 
 class FakeStore:
@@ -105,7 +105,7 @@ def make_client(tmp_path):
     dist = tmp_path / "dist"
     dist.mkdir()
     (dist / "index.html").write_text("x", encoding="utf-8")
-    store = DriveReferenceSettingsStore(DriveStorage(str(drive)))
+    store = DriveReferenceSettingsStore(Storage(str(drive)))
     blueprint = make_reference_settings_blueprint(
         get_reference_settings=partial(get_settings, store),
         save_reference_settings=partial(save_reference_settings, store))

@@ -325,6 +325,37 @@ describe("useGeneration", () => {
     expect(result.current.error).toBeNull();
   });
 
+  // Madde 472: /api/status never touches Drive, so it goes on answering while the mount is gone --
+  // and its answer used to wipe the gallery's failure, leaving the list it had as if it were current.
+  it("keeps a failed gallery read for the gallery to say, whatever the status answers", async () => {
+    const dropped = new Error(
+      "Proje köküne ulaşılamıyor: [Errno 107] Transport endpoint is not connected");
+    dropped.evidence = "GET /api/projects/düğün/frames\n503 SERVICE UNAVAILABLE";
+    getStatus.mockResolvedValue({ status: "idle" });
+    listFrames.mockRejectedValue(dropped);
+
+    const { result } = renderHook(() => useGeneration("düğün"));
+    await settle();
+
+    // The sentence alone: the gallery draws it where the frames would be.
+    expect(result.current.framesError).toBe(
+      "Proje köküne ulaşılamıyor: [Errno 107] Transport endpoint is not connected");
+  });
+
+  it("lifts the failed gallery read once the gallery answers again", async () => {
+    getStatus.mockResolvedValue(RUNNING);
+    listFrames.mockRejectedValueOnce(new Error("Proje köküne ulaşılamıyor"))
+      .mockResolvedValue([]);
+
+    const { result } = renderHook(() => useGeneration("düğün"));
+    await settle();
+    expect(result.current.framesError).toBe("Proje köküne ulaşılamıyor");
+
+    await settle(2000);
+    expect(result.current.framesError).toBeNull();
+    expect(result.current.frames).toEqual([]);
+  });
+
   it("keeps the evidence of a failed poll", async () => {
     const dead = new Error("Sunucuya ulaşılamadı — bağlantıyı kontrol et.");
     dead.evidence = "GET /api/status\nZaman aşımı (10 sn)";

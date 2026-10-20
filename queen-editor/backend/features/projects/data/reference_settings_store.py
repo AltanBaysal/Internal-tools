@@ -1,4 +1,4 @@
-"""ReferenceSettingsStore over DriveStorage -- the only place that knows Referanstan's record file.
+"""ReferenceSettingsStore over Storage -- the only place that knows Referanstan's record file.
 
 settings_store's twin. The photo panel's file is written when a photo batch is sent and this one
 when a reference production is, so they never share a file (CODE-STANDARD, Separation of concerns).

@@ -53,100 +53,107 @@ def _audio_of(frame):
 
 
 def run_export(runner, store, record, plan_store, order_store, exporter, now, project, mode):
-    """Writes into a fresh dated folder and returns it; None when the run was cancelled."""
+    """Writes into a fresh dated folder and returns where it is; None when the run was cancelled."""
     frames = exportable(list_frames(record, store, plan_store, order_store, project))
-    folder = store.make_export_folder(project, now())
-    # Where the pieces are cut. A separate export's pieces ARE the export, so they are written where
-    # the user will look for them -- in a folder of their own, because the dated folder held one
-    # mp4 per frame (madde 283). A merged one's are scaffolding for the join and go on the machine's
-    # own disk instead: Drive is slow, and the set would be written there twice over (madde 235).
-    scaffolding = store.make_pieces_dir() if mode == MERGED else None
-    cutting = scaffolding or store.make_videos_dir(folder)
+    stamp = now()
+    folder = store.export_folder(project, stamp)
+    # Where the pieces are cut, in both modes: on the machine's own disk. A merged export's are
+    # scaffolding for the join -- Drive is slow, and the set would be written there twice over
+    # (madde 235). A separate export's ARE the export, and each is carried to Drive whole the moment
+    # it is cut: ffmpeg writing onto Drive's mount a piece at a time was both the slowness madde 282
+    # took away from the join and a write past the storage door (madde 472).
+    pieces_dir = store.make_pieces_dir()
     runner.report(mode, state="running", written=0, total=len(frames), target=folder,
                   error=None)
-    pieces = []
-    written = set()                    # the picture files already in the export's photos folder
     try:
-        # The videos first, all of them, and the pictures after -- the user asked for the two steps
-        # apart, and it is what lets them be timed apart: while they were one loop, a slow counter
-        # did not say whether the time went on reading a video off Drive or writing a picture back
-        # to it (madde 289). Both walk the same list in the same order, which is what keeps the
-        # numbering one sequence: the number is the frame's place, not the loop's.
-        for index, frame in enumerate(frames, start=1):
-            if _stopped(runner, store, mode, folder, scaffolding):
-                return None
-            target = store.export_path(cutting, f"{index:02d}.mp4")
-            exporter.piece(store.file_path(project, frame["layers"][layers.VIDEO]),
-                           _audio(store, project, frame), target)
-            pieces.append(target)
-            runner.report(mode, written=index)
-        # Its own step, in both modes: the counter has finished counting and the work has not, so a
-        # screen still reading N/N would be naming the wrong one (madde 287).
-        runner.report(mode, state="photos")
-        for index, frame in enumerate(frames, start=1):
-            if _stopped(runner, store, mode, folder, scaffolding):
-                return None
-            # The picture goes in under its video's own number, so the photos folder reads as the
-            # same sequence and nothing has to be matched up by hand. A frame that somehow has no
-            # picture leaves none: its video is written all the same.
-            #
-            # And each picture goes in once. A copy frame produces no picture of its own -- it holds
-            # the source's file -- so a photo with three videos used to be written three times, and
-            # the folder read as the same image over and over (madde 236). The number stays the
-            # first frame's, gaps and all: it is what says which video the picture belongs to.
-            photo = frame.get("layers", {}).get(layers.PHOTO)
-            if photo and photo not in written:
-                written.add(photo)
-                store.copy_photo(store.file_path(project, photo), folder,
-                                 f"{index:02d}{_extension(photo)}")
-        if mode == MERGED:
-            runner.report(mode, state="merging")
-            # The join is written on the machine's own disk and copied to Drive once it is whole.
-            # ffmpeg used to write the encoded stream onto the Drive mount a piece at a time, which
-            # is a known Colab slowness (madde 282); and while it runs, the Drive folder now holds
-            # nothing, so a half written mp4 is never there to be seen (madde 94).
-            joined = store.export_path(cutting, f"{project}.mp4")
-            exporter.merge(pieces, joined)
-            # The trip to Drive is its own step: it used to run under the disclaimer's name, which
-            # is the step the user wonders about most (madde 287).
-            runner.report(mode, state="saving")
-            store.copy_export(joined, folder, f"{project}.mp4")
-    except Exception:
-        _clean(store, folder, scaffolding)
+        finished = _write(runner, store, exporter, frames, project, stamp, pieces_dir, mode)
+    except Exception as failure:
+        # The run's own reason is what the user is told first. A cleanup that fails too -- the
+        # mount dropped, most likely, which is often why the run failed -- leaves a half export on
+        # Drive, and the screen has to say so (madde 94): the runner shows one sentence, so both go
+        # into it, the run's error kept as the cause.
+        try:
+            _clean(store, project, stamp, pieces_dir)
+        except OSError as cleanup:
+            raise RuntimeError(f"{failure} — Yarım export silinemedi: {cleanup}") from failure
         raise
-    if scaffolding:
-        # The join is written; the pieces have nothing left to say. A separate export has no
-        # scaffolding at all: it cuts into a folder of its own now, and those files are what the
-        # user asked for (madde 283).
-        store.remove_dir(scaffolding)
+    if not finished:
+        # Taken down here, once, outside the work: a cleanup that fails is the run's error then.
+        _clean(store, project, stamp, pieces_dir)
+        runner.report(mode, state="idle", written=0, target=None)
+        return None
+    # The export is on Drive; the pieces on the machine have nothing left to say. The videos a
+    # separate export carried to Drive are what the user asked for, and stay (madde 283).
+    store.remove_pieces(pieces_dir)
     runner.report(mode, state="done")
     return folder
 
 
-def _stopped(runner, store, mode, folder, scaffolding):
-    """Whether the run was cancelled -- and if it was, it is taken down here.
+def _write(runner, store, exporter, frames, project, stamp, pieces_dir, mode):
+    """The export's work; False when it was cancelled.
 
-    Asked between work units, never inside one: cutting ffmpeg off mid-file would leave half a
-    video, and a copy stopped halfway leaves half a picture. Both loops ask it, and they ask the
-    same question, so it is written once.
+    The cancel is asked between work units, never inside one: cutting ffmpeg off mid-file would
+    leave half a video, and a copy stopped halfway leaves half a picture.
     """
-    if not runner.cancelled(mode):
-        return False
-    _clean(store, folder, scaffolding)
-    runner.report(mode, state="idle", written=0, target=None)
+    pieces = []                        # what the join reads, in order: a merged export's alone
+    written = set()                    # the picture files already in the export's photos folder
+    # The videos first, all of them, and the pictures after -- the user asked for the two steps
+    # apart, and it is what lets them be timed apart: while they were one loop, a slow counter did
+    # not say whether the time went on reading a video off Drive or writing a picture back to it
+    # (madde 289). Both walk the same list in the same order, which is what keeps the numbering one
+    # sequence: the number is the frame's place, not the loop's.
+    for index, frame in enumerate(frames, start=1):
+        if runner.cancelled(mode):
+            return False
+        name = f"{index:02d}.mp4"
+        piece = store.piece_path(pieces_dir, name)
+        exporter.piece(store.file_path(project, frame["layers"][layers.VIDEO]),
+                       _audio(store, project, frame), piece)
+        if mode == MERGED:
+            pieces.append(piece)
+        else:
+            # So the counter below counts what Drive holds, not what the machine cut.
+            store.copy_video(project, stamp, piece, name)
+        runner.report(mode, written=index)
+    # Its own step, in both modes: the counter has finished counting and the work has not, so a
+    # screen still reading N/N would be naming the wrong one (madde 287).
+    runner.report(mode, state="photos")
+    for index, frame in enumerate(frames, start=1):
+        if runner.cancelled(mode):
+            return False
+        # The picture goes in under its video's own number, so the photos folder reads as the same
+        # sequence and nothing has to be matched up by hand. A frame that somehow has no picture
+        # leaves none: its video is written all the same.
+        #
+        # And each picture goes in once. A copy frame produces no picture of its own -- it holds
+        # the source's file -- so a photo with three videos used to be written three times, and the
+        # folder read as the same image over and over (madde 236). The number stays the first
+        # frame's, gaps and all: it is what says which video the picture belongs to.
+        photo = frame.get("layers", {}).get(layers.PHOTO)
+        if photo and photo not in written:
+            written.add(photo)
+            store.copy_photo(project, photo, stamp, f"{index:02d}{_extension(photo)}")
+    if mode == MERGED:
+        runner.report(mode, state="merging")
+        # The join is written on the machine's own disk and copied to Drive once it is whole.
+        # ffmpeg used to write the encoded stream onto the Drive mount a piece at a time, which is a
+        # known Colab slowness (madde 282); and while it runs, the Drive folder holds nothing, so a
+        # half written mp4 is never there to be seen (madde 94).
+        joined = store.piece_path(pieces_dir, f"{project}.mp4")
+        exporter.merge(pieces, joined)
+        # The trip to Drive is its own step: it used to run under the disclaimer's name, which is
+        # the step the user wonders about most (madde 287).
+        runner.report(mode, state="saving")
+        store.copy_export(project, stamp, joined, f"{project}.mp4")
     return True
 
 
-def _clean(store, folder, pieces):
+def _clean(store, project, stamp, pieces_dir):
     """A run that did not finish leaves neither folder: half an export looks like a finished one
-    (madde 94), and pieces nobody joined are so much scaffolding.
-
-    `pieces` is the folder on the machine's own disk, or None when there is none -- a separate
-    export's videos live inside the dated folder and go with it.
-    """
-    store.remove_dir(folder)
-    if pieces:
-        store.remove_dir(pieces)
+    (madde 94), and pieces nobody carried to Drive are so much scaffolding. The machine's own
+    pieces go first: nothing stops their going, and a Drive that refuses must not keep them."""
+    store.remove_pieces(pieces_dir)
+    store.remove_export(project, stamp)
 
 
 def _audio(store, project, frame):
