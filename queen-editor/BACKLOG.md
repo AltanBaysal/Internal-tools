@@ -270,7 +270,7 @@ güncellediğimizde değişir.
 *(Kullanıcı, 20 Ekim — haftalık planın 14. maddesi: "Video çözünürlüğünü düşürerek üretim hızını
 artır"; "Risk: Kalite hedefleriyle (1. hedef, backlog'daki "ilk 1 dakika kalitesi") çelişebilir; HD
 altına inilirse platformdaki HD avantajı kaybolabilir. Alternatif: düşük çözünürlükte üretip upscale
-etmek." Aynı gün v10-5 olarak yazıldı, hizalanmadan döndü — "bu taskı backloga ekle".)*
+etmek." Aynı gün v10'a yazıldı, hizalanmadan döndü — "bu taskı backloga ekle".)*
 
 **Bilinenler:**
 - H3 videoyu bugün 576×864'te, 24 kare/saniyede üretiyor *(`assets/workflow_video_h3_api.json`,

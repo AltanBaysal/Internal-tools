@@ -55,12 +55,13 @@ birleşiyor. **Gerçek modelle doğrulanmadı** *(kullanıcı, 9 Ekim — "gerç
 yok, bunu kontrol edilmedi diye işaretleyelim")*: QA sahte bir DeepSeek'le gördü; gerçek DeepSeek bir
 araç çağırırken aynı cevapta söz söylüyor mu, bilinmiyor. Gerçek kullanımda görülürse ele alınır.
 
-## 448'in taşıma kodu ve eski proje dosyaları silinecek
+## 448'in eski proje dosyaları silinecek
 
 *(Kullanıcı, 9 Ekim — "kullandıktan sonra sileceğimiz bir sonraki roadmap'te".)* v10'un 448'i eski
-projeleri her açılışta bir kerelik `projects.json`'a taşıyor ve eski dosyalara — proje başına
-`project.json`, `pinned`, `archived` — dokunmuyor. Kullanıcı taşımanın çalıştığını gördükten sonra bir
-sonraki QueenAgent roadmap'inde taşıma kodu ve bu eski dosyalar kalkar.
+projeleri `projects.json`'a taşıdı ve eski dosyalara — proje başına `project.json`, `pinned`,
+`archived` — dokunmadı. **Taşıma kodu** [v11-1](../docs/roadmaps/2026-10-20-queen-agent-v11-roadmap.md)'le
+siliniyor *(kullanıcı, 20 Ekim — "sil")*; burada yalnız bu eski dosyalar kalıyor, Drive'da silinmeyi
+bekliyorlar.
 
 ## Sürüm değiştirmek kenar çubuğunun sırasını güncellemiyor
 
@@ -175,3 +176,45 @@ değiştiren bir iş onu aynı commit'te günceller. Yapıyı değiştiren bir i
 çizimiyle başlar ve kod, kullanıcı çizimi onayladıktan sonra yazılır. Queen Editor'ün backlog'unda
 aynısı var; "önce çizim" kuralı iki aracın ortak kuralı olacağı için CLAUDE.md'ye girer, önce
 kullanıcıya gösterilerek. **Ayrıntılar kullanıcıyla konuşulacak.**
+
+## Veri ve kayıt akışı baştan tasarlanacak
+
+*(Kullanıcı, 20 Ekim — "abi burası çok karmaşık ve bir şewy analayamıyorum hiç contexti olamayn 2
+agente bunu sıfırdan tasarlattıralım basit olmalı solid olmalı drive istek sayısnı minimzie etmeli";
+"doylarda agnetın güncellendiği an güncellenmelş"; sonra — "yada abi bu kadar büyük bir işe
+girmeyelin şuanlık".)* Şimdilik yalnız küçük düzeltme koşuyor:
+[v11-1](../docs/roadmaps/2026-10-20-queen-agent-v11-roadmap.md) — bağlantı kontrolü ve 448'in silinmesi.
+
+**Kullanıcının Claude'la 20 Ekim'de konuştuğu istekler:**
+
+1. Basit, SOLID, gereksiz parçası yok.
+2. Drive'a tek bir yer ulaşır; başka hiçbir şey Drive'ı ya da yolları bilmez.
+3. Gereksiz Drive isteği yok, ama gereken bir istek sayıyı düşürmek için kesilmez *("ama gerçekten
+   gereken bir isteği de minimize etmek için azaltmasın gereksiz istek atılmasın yani")*. Her tasarım
+   her işlemin Drive isteklerini ve her birinin neden gerektiğini listeler.
+4. Ekran canlı: ajanın değiştirdiği dosya hemen görünür, F5 gerekmez. Stream ve hook yalnız örnekti;
+   tasarımcılar serbest.
+5. Ajan hiçbir zaman Drive'ı beklemez.
+6. Değişiklikler hemen görünür (optimistik) — elle yapılanlar da: ad değiştirme, arşivleme, silme,
+   gönderme *("bunlar direkt görünsün optimistik olsun kayıt edilemezse hata ile eski haline
+   dönsün")*. Kayıt düşerse gerçek hatayla görünür bir uyarı çıkar — biçimi tasarımın kararı, snackbar
+   ya da başka —, ve ekran son kaydedilmiş hâline döner.
+7. Ekranda "kaydedildi" yok *("userın ekranda kaydedildi görmesine gerek yok")*.
+8. Drive'daki sorun bir şey okunurken ya da yazılırken, ya da sayfa açılırken / F5'te fark edilir, bir
+   zamanlayıcıyla değil. Ajan turu sürerken en geç turun kaydında *("tur sonunda fark etsin sorun
+   yok")*. O zaman ajan durur ve uyarı görünür.
+9. Bağlantı yokken Colab'ın kendi diskine hiçbir şey yazılmaz.
+10. Drive'a ulaşılamazsa hata; hiçbir zaman boş bir proje listesi.
+11. Düşen bir kayıt kaydedilmemiş işi bırakır: tekrar dene düğmesi yok, kendiliğinden yeniden deneme
+    yok *("user bu arkadaki logiği bilmez karıştırma o yüzden kendi de otomatik kaydetme kaybolsun
+    şimdilik")*.
+12. Oturum ölürse kaydedilmemiş iş kaybolabilir *("sıkıntı yok")*.
+13. Bağlantı dosyayı kabul ettikten sonraki birkaç saniyelik Google yüklemesi kabul edildi.
+14. Drive API'si yok; Colab'ın bağlantısı.
+15. Bugünkü veri kayıpsız taşınır.
+16. Aynı Drive'da iki sunucu: olduğu gibi kalır *("şu an sorunsuz çalışıyor böyle kalsın")*.
+17. Her tasarım bir "Colab'da nasıl denenir" bölümü yazar — ör. ajan çalışırken Drive'ın bağlantısı
+    kesilince ne görülür. QA en sonda dener.
+
+**Tasarım** bağlamı olmayan iki mimarın, her birinin ayrı ayrı işi; ondan önce kullanıcı istekleri bir
+kez daha hizalar.
