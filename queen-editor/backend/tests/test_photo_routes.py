@@ -37,7 +37,7 @@ class FakeGenerator:
         self.loras = []
 
     def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                 references=(), seconds=None, happy_ending=False):
+                 references=(), seconds=None, happy_ending=False, orientation=None):
         self.calls.append((prompt, negative, seed, model))
         self.loras.append(lora)
         return b"PNGDATA"
@@ -53,7 +53,7 @@ class StopsAfter:
         self.calls = 0
 
     def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                 references=(), seconds=None, happy_ending=False):
+                 references=(), seconds=None, happy_ending=False, orientation=None):
         self.calls += 1
         if self.calls > self.count:
             self.runner.request_stop()
@@ -260,7 +260,7 @@ def test_adding_to_the_running_projects_own_queue_is_accepted(tmp_path):
 def test_failed_batch_shows_the_real_error_in_status(tmp_path):
     class Broken:
         def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                     references=(), seconds=None, happy_ending=False):
+                     references=(), seconds=None, happy_ending=False, orientation=None):
             raise RuntimeError("node 9 (CheckpointLoaderSimple): dosya yok")
 
     client, _ = make_client(tmp_path, generator=Broken())
@@ -399,7 +399,7 @@ def test_the_gallery_keeps_a_red_frame_after_the_worker_is_gone(tmp_path):
         """Drops the same job every time it is offered -- three attempts, then red."""
 
         def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                     references=(), seconds=None, happy_ending=False):
+                     references=(), seconds=None, happy_ending=False, orientation=None):
             if prompt == "a":
                 raise RenderFailed("node 41: OOM")
             return b"PNGDATA"
@@ -521,7 +521,7 @@ def test_retry_without_a_file_puts_every_red_frame_back(tmp_path):
             self.forgiving = False
 
         def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                     references=(), seconds=None, happy_ending=False):
+                     references=(), seconds=None, happy_ending=False, orientation=None):
             if not self.forgiving:
                 raise RenderFailed("node 41: OOM")
             return b"PNGDATA"
@@ -716,6 +716,65 @@ def test_regenerating_a_layer_that_does_not_exist_returns_404(tmp_path):
     generate(client, prompts='["a"]', variants=1)
 
     assert regenerate_request(client, "P0_0", layer="foto").status_code == 404
+
+
+# --- Madde 476: which way a generation stands -------------------------------------------------------
+
+def planned_orientations(drive):
+    plan = json.loads((drive / "düğün" / "plan.json").read_text(encoding="utf-8"))
+    return [frame.get("orientation") for frame in plan["frames"]]
+
+
+def test_a_batch_whose_body_names_no_orientation_is_landscape(tmp_path):
+    """The screen sends none until madde 477, and every new generation is landscape meanwhile."""
+    generator = FakeGenerator()
+    client, drive = make_client(tmp_path, generator=generator)
+
+    generate(client, prompts='["a"]', variants=2)
+
+    assert planned_orientations(drive) == ["yatay", "yatay"]
+
+
+def test_the_body_orientation_reaches_the_plan(tmp_path):
+    client, drive = make_client(tmp_path)
+
+    generate(client, prompts='["a"]', variants=1, orientation="dikey")
+
+    assert planned_orientations(drive) == ["dikey"]
+
+
+def test_an_orientation_nobody_knows_is_refused_with_its_field(tmp_path):
+    client, drive = make_client(tmp_path)
+
+    resp = generate(client, prompts='["a"]', variants=1, orientation="yan")
+
+    assert resp.status_code == 400
+    assert resp.get_json()["field"] == "orientation"
+    assert not (drive / "düğün" / "plan.json").exists()
+
+
+def test_a_photo_made_again_takes_the_body_orientation(tmp_path):
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1, orientation="dikey")
+
+    client.post("/api/projects/düğün/regenerate",
+                json={"frame": "P0_0", "layer": "photo", "prompt": "a", "orientation": "dikey"})
+    regenerate_request(client, "P0_0")
+
+    # The source, the one asked dikey, and the one whose body named none.
+    assert planned_orientations(drive) == ["dikey", "dikey", "yatay"]
+
+
+def test_a_photo_made_again_in_an_orientation_nobody_knows_is_refused_with_its_field(tmp_path):
+    client, _ = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+
+    resp = client.post("/api/projects/düğün/regenerate",
+                       json={"frame": "P0_0", "layer": "photo", "prompt": "a",
+                             "orientation": "yan"})
+
+    assert resp.status_code == 400
+    assert resp.get_json()["field"] == "orientation"
 
 
 def delete_layer_request(client, frames, layer="video", project="düğün"):

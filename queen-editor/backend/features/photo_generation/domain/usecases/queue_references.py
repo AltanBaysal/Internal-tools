@@ -19,6 +19,7 @@ from backend.features.photo_generation.domain import (
     references,
     video_settings,
 )
+from backend.features.photo_generation.domain import orientation as orientations
 from backend.features.photo_generation.domain.photo_name import frame_id
 from backend.features.photo_generation.domain.prompt_list import parse_prompts
 from backend.features.photo_generation.domain.usecases.list_references import list_references
@@ -31,7 +32,7 @@ from backend.features.photo_generation.domain.usecases.start_batch import (
     next_number,
 )
 
-def plan_reference_cards(start, prompts, variants, new_seed):
+def plan_reference_cards(start, prompts, variants, new_seed, orientation=orientations.DEFAULT):
     """[{"id", "type", "number", "variant", "prompt", …}] -- one video job per prompt per variant.
 
     plan_frames' twin, and deliberately not plan_frames with two more arguments: one makes photos
@@ -44,20 +45,25 @@ def plan_reference_cards(start, prompts, variants, new_seed):
 
     The words ride on the line because the user wrote them. A video job usually carries none and a
     language model writes one as soon as it is queued -- and that writer leaves a line that has one.
+
+    The orientation rides on the line too (madde 476): a card has no photo whose shape its video
+    could follow, so it is asked like every other generation.
     """
     return [{"id": frame_id(start + index, variant), "type": layers.VIDEO,
              "number": start + index, "variant": variant,
              "prompt": prompt, "negative": "", "seed": new_seed(), "model": "",
-             "mode": production_mode.REFERENCE}
+             "mode": production_mode.REFERENCE, orientations.FIELD: orientation}
             for index, prompt in enumerate(prompts)
             for variant in range(variants)]
 
 
 def queue_references(runner, store, record, plan_store, order_store, pool, orders, producers,
                      new_seed, now, project, prompts, variants,
-                     log=None, writers=None, stills=None, length=None, ending=None):
+                     log=None, writers=None, stills=None, length=None, ending=None,
+                     orientation=orientations.DEFAULT):
     """Returns how many cards the queue took. `length` answers how long the project's videos run
-    now (madde 422), and `ending` whether they end happily (madde 426)."""
+    now (madde 422), `ending` whether they end happily (madde 426), and `orientation` which way
+    the cards stand (madde 476)."""
     if not store.project_exists(project):
         raise ProjectMissing(f"Proje yok: {project}")
     written = parse_prompts(prompts)        # raises InvalidPrompts
@@ -65,6 +71,7 @@ def queue_references(runner, store, record, plan_store, order_store, pool, order
     if isinstance(variants, bool) or not isinstance(variants, int) \
             or not 1 <= variants <= MAX_VARIANTS:
         raise InvalidVariants(f"Varyant sayısı 1-{MAX_VARIANTS} arası bir tam sayı olmalı.")
+    orientations.validate(orientation)       # raises InvalidOrientation
     held = list_references(store, pool, orders, project)
     if not held:
         raise references.PoolLimit(
@@ -74,7 +81,7 @@ def queue_references(runner, store, record, plan_store, order_store, pool, order
     timed = video_settings.carried(length, ending, project)
     cards = [{**card, **timed}
              for card in plan_reference_cards(next_number(store, plan_store, record, project),
-                                              written, variants, new_seed)]
+                                              written, variants, new_seed, orientation)]
     # Appended before the worker is asked to run, the way a photo batch does it: a run that dies
     # leaves behind what it meant to make, and a loop already in flight finds the cards on its next
     # turn.

@@ -28,7 +28,8 @@ def director(mode, pictures, duration=4):
     timeline = {"version": 1,
                 "items": [{"id": f"image-{slot}", "slot": slot, "start": slot, "type": "image",
                            "value": "example.png"} for slot in range(pictures)],
-                "builder_state": state, "resolved_prompt": ""}
+                "builder_state": state, "resolved_prompt": "",
+                "resolution": {"aspect": "auto", "resolution": "480p", "input_scaling": "Auto"}}
     return {"class_type": "MiniMaxH3Director",
             "inputs": {"mode": mode, "prompt": "", "duration": duration, "width": 512,
                        "height": 768, "timeline_data": json.dumps(timeline),
@@ -37,6 +38,17 @@ def director(mode, pictures, duration=4):
 
 def seed_control(value=7):
     return {"class_type": "DaSiWa_SeedControl", "inputs": {"seed_value": value}}
+
+
+def png(width, height):
+    """The head of a PNG of this size: the signature, then IHDR's length, name, width and height --
+    all a producer reading the picture's shape has to look at -- and the rest of IHDR."""
+    return (b"\x89PNG\r\n\x1a\n" + (13).to_bytes(4, "big") + b"IHDR"
+            + width.to_bytes(4, "big") + height.to_bytes(4, "big") + bytes(5 + 4))
+
+
+# The frame's photo: portrait, the shape every frame before madde 476 has.
+PHOTO = png(1024, 1536)
 
 
 I2VA_GRAPH = {"2730": director("I2VA", 1), "2739": seed_control()}
@@ -92,10 +104,10 @@ def sent_pictures(client):
 def test_a_video_with_no_end_frame_is_rendered_by_the_i2va_graph(tmp_path):
     client = FakeClient()
 
-    data = generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", b"PNG"))
+    data = generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", PHOTO))
 
     assert data == b"MP4DATA"
-    assert client.uploads == [("P0_0.png", b"PNG")]
+    assert client.uploads == [("P0_0.png", PHOTO)]
     assert sent_director(client)["mode"] == "I2VA"
     assert sent_pictures(client) == ["server-P0_0.png"]
 
@@ -105,10 +117,10 @@ def test_a_video_with_an_end_frame_is_rendered_by_the_fl2va_graph(tmp_path):
     one shape."""
     client = FakeClient()
 
-    generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", b"PNG"),
+    generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", PHOTO),
                                          end=("P1_0.png", b"END"))
 
-    assert client.uploads == [("P0_0.png", b"PNG"), ("P1_0.png", b"END")]
+    assert client.uploads == [("P0_0.png", PHOTO), ("P1_0.png", b"END")]
     assert sent_director(client)["mode"] == "FL2VA"
     # In order: the first picture is where the video starts, the second where it arrives.
     assert sent_pictures(client) == ["server-P0_0.png", "server-P1_0.png"]
@@ -119,7 +131,7 @@ def test_an_i2va_prompt_opens_with_the_first_frame_sentence(tmp_path):
     words of the graph's own example, and the writer only writes what happens."""
     client = FakeClient()
 
-    generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", b"PNG"))
+    generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", PHOTO))
 
     assert sent_director(client)["prompt"] == f"{I2VA_SENTENCE}\n\nmotion"
 
@@ -129,7 +141,7 @@ def test_an_fl2va_prompt_says_where_the_video_arrives_in_the_graph_s_own_seconds
     longer = {"2730": director("FL2VA", 2, duration=6), "2739": seed_control()}
 
     generator(tmp_path, client, fl2va=longer).generate(
-        "motion", "", 42, source=("P0_0.png", b"PNG"), end=("P1_0.png", b"END"))
+        "motion", "", 42, source=("P0_0.png", PHOTO), end=("P1_0.png", b"END"))
 
     assert sent_director(client)["prompt"] == f"{fl2va_sentence('6.00')}\n\nmotion"
 
@@ -143,7 +155,7 @@ def test_dynv2_goes_before_the_i2va_picture_sentence(tmp_path):
     246) -- and the picture sentence is the producer's, so the producer is what can put it there."""
     client = FakeClient()
 
-    generator(tmp_path, client).generate(WRITTEN, "", 42, source=("P0_0.png", b"PNG"))
+    generator(tmp_path, client).generate(WRITTEN, "", 42, source=("P0_0.png", PHOTO))
 
     assert sent_director(client)["prompt"] == f"dynv2. {I2VA_SENTENCE}\n\n{SECTIONS}"
 
@@ -151,7 +163,7 @@ def test_dynv2_goes_before_the_i2va_picture_sentence(tmp_path):
 def test_dynv2_goes_before_the_fl2va_picture_sentence(tmp_path):
     client = FakeClient()
 
-    generator(tmp_path, client).generate(WRITTEN, "", 42, source=("P0_0.png", b"PNG"),
+    generator(tmp_path, client).generate(WRITTEN, "", 42, source=("P0_0.png", PHOTO),
                                          end=("P1_0.png", b"END"))
 
     assert sent_director(client)["prompt"] == f"dynv2. {fl2va_sentence('4.00')}\n\n{SECTIONS}"
@@ -162,7 +174,7 @@ def test_the_prompt_lands_in_all_four_places_the_director_keeps_one(tmp_path):
     the question go away."""
     client = FakeClient()
 
-    generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", b"PNG"))
+    generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", PHOTO))
 
     said = sent_director(client)
     timeline = json.loads(said["timeline_data"])
@@ -176,7 +188,7 @@ def test_the_prompt_lands_in_all_four_places_the_director_keeps_one(tmp_path):
 def test_the_seed_goes_to_the_seed_control(tmp_path):
     client = FakeClient()
 
-    generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", b"PNG"))
+    generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", PHOTO))
 
     assert client.submitted["2739"]["inputs"]["seed_value"] == 42
 
@@ -184,7 +196,7 @@ def test_the_seed_goes_to_the_seed_control(tmp_path):
 def test_a_seed_the_job_never_carried_leaves_the_graphs_own(tmp_path):
     client = FakeClient()
 
-    generator(tmp_path, client).generate("motion", "", None, source=("P0_0.png", b"PNG"))
+    generator(tmp_path, client).generate("motion", "", None, source=("P0_0.png", PHOTO))
 
     assert client.submitted["2739"]["inputs"]["seed_value"] == 7
 
@@ -193,7 +205,7 @@ def test_only_an_mp4_counts_as_the_render(tmp_path):
     # The graph previews through a tiny VAE as it samples; that must not be mistaken for the video.
     client = FakeClient()
 
-    generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", b"PNG"))
+    generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", PHOTO))
 
     assert client.fetched == ({"outputs": "history"}, (".mp4",))
 
@@ -211,7 +223,7 @@ def test_the_shipped_graph_is_never_written_back(tmp_path):
     client = FakeClient()
     gen = generator(tmp_path, client)
 
-    gen.generate("motion", "", 42, source=("P0_0.png", b"PNG"))
+    gen.generate("motion", "", 42, source=("P0_0.png", PHOTO))
 
     with open(tmp_path / "workflow_video_h3_api.json", encoding="utf-8") as f:
         assert json.load(f)["2730"]["inputs"]["prompt"] == ""
@@ -235,7 +247,7 @@ def test_a_missing_graph_names_the_file_it_wants(tmp_path):
     gen = generator(tmp_path, FakeClient(), standard_path=str(tmp_path / "yok.json"))
 
     with pytest.raises(RuntimeError) as blew_up:
-        gen.generate("motion", "", 42, source=("P0_0.png", b"PNG"))
+        gen.generate("motion", "", 42, source=("P0_0.png", PHOTO))
 
     assert "yok.json" in str(blew_up.value)
 
@@ -244,7 +256,7 @@ def test_a_graph_exported_in_ui_format_says_which_export_to_use(tmp_path):
     gen = generator(tmp_path, FakeClient(), i2va={"nodes": [], "links": []})
 
     with pytest.raises(RuntimeError) as blew_up:
-        gen.generate("motion", "", 42, source=("P0_0.png", b"PNG"))
+        gen.generate("motion", "", 42, source=("P0_0.png", PHOTO))
 
     assert "Export (API)" in str(blew_up.value)
 
@@ -255,7 +267,7 @@ def test_a_graph_whose_nodes_moved_names_the_missing_one(tmp_path, gone):
     gen = generator(tmp_path, FakeClient(), i2va=moved)
 
     with pytest.raises(RuntimeError) as blew_up:
-        gen.generate("motion", "", 42, source=("P0_0.png", b"PNG"))
+        gen.generate("motion", "", 42, source=("P0_0.png", PHOTO))
 
     assert gone in str(blew_up.value)
 
@@ -267,7 +279,7 @@ def test_a_timeline_holding_a_different_number_of_pictures_says_both(tmp_path):
     gen = generator(tmp_path, FakeClient(), i2va=wrong)
 
     with pytest.raises(RuntimeError) as blew_up:
-        gen.generate("motion", "", 42, source=("P0_0.png", b"PNG"))
+        gen.generate("motion", "", 42, source=("P0_0.png", PHOTO))
 
     said = str(blew_up.value)
     assert "2" in said and "1" in said
@@ -325,7 +337,7 @@ def test_a_reference_prompt_goes_in_as_the_user_wrote_it(tmp_path):
 def test_a_video_with_no_references_is_made_the_way_it_always_was(tmp_path):
     client = FakeClient()
 
-    generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", b"PNG"),
+    generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", PHOTO),
                                          references=())
 
     assert sent_director(client)["mode"] == "I2VA"
@@ -407,8 +419,8 @@ def shipped_generator(client):
 
 # Kareden's two graphs and Referanstan: every H3 video of the session.
 every_mode = pytest.mark.parametrize("asked", [
-    {"source": ("P0_0.png", b"PNG")},
-    {"source": ("P0_0.png", b"PNG"), "end": ("P1_0.png", b"END")},
+    {"source": ("P0_0.png", PHOTO)},
+    {"source": ("P0_0.png", PHOTO), "end": ("P1_0.png", b"END")},
     {"references": POOL},
 ], ids=["i2va", "fl2va", "ref2va"])
 
@@ -468,7 +480,7 @@ def test_an_h3_video_is_made_at_the_length_it_is_handed(tmp_path, asked):
 def test_an_fl2va_prompt_says_the_video_arrives_at_the_end_of_its_length(tmp_path):
     client = FakeClient()
 
-    generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", b"PNG"),
+    generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", PHOTO),
                                          end=("P1_0.png", b"END"), seconds=8)
 
     assert sent_director(client)["prompt"] == f"{fl2va_sentence('8.00')}\n\nmotion"
@@ -563,7 +575,7 @@ def test_a_happy_ending_with_no_free_slot_fails_saying_so(tmp_path):
 
     with pytest.raises(RuntimeError, match="boş yuva yok"):
         generator(tmp_path, client, i2va=full).generate("motion", "", 42,
-                                                         source=("P0_0.png", b"PNG"),
+                                                         source=("P0_0.png", PHOTO),
                                                          happy_ending=True)
     assert client.submitted is None
 
@@ -572,7 +584,7 @@ def test_a_happy_ending_on_a_graph_with_no_stack_fails_naming_the_node(tmp_path)
     client = FakeClient()
 
     with pytest.raises(RuntimeError, match=STACK_NODE):
-        generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", b"PNG"),
+        generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", PHOTO),
                                              happy_ending=True)
     assert client.submitted is None
 
@@ -582,4 +594,138 @@ def test_a_video_without_a_happy_ending_asks_nothing_of_the_stack(tmp_path):
     client = FakeClient()
 
     assert generator(tmp_path, client).generate("motion", "", 42,
-                                                source=("P0_0.png", b"PNG")) == b"MP4DATA"
+                                                source=("P0_0.png", PHOTO)) == b"MP4DATA"
+
+
+# --- Madde 476: the video follows the shape of its photo ------------------------------------------
+
+LANDSCAPE_PHOTO = png(1536, 864)
+WIDE = (1024, 576, "576p")
+TALL = (576, 864, "540p")
+
+
+def sent_size(client):
+    """What the Director is told to render at: its own two numbers, and the panel's preset."""
+    said = sent_director(client)
+    return (said["width"], said["height"],
+            json.loads(said["timeline_data"])["resolution"]["resolution"])
+
+
+# A video hung on a frame: on its own, and arriving at another picture.
+from_a_frame = pytest.mark.parametrize("end", [None, ("P1_0.png", b"END")], ids=["i2va", "fl2va"])
+
+
+@from_a_frame
+@pytest.mark.parametrize("photo, size", [(LANDSCAPE_PHOTO, WIDE), (PHOTO, TALL)],
+                         ids=["yatay", "dikey"])
+def test_a_video_is_made_at_the_shape_of_its_photo(tmp_path, end, photo, size):
+    """The user's words: the video maker asks nothing, it follows the photo's ratio. Read off the
+    photo itself, so an old portrait frame makes a portrait video with nothing written anywhere."""
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", photo), end=end)
+
+    assert sent_size(client) == size
+
+
+@from_a_frame
+def test_a_video_hung_on_a_frame_is_not_told_its_orientation(tmp_path, end):
+    """The orientation the loop hands every producer is the photo's job's to keep: here the
+    picture answers, and it wins."""
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", LANDSCAPE_PHOTO),
+                                         end=end, orientation="dikey")
+
+    assert sent_size(client) == WIDE
+
+
+def test_a_linked_video_takes_the_size_of_the_picture_it_starts_from(tmp_path):
+    """A landscape frame linked to an old portrait one: the start is the video's shape, and FL2VA
+    crops the end picture to the canvas (madde 475)."""
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", LANDSCAPE_PHOTO),
+                                         end=("P1_0.png", PHOTO))
+
+    assert sent_size(client) == WIDE
+
+
+@pytest.mark.parametrize("orientation, size", [("yatay", WIDE), ("dikey", TALL)])
+def test_a_video_made_of_the_pool_is_made_in_its_card_s_orientation(tmp_path, orientation, size):
+    """No photo to follow: the card's own line says, the way every generation's does."""
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("altı bölüm", "", 42, references=POOL,
+                                         orientation=orientation)
+
+    assert sent_size(client) == size
+
+
+def test_a_pool_video_asked_no_orientation_keeps_the_graphs_own_size(tmp_path):
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("altı bölüm", "", 42, references=POOL)
+
+    assert sent_size(client) == (512, 768, "480p")
+
+
+def test_a_photo_that_is_not_a_png_is_the_frame_s_fault(tmp_path):
+    """Every frame's photo is a PNG; one that is not cannot say its shape, and guessing would hand
+    back a stretched video. The frame turns red and the queue goes on."""
+    client = FakeClient()
+
+    with pytest.raises(RuntimeError) as blew_up:
+        generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", b"JFIF"))
+
+    assert "P0_0.png" in str(blew_up.value)
+    assert getattr(blew_up.value, "frame_level", False)
+    assert client.submitted is None
+
+
+@pytest.mark.parametrize("data", [LANDSCAPE_PHOTO[:20], b""], ids=["cut-short", "empty"])
+def test_a_photo_too_short_to_hold_its_size_is_the_frame_s_fault(tmp_path, data):
+    """A header cut off before its width and height would read as 0 x 0 and pick a shape at
+    random -- so it is refused like any picture whose shape cannot be read."""
+    client = FakeClient()
+
+    with pytest.raises(RuntimeError) as blew_up:
+        generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", data))
+
+    assert "P0_0.png" in str(blew_up.value)
+    assert getattr(blew_up.value, "frame_level", False)
+    assert client.submitted is None
+
+
+@pytest.mark.parametrize("asked", [
+    {"source": ("P0_0.png", PHOTO)},
+    {"references": POOL, "orientation": "yatay"},
+], ids=["i2va", "ref2va"])
+def test_a_timeline_with_no_resolution_says_so(tmp_path, asked):
+    """A re-export that dropped the panel's resolution would otherwise stop on a bare KeyError."""
+    bare = {"2730": director("I2VA", 1), "2739": seed_control()}
+    timeline = json.loads(bare["2730"]["inputs"]["timeline_data"])
+    del timeline["resolution"]
+    bare["2730"]["inputs"]["timeline_data"] = json.dumps(timeline)
+    client = FakeClient()
+
+    with pytest.raises(RuntimeError, match="resolution yok"):
+        generator(tmp_path, client, i2va=bare).generate("motion", "", 42, **asked)
+    assert client.submitted is None
+
+
+@pytest.mark.parametrize("asked", [
+    {"source": ("P0_0.png", LANDSCAPE_PHOTO)},
+    {"source": ("P0_0.png", LANDSCAPE_PHOTO), "end": ("P1_0.png", LANDSCAPE_PHOTO)},
+    {"references": POOL, "orientation": "yatay"},
+], ids=["i2va", "fl2va", "ref2va"])
+def test_every_landscape_h3_video_of_the_shipped_graphs_is_1024_by_576(asked):
+    """The graphs ship portrait; what reaches ComfyUI is the landscape size, at the panel's 576p,
+    with the rest of the panel's resolution as exported (madde 475)."""
+    client = FakeClient()
+
+    shipped_generator(client).generate("motion", "", 42, **asked)
+
+    assert sent_size(client) == WIDE
+    resolution = json.loads(sent_director(client)["timeline_data"])["resolution"]
+    assert (resolution["aspect"], resolution["input_scaling"]) == ("auto", "Auto")

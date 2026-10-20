@@ -1,6 +1,8 @@
 """PhotoGenerator over ComfyUI -- the only place that knows what the graph looks like.
 
 Node ids come from our own export (queen-editor/workflow_api.json):
+  "1"  easy int "Width"  -> EmptyLatentImage's width
+  "11" easy int "Height" -> EmptyLatentImage's height
   "3"  ImpactWildcardProcessor, _meta.title "POSITIVE"
   "4"  ImpactWildcardProcessor, _meta.title "NEGATIVE"
   "23" easy int "Batch Size" -> EmptyLatentImage's batch_size: how many pictures one job makes
@@ -13,13 +15,21 @@ A new export can renumber these; then this file changes and nothing else does.
 import json
 
 from backend.features.photo_generation.domain import catalog
+from backend.features.photo_generation.domain.orientation import LANDSCAPE, PORTRAIT
 
+WIDTH_NODE = "1"
+HEIGHT_NODE = "11"
 PROMPT_NODE = "3"
 NEGATIVE_NODE = "4"
 BATCH_NODE = "23"
 LORA_NODE = "27"
 SEED_NODE = "40"
 MODEL_NODE = "45"
+
+# The picture's size in each orientation (madde 476, the numbers approved in 475): exactly the
+# ratio of H3's video of the same orientation, which test_workflow_asset holds. Both are in the
+# graph author's own table of sizes; portrait is the size the graph ships with.
+SIZES = {LANDSCAPE: (1536, 864), PORTRAIT: (1024, 1536)}
 
 # What one batch of this graph asks of the card, by ComfyUI's own memory rules (madde 411) -- the
 # card is weighed the way ComfyUI weighs it, not by a number of ours.
@@ -30,9 +40,10 @@ WEIGHT_BYTES = 2.6e9 * 2
 RESERVED_BYTES = 0.8 * 1024 ** 3 + 400 * 1024 ** 2
 # One picture's share of sampling: memory_required() -- latent area x 2 bytes x 0.01 x SDXL's
 # memory_usage_factor 0.8, in MiB (comfy/model_base.py, supported_models.py) -- for this graph's
-# 1024 x 1536, a 128 x 192 latent, doubled by cfg (sampler_helpers.py), and 1.5 times that, which
-# _calc_cond_batch wants free before it runs cond and uncond together (samplers.py). A new size in
-# nodes "1" and "11" changes this line.
+# portrait 1024 x 1536, a 128 x 192 latent, doubled by cfg (sampler_helpers.py), and 1.5 times
+# that, which _calc_cond_batch wants free before it runs cond and uncond together (samplers.py).
+# The larger of the two SIZES: landscape's 192 x 108 latent is 16% smaller, so a landscape batch is
+# weighed on the safe side. A size in SIZES larger than portrait's changes this line.
 PICTURE_BYTES = 1.5 * 2 * (128 * 192) * 2 * 0.01 * 0.8 * 1024 ** 2
 
 
@@ -43,17 +54,19 @@ class ComfyPhotoGenerator:
         self._timeout = timeout
 
     def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                 references=(), seconds=None, happy_ending=False):
+                 references=(), seconds=None, happy_ending=False, orientation=None):
         """`source`, `end`, `seconds` and `happy_ending` are nobody's business here: a picture is
         made from its words alone, arrives nowhere, runs no length and has no ending. They are taken
         because the queue has one call shape for every producer -- see ports.PhotoGenerator.
+
+        `orientation` is the size the picture is made at (SIZES); None leaves the graph's own.
         """
-        workflow = self._graph(prompt, negative, seed, model, lora)
+        workflow = self._graph(prompt, negative, seed, model, lora, orientation)
         prompt_id = self._client.submit(workflow)
         history = self._client.wait(prompt_id, self._timeout)
         return self._client.fetch_output(history)
 
-    def generate_batch(self, prompt, negative, seed, count, model="", lora=""):
+    def generate_batch(self, prompt, negative, seed, count, model="", lora="", orientation=None):
         """`count` pictures of one prompt in one ComfyUI job, their noise drawn from one seed
         (madde 411), in the batch's order. The count goes into the graph's own Batch Size node,
         the one its latent reads.
@@ -61,7 +74,7 @@ class ComfyPhotoGenerator:
         The stall guard is a photo's, so a batch gets one per picture: seven on a T4 take about as
         long as seven made one by one, and a single photo's guard would call that a stall.
         """
-        workflow = self._graph(prompt, negative, seed, model, lora)
+        workflow = self._graph(prompt, negative, seed, model, lora, orientation)
         if BATCH_NODE not in workflow:
             raise RuntimeError(f"Workflow'da {BATCH_NODE} node yok — grafik yeniden export edilmiş "
                                "olabilir, Batch Size node'unun id'sini güncelle")
@@ -75,9 +88,11 @@ class ComfyPhotoGenerator:
         needed = WEIGHT_BYTES + RESERVED_BYTES + count * PICTURE_BYTES
         return self._client.vram_total() >= needed
 
-    def _graph(self, prompt, negative, seed, model, lora):
-        """The shipped graph with this picture's words, seed, model and lora written in."""
+    def _graph(self, prompt, negative, seed, model, lora, orientation):
+        """The shipped graph with this picture's words, seed, model, lora and size written in."""
         workflow = self._load()
+        if orientation is not None:
+            self._set_size(workflow, SIZES[orientation])
         model, lora = catalog.LEGACY.get(model, (model, lora))
         chosen = self._model(model)
         extra = self._lora(lora)
@@ -164,6 +179,15 @@ class ComfyPhotoGenerator:
         for index, lora in enumerate(loras, start=1):
             inputs[f"lora_{index}"] = {"on": True, "lora": lora["lora"],
                                        "strength": lora["strength"]}
+
+    @staticmethod
+    def _set_size(workflow, size):
+        """Write the picture's width and height into the graph's own two size nodes."""
+        for node_id, value in zip((WIDTH_NODE, HEIGHT_NODE), size):
+            if node_id not in workflow:
+                raise RuntimeError(f"Workflow'da {node_id} node yok — grafik yeniden export edilmiş "
+                                   "olabilir, Width / Height node'larının id'sini güncelle")
+            workflow[node_id]["inputs"]["value"] = value
 
     @staticmethod
     def _set_text(workflow, node_id, text):

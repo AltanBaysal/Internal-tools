@@ -4,10 +4,11 @@ A prompt's variants are planned as frames of their own -- P3_0, P3_1, ... -- tha
 picture is made from and differ only in their seed. ComfyUI makes them as one batch from one seed,
 so the variants standing together at the head of the queue go to it as one job.
 """
-from backend.features.photo_generation.domain import layers, queue
+from backend.features.photo_generation.domain import layers, orientation, queue
 
-# What a picture is made from beside its seed: variants that agree on all of it render alike.
-MADE_FROM = ("prompt", "negative", "model", "lora")
+# What a picture is made from beside its seed: variants that agree on all of it render alike. The
+# orientation is its size, and one batch is one graph at one size (madde 476).
+MADE_FROM = ("prompt", "negative", "model", "lora", orientation.FIELD)
 
 
 def _variant_of(job, head):

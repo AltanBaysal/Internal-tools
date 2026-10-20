@@ -82,7 +82,9 @@ class DrivePlanStore:
         """Put frames at the end of the queue.
 
         frames: [{"id", "number", "variant", "prompt", "negative", "seed", "model", "lora"}] in
-        render order.
+        render order; a photo's and a pool card's also carry "orientation" (madde 476). A line
+        without one is left as it is: the domain reads it as the portrait it was planned in
+        (orientation.of).
 
         Strict where read is lenient: a plan that cannot be read, taken as empty and written back,
         would be the new frames alone -- every frame queued before them gone. So the append stops

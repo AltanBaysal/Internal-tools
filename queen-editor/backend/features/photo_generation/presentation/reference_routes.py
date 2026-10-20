@@ -11,6 +11,8 @@ lives in exactly one place (the domain).
 """
 from flask import Blueprint, jsonify, request, send_from_directory
 
+from backend.features.photo_generation.domain import orientation
+from backend.features.photo_generation.domain.orientation import InvalidOrientation
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
 from backend.features.photo_generation.domain.references import LIMITS, PoolLimit
 from backend.features.photo_generation.domain.usecases.add_references import UnknownReference
@@ -82,9 +84,11 @@ def make_reference_blueprint(add_references, list_references, remove_reference,
         # A non-string body field is treated as empty text -> the prompt list's own refusal.
         prompts = prompts if isinstance(prompts, str) else ""
         try:
-            added = queue_references(project, prompts, body.get("variants", 1))
-        except (InvalidPrompts, InvalidVariants, PoolLimit) as exc:
-            # Three refusals, one answer: the run cannot start, and the sentence is the difference.
+            # No "orientation" key is the default: a screen older than the choice gets landscape.
+            added = queue_references(project, prompts, body.get("variants", 1),
+                                     orientation=body.get("orientation", orientation.DEFAULT))
+        except (InvalidPrompts, InvalidVariants, PoolLimit, InvalidOrientation) as exc:
+            # Four refusals, one answer: the run cannot start, and the sentence is the difference.
             return jsonify({"error": str(exc)}), 400
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404

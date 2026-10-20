@@ -398,3 +398,61 @@ def test_the_card_is_weighed_by_comfyuis_own_memory_rules(tmp_path, vram, count,
     generator = ComfyPhotoGenerator(FakeClient(vram=vram), write_graph(tmp_path), timeout=60)
 
     assert generator.fits_batch(count) is fits
+
+
+# --- Madde 476: the orientation the picture is made in --------------------------------------------
+
+def with_size_nodes(tmp_path):
+    """The test graph with the export's own Width and Height nodes, portrait as it ships."""
+    with open(write_graph(tmp_path), encoding="utf-8") as f:
+        graph = json.load(f)
+    graph["1"] = {"inputs": {"value": 1024}, "class_type": "easy int", "_meta": {"title": "Width"}}
+    graph["11"] = {"inputs": {"value": 1536}, "class_type": "easy int",
+                   "_meta": {"title": "Height"}}
+    return graph
+
+
+def size_of(client):
+    return client.submitted["1"]["inputs"]["value"], client.submitted["11"]["inputs"]["value"]
+
+
+@pytest.mark.parametrize("orientation, size", [("yatay", (1536, 864)), ("dikey", (1024, 1536))])
+def test_a_picture_is_made_at_its_orientations_size(tmp_path, orientation, size):
+    client, generator = generator_at(tmp_path, with_size_nodes(tmp_path))
+
+    generator.generate("kraliçe", "", 1, orientation=orientation)
+
+    assert size_of(client) == size
+
+
+@pytest.mark.parametrize("orientation, size", [("yatay", (1536, 864)), ("dikey", (1024, 1536))])
+def test_a_batch_is_made_at_its_orientations_size(tmp_path, orientation, size):
+    client, generator = generator_at(tmp_path, with_size_nodes(tmp_path))
+
+    generator.generate_batch("kraliçe", "", 1, 3, orientation=orientation)
+
+    assert size_of(client) == size
+
+
+def test_no_orientation_leaves_the_graphs_own_size(tmp_path):
+    """None is the graph's own, the way seconds=None is a video's: the loop always hands one."""
+    client, generator = generator_at(tmp_path, with_size_nodes(tmp_path))
+
+    generator.generate("kraliçe", "", 1)
+
+    assert size_of(client) == (1024, 1536)
+
+
+@pytest.mark.parametrize("gone", ["1", "11"])
+def test_an_orientation_on_a_graph_with_no_size_node_says_which_node_is_missing(tmp_path, gone):
+    """A re-export can renumber the graph; a picture made at the export's size instead of the one
+    asked for would come out the wrong way round with nothing saying why."""
+    graph = with_size_nodes(tmp_path)
+    del graph[gone]
+    client, generator = generator_at(tmp_path, graph)
+
+    with pytest.raises(RuntimeError) as exc:
+        generator.generate("kraliçe", "", 1, orientation="yatay")
+
+    assert gone in str(exc.value)
+    assert client.submitted is None

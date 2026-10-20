@@ -6,9 +6,10 @@ lives in exactly one place (the domain).
 """
 from flask import Blueprint, jsonify, request, send_from_directory
 
-from backend.features.photo_generation.domain import layers, production_mode, queue
+from backend.features.photo_generation.domain import layers, orientation, production_mode, queue
 from backend.features.photo_generation.export_runner import MODES
 from backend.features.photo_generation.domain.frame_list import InvalidFrames
+from backend.features.photo_generation.domain.orientation import InvalidOrientation
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
 from backend.features.photo_generation.domain.production_mode import InvalidMode
 from backend.features.photo_generation.domain.usecases.queue_layer import InvalidScope
@@ -59,7 +60,9 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
         # And no lora is no pick: the renderer gives it the default.
         lora = lora if isinstance(lora, str) else ""
         try:
-            added = start_batch(project, prompts, negative, body.get("variants"), model, lora=lora)
+            # No "orientation" key is the default: a screen older than the choice gets landscape.
+            added = start_batch(project, prompts, negative, body.get("variants"), model, lora=lora,
+                                orientation=body.get("orientation", orientation.DEFAULT))
         # Which box was wrong travels with the message: the screen marks that field instead of
         # guessing from the wording.
         except InvalidPrompts as exc:
@@ -68,6 +71,8 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
             return jsonify({"error": str(exc), "field": "variants"}), 400
         except InvalidLora as exc:
             return jsonify({"error": str(exc), "field": "lora"}), 400
+        except InvalidOrientation as exc:
+            return jsonify({"error": str(exc), "field": "orientation"}), 400
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
         except Busy as exc:
@@ -191,11 +196,14 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
             frame = regenerate(project, body.get("frame"), layer,
                                prompt if isinstance(prompt, str) else "",
                                negative if isinstance(negative, str) else "",
-                               mode=body.get("mode", production_mode.STANDARD))
+                               mode=body.get("mode", production_mode.STANDARD),
+                               orientation=body.get("orientation", orientation.DEFAULT))
         except (ProjectMissing, FrameMissing) as exc:
             return jsonify({"error": str(exc)}), 404
         except LayerMissing as exc:
             return jsonify({"error": str(exc)}), 400
+        except InvalidOrientation as exc:
+            return jsonify({"error": str(exc), "field": "orientation"}), 400
         except (InvalidMode, NoNextFrame) as exc:
             # The same shape the queue's own refusal takes: both say the mode is what went wrong.
             return jsonify({"error": str(exc), "field": "mode"}), 400

@@ -20,6 +20,7 @@ from backend.features.photo_generation.data.mmaudio_generator import MMAudioGene
 from backend.features.photo_generation.domain import layers
 from backend.features.photo_generation.domain.running_name import RunningName
 from backend.features.photo_generation.domain.run_loop import make_job
+from backend.tests.test_comfy_h3_video_generator import png
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # The shipped graphs, asked of config: where they live is its answer, and a second copy of the
@@ -48,7 +49,8 @@ def test_every_graph_config_names_is_a_file():
 
 
 class PhotoComfy:
-    """The photo graph's server: takes a workflow, answers with a picture."""
+    """The photo graph's server: takes a workflow, answers with a picture of the size the graph's
+    own Width and Height nodes say -- the shape the video made from it then follows (madde 476)."""
 
     def submit(self, workflow):
         self.submitted = workflow
@@ -58,7 +60,11 @@ class PhotoComfy:
         return {"outputs": {}}
 
     def fetch_output(self, history):
-        return b"PNG"
+        return png(self.submitted["1"]["inputs"]["value"], self.submitted["11"]["inputs"]["value"])
+
+
+# What the shipped photo graph makes when nobody asks it another size: portrait, 1024 x 1536.
+PORTRAIT = png(1024, 1536)
 
 
 class VideoComfy:
@@ -215,7 +221,7 @@ def test_a_producer_with_no_end_frame_takes_the_argument_anyway(tmp_path):
     sound = MMAudioGenerator(Sampler(), ffmpeg, tmp_dir=str(tmp_path)).generate(
         "dalga sesi", "", 4242, source=("P0_0_V1_0.mp4", b"MP4"), end=("P1_0.png", b"PNG"))
 
-    assert photo == b"PNG"
+    assert photo == PORTRAIT
     assert sound == b"RIFFwav"
 
 
@@ -230,7 +236,7 @@ def test_the_queue_runs_the_three_real_producers_end_to_end(tmp_path):
     # The domain names every file; no producer gets a say in it.
     assert store.saved == ["P0_0.png", "P0_0_V1_0.mp4", "P0_0_V1_0_S1_0.wav"]
     # And what landed under each name is what its producer answered -- bytes, not a pair.
-    assert store.files["P0_0.png"] == b"PNG"
+    assert store.files["P0_0.png"] == PORTRAIT
     assert store.files["P0_0_V1_0.mp4"] == b"MP4"
     assert store.files["P0_0_V1_0_S1_0.wav"] == b"RIFFwav"
 
@@ -242,7 +248,7 @@ def test_each_layer_is_made_from_the_one_below_it(tmp_path):
              producers_over(video_comfy, ffmpeg, tmp_path),
              lambda: "2026-08-13T00:00:00+00:00", "düğün")()
 
-    assert video_comfy.uploaded == [("P0_0.png", b"PNG")]   # the video hangs on the frame's photo
+    assert video_comfy.uploaded == [("P0_0.png", PORTRAIT)]  # the video hangs on the frame's photo
     assert ffmpeg.saw == b"MP4"                             # the sound is laid over that video
 
 
@@ -254,7 +260,7 @@ def test_a_producer_that_makes_no_video_takes_a_length_anyway(tmp_path):
     sound = MMAudioGenerator(Sampler(), Ffmpeg(), tmp_dir=str(tmp_path)).generate(
         "dalga sesi", "", 4242, source=("P0_0_V1_0.mp4", b"MP4"), seconds=8)
 
-    assert photo == b"PNG"
+    assert photo == PORTRAIT
     assert sound == b"RIFFwav"
 
 
@@ -346,7 +352,7 @@ def test_a_producer_that_makes_no_video_takes_a_happy_ending_anyway(tmp_path):
     sound = MMAudioGenerator(Sampler(), Ffmpeg(), tmp_dir=str(tmp_path)).generate(
         "dalga sesi", "", 4242, source=("P0_0_V1_0.mp4", b"MP4"), happy_ending=True)
 
-    assert photo == b"PNG"
+    assert photo == PORTRAIT
     assert sound == b"RIFFwav"
 
 
@@ -361,3 +367,36 @@ def test_the_queue_hands_the_real_h3_a_video_job_that_ends_happily(tmp_path):
 
     assert state["status"] == "done"
     assert "HMCumshot_V1.0.safetensors" in video_comfy.submitted["2678"]["inputs"]["stack_data"]
+
+
+# --- Madde 476: the video follows the shape of its photo ------------------------------------------
+
+def sizes_made(lines, tmp_path):
+    """One frame's photo and video under the real loop and the shipped graphs: the size the photo
+    graph was asked for, and the size the video graph was."""
+    photo_comfy, video_comfy = PhotoComfy(), VideoComfy()
+    producers = {**producers_over(video_comfy, Ffmpeg(), tmp_path),
+                 layers.PHOTO: ComfyPhotoGenerator(photo_comfy, PHOTO_GRAPH, timeout=60)}
+    state = make_job(Runner(), Store(), Record(), Plan(lines), producers,
+                     lambda: "2026-10-20T00:00:00+00:00", "düğün")()
+    assert state["status"] == "done"
+    photo, director = photo_comfy.submitted, video_comfy.submitted["2730"]["inputs"]
+    return ((photo["1"]["inputs"]["value"], photo["11"]["inputs"]["value"]),
+            (director["width"], director["height"]))
+
+
+@pytest.mark.parametrize("asked, sizes", [
+    ("yatay", ((1536, 864), (1024, 576))),
+    ("dikey", ((1024, 1536), (576, 864))),
+], ids=["yatay", "dikey"])
+def test_a_frame_s_photo_and_its_video_stand_the_way_the_photo_was_asked(tmp_path, asked, sizes):
+    """The item's own sentence, end to end: the photo is made in its orientation, and the video --
+    told nothing -- comes out the same shape, read off the picture the photo graph made."""
+    lines = [{**job, "orientation": asked} if job["type"] == "photo" else job for job in FRAMES]
+
+    assert sizes_made(lines, tmp_path) == sizes
+
+
+def test_an_old_frame_s_photo_and_video_stay_portrait(tmp_path):
+    """A line planned before madde 476 carries no orientation, and is made as it always was."""
+    assert sizes_made(FRAMES, tmp_path) == ((1024, 1536), (576, 864))

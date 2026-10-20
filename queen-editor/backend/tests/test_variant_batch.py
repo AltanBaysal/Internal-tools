@@ -45,8 +45,9 @@ class BatchGenerator(FakeGenerator):
         self.asked.append(count)
         return count <= self.fits
 
-    def generate_batch(self, prompt, negative, seed, count, model="", lora=""):
+    def generate_batch(self, prompt, negative, seed, count, model="", lora="", orientation=None):
         self.batches.append((prompt, negative, seed, count, model, lora))
+        self.orientations.append(orientation)
         if self.clock is not None:
             self.clock.passes(self.works)
         if self.stop is not None:

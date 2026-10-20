@@ -6,7 +6,7 @@ class PhotoGenerator(Protocol):
     def generate(self, prompt: str, negative: str, seed: int, model: str = "", lora: str = "",
                  source: tuple | None = None, end: tuple | None = None,
                  references: tuple = (), seconds: int | None = None,
-                 happy_ending: bool = False) -> bytes:
+                 happy_ending: bool = False, orientation: str | None = None) -> bytes:
         """Render one layer and return its bytes -- nothing else, and no name.
 
         `source` is the file this layer is made from as (name, bytes): a video's photo, a sound's
@@ -31,6 +31,11 @@ class PhotoGenerator(Protocol):
 
         `happy_ending` is whether the video ends happily, from its job (madde 426): H3 loads
         HMCumshot for it. A photo and a sound take it and ignore it, like `seconds`.
+
+        `orientation` is which way the job stands, from its line (domain/orientation.py, madde
+        476): a photo is made at that size, and so is a video made of the pool. A video hung on a
+        frame follows the shape of its photo instead, and a sound takes it and ignores it. None is
+        the graph's own size.
         """
         ...
 
@@ -45,8 +50,9 @@ class BatchPhotoGenerator(PhotoGenerator, Protocol):
         ...
 
     def generate_batch(self, prompt: str, negative: str, seed: int, count: int, model: str = "",
-                       lora: str = "") -> list:
-        """`count` pictures of one prompt from one seed, as bytes, in the batch's order."""
+                       lora: str = "", orientation: str | None = None) -> list:
+        """`count` pictures of one prompt from one seed, as bytes, in the batch's order, all of
+        them at `orientation`'s size."""
         ...
 
 

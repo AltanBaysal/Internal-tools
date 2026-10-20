@@ -13,6 +13,7 @@ frame, so the second attempt is that frame's first round -- there is no place le
 climb.
 """
 from backend.features.photo_generation.domain import layers, production_mode, queue, video_settings
+from backend.features.photo_generation.domain import orientation as orientations
 from backend.features.photo_generation.domain.copy_frame import (
     carry_layers,
     family,
@@ -45,7 +46,7 @@ class NoNextFrame(Exception):
 def regenerate(runner, store, record, plan_store, order_store, producers, new_seed, now,
                project, fid, kind, prompt, negative="", log=None, writers=None,
                mode=production_mode.STANDARD, stills=None, references=None, length=None,
-               ending=None):
+               ending=None, orientation=orientations.DEFAULT):
     """Returns the identity of the frame the new layer will be made on.
 
     The source is named by its identity rather than by a file: a copy frame shares its source's
@@ -60,6 +61,9 @@ def regenerate(runner, store, record, plan_store, order_store, producers, new_se
     the layers over it are made from what is under them, so whatever is passed for a video or a
     sound is dropped here rather than at the caller.
 
+    `orientation` travels the negative's way (madde 476): from the request, the default when it
+    says none, and on a photo's line alone -- a video follows the shape of the photo under it.
+
     `length` answers how long the project's videos run now (madde 422): the new video goes at that
     length. None hands it none, and the video is made at its graph's own. `ending` answers whether
     it ends happily now (madde 426), the same way.
@@ -67,6 +71,8 @@ def regenerate(runner, store, record, plan_store, order_store, producers, new_se
     # Above the gallery read: an unknown mode is an unknown mode even in a project that is not
     # there, and the cheap refusal comes first.
     production_mode.validate(mode, kind)
+    if kind == layers.PHOTO:
+        orientations.validate(orientation)
     gallery = list_frames(record, store, plan_store, order_store, project)
     source = next((frame for frame in gallery if frame["id"] == fid), None)
     if source is None:
@@ -109,6 +115,7 @@ def regenerate(runner, store, record, plan_store, order_store, producers, new_se
         # The lora goes with the model: dropping it would hand back a plain Nova where the user had
         # Slime, with nothing on the page saying it changed (madde 237).
         "lora": source.get("lora", "") if kind == layers.PHOTO else "",
+        **({orientations.FIELD: orientation} if kind == layers.PHOTO else {}),
         **mark,
         **(video_settings.carried(length, ending, project) if kind == layers.VIDEO else {}),
         # The scene stays with the picture (madde 397). New words start a new prompt's family, and

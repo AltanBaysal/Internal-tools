@@ -8,6 +8,7 @@ exception messages are the user-facing Turkish text; presentation maps them to s
 forwards them untouched.
 """
 from backend.features.photo_generation.domain import catalog, layers
+from backend.features.photo_generation.domain import orientation as orientations
 from backend.features.photo_generation.domain.photo_name import frame_id
 from backend.features.photo_generation.domain.prompt_list import parse_photo_list
 from backend.features.photo_generation.domain.usecases.run_queue import Busy, run_queue  # noqa: F401
@@ -30,7 +31,8 @@ class InvalidLora(Exception):
     """A lora the app does not list (message is user-facing)."""
 
 
-def plan_frames(start, entries, negative, variants, new_seed, model="", lora=""):
+def plan_frames(start, entries, negative, variants, new_seed, model="", lora="",
+                orientation=orientations.DEFAULT):
     """[{"id", "type", "number", "variant", "prompt", …}] photo jobs in prompt-major order.
 
     Prompt-major means P0_0 P0_1 … P1_0. Number = prompt, variant = which of its variants -- the
@@ -41,9 +43,9 @@ def plan_frames(start, entries, negative, variants, new_seed, model="", lora="")
     frame on Drive the moment the naming scheme changed, and the gallery order the user dragged into
     place points at exactly these strings.
 
-    The negative, the model and the lora ride on the frame rather than on the plan: a live queue
-    holds batches submitted under different settings, and a frame has to render with the ones it
-    was submitted under.
+    The negative, the model, the lora and the orientation ride on the frame rather than on the
+    plan: a live queue holds batches submitted under different settings, and a frame has to render
+    with the ones it was submitted under.
 
     Seeds are drawn here, when the frames are planned, rather than when a frame renders: the plan is
     what a resumed run reads back, so a frame has to produce the image it was planned to produce.
@@ -55,7 +57,7 @@ def plan_frames(start, entries, negative, variants, new_seed, model="", lora="")
     return [{"id": frame_id(start + index, variant), "type": layers.PHOTO,
              "number": start + index, "variant": variant,
              **entry, "negative": negative, "seed": new_seed(), "model": model,
-             "lora": lora}
+             "lora": lora, orientations.FIELD: orientation}
             for index, entry in enumerate(entries)
             for variant in range(variants)]
 
@@ -81,7 +83,8 @@ def next_number(store, plan_store, record, project):
 
 def start_batch(runner, store, record, plan_store, producers, new_seed, now,
                 project, text, negative, variants, model="", log=None, order_store=None,
-                writers=None, lora="", stills=None, references=None):
+                writers=None, lora="", stills=None, references=None,
+                orientation=orientations.DEFAULT):
     entries = parse_photo_list(text)       # raises InvalidPrompts
     # bool is an int in Python, and True would silently mean "1 variant".
     if isinstance(variants, bool) or not isinstance(variants, int) \
@@ -93,13 +96,14 @@ def start_batch(runner, store, record, plan_store, producers, new_seed, now,
     # Empty is no pick, and renders with the default.
     if lora not in ("", catalog.NO_LORA) and catalog.find_lora(lora) is None:
         raise InvalidLora(f"Tanınmayan LoRA: {lora} — listeden başka bir LoRA seç.")
+    orientations.validate(orientation)       # raises InvalidOrientation
     if not store.project_exists(project):
         raise ProjectMissing(f"Proje yok: {project}")
 
     # Neither the model nor the lora is checked against what is installed: whether they can be
     # loaded is the renderer's answer to give, at render time, in its own words (Madde 8's rule).
     frames = plan_frames(next_number(store, plan_store, record, project), entries, negative,
-                         variants, new_seed, model, lora)
+                         variants, new_seed, model, lora, orientation)
     # Appended before the worker is asked to run: a run that dies leaves behind what it meant to
     # make, and a loop already in flight finds the frames on its next turn.
     plan_store.append(project, frames)

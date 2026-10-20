@@ -1,3 +1,4 @@
+import json
 from functools import partial
 from io import BytesIO
 
@@ -287,3 +288,41 @@ def test_a_reference_run_that_can_go_ahead_answers_with_what_it_took(tmp_path):
     # One prompt, two variants: two cards, and the answer has the shape every other production
     # answers in.
     assert resp.get_json() == {"added": 2}
+
+
+def planned_orientations(drive):
+    plan = json.loads((drive / "düğün" / "plan.json").read_text(encoding="utf-8"))
+    return [frame.get("orientation") for frame in plan["frames"]]
+
+
+def test_cards_whose_body_names_no_orientation_are_landscape(tmp_path):
+    """Madde 476: a card has no photo to follow, so it is asked like every generation -- and until
+    the screen sends one (477) it is landscape."""
+    client, drive, _dist = make_client(tmp_path)
+    upload(client, ("kedi.png", b"PNG"))
+
+    produce(client, variants=2)
+
+    assert planned_orientations(drive) == ["yatay", "yatay"]
+
+
+def test_the_body_orientation_reaches_the_cards(tmp_path):
+    client, drive, _dist = make_client(tmp_path)
+    upload(client, ("kedi.png", b"PNG"))
+
+    client.post("/api/projects/düğün/references/produce",
+                json={"prompts": '["gotik kız"]', "variants": 1, "orientation": "dikey"})
+
+    assert planned_orientations(drive) == ["dikey"]
+
+
+def test_cards_in_an_orientation_nobody_knows_are_refused(tmp_path):
+    client, drive, _dist = make_client(tmp_path)
+    upload(client, ("kedi.png", b"PNG"))
+
+    resp = client.post("/api/projects/düğün/references/produce",
+                       json={"prompts": '["gotik kız"]', "variants": 1, "orientation": "yan"})
+
+    assert resp.status_code == 400
+    assert "yatay" in resp.get_json()["error"]
+    assert not (drive / "düğün" / "plan.json").exists()

@@ -18,6 +18,11 @@ there, and nothing else in the graph counts frames -- the latent comes out of th
 and the Combine takes its frame rate from the Director. It sits in three places for the same reason
 the prompt sits in four: the input, and the `duration` of both builder states.
 
+The size is the Director's `width` and `height` (madde 476): DaSiWa's node takes the two numbers as
+they are. A video hung on a frame follows the shape of that frame's photo, read off the picture's own
+PNG header; one made of the pool has no photo, and takes its card's orientation. The panel's preset
+in `timeline_data` is written beside them so the panel would work out the same size.
+
 The lora stack keeps its slots in a JSON string, `stack_data`. The exports carry Motion Booster and
 nothing else, and a video goes out with the stack as exported -- except one that ends happily
 (madde 426), which loads HMCumshot in the first free slot: a slot named "None", the way every empty
@@ -30,6 +35,8 @@ dependency.
 """
 import json
 import os
+
+from backend.features.photo_generation.domain.orientation import LANDSCAPE, PORTRAIT
 
 DIRECTOR_NODE = "2730"
 SEED_NODE = "2739"
@@ -74,6 +81,49 @@ BOTH_HALVES = "video_audio"
 # The graph previews through a tiny VAE as it samples; only the mp4 is the render.
 VIDEO_EXTENSIONS = (".mp4",)
 
+# The video's size in each orientation, and the Director panel's preset that works out to it
+# (madde 476, the numbers approved in 475): exact 16:9 and exact 2:3, both sides on H3's 32-pixel
+# grid, each exactly the ratio of the photo of its orientation -- test_workflow_asset holds all of
+# it. Portrait is the size the graphs ship with.
+SIZES = {LANDSCAPE: (1024, 576, "576p"), PORTRAIT: (576, 864, "540p")}
+
+# A PNG opens with its signature and then its IHDR chunk: length, name, width, height.
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+
+
+class NotAPicture(RuntimeError):
+    """The photo a video hangs on is not a PNG, so its shape cannot be read.
+
+    frame_level, so the queue treats it as this one frame's failure: the tile turns red and the
+    rest goes on. Every frame's photo is a PNG today -- the graph saves one, and so does a video's
+    first frame -- so this says what went wrong rather than leaving a stretched video to say it.
+    """
+
+    frame_level = True
+
+
+def _orientation_of(picture):
+    """Which way the picture (name, bytes) stands: wider than tall is landscape, anything else
+    portrait. Read off the bytes already in hand -- the header's first 24 bytes, no file."""
+    name, data = picture
+    if not data:
+        raise NotAPicture(f"{name} boş — videonun yönü fotoğrafın boyutundan okunur")
+    # Shorter than 24 bytes, the width and height would read as nothing, and the shape as chance.
+    if len(data) < 24 or data[:8] != PNG_SIGNATURE or data[12:16] != b"IHDR":
+        raise NotAPicture(f"{name} PNG değil — videonun yönü fotoğrafın boyutundan okunur")
+    width, height = int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big")
+    return LANDSCAPE if width > height else PORTRAIT
+
+
+def _sized(director, timeline, orientation):
+    """The Director set to render in `orientation`; None leaves the graph's own size."""
+    if orientation is None:
+        return
+    if "resolution" not in timeline:
+        raise RuntimeError("timeline_data'da resolution yok — grafik değişmiş, yeniden export et")
+    director["width"], director["height"], preset = SIZES[orientation]
+    timeline["resolution"]["resolution"] = preset
+
 
 def _director(workflow, seconds):
     """The Director's inputs, set to run `seconds`. A job with no length leaves the graph's own --
@@ -109,9 +159,12 @@ class ComfyH3VideoGenerator:
         self._timeout = timeout
 
     def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                 references=(), seconds=None, happy_ending=False):
+                 references=(), seconds=None, happy_ending=False, orientation=None):
         """`source` is the frame's photo as (name, bytes); `end`, when given, is the picture the video
         arrives at, and giving one is the whole of the choice between the two graphs.
+
+        `orientation` is only a pool video's (madde 476): a video hung on a frame is made at the
+        shape of `source` itself, whatever it is handed. None leaves the graph's own size.
 
         `references` is the project's pool as (name, bytes, kind). Given any, the video is made of
         THEM and of no frame at all: the mode becomes REF2VA and no source picture is asked for
@@ -128,10 +181,12 @@ class ComfyH3VideoGenerator:
         out as it ships.
         """
         if references:
-            return self._from_pool(prompt, seed, references, seconds, happy_ending)
+            return self._from_pool(prompt, seed, references, seconds, happy_ending, orientation)
         if not source:
             # The ending frame is where the video arrives, not what it is built on.
             raise RuntimeError("Video için kaynak foto verilmedi")
+        # Before anything goes up: a photo whose shape cannot be read is not worth an upload.
+        shape = _orientation_of(source)
         path = self._first_last_path if end else self._workflow_path
         workflow = self._load(path, happy_ending)
         # Set before the FL2VA sentence reads it: the second picture sits at the video's end.
@@ -147,6 +202,7 @@ class ComfyH3VideoGenerator:
                 f"var, bu video {len(names)} resimle üretiliyor — grafik değişmiş, yeniden export et")
         for item, name in zip(timeline["items"], names):
             item["value"] = name
+        _sized(director, timeline, shape)
 
         if end:
             opening = FL2VA_SENTENCE.format(seconds=float(director["duration"]))
@@ -161,8 +217,9 @@ class ComfyH3VideoGenerator:
             written = f"{opening}\n\n{prompt}"
         return self._render(workflow, director, timeline, written, seed)
 
-    def _from_pool(self, prompt, seed, references, seconds, happy_ending):
-        """The same graph, run in REF2VA: the timeline is the pool rather than the frame.
+    def _from_pool(self, prompt, seed, references, seconds, happy_ending, orientation):
+        """The same graph, run in REF2VA: the timeline is the pool rather than the frame, and the
+        size is the card's orientation, there being no photo to follow.
 
         The I2VA export is what is loaded, because the mode is a string and the node's ref2va_model
         slot is already filled -- there is no second graph to keep in step.
@@ -179,6 +236,7 @@ class ComfyH3VideoGenerator:
         # counts from there (madde 300).
         timeline["items"] = [self._row(index, name, data, kind)
                              for index, (name, data, kind) in enumerate(references)]
+        _sized(director, timeline, orientation)
         return self._render(workflow, director, timeline, prompt, seed)
 
     def _row(self, index, name, data, kind):

@@ -220,16 +220,63 @@ def test_both_h3_graphs_render_four_seconds_at_576_by_864():
         assert (resolution["aspect"], resolution["resolution"]) == ("auto", "540p")
 
 
-def test_the_photo_and_the_h3_video_agree_on_the_shape_of_the_frame():
-    """The rule behind the numbers, and the one that outlives them: a graph that pulls the photo to
-    its own size does not fail when the two shapes drift apart -- it stretches the picture, silently.
-    One percent is well under what an eye catches."""
-    photo = _photo()
-    photo_shape = photo["1"]["inputs"]["value"] / photo["11"]["inputs"]["value"]
+# Madde 476: every generation is landscape or portrait. The graphs ship as exported -- portrait --
+# and each producer writes its orientation's size from its own table on every job.
 
+
+def _sizes():
+    """{orientation: ((photo w, h), (video w, h, the Director panel's preset))}"""
+    from backend.features.photo_generation.data import comfy_h3_video_generator as video
+    from backend.features.photo_generation.data import comfy_photo_generator as photo
+    from backend.features.photo_generation.domain import orientation
+
+    assert set(photo.SIZES) == set(video.SIZES) == set(orientation.ALL)
+    return {name: (photo.SIZES[name], video.SIZES[name]) for name in orientation.ALL}
+
+
+def test_the_photo_and_the_h3_video_have_exactly_one_shape_in_each_orientation():
+    """The rule behind the numbers, and the one that outlives them: H3 pulls the photo to its own
+    size, so a drift between the two shapes does not fail -- it stretches the picture, silently.
+    Exact rather than close, because exact costs nothing here (madde 475): 1536 x 864 is 1024 x 576
+    times 1.5, and 1024 x 1536 is 576 x 864 times 16/9."""
+    for name, ((pw, ph), (vw, vh, _preset)) in _sizes().items():
+        assert pw * vh == ph * vw, f"{name}: fotoğraf {pw}x{ph}, video {vw}x{vh} aynı oranda değil"
+
+
+def test_every_h3_video_size_is_on_its_32_pixel_grid():
+    """The user's rule (20 Ekim): sizes H3 really works at, not arbitrary numbers. Its VAE and its
+    patches shrink each side 32 times, and ComfyUI's own H3 nodes step width and height by 32."""
+    for name, (_photo_size, (vw, vh, _preset)) in _sizes().items():
+        assert vw % 32 == 0 and vh % 32 == 0, f"{name}: {vw}x{vh} 32'nin katı değil"
+
+
+def test_each_orientation_is_the_shape_it_is_named():
+    """A swap of width and height keeps every ratio above and turns the picture the wrong way."""
+    sizes = _sizes()
+    (pw, ph), (vw, vh, _preset) = sizes["yatay"]
+    assert pw > ph and vw > vh
+    (pw, ph), (vw, vh, _preset) = sizes["dikey"]
+    assert pw < ph and vw < vh
+
+
+def test_the_sizes_are_the_ones_the_user_approved():
+    """Madde 475: landscape is exact 16:9 -- the video 1024 x 576 at the panel's 576p, the photo
+    1536 x 864 ("tamam videoyu böyle yapıcaz", "tamam böyle olsun"); portrait stays what it was."""
+    assert _sizes() == {"yatay": ((1536, 864), (1024, 576, "576p")),
+                        "dikey": ((1024, 1536), (576, 864, "540p"))}
+
+
+def test_portrait_is_what_the_shipped_graphs_carry():
+    """The graphs ship as exported, and a render asked for no orientation keeps their own size -- so
+    the portrait row and the graphs cannot drift apart unseen."""
+    (pw, ph), (vw, vh, preset) = _sizes()["dikey"]
+    photo = _photo()
+
+    assert (photo["1"]["inputs"]["value"], photo["11"]["inputs"]["value"]) == (pw, ph)
     for graph in _h3_graphs():
         director = graph["2730"]["inputs"]
-        assert abs(photo_shape - director["width"] / director["height"]) / photo_shape < 0.01
+        assert (director["width"], director["height"]) == (vw, vh)
+        assert json.loads(director["timeline_data"])["resolution"]["resolution"] == preset
 
 
 def test_every_model_the_h3_graphs_load_is_in_the_video_group():

@@ -17,6 +17,7 @@ import time
 
 from backend.features.photo_generation.domain import (
     layers,
+    orientation,
     policy,
     production_mode,
     queue,
@@ -316,6 +317,9 @@ def make_job(runner, store, record, plan_store, producers, now, project,
             # Whether this video ends happily, from its job (madde 426): the writer asks for the
             # ending and the producer loads the lora that makes it. Only a video job carries one.
             happy = bool(current.get(video_settings.HAPPY_ENDING))
+            # Which way it stands, from its line (madde 476); a line planned before has none and
+            # reads as the portrait it was made in. A batch's variants share it (variant_batch).
+            facing = orientation.of(current)
             # While a prompt is written nothing is being made and every owed frame waits -- current
             # is set to None rather than left out, because a report merges into the one before it.
             # startedAt is cleared for the same reason: no model is working on anything until the
@@ -378,13 +382,14 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                     if len(together) > 1:
                         made = producer.generate_batch(prompt, current["negative"], chosen,
                                                        len(together), current["model"],
-                                                       current.get("lora", ""))
+                                                       current.get("lora", ""),
+                                                       orientation=facing)
                     else:
                         made = [producer.generate(prompt, current["negative"], chosen,
                                                   current["model"], current.get("lora", ""),
                                                   source=under, end=ending, references=pool,
                                                   seconds=current.get("seconds"),
-                                                  happy_ending=happy)]
+                                                  happy_ending=happy, orientation=facing)]
             except Exception as exc:
                 if runner.stop_requested():
                     # The user's own pause killed this render -- that is not a failure. The job
