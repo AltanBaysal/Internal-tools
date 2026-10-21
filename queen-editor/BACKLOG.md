@@ -74,6 +74,14 @@ saçma şeyler ortaya çıkıyor".)* **v7'nin ilk maddesi olarak yazıldı, koş
 
 ## Diğer
 
+### Civitai yoklaması iyi bir dosyayı reddedebiliyor
+
+*(484'ün reviewer'ı buldu, 21 Ekim.)* `colab/downloads.py`'nin `civitai_probe`'u ve `check_binary`'si
+gelen ilk baytlar `<` ya da `{"` ile başlıyorsa cevabı hata sayıyor. Ama bir safetensors dosyası 8
+baytlık başlık uzunluğuyla başlar, ve o uzunluğun ilk baytı 256'da bir 0x3C (`<`) olur — o dosya her
+seferinde reddedilir. Tersine, boşluk ya da BOM'la başlayan bir hata sayfası geçer. Düzeltme:
+`raw[8:10] == b'{"'`'ye bakmak; 484'ün deneme notebook'ları böyle yapıyor.
+
 ### Kopya karenin fotoğrafını Yeniden üret, modelini ve LoRA'sını kaybediyor
 
 *(481'in reviewer'ı buldu, 20 Ekim.)* `regenerate.py` modeli ve LoRA'yı karenin kartından alıyor; kopya

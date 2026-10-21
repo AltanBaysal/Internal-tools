@@ -1,23 +1,51 @@
-# Qwen Image 2.1 — ilk bakış — Talimatlar
+# Qwen Image 2.1 — Talimatlar
 
-Madde 482 *(v10 yol haritası)*. İki defter, her biri yalnız kendi modelini indirir; grafik ikisinde de
-Comfy-Org'un **resmî şablonu**, olduğu gibi. Hangi dosya neden iniyor:
+Madde 482 ve 484 *(v10 yol haritası)*. İki defter: `normal.ipynb` (25 adım) ve `turbo.ipynb` (8 adım).
+Grafikler Comfy-Org'un **resmî şablonları**, olduğu gibi. Hangi dosya neden iniyor:
 [indirilecekler.md](indirilecekler.md).
 
 ## Çalıştırma
 
-| Defter | Şablon |
-|---|---|
-| `normal.ipynb` *(25 adım)* | `image_qwen_image_2_1_t2i` |
-| `turbo.ipynb` *(8 adım)* | `image_qwen_image_2_1_turbo_t2i` |
+1. Colab 🔑 Secrets'a **`CIVITAI_COOKIE`** ekle (LoRA'lar için zorunlu): civitai.red → giriş → F12 →
+   Application → Cookies → `__Secure-civ-token`, değere çift tıkla → Ctrl+A → Ctrl+C. `HF_TOKEN` isteğe
+   bağlı.
+2. Defteri Colab'a yükle (**File → Upload notebook**), **Runtime → Change runtime type → A100**,
+   **Run all**. Her şey baştan iner. En alttaki linke gir.
+3. Sol kenarda **Workflows** → bir workflow → yaz → **Run** (Ctrl+Enter).
 
-1. Defteri Colab'a yükle (**File → Upload notebook**), **Runtime → Change runtime type → A100**,
-   **Run all**. En alttaki linke gir.
-2. Sol kenarda **Workflows** → defterin şablonu (defter oraya koydu).
-3. `positive_prompt`'a yaz → **Run** (Ctrl+Enter).
+## Hangi workflow
 
-⚠️ İki şablon da cfg 1'de koşuyor, ve **cfg 1'de negatif prompt hiçbir şey yapmaz** (şablonun notu:
-*"negative_prompt: unused while cfg is 1"*).
+- `…_t2i`: prompt'tan resim; `positive_prompt`'a yaz.
+- `…_image_edit`: karakter referansı.
+- `NoctQ_V4_workflow` *(yalnız normal)*: Noct Q, yazarının kendi ayarlarıyla (25 adım, cfg 3, negatif
+  prompt).
+
+## Karakter referansı
+
+- Portreler Edit şablonunun `image_1` … `image_10` girişlerine. `image_1` düzenlenen resim, ve çıktının
+  boyutu ondan gelir; ötekiler referans. Prompt'ta `<image1>`, `<image2>` diye anılırlar.
+- Şablon Comfy'nin örnek resimleriyle açılır: kendi portreni bağlı `Load Image`'a yükle (normalde
+  `image_1` ve `image_2`, Turbo'da yalnız `image_1`). Fazlası için yeni bir `Load Image` ekleyip
+  büyük node'un ilk boş `image_N`'ine (normalde `image_3`, Turbo'da `image_2`) bağla.
+- Başka bir boyut için `custom_size`'ı aç, `width` / `height`'ı ver.
+
+## Noct Q'ya geçmek
+
+- Büyük node'da `unet_name` → `NoctQ_V4_int8_convrot.safetensors` (t2i'de de Edit'te de).
+- Turbo'da Noct Q'nun Turbo'su yok: aynı seçimin yanına `qwen_image_2.1_turbo_lora_avg_rank_178_bf16`
+  LoRA'sını aşağıdaki gibi ekle. **Bu ikiliyi hiçbir kaynak denemedi.**
+
+## LoRA eklemek
+
+Büyük node'un alt grafiğine gir, `Load Diffusion Model` ile `QwenImage21Cache` arasına
+`LoraLoaderModelOnly` koy ve `lora_name`'den seç; birden fazlası arka arkaya. `NoctQ_V4_workflow`'da:
+`Load Diffusion Model` ile `KSampler` arasına.
+
+## cfg
+
+Noct Q ve LoRA kartları cfg'yi 1'in üstünde öneriyor (Noct Q 3, LoRA'lar 3 – 6); cfg 1'de negatif
+prompt hiçbir şey yapmaz, ama iş yaklaşık iki kat hızlı. Şablonlar cfg 1'de açılıyor; `cfg` büyük
+node'un üstünde. Turbo'da cfg 1 kalır; Turbo t2i'de cfg girişi yok.
 
 ## Prompt'lar
 
