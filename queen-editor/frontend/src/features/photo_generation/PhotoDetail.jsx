@@ -472,14 +472,19 @@ export default function PhotoDetail({ project, frame: fid }) {
   // value stands in: worse than the label, better than an empty row.
   // The extension comes off a file name because the column already has a file-name row of its own.
   const storedModel = frame?.model || "";
-  const madeWith = (models?.find((row) => row.value === storedModel)?.label || storedModel)
-    .replace(/\.safetensors$/, "");
+  const madeBy = models?.find((row) => row.value === storedModel);
+  const madeWith = (madeBy?.label || storedModel).replace(/\.safetensors$/, "");
   // And the lora laid over it, by the same rule. A frame that names none gets no row: a
   // recipe:slime frame names none and was made with Slime, and a DaSiWa one sent under Standart was
-  // made with none, so any name there would be a guess (madde 238).
+  // made with none, so any name there would be a guess (madde 238). A model drawn with its own
+  // graph's lora -- Krea -- carries that lora's name on its row, since no box lists it (madde 486).
   const storedLora = frame?.lora || "";
   const laidOver = storedLora
-    && (loras?.find((row) => row.value === storedLora)?.label || storedLora);
+    && ([madeBy?.lora, ...(loras || [])].find((row) => row?.value === storedLora)?.label
+      || storedLora);
+  // A model that takes no negative gets no negative box: its frame was drawn with none, and a box
+  // to write one in would send words that go nowhere -- the production panel's own rule (madde 486).
+  const takesNegative = madeBy?.negative !== false;
   // Linked names the picture rather than the frame's number -- the sequence can be dragged, and a
   // number would then be a lie about a video nobody touched.
   const arrivesAt = (frame?.endsOn || {})[open];
@@ -808,7 +813,7 @@ export default function PhotoDetail({ project, frame: fid }) {
                   the user's to change now (Fark 98) -- the two boxes go into the same job
                   together, and only one of them was theirs. Writable exactly when the prompt is:
                   what makes a box editable is that there is something to make again. */}
-              {open === "photo" && (holds ? (
+              {open === "photo" && takesNegative && (holds ? (
                 <PromptBox label={`${LAYER_LABEL.photo} negatif prompt'u`}
                            value={typedNegative} changed={negativeChanged}
                            height={NEGATIVE_HEIGHT}

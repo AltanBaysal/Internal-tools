@@ -277,6 +277,53 @@ describe("GeneratePanel — the lora field (madde 237, 238)", () => {
   });
 });
 
+// Madde 486: Krea is drawn with its own graph's lora and no negative, and its row says so -- the
+// panel reads the row, never the model's id.
+const KREA = { value: "krea2", label: "Krea 2 Turbo",
+               lora: { value: "snofs", label: "SNOFS" }, negative: false };
+
+describe("GeneratePanel — Krea's own lora and no negative (madde 486)", () => {
+  it("shows Krea's lora alone, as no choice, and no negative box", () => {
+    renderPanel({ models: [...MODELS, KREA], settings: { ...SETTINGS, model: "krea2" } });
+
+    expect([...loraBox().options].map((o) => o.textContent)).toEqual(["SNOFS"]);
+    expect(loraBox().value).toBe("snofs");
+    expect(loraBox().disabled).toBe(true);
+    expect(screen.queryByText("Negatif prompt")).toBeNull();
+    // The orientation is still there: it is Krea's too.
+    expect(screen.getByText("Yön")).toBeTruthy();
+  });
+
+  it("gives both boxes back on the way to Nova, with what the user had in them", () => {
+    renderPanel({ models: [...MODELS, KREA],
+                  settings: { ...SETTINGS, negative: "bulanık", lora: "slime" } });
+
+    fireEvent.change(modelBox(), { target: { value: "krea2" } });
+    expect(screen.queryByDisplayValue("bulanık")).toBeNull();
+
+    fireEvent.change(modelBox(), { target: { value: "nova3dcg" } });
+    expect(screen.getByText("Negatif prompt")).toBeTruthy();
+    expect(screen.getByDisplayValue("bulanık")).toBeTruthy();
+    expect([...loraBox().options].map((o) => o.textContent)).toEqual(["USNR", "Slime", "Boş"]);
+    expect(loraBox().value).toBe("slime");
+    expect(loraBox().disabled).toBe(false);
+  });
+
+  it("still sends the boxes' own values, so the project keeps them for Nova", async () => {
+    // What Krea is drawn with is the server's to record; the request carries what the user has in
+    // the boxes, and the project's settings keep it across a reload (spec, karar 3).
+    const onGenerate = vi.fn().mockResolvedValue({ added: 4 });
+    renderPanel({ onGenerate, models: [...MODELS, KREA],
+                  settings: { ...SETTINGS, model: "krea2", negative: "bulanık", lora: "slime" } });
+
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    expect(onGenerate).toHaveBeenCalledWith(expect.objectContaining({
+      model: "krea2", negative: "bulanık", lora: "slime",
+    }));
+  });
+});
+
 // Madde 477: yatay or dikey, set per generation the way the negative is.
 const facing = (label) => screen.getByRole("button", { name: label });
 

@@ -23,7 +23,7 @@ Written in the order that loses nothing at any crash: the new line, the order wi
 the old one's place, then the old photo's file, then the lines saying the old frame's layers are gone.
 A crash before the last two leaves the old frame whole, beside the new one.
 """
-from backend.features.photo_generation.domain import layers, queue
+from backend.features.photo_generation.domain import catalog, layers, queue
 from backend.features.photo_generation.domain import orientation as orientations
 from backend.features.photo_generation.domain.copy_frame import (
     family,
@@ -87,12 +87,14 @@ def fix_photo(runner, store, record, plan_store, order_store, producers, now, pr
 
     line = made_by(plan, frame)
     born = _born(store, record, plan_store, project, frame, prompt)
+    # What the model is drawn with: a Krea photo's are its graph's lora and no negative (madde 486).
+    lora, negative = catalog.drawn_with(line.get("model", ""), line.get("lora", ""), negative)
     plan_store.append(project, [{
         "id": born, "type": layers.PHOTO, "number": number_of(born), "variant": variant_of(born),
         "prompt": prompt, "negative": negative,
         # The card's seed: its line's, or for a copy frame its source's row's.
         "seed": frame.get("seed"),
-        "model": line.get("model", ""), "lora": line.get("lora", ""),
+        "model": line.get("model", ""), "lora": lora,
         orientations.FIELD: orientations.of(line),
         # The gallery finds a scene by the family's number, so a new number's line says it.
         **({"scene": frame["scene"]} if frame["scene"] else {}),

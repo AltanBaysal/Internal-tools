@@ -379,6 +379,15 @@ def test_the_krea_graph_renders_with_snofs_switched_on():
     assert krea["53:23"]["inputs"]["value"] is True
 
 
+def test_the_lora_the_panel_names_for_krea_is_the_one_its_graph_loads():
+    """The LoRA box shows Krea's lora by the catalog's row (madde 486). Swapping the lora in the
+    user's workflow without the row would have the panel name a lora no Krea picture is drawn
+    with."""
+    from backend.features.photo_generation.domain import catalog
+
+    assert _krea()["53:15"]["inputs"]["lora_name"] == catalog.KREA2_LORA["lora"]
+
+
 def test_every_model_the_krea_graph_loads_is_krea_s_row_in_the_photo_group():
     """The panel counts Krea as a photo model by these files, so a file the graph loads and the row
     does not name is a panel that says ready over a render that cannot start -- and one the row names

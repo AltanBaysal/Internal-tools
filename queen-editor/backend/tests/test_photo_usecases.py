@@ -615,6 +615,30 @@ def test_a_lora_the_app_does_not_know_is_refused_before_anything_is_planned():
     assert plan_store.frames == [] and generator.calls == []
 
 
+def test_a_krea_batch_records_the_lora_and_the_negative_it_is_drawn_with():
+    """Krea's graph has its own lora and no negative (madde 486): its lines say so, rather than the
+    boxes' values, so a Krea frame's page never names a lora or a negative that was not used. The
+    request still carries the boxes' values -- the project's settings keep them for Nova."""
+    plan_store, generator = FakePlanStore(), FakeGenerator()
+    run_batch(sync_runner(), FakeStore(), generator, plan_store=plan_store, text='["a"]',
+              variants=2, model="krea2", negative="bulanık", lora="slime")
+
+    assert [(line["lora"], line["negative"]) for line in plan_store.frames] == \
+        [("snofs", ""), ("snofs", "")]
+    assert generator.loras == ["snofs", "snofs"]
+    assert [call[1] for call in generator.calls] == ["", ""]
+
+
+def test_a_krea_batch_is_not_stopped_by_a_lora_its_box_no_longer_offers():
+    """The box's lora is not what Krea draws with, so a stale pick hidden behind it is no reason to
+    refuse the batch."""
+    plan_store = FakePlanStore()
+    run_batch(sync_runner(), FakeStore(), FakeGenerator(), plan_store=plan_store, text='["a"]',
+              variants=1, model="krea2", lora="gitmiş")
+
+    assert plan_store.frames[0]["lora"] == "snofs"
+
+
 @pytest.mark.parametrize("lora", ["", "usnr", "slime", "none"])
 def test_every_lora_the_box_offers_is_accepted(lora):
     """Empty as well: a frame that names no lora is not wrong, it renders with the default."""
@@ -3010,6 +3034,34 @@ def test_the_new_photo_carries_the_negative_it_was_given():
     assert plan_store.appended[-1][0]["negative"] == "bulanık, gürültü"
 
 
+def test_a_krea_photo_made_again_carries_no_negative_and_keeps_krea_s_lora():
+    """The detail page's negative box is not drawn for a Krea frame, and the line holds to the same
+    rule whatever is sent: Krea takes no negative (madde 486)."""
+    store, record, plan_store = video_project((0, "a"))
+    plan_store.frames[0].update(model="krea2", lora="snofs")
+
+    regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
+               {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
+               "düğün", "0_a", layers.PHOTO, "p", negative="bulanık")
+
+    job = plan_store.appended[-1][0]
+    assert (job["model"], job["lora"], job["negative"]) == ("krea2", "snofs", "")
+
+
+def test_an_old_krea_frame_made_again_records_snofs_rather_than_its_old_lora():
+    """A Krea frame planned before madde 486 carries the box's lora and negative. Made again, its
+    line says what the new picture is drawn with: SNOFS and no negative."""
+    store, record, plan_store = video_project((0, "a"))
+    plan_store.frames[0].update(model="krea2", lora="slime", negative="bulanık")
+
+    regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
+               {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
+               "düğün", "0_a", layers.PHOTO, "p", negative="bulanık")
+
+    job = plan_store.appended[-1][0]
+    assert (job["lora"], job["negative"]) == ("snofs", "")
+
+
 def test_a_layer_over_the_photo_carries_no_negative_whatever_it_is_given():
     # Only a photo is made from a prompt and a negative of its own; the layers over it are made from
     # what is under them. The editable box is the photo tab's alone and this is the rule behind it.
@@ -4316,8 +4368,23 @@ def test_the_model_list_is_nova_3dcg_dasiwa_and_krea_2_turbo():
     assert [model.get("checkpoint") is None for model in MODELS] == [False, False, True]
 
 
-def test_krea_is_listed_by_its_name_once_the_notebook_installed_it():
-    assert list_models(["krea2"]) == [{"value": "krea2", "label": "Krea 2 Turbo"}]
+def test_krea_is_listed_by_its_name_with_its_own_lora_and_no_negative():
+    """The panel's LoRA box shows the one lora Krea's graph draws with, and its negative box goes:
+    the row says so, so the screen never has to know a model by its id (madde 486). SNOFS is not
+    in the lora list, which is Nova's and DaSiWa's box."""
+    assert list_models(["krea2"]) == [{"value": "krea2", "label": "Krea 2 Turbo",
+                                       "lora": {"value": "snofs", "label": "SNOFS"},
+                                       "negative": False}]
+
+
+def test_a_model_this_checkout_does_not_know_records_the_boxes_lora_and_negative():
+    """A notebook ahead of this checkout is no reason to drop the user's words: an unknown id is
+    planned the way today's models are, with the boxes' own lora and negative (madde 486)."""
+    plan_store = FakePlanStore()
+    run_batch(sync_runner(), FakeStore(), FakeGenerator(), plan_store=plan_store, text='["a"]',
+              variants=1, model="yok", negative="bulanık", lora="slime")
+
+    assert (plan_store.frames[0]["lora"], plan_store.frames[0]["negative"]) == ("slime", "bulanık")
 
 
 def test_the_lora_list_is_usnr_then_slime():

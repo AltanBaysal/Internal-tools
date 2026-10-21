@@ -409,6 +409,21 @@ describe("PhotoDetail — the layer tabs", () => {
       expect(screen.getByText("LoRA").parentElement.textContent).toContain(label);
     });
 
+  it("names Krea's own lora and draws no negative box for a Krea frame (madde 486)", async () => {
+    // Krea is drawn with its graph's lora and no negative, and its line records exactly that. The
+    // row the server lists says so; SNOFS is in no lora list, the row carries its name.
+    await open("P0_0", {
+      frames: [{ ...LAYERED, model: "krea2", lora: "snofs", negative: "" }],
+      models: [{ value: "krea2", label: "Krea 2 Turbo",
+                 lora: { value: "snofs", label: "SNOFS" }, negative: false }],
+    });
+    fireEvent.click(details());
+
+    expect(screen.getByText("LoRA").parentElement.textContent).toContain("SNOFS");
+    expect(screen.queryByText("Foto negatif prompt'u")).toBeNull();
+    expect(screen.getByText("Foto prompt'u")).toBeTruthy();
+  });
+
   it("draws no lora row for a frame that never named one", async () => {
     // A name there would be a guess: a recipe:slime frame names no lora and was made with Slime,
     // and a DaSiWa frame sent under Standart was made with none. The model row follows the same

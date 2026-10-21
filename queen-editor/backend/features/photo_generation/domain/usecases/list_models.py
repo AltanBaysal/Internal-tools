@@ -1,7 +1,11 @@
 """Which rows the Model box and the LoRA box offer.
 
 A row is `{"value", "label"}`: what the renderer is sent, and what the user reads. The value is an
-id from the catalog and the label is the name it is picked by.
+id from the catalog and the label is the name it is picked by. A model drawn with its own graph's
+lora says which, as a lora row of its own under "lora", and one that takes no negative says
+`"negative": False` (madde 486): the panel shows that lora in place of the box's list and hides the
+negative, without knowing any model by its id. A checkpoint's row carries neither -- the boxes are
+its answer, as they always were.
 
 The models are the ones the notebook installed, in the order it lists them. With none, photo was
 not installed on this machine, and the answer is an empty list rather than a question to ComfyUI:
@@ -19,7 +23,16 @@ def list_models(chosen):
     # keeps the rest usable; emptying the list would close the panel for a reason the user cannot
     # act on.
     found = [catalog.find_model(model_id) for model_id in chosen]
-    return [{"value": model["id"], "label": model["label"]} for model in found if model]
+    return [_row(model) for model in found if model]
+
+
+def _row(model):
+    row = {"value": model["id"], "label": model["label"]}
+    if "lora" in model:
+        row["lora"] = {"value": model["lora"]["id"], "label": model["lora"]["label"]}
+    if "negative" in model:
+        row["negative"] = model["negative"]
+    return row
 
 
 def list_loras():

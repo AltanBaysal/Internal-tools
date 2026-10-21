@@ -106,6 +106,20 @@ def test_only_the_words_change_the_frame_s_own_settings_go_with_them():
     assert project.generator.orientations == ["yatay"]
 
 
+def test_a_krea_frame_s_fix_records_no_negative():
+    """Krea takes no negative (madde 486), so a line saying it was fixed with one would name words
+    the picture was never drawn from. The prompt is the fix; Krea's own lora stays."""
+    project = Project(lines=[line("P0_0", "a"),
+                             line("P1_0", MIXED_PROMPT, model="krea2", lora="snofs", negative=""),
+                             line("P2_0", "c")])
+
+    project.fix(project.card("P1_0"))
+
+    (planned,) = project.plan_store.appended
+    assert (planned[0]["prompt"], planned[0]["negative"], planned[0]["lora"]) == \
+        (FIXED_PROMPT, "", "snofs")
+
+
 def test_the_old_photo_is_deleted_and_its_frame_leaves_the_gallery():
     project = Project()
 

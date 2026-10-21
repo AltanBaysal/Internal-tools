@@ -12,7 +12,13 @@ The layer's round never grows (madde 98). The design's own answer to "the second
 frame, so the second attempt is that frame's first round -- there is no place left for the number to
 climb.
 """
-from backend.features.photo_generation.domain import layers, production_mode, queue, video_settings
+from backend.features.photo_generation.domain import (
+    catalog,
+    layers,
+    production_mode,
+    queue,
+    video_settings,
+)
 from backend.features.photo_generation.domain import orientation as orientations
 from backend.features.photo_generation.domain.copy_frame import (
     carry_layers,
@@ -102,6 +108,10 @@ def regenerate(runner, store, record, plan_store, order_store, producers, new_se
             raise NoNextFrame("Bu son kare — bağlanacak sonraki kare yok.")
         mark["linkedTo"] = target
 
+    # The lora goes with the model: dropping it would hand back a plain Nova where the user had
+    # Slime, with nothing on the page saying it changed (madde 237). Both are what the model is
+    # drawn with -- a Krea photo's are its graph's lora and no negative (madde 486).
+    lora, negative = catalog.drawn_with(source.get("model", ""), source.get("lora", ""), negative)
     carry_layers(record, project, born, source, kind, now)
     plan_store.append(project, [{
         "id": born, "type": kind, "number": number_of(born), "variant": variant_of(born),
@@ -112,9 +122,7 @@ def regenerate(runner, store, record, plan_store, order_store, producers, new_se
         "negative": negative if kind == layers.PHOTO else "",
         "seed": new_seed() if kind == layers.PHOTO else None,
         "model": source.get("model", "") if kind == layers.PHOTO else "",
-        # The lora goes with the model: dropping it would hand back a plain Nova where the user had
-        # Slime, with nothing on the page saying it changed (madde 237).
-        "lora": source.get("lora", "") if kind == layers.PHOTO else "",
+        "lora": lora if kind == layers.PHOTO else "",
         **({orientations.FIELD: orientation} if kind == layers.PHOTO else {}),
         **mark,
         **(video_settings.carried(length, ending, project) if kind == layers.VIDEO else {}),

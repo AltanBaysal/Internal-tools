@@ -45,7 +45,8 @@ def plan_frames(start, entries, negative, variants, new_seed, model="", lora="",
 
     The negative, the model, the lora and the orientation ride on the frame rather than on the
     plan: a live queue holds batches submitted under different settings, and a frame has to render
-    with the ones it was submitted under.
+    with the ones it was submitted under. What they are is catalog.drawn_with's answer: Krea's line
+    records its graph's lora and no negative rather than the boxes' (madde 486).
 
     Seeds are drawn here, when the frames are planned, rather than when a frame renders: the plan is
     what a resumed run reads back, so a frame has to produce the image it was planned to produce.
@@ -54,6 +55,7 @@ def plan_frames(start, entries, negative, variants, new_seed, model="", lora="",
     the scene when QueenAgent wrote one. The scene goes on every variant's line; a flat list's entry
     has none, and its line is the one it always was.
     """
+    lora, negative = catalog.drawn_with(model, lora, negative)
     return [{"id": frame_id(start + index, variant), "type": layers.PHOTO,
              "number": start + index, "variant": variant,
              **entry, "negative": negative, "seed": new_seed(), "model": model,
@@ -93,8 +95,10 @@ def start_batch(runner, store, record, plan_store, producers, new_seed, now,
     # The app's own list, not the disk: a lora it does not know renders on no machine, and saying so
     # here keeps the frame out of a queue it would only fail in. The panel sends whatever it holds
     # -- a saved pick can outlive its row -- so this is the one place that answers (madde 238).
-    # Empty is no pick, and renders with the default.
-    if lora not in ("", catalog.NO_LORA) and catalog.find_lora(lora) is None:
+    # Empty is no pick, and renders with the default. A model with a lora of its own does not draw
+    # with the box, so a stale pick behind it stops nothing (madde 486).
+    if catalog.own_lora(model) is None and lora not in ("", catalog.NO_LORA) \
+            and catalog.find_lora(lora) is None:
         raise InvalidLora(f"Tanınmayan LoRA: {lora} — listeden başka bir LoRA seç.")
     orientations.validate(orientation)       # raises InvalidOrientation
     if not store.project_exists(project):

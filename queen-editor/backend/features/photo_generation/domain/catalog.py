@@ -4,7 +4,8 @@ A model is a checkpoint and nothing more, but for Krea 2 Turbo, which is a graph
 482). A lora is one file with a strength, and the word the prompt has to carry for it to show. Which
 lora a checkpoint renders with is the lora box's answer alone: a model has no arrangement of its own
 (madde 238). Krea takes none of the box's loras -- they are Illustrious ones -- and draws with its
-graph's own.
+graph's own, and it takes no negative; its row says both, so the panel shows that lora and no
+negative box, and its frames record what they are drawn with (madde 486).
 
 Written down in two halves: the names and the files here, because this is the side that patches the
 graph, and the version ids and the sizes in the notebook, because addresses live there
@@ -19,6 +20,11 @@ whatever was ticked.
 # Krea 2 Turbo: rendered with its own graph, so main.py hands its frames to its own producer.
 KREA2 = "krea2"
 
+# The lora Krea's graph loads (node 53:15, at the graph's own 0.8): SNOFS, in the user's workflow. Not
+# in LORAS -- that is the box Nova and DaSiWa are drawn with, and SNOFS cannot load on them. The file
+# is here for test_workflow_asset to hold the row to the graph; the strength stays the graph's.
+KREA2_LORA = {"id": "snofs", "label": "SNOFS", "lora": "snofs_krea_v1_5.safetensors"}
+
 MODELS = [
     {"id": "nova3dcg", "label": "Nova 3DCG XL", "checkpoint": "nova3DCGXL_ilV90.safetensors"},
     # Read from Civitai's own API in madde 222's trial: a checkpoint on the Illustrious base, so the
@@ -26,8 +32,9 @@ MODELS = [
     {"id": "dasiwa", "label": "DaSiWa Illustrious | Anime",
      "checkpoint": "DasiwaIllustriousAnime_epitaphecstasy.safetensors"},
     # Picked in madde 485's trial; no checkpoint, because the graph loads a DiT, its encoder and its
-    # VAE by name (assets/workflow_photo_krea2_api.json).
-    {"id": KREA2, "label": "Krea 2 Turbo"},
+    # VAE by name (assets/workflow_photo_krea2_api.json). Its lora is the graph's, and it has no
+    # negative: the graph's is the prompt zeroed, and at cfg 1 ComfyUI does not compute it.
+    {"id": KREA2, "label": "Krea 2 Turbo", "lora": KREA2_LORA, "negative": False},
 ]
 
 LORAS = [
@@ -74,3 +81,21 @@ def find_model(model_id):
 def find_lora(lora_id):
     """The lora with this id, or None."""
     return next((lora for lora in LORAS if lora["id"] == lora_id), None)
+
+
+def own_lora(model_id):
+    """The lora this model's own graph draws with, or None when the lora box's pick is what renders
+    -- every checkpoint, and any value a line carried from before models had rows."""
+    return (find_model(model_id) or {}).get("lora")
+
+
+def drawn_with(model_id, lora, negative):
+    """(lora, negative) a photo of this model is drawn with -- what its plan line records, whoever
+    writes the line (madde 486). The ones it was given, but for a model whose row says otherwise:
+    Krea is drawn with its graph's own lora and no negative, so its line names those, and its page
+    never names a lora or a negative that was not used. An id this checkout does not know keeps the
+    user's own."""
+    model = find_model(model_id) or {}
+    own = model.get("lora")
+    return (own["id"] if own else lora,
+            negative if model.get("negative", True) else "")

@@ -136,6 +136,13 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
   const loraGone = Boolean(lora) && Boolean(loras) && loras.length > 0
     && !loras.some((row) => row.value === lora);
   const loraOptions = loraGone ? [{ value: lora, label: lora }, ...loras] : (loras || []);
+  // A model drawn with its own graph says so on its row: which lora that graph has, and that it
+  // takes no negative (madde 486). The boxes then show that lora and no negative, while their own
+  // values stay as the user left them -- they are what a model on the boxes' terms gets back, and
+  // what goes with the request; what Krea is drawn with is the server's to record.
+  const chosen = (models || []).find((row) => row.value === model);
+  const ownLora = chosen?.lora || null;
+  const takesNegative = chosen?.negative !== false;
 
   const perPrompt = Number(variants);
   // What the server blamed, if it blamed anything. A named field means the request never reached
@@ -233,14 +240,17 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
       {/* Under the model, because it finishes what the model box started: one lora laid over the
           checkpoint, or Boş. One pick and no more, the user's words (madde 237). A list that could
           not be read leaves the button alone: the pick the box holds goes as it is, and the server
-          says whether it is good (madde 238). */}
+          says whether it is good (madde 238). A model with a lora of its own shows that one, and
+          it is no choice. */}
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         <Mono size={11} style={LABEL}>LoRA</Mono>
-        <select className="wf-input" aria-label="LoRA" value={lora}
-                disabled={loadingLoras || !loraOptions.length}
+        <select className="wf-input" aria-label="LoRA" value={ownLora ? ownLora.value : lora}
+                disabled={Boolean(ownLora) || loadingLoras || !loraOptions.length}
                 onChange={(e) => setLora(e.target.value)}
                 style={{ fontSize: 12.5, color: "var(--ink)", cursor: "pointer" }}>
-          {loadingLoras ? (
+          {ownLora ? (
+            <option value={ownLora.value}>{ownLora.label}</option>
+          ) : loadingLoras ? (
             <option value="">yükleniyor…</option>
           ) : loraOptions.length ? (
             loraOptions.map((row) => <option key={row.value} value={row.value}>{row.label}</option>)
@@ -264,11 +274,15 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
         {promptLabel && <Note size={12} style={{ color: "var(--danger)" }}>{promptLabel}</Note>}
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <Mono size={11} style={LABEL}>Negatif prompt</Mono>
-        <input className="wf-input" value={negative} onChange={edit(setNegative)}
-               style={{ fontSize: 12.5 }} />
-      </div>
+      {/* Not drawn for a model that takes no negative: a box whose words go nowhere would be a lie.
+          What was typed stays in the state for the next model that does. */}
+      {takesNegative && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <Mono size={11} style={LABEL}>Negatif prompt</Mono>
+          <input className="wf-input" value={negative} onChange={edit(setNegative)}
+                 style={{ fontSize: 12.5 }} />
+        </div>
+      )}
 
       {/* Under the negative, because it is set the way the negative is -- per batch, kept with the
           project (madde 477; the user: "üretim başına negative prompt gibi 2 opsiyon"). The place
