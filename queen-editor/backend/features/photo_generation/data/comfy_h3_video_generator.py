@@ -36,6 +36,7 @@ dependency.
 import json
 import os
 
+from backend.features.photo_generation.data.comfy_graph import load_graph
 from backend.features.photo_generation.domain.orientation import LANDSCAPE, PORTRAIT
 
 DIRECTOR_NODE = "2730"
@@ -283,23 +284,9 @@ class ComfyH3VideoGenerator:
         return float(standard[DIRECTOR_NODE]["inputs"]["duration"])
 
     def _load(self, path, happy_ending=False):
-        """Fresh copy per render -- patching is never written back to the shipped file. With
-        `happy_ending` the copy carries HMCumshot."""
-        try:
-            with open(path, encoding="utf-8") as f:
-                workflow = json.load(f)
-        except FileNotFoundError:
-            raise RuntimeError(
-                f"Video grafiği yok: {path} — ComfyUI'de "
-                "'Workflow → Export (API)' ile kaydet ve repoya commit'le") from None
-        name = os.path.basename(path)
-        if "nodes" in workflow:
-            raise RuntimeError(f"{name} UI formatında — ComfyUI'de "
-                               "'Workflow → Export (API)' ile kaydet")
-        for node_id in NODES:
-            if node_id not in workflow:
-                raise RuntimeError(f"{name} grafiğinde {node_id} node yok — graf değişmiş, "
-                                   "node id'lerini güncelle")
+        """A fresh copy of the graph at `path` (load_graph); with `happy_ending` it carries
+        HMCumshot."""
+        workflow = load_graph(path, NODES)
         if happy_ending:
-            _with_happy_ending(workflow, name)
+            _with_happy_ending(workflow, os.path.basename(path))
         return workflow

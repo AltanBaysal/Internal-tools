@@ -9,13 +9,13 @@ assets/workflow_photo_krea2_api.json. Three nodes are written per picture:
 Everything else stays the user's: 8 steps at cfg 1, SNOFS at 0.8 behind its switch, the prompt
 refiner off. A new export can renumber these; then this file changes and nothing else does.
 """
-import json
-
+from backend.features.photo_generation.data.comfy_graph import load_graph
 from backend.features.photo_generation.domain.orientation import LANDSCAPE, PORTRAIT
 
 PROMPT_NODE = "53:19"
 SEED_NODE = "53:3"
 LATENT_NODE = "53:5"
+NODES = (PROMPT_NODE, SEED_NODE, LATENT_NODE)
 
 # About 1 MP, the user's workflow's own setting, at exactly the ratio of H3's video of the same
 # orientation (madde 475), both sides on 16 -- Qwen Image's VAE times the DiT's patch.
@@ -42,7 +42,7 @@ class ComfyKreaPhotoGenerator:
         Krea, which draws with the graph's own SNOFS -- so no lora's trigger goes in front of the
         prompt either, and the prompt reaches the graph exactly as the frame carries it.
         """
-        workflow = self._load()
+        workflow = load_graph(self._workflow_path, NODES)
         workflow[PROMPT_NODE]["inputs"]["value"] = prompt
         workflow[SEED_NODE]["inputs"]["seed"] = seed
         if orientation is not None:
@@ -51,16 +51,3 @@ class ComfyKreaPhotoGenerator:
         prompt_id = self._client.submit(workflow)
         history = self._client.wait(prompt_id, self._timeout)
         return self._client.fetch_output(history)
-
-    def _load(self):
-        """Fresh copy per picture -- patching is never written back to the shipped file."""
-        with open(self._workflow_path, encoding="utf-8") as f:
-            workflow = json.load(f)
-        if "nodes" in workflow:
-            raise RuntimeError("Krea grafiği UI formatında — ComfyUI'de "
-                               "'Workflow → Export (API)' ile kaydet")
-        for node_id in (PROMPT_NODE, SEED_NODE, LATENT_NODE):
-            if node_id not in workflow:
-                raise RuntimeError(f"Krea grafiğinde {node_id} node yok — grafik yeniden export "
-                                   "edilmiş olabilir, node id'lerini güncelle")
-        return workflow

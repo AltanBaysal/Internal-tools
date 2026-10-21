@@ -12,8 +12,7 @@ Node ids come from our own export (queen-editor/workflow_api.json):
 
 A new export can renumber these; then this file changes and nothing else does.
 """
-import json
-
+from backend.features.photo_generation.data.comfy_graph import load_graph
 from backend.features.photo_generation.domain import catalog
 from backend.features.photo_generation.domain.orientation import LANDSCAPE, PORTRAIT
 
@@ -25,6 +24,8 @@ BATCH_NODE = "23"
 LORA_NODE = "27"
 SEED_NODE = "40"
 MODEL_NODE = "45"
+# What every render writes into; the size, batch and lora nodes are looked for only when asked for.
+NODES = (PROMPT_NODE, NEGATIVE_NODE, SEED_NODE, MODEL_NODE)
 
 # The picture's size in each orientation (madde 476, the numbers approved in 475): exactly the
 # ratio of H3's video of the same orientation, which test_workflow_asset holds. Both are in the
@@ -92,7 +93,7 @@ class ComfyPhotoGenerator:
 
     def _graph(self, prompt, negative, seed, model, lora, orientation):
         """The shipped graph with this picture's words, seed, model, lora and size written in."""
-        workflow = self._load()
+        workflow = load_graph(self._workflow_path, NODES)
         if orientation is not None:
             self._set_size(workflow, SIZES[orientation])
         model, lora = catalog.LEGACY.get(model, (model, lora))
@@ -121,19 +122,6 @@ class ComfyPhotoGenerator:
             # a lora, and a frame planned that way keeps rendering the way it did -- with the
             # export's own USNR, which is the default anyway.
             workflow[MODEL_NODE]["inputs"]["ckpt_name"] = model
-        return workflow
-
-    def _load(self):
-        """Fresh copy per render -- patching is never written back to the shipped file."""
-        with open(self._workflow_path, encoding="utf-8") as f:
-            workflow = json.load(f)
-        if "nodes" in workflow:
-            raise RuntimeError("workflow_api.json UI formatında — ComfyUI'de "
-                               "'Workflow → Export (API)' ile kaydet")
-        for node_id in (PROMPT_NODE, NEGATIVE_NODE, SEED_NODE, MODEL_NODE):
-            if node_id not in workflow:
-                raise RuntimeError(f"Workflow'da {node_id} node yok — graf değişmiş, "
-                                   "node id'lerini güncelle")
         return workflow
 
     @staticmethod
