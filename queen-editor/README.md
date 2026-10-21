@@ -24,7 +24,7 @@ set once, nothing to paste again and nothing to commit.
 
 In the **CONFIG** cell tick the producers you want — `INSTALL_PHOTO` (~8 GiB), `INSTALL_VIDEO`
 (MiniMax H3, ~37 GiB), `INSTALL_AUDIO` (~9 GiB) — and under them at least one photo model.
-Pick the runtime for what you install: video wants more disk than a T4 has. Everything starts off
+The notebook opens on an A100, because Krea 2 Turbo does not fit a T4. Everything starts off
 and the notebook stops if nothing is chosen, because an app with no producer opens fine and renders
 nothing.
 
