@@ -194,6 +194,26 @@ def test_every_session_makes_its_videos_with_h3(import_main, monkeypatch, tmp_pa
     assert main._video_length("düğün") == 8
 
 
+def test_a_krea_frame_reaches_krea_s_graph_and_any_other_the_photo_graph(import_main, monkeypatch,
+                                                                         tmp_path):
+    """Madde 482: the queue's one photo producer sends each frame to its model's graph. Read off
+    the graph ComfyUI is sent, since that is what decides what is drawn."""
+    monkeypatch.setenv("QE_DRIVE_ROOT", str(tmp_path))
+    main = import_main()
+    sent = []
+    monkeypatch.setattr(main._comfy_client, "submit", lambda workflow: sent.append(workflow) or "p1")
+    monkeypatch.setattr(main._comfy_client, "wait", lambda prompt_id, timeout: {"outputs": {}})
+    monkeypatch.setattr(main._comfy_client, "fetch_output", lambda history: b"PNG")
+    photo = main._producers[layers.PHOTO]
+
+    photo.generate("kraliçe tahtta", "", 1, "krea2", "usnr")
+    photo.generate("kraliçe tahtta", "", 1, "nova3dcg", "usnr")
+
+    krea, nova = sent
+    assert krea["53:19"]["inputs"]["value"] == "kraliçe tahtta"
+    assert nova["45"]["inputs"]["ckpt_name"] == "nova3DCGXL_ilV90.safetensors"
+
+
 class FakeRun:
     """The question being answered: writes down what the agent writes to the chat."""
 

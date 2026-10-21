@@ -5,30 +5,42 @@ from and how they are fetched is the notebook's business (FOUNDATION 9), and the
 there so that two places never claim to know them. What this file answers is the one question the
 app still asks -- is this producer's group on the machine?
 
-A row has one of two shapes, and which one says what it is asking:
+A row has one of three shapes, and which one says what it is asking:
   {"folder", "name"}   -- exactly this file, because the graph loads it by that name
   {"folder", "suffix"} -- any file of this kind, because which one is the user's pick
+  {"any": [rows, ...]} -- one of these lists, each of rows of the two shapes above, all of them
+                          here: two kinds of model, either of which a producer renders with
 
 The names are inherited from collab-toolbox as knowledge, not as a dependency: they are the names
 the graphs load by, so a rename here has to follow the graph rather than the source.
 """
 HF_MMAUDIO_NSFW = "mmaudio_large_44k_nsfw_gold_8.5k_final_fp16.safetensors"
 
+# What Krea 2 Turbo's graph loads (madde 482), every one by name: the int8 DiT, its Qwen3-VL encoder,
+# Qwen Image's VAE and SNOFS, which the graph switches on.
+KREA2_FILES = [
+    {"folder": "diffusion_models", "name": "krea2_turbo_int8_convrot.safetensors"},
+    {"folder": "text_encoders", "name": "qwen3vl_4b_fp8_scaled.safetensors"},
+    {"folder": "vae", "name": "qwen_image_vae.safetensors"},
+    {"folder": "loras", "name": "snofs_krea_v1_5.safetensors"},
+]
+
 GROUPS = {
-    # What the photo graph reads. The checkpoint and the loras are the render itself; the other
-    # three are branches of the same graph -- the default-on FaceDetailer loads the detector and
+    # What the photo graphs read. The model and the loras are the render itself; the other three
+    # are branches of the checkpoints' graph -- the default-on FaceDetailer loads the detector and
     # SAM at startup, and the bypassed Ultimate SD Upscale reads Remacri the moment it is switched
     # on. Counting only the render's files would make "the photo producer is installed" a lie.
     "photo": [
-        # Which checkpoint is here is the user's pick since Madde 140 -- the notebook draws a box
-        # per model and every one of them is empty by default. So the row names a kind rather than
-        # a file: the graph renders with whichever it was handed, and the panel asks whether there
-        # is anything to hand it. Naming one made the panel call the producer uninstalled for
-        # anyone who picked a different model.
-        {"folder": "checkpoints", "suffix": ".safetensors"},
-        # Both loras come down whichever models were ticked: either can go over any model, and
+        # Which model is here is the user's pick since Madde 140 -- the notebook draws a box per
+        # model and every one of them is empty by default. A checkpoint is a kind rather than a
+        # file: the graph renders with whichever it was handed, and the panel asks whether there is
+        # anything to hand it. Naming one made the panel call the producer uninstalled for anyone
+        # who picked a different model. Krea is the other kind (madde 482): a graph of its own,
+        # whose files all have to be here.
+        {"any": [[{"folder": "checkpoints", "suffix": ".safetensors"}], KREA2_FILES]},
+        # Both loras come down whichever models were ticked: either can go over any checkpoint, and
         # hanging the panel's count on the choice would make "installed" mean a different set of
-        # files on every machine.
+        # files on every machine. A Krea-only run takes them too (~2 GiB with the three below).
         {"folder": "loras", "name": "USNR_STYLE_ILL_V1_lokr3-000024.safetensors"},
         {"folder": "loras", "name": "translucent_penetration_v5.safetensors"},
         {"folder": "upscale_models", "name": "4x_foolhardy_Remacri.pth"},

@@ -4307,12 +4307,17 @@ def test_nothing_is_written_when_nobody_asked_for_timings():
     assert runner.status()["status"] == "done"
 
 
-def test_the_model_list_is_nova_3dcg_and_dasiwa():
-    """A row in the Model box is a checkpoint again, and nothing else: the lora is its own box now
-    (madde 237)."""
-    from backend.features.photo_generation.domain.catalog import MODELS
+def test_the_model_list_is_nova_3dcg_dasiwa_and_krea_2_turbo():
+    """A row in the Model box is a model and nothing else: the lora is its own box (madde 237).
+    Krea 2 Turbo is the one with a graph of its own rather than a checkpoint (madde 482)."""
+    from backend.features.photo_generation.domain.catalog import KREA2, MODELS
 
-    assert [model["id"] for model in MODELS] == ["nova3dcg", "dasiwa"]
+    assert [model["id"] for model in MODELS] == ["nova3dcg", "dasiwa", KREA2]
+    assert [model.get("checkpoint") is None for model in MODELS] == [False, False, True]
+
+
+def test_krea_is_listed_by_its_name_once_the_notebook_installed_it():
+    assert list_models(["krea2"]) == [{"value": "krea2", "label": "Krea 2 Turbo"}]
 
 
 def test_the_lora_list_is_usnr_then_slime():

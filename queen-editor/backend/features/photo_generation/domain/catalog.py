@@ -1,8 +1,10 @@
 """What the two boxes of the photo panel mean -- a model, and a lora laid over it.
 
-A model is a checkpoint and nothing more. A lora is one file with a strength, and the word the
-prompt has to carry for it to show. Which lora a frame renders with is the lora box's answer alone:
-a model has no arrangement of its own (madde 238).
+A model is a checkpoint and nothing more, but for Krea 2 Turbo, which is a graph of its own (madde
+482). A lora is one file with a strength, and the word the prompt has to carry for it to show. Which
+lora a checkpoint renders with is the lora box's answer alone: a model has no arrangement of its own
+(madde 238). Krea takes none of the box's loras -- they are Illustrious ones -- and draws with its
+graph's own.
 
 Written down in two halves: the names and the files here, because this is the side that patches the
 graph, and the version ids and the sizes in the notebook, because addresses live there
@@ -14,12 +16,18 @@ through QE_PHOTO_MODELS. The loras need no such list: both files come down with 
 whatever was ticked.
 """
 
+# Krea 2 Turbo: rendered with its own graph, so main.py hands its frames to its own producer.
+KREA2 = "krea2"
+
 MODELS = [
     {"id": "nova3dcg", "label": "Nova 3DCG XL", "checkpoint": "nova3DCGXL_ilV90.safetensors"},
     # Read from Civitai's own API in madde 222's trial: a checkpoint on the Illustrious base, so the
     # graph's loras load onto it.
     {"id": "dasiwa", "label": "DaSiWa Illustrious | Anime",
      "checkpoint": "DasiwaIllustriousAnime_epitaphecstasy.safetensors"},
+    # Picked in madde 485's trial; no checkpoint, because the graph loads a DiT, its encoder and its
+    # VAE by name (assets/workflow_photo_krea2_api.json).
+    {"id": KREA2, "label": "Krea 2 Turbo"},
 ]
 
 LORAS = [

@@ -175,10 +175,14 @@ def _made_together(owed, jobs, slots, producer):
     sound's cannot -- and the card holds every variant the prompt was asked for. Asked with that
     count rather than with what is left of it: a prompt too big for the card is made one by one to
     its end, as before, not one by one until the rest happens to fit.
+
+    The card is asked about the prompt's model too, which every variant of it shares: the card a
+    batch needs is its graph's, and a model's graph may make no batch at all (madde 482).
     """
     group = variant_batch.together(owed, slots)
     if len(group) > 1 and hasattr(producer, "fits_batch") \
-            and producer.fits_batch(variant_batch.asked(jobs, group[0])):
+            and producer.fits_batch(variant_batch.asked(jobs, group[0]),
+                                    group[0].get("model", "")):
         return group
     return group[:1]
 

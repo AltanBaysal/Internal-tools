@@ -97,13 +97,15 @@ def test_a_row_says_nothing_about_installing_because_the_app_does_not():
 
 
 def test_the_photo_group_carries_everything_the_graph_reads():
-    """The checkpoint is the one row naming a kind rather than a file: which model is on the machine
-    is the user's pick since Madde 140, and the graph renders with whichever it was handed. The
+    """The first row is the model, and either kind will do (madde 482): any checkpoint, the user's
+    pick since Madde 140, or all four of Krea 2 Turbo's files, which its graph loads by name. The
     other five are named by the file itself. The face detector and SAM came back with the detailer
-    (madde 469): FaceDetailer loads them at startup, so a photo render needs them on the disk."""
+    (madde 469): FaceDetailer loads them at startup, so a photo render needs them on the disk. They
+    come down with a Krea-only run too, as the group always has."""
     rows = model_groups.GROUPS["photo"]
 
-    assert rows[0] == {"folder": "checkpoints", "suffix": ".safetensors"}
+    assert rows[0] == {"any": [[{"folder": "checkpoints", "suffix": ".safetensors"}],
+                               model_groups.KREA2_FILES]}
     assert [(row["folder"], row["name"]) for row in rows[1:]] == [
         ("loras", "USNR_STYLE_ILL_V1_lokr3-000024.safetensors"),
         # Both loras come with the group whichever models were installed: the lora box is a pick
@@ -132,11 +134,51 @@ def test_the_weights_path_is_built_from_the_group_row():
 def test_no_group_carries_an_address_the_app_would_have_to_fetch():
     """Addresses live in the notebook now. One left here would be a second truth nobody reads.
 
-    Two shapes are allowed and no third: a row names a file, or it names a kind of file.
+    A row names a file, or a kind of file, or -- since madde 482 -- lists alternatives, each of
+    them rows of those two shapes. Nothing else: a fourth shape would be a question nobody answers.
     """
+    plain = ({"folder", "name"}, {"folder", "suffix"})
     for group in model_groups.GROUPS.values():
         for row in group:
-            assert set(row) in ({"folder", "name"}, {"folder", "suffix"}), row
+            if set(row) == {"any"}:
+                for rows in row["any"]:
+                    assert rows and all(set(inner) in plain for inner in rows), row
+            else:
+                assert set(row) in plain, row
+
+
+# One of either kind of model will do (madde 482): any checkpoint, or every one of Krea's files.
+EITHER = {"photo": [{"any": [[{"folder": "checkpoints", "suffix": ".safetensors"}],
+                             [{"folder": "diffusion_models", "name": "krea.safetensors"},
+                              {"folder": "vae", "name": "krea_vae.safetensors"}]]},
+                    {"folder": "loras", "name": "style.safetensors"}]}
+
+
+def test_a_machine_with_only_krea_has_a_photo_producer():
+    files = FakeFiles(present=[("diffusion_models", "krea.safetensors"),
+                               ("vae", "krea_vae.safetensors"), ("loras", "style.safetensors")])
+
+    assert list_producers(EITHER, files)[0]["installed"] is True
+
+
+def test_a_machine_with_only_a_checkpoint_still_has_a_photo_producer():
+    files = FakeFiles(present=[("checkpoints", "nova.safetensors"), ("loras", "style.safetensors")])
+
+    assert list_producers(EITHER, files)[0]["installed"] is True
+
+
+def test_half_of_krea_is_no_model():
+    """An alternative counts whole or not at all: the DiT without its VAE renders nothing."""
+    files = FakeFiles(present=[("diffusion_models", "krea.safetensors"),
+                               ("loras", "style.safetensors")])
+
+    assert list_producers(EITHER, files)[0]["installed"] is False
+
+
+def test_a_model_without_the_rest_of_the_group_is_not_installed():
+    files = FakeFiles(present=[("checkpoints", "nova.safetensors")])
+
+    assert list_producers(EITHER, files)[0]["installed"] is False
 
 
 # MiniMax H3 (madde 243), the one video model since madde 435.

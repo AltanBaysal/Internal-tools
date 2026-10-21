@@ -83,8 +83,10 @@ class ComfyPhotoGenerator:
         history = self._client.wait(prompt_id, self._timeout * count)
         return self._client.fetch_outputs(history, count)
 
-    def fits_batch(self, count):
-        """Whether the card ComfyUI renders on holds `count` pictures of this graph in one batch."""
+    def fits_batch(self, count, model=""):
+        """Whether the card ComfyUI renders on holds `count` pictures of this graph in one batch.
+        `model` changes nothing here: every checkpoint this graph loads is an SDXL UNet of one
+        weight."""
         needed = WEIGHT_BYTES + RESERVED_BYTES + count * PICTURE_BYTES
         return self._client.vram_total() >= needed
 

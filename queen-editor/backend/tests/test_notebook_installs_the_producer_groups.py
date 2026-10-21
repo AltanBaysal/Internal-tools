@@ -115,9 +115,13 @@ def test_every_file_the_panel_counts_is_fetched_by_the_notebook():
     name and by version id -- a tighter guard than this one, not a looser one.
 
     Asked by the file's own name: the video group names H3's files the way the graph loads them,
-    MiniMaxH3/ included, and the notebook names the file itself and puts it in that folder."""
+    MiniMaxH3/ included, and the notebook names the file itself and puts it in that folder. A row of
+    alternatives is asked through each of its rows: Krea's files are counted there (madde 482)."""
     source = _source()
-    missing = [row["name"] for group in GROUPS.values() for row in group
+    rows = [inner for group in GROUPS.values() for row in group
+            for inner in ([r for alternative in row["any"] for r in alternative]
+                          if "any" in row else [row])]
+    missing = [row["name"] for row in rows
                if "name" in row and os.path.basename(row["name"]) not in source]
 
     assert missing == [], f"Defter bu dosyaları indirmiyor: {missing}"
@@ -447,7 +451,10 @@ def test_every_file_the_app_renders_with_is_one_the_notebook_can_fetch():
     checkpoints = _cell("PHOTO_CHECKPOINTS = [")
     source = _source()
 
-    for model in models:
+    # Krea has no checkpoint: its graph's files are held to the notebook through the photo group
+    # (test_every_file_the_panel_counts_is_fetched_by_the_notebook), and the group to the graph in
+    # test_workflow_asset.
+    for model in [model for model in models if "checkpoint" in model]:
         assert model["checkpoint"] in checkpoints, \
             f"{model['id']}: modelin checkpoint'i defterde yok — {model['checkpoint']}"
     for lora in loras:
@@ -551,6 +558,63 @@ def test_the_notebook_fetches_the_face_detailer_s_files():
                      _listing("OPEN_PHOTO")), "OPEN_PHOTO'da SAM satırı yok"
     assert 'BBOX = f"{COMFY}/models/ultralytics/bbox"' in _cell("# === Target folders ===")
     assert 'SAMS = f"{COMFY}/models/sams"' in _cell("# === Target folders ===")
+
+
+# Krea 2 Turbo (madde 482): the sources 485's trial proved.
+
+
+def test_the_notebook_fetches_krea_s_three_files_from_comfy_org():
+    """Already on Hugging Face, in an open repo: hf_fetch takes them straight, and uploads nothing,
+    so they never touch the mirror. Each into the folder its loader reads."""
+    listing = _listing("HF_KREA2")
+
+    for path, folder, name in (
+            ("diffusion_models/", "DIFF", "krea2_turbo_int8_convrot.safetensors"),
+            ("text_encoders/", "TENC", "qwen3vl_4b_fp8_scaled.safetensors"),
+            ("vae/", "VAE", "qwen_image_vae.safetensors")):
+        assert re.search(rf'\(\s*"Comfy-Org/Krea-2",\s*"{path}{re.escape(name)}",'
+                         rf'\s*{folder},\s*"{re.escape(name)}",', listing), \
+            f"HF_KREA2'de {name} satırı yok:\n{listing}"
+
+
+def test_the_notebook_fetches_snofs_by_its_version_through_the_mirror():
+    """SNOFS's Krea v1.5 from Civitai, the way every Civitai file the app keeps comes: the mirror
+    first. It is no longer on trial, so it stays out of MIRRORLESS."""
+    from colab.downloads import MIRRORLESS
+
+    assert re.search(r'\(\s*3390681,\s*LORA,\s*"snofs_krea_v1_5\.safetensors",',
+                     _listing("CIVITAI_KREA2")), "CIVITAI_KREA2'de SNOFS satırı yok"
+    assert "snofs_krea_v1_5.safetensors" not in MIRRORLESS
+
+
+def test_krea_s_files_come_only_with_its_box():
+    """Reached through the photo lists, so photo's box and Krea's both have to be ticked."""
+    cell = _cell("# === Target folders ===")
+
+    for name in ("HF_KREA2", "CIVITAI_KREA2"):
+        assert f"+ ({name} if PHOTO_KREA2 else [])" in cell, f"{name} Krea'nın kutusunun arkasında değil"
+    assert "(PHOTO_KREA2, \"krea2\", None)" in _cell("PHOTO_MODELS = [")
+    assert "if on and fn]" in _cell("PHOTO_MODELS = ["), \
+        "Krea'nın boş checkpoint'i seçilen checkpoint'lere giriyor"
+
+
+def test_the_disk_estimate_counts_krea_when_it_is_ticked():
+    """Its four files are 20,551,370,926 bytes, about 19.1 GiB."""
+    assert "+ (20 if PHOTO_KREA2 else 0)" in _cell("PHOTO_GIB ="), "Disk hesabı Krea'yı saymıyor"
+
+
+def test_the_models_cell_shows_krea_s_folders():
+    cell = _cell("# === Target folders ===")
+
+    for folder in ("diffusion_models", "vae", "text_encoders"):
+        assert re.search(rf'\(INSTALL_VIDEO or INSTALL_KREA2, "{folder}"', cell), \
+            f"{folder} Krea için gösterilmiyor"
+    assert "INSTALL_KREA2 = INSTALL_PHOTO and PHOTO_KREA2" in cell
+
+
+def test_the_clone_checks_for_the_krea_graph():
+    assert "workflow_photo_krea2_api.json" in _cell("# === Clone ==="), \
+        "Klon Krea'nın grafiğini aramıyor"
 
 
 def test_the_models_cell_lists_the_detailer_s_folders():

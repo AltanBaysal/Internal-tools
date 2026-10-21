@@ -18,6 +18,9 @@ from backend.features.agent.domain.usecases.chats import (
 )
 from backend.features.agent.presentation.routes import make_agent_blueprint, make_chats_blueprint
 from backend.features.agent.runner import AgentRunner
+from backend.features.photo_generation.data.comfy_krea_photo_generator import (
+    ComfyKreaPhotoGenerator,
+)
 from backend.features.photo_generation.data.comfy_photo_generator import ComfyPhotoGenerator
 from backend.features.photo_generation.data.ffmpeg_audio import FfmpegAudio
 from backend.features.photo_generation.data.ffmpeg_clips import FfmpegClips
@@ -29,8 +32,9 @@ from backend.features.photo_generation.data.prompt_writer import (
     AudioPromptWriter,
     H3VideoPromptWriter,
 )
-from backend.features.photo_generation.domain import layers, seed
+from backend.features.photo_generation.domain import catalog, layers, seed
 from backend.features.photo_generation.data.order_store import DriveOrderStore
+from backend.features.photo_generation.data.photo_by_model import PhotoByModel
 from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
 from backend.features.photo_generation.data.plan_store import DrivePlanStore
@@ -133,7 +137,12 @@ _reference_settings_store = DriveReferenceSettingsStore(_storage)
 _photo_store = DrivePhotoStore(_storage, name_rules.EXPORTS_DIR)
 _comfy_client = ComfyClient(config.COMFY_URL, poll_interval=config.POLL_INTERVAL,
                             log_path=config.COMFY_LOG)
-_photo_generator = ComfyPhotoGenerator(_comfy_client, config.WORKFLOW_PATH, config.RENDER_TIMEOUT)
+# Each frame goes to its model's graph: Krea 2 Turbo has one of its own (madde 482), every other
+# model renders on the photo graph as it always did.
+_photo_generator = PhotoByModel(
+    ComfyPhotoGenerator(_comfy_client, config.WORKFLOW_PATH, config.RENDER_TIMEOUT),
+    {catalog.KREA2: ComfyKreaPhotoGenerator(_comfy_client, config.KREA2_WORKFLOW_PATH,
+                                            config.RENDER_TIMEOUT)})
 # Queen AI writes every prompt nobody typed (madde 400, 404): a video's looking at the frame's
 # photo, a sound's from its video's prompt. Every ask goes through the box, which sends a failed
 # request again (madde 416).

@@ -158,15 +158,17 @@ def _model_files(node):
     return set()
 
 
-def test_the_only_graphs_shipped_are_the_photo_s_and_h3_s():
+def test_the_only_graphs_shipped_are_the_two_photo_ones_and_h3_s():
     """Madde 435, the user's words: "wan modelini kaldıralım queen editorden direkt kullanımıyor
     zaten". Queen Editor makes H3 videos alone, so WAN's two graphs no longer ship -- a graph left
-    behind would be one nobody renders and somebody edits."""
+    behind would be one nobody renders and somebody edits. Krea 2 Turbo's is the second photo graph
+    (madde 482)."""
     shipped = sorted(name for name in os.listdir(os.path.dirname(config.WORKFLOW_PATH))
                      if name.endswith(".json"))
 
-    assert shipped == ["workflow_api.json", "workflow_video_h3_api.json",
-                       "workflow_video_h3_first_last_api.json"], f"Gönderilen grafikler: {shipped}"
+    assert shipped == ["workflow_api.json", "workflow_photo_krea2_api.json",
+                       "workflow_video_h3_api.json", "workflow_video_h3_first_last_api.json"], \
+        f"Gönderilen grafikler: {shipped}"
 
 
 # MiniMax H3 (madde 243): two graphs exported by the user in 213's trial and made sterile in 242.
@@ -331,3 +333,71 @@ def test_both_h3_graphs_save_an_mp4():
         saver = graph["2568"]
         assert saver["class_type"] == "DaSiWa_EnhancedVideoCombine"
         assert (saver["inputs"]["container"], saver["inputs"]["codec"]) == ("MP4", "H.264")
+
+
+# Krea 2 Turbo (madde 482): the user's own ComfyUI export, shipped as it was given. The producer
+# writes three nodes and leaves everything else the user's.
+
+
+def _krea():
+    """Krea's graph, read fresh."""
+    with open(config.KREA2_WORKFLOW_PATH, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def test_the_krea_graph_is_api_format_with_the_nodes_we_patch():
+    """The prompt, the seed and the size: a node that kept its id but renamed an input would swallow
+    the patch and only surface as a picture of the wrong thing."""
+    krea = _krea()
+
+    assert "nodes" not in krea, "UI formatında export — 'Workflow → Export (API)' gerekiyor"
+    assert krea["53:19"]["class_type"] == "PrimitiveStringMultiline"
+    assert "value" in krea["53:19"]["inputs"]
+    assert krea["53:3"]["class_type"] == "KSampler"
+    assert "seed" in krea["53:3"]["inputs"]
+    assert krea["53:5"]["class_type"] == "EmptyLatentImage"
+    assert {"width", "height", "batch_size"} <= set(krea["53:5"]["inputs"])
+
+
+def test_the_krea_graph_has_no_negative_to_write():
+    """Why the panel's negative never reaches Krea: the sampler's negative is the positive zeroed,
+    and at cfg 1 ComfyUI does not compute it at all."""
+    sampler = _krea()["53:3"]["inputs"]
+
+    assert sampler["cfg"] == 1
+    assert _krea()[sampler["negative"][0]]["class_type"] == "ConditioningZeroOut"
+
+
+def test_the_krea_graph_renders_with_snofs_switched_on():
+    """The user's workflow draws with SNOFS at 0.8, and the lora box's Illustrious loras cannot load
+    on Krea -- so this is the lora every Krea picture has."""
+    krea = _krea()
+
+    assert (krea["53:15"]["inputs"]["lora_name"], krea["53:15"]["inputs"]["strength_model"]) == \
+        ("snofs_krea_v1_5.safetensors", 0.8)
+    assert krea["53:22"]["inputs"]["switch"] == ["53:23", 0]
+    assert krea["53:23"]["inputs"]["value"] is True
+
+
+def test_every_model_the_krea_graph_loads_is_krea_s_row_in_the_photo_group():
+    """The panel counts Krea as a photo model by these files, so a file the graph loads and the row
+    does not name is a panel that says ready over a render that cannot start -- and one the row names
+    and the graph does not is a download nobody uses."""
+    from backend.features.producers.domain.model_groups import KREA2_FILES
+
+    assert _model_files(_krea()) == {row["name"] for row in KREA2_FILES}
+
+
+def test_krea_s_sizes_keep_the_video_s_shape():
+    """Madde 475's rule for Krea too: H3 pulls the photo to its own size, so the ratio has to be
+    exact. Both sides on 16, Qwen Image's VAE times the DiT's patch. About 1 MP, the user's
+    workflow's own setting: 1280 x 720 and 832 x 1248."""
+    from backend.features.photo_generation.data import comfy_h3_video_generator as video
+    from backend.features.photo_generation.data import comfy_krea_photo_generator as krea
+
+    assert krea.SIZES == {"yatay": (1280, 720), "dikey": (832, 1248)}
+    for name, (pw, ph) in krea.SIZES.items():
+        vw, vh, _preset = video.SIZES[name]
+        assert pw * vh == ph * vw, f"{name}: Krea {pw}x{ph}, video {vw}x{vh} aynı oranda değil"
+        assert pw % 16 == 0 and ph % 16 == 0, f"{name}: {pw}x{ph} 16'nın katı değil"
+        assert (pw > ph) == (vw > vh), f"{name}: Krea'nın şekli videonunkine ters"

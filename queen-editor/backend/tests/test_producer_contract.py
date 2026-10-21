@@ -27,8 +27,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 # path here would go on being right about the old place (madde 251).
 PHOTO_GRAPH = config.WORKFLOW_PATH
 
-# Every graph config knows the way to -- the three it names, in one place.
-GRAPHS = (config.WORKFLOW_PATH, config.H3_VIDEO_WORKFLOW_PATH,
+# Every graph config knows the way to -- the four it names, in one place.
+GRAPHS = (config.WORKFLOW_PATH, config.KREA2_WORKFLOW_PATH, config.H3_VIDEO_WORKFLOW_PATH,
           config.H3_VIDEO_FIRST_LAST_WORKFLOW_PATH)
 
 
@@ -316,6 +316,42 @@ def test_a_prompts_variants_go_through_the_real_photo_producer_as_one_batch():
     assert graph["25"]["class_type"] == "EmptyLatentImage"
     assert graph["25"]["inputs"]["batch_size"] == ["23", 0]
     assert store.saved == ["P0_0.png", "P0_1.png"]
+
+
+# --- Madde 482: Krea 2 Turbo, a model with a graph of its own ---------------------------------------
+
+class KreaComfy(BatchComfy):
+    """Krea's graph's server: answers with a picture of the size its latent was handed."""
+
+    def fetch_output(self, history):
+        latent = self.graphs[-1]["53:5"]["inputs"]
+        return png(latent["width"], latent["height"])
+
+
+def test_a_krea_prompt_goes_through_the_real_photo_producers_on_its_own_graph(tmp_path):
+    """The real loop, the producer main.py wires: a Krea prompt's two variants are two jobs on the
+    shipped Krea graph, each with its own seed, landscape at 1280 x 720 -- and the Nova prompt
+    planned after it still goes to the photo graph, as one batch."""
+    from backend.features.photo_generation.data.comfy_krea_photo_generator import (
+        ComfyKreaPhotoGenerator,
+    )
+    from backend.features.photo_generation.data.photo_by_model import PhotoByModel
+
+    krea_jobs = [{**job, "id": f"P1_{job['variant']}", "number": 1, "model": "krea2",
+                  "seed": 5 + job["variant"], "orientation": "yatay"} for job in VARIANTS]
+    store, sdxl, krea = Store(), BatchComfy(), KreaComfy()
+    photo = PhotoByModel(ComfyPhotoGenerator(sdxl, PHOTO_GRAPH, timeout=60),
+                         {"krea2": ComfyKreaPhotoGenerator(krea, config.KREA2_WORKFLOW_PATH,
+                                                           timeout=60)})
+
+    state = make_job(Runner(), store, Record(), Plan(krea_jobs + VARIANTS), {layers.PHOTO: photo},
+                     lambda: "2026-10-21T00:00:00+00:00", "düğün")()
+
+    assert state["status"] == "done"
+    assert [graph["53:3"]["inputs"]["seed"] for graph in krea.graphs] == [5, 6]
+    assert {graph["53:19"]["inputs"]["value"] for graph in krea.graphs} == {"kraliçe tahtta"}
+    assert store.files["P1_0.png"] == png(1280, 720)
+    assert len(sdxl.graphs) == 1 and sdxl.graphs[0]["23"]["inputs"]["value"] == 2
 
 
 # --- Madde 423: a video's row says how long the video that was made runs ---------------------------

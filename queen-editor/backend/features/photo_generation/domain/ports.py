@@ -45,8 +45,9 @@ class BatchPhotoGenerator(PhotoGenerator, Protocol):
     these only of a producer that has them -- a video's and a sound's do not -- and makes the
     variants one by one otherwise."""
 
-    def fits_batch(self, count: int) -> bool:
-        """Whether the card holds `count` pictures of one prompt in one batch."""
+    def fits_batch(self, count: int, model: str = "") -> bool:
+        """Whether the card holds `count` pictures of one prompt, made with `model`, in one batch.
+        A model whose graph makes no batch answers False (madde 482)."""
         ...
 
     def generate_batch(self, prompt: str, negative: str, seed: int, count: int, model: str = "",

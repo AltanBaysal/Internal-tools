@@ -39,10 +39,12 @@ class BatchGenerator(FakeGenerator):
         super().__init__(fail_on)
         self.fits, self.clock, self.works, self.stop = fits, clock, seconds, stop
         self.asked = []
+        self.asked_models = []
         self.batches = []
 
-    def fits_batch(self, count):
+    def fits_batch(self, count, model=""):
         self.asked.append(count)
+        self.asked_models.append(model)
         return count <= self.fits
 
     def generate_batch(self, prompt, negative, seed, count, model="", lora="", orientation=None):
@@ -178,6 +180,19 @@ def test_a_prompt_the_card_cannot_hold_is_not_batched_once_enough_of_it_is_made(
 
     assert len(generator.calls) == 3 and generator.batches == []
     assert generator.asked and set(generator.asked) == {3}
+
+
+def test_the_card_is_asked_about_the_prompt_s_model():
+    """Madde 482: which card the batch needs depends on the model's graph -- Krea has none at all --
+    and every variant of one batch carries the same model (variant_batch.MADE_FROM)."""
+    generator = BatchGenerator()
+    plan = FakePlanStore(frames=plan_frames(0, [{"prompt": "a"}], "neg", 2, lambda: 11,
+                                            model="krea2"))
+
+    make_job(sync_runner(), FakeStore(), FakeRecord(), plan, {layers.PHOTO: generator},
+             lambda: NOW, "düğün")()
+
+    assert generator.asked_models == ["krea2"]
 
 
 def test_a_failing_batch_is_tried_again_whole_and_then_every_variant_turns_red():
