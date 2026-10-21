@@ -448,6 +448,35 @@ Kısa, Türkçe, test planı yok.
 - [x] Yerelde: iki defterin kod hücreleri `ast.parse`'tan geçti; `MODELS` + `CIVITAI` koddan: turbo
   65.388.593.954 B, raw 52.713.251.872 B.
 
+### 4.8 Kullanıcının ilk koşusundan *(21 Ekim)*
+
+- [x] **Moody Krea2 Mix çıkarıldı.** Turbo defterinin ilk koşusunda Moody'nin probe'u
+  `HTTP 403 {"error":"Early Access","message":"This asset is in Early Access. You can use Buzz access it now!"}`
+  döndü; model sayfası sürümlerinde `paidAccess.permanent` gösteriyor, yani paralı. Öteki 8 Civitai
+  probe'u geçti. `turbo.ipynb`'nin `CIVITAI` satırı, markdown'u ve son çıktısı, `instructions.md`,
+  `indirilecekler.md` ve `raw.ipynb`'nin başlığındaki bir anma. Turbo'nun yeni toplamı
+  **52.246.824.442 B ≈ 52,2 GB (48,7 GiB)**.
+- [x] **RAW defteri Turbo t2i şablonunu Workflows paneline koyuyor.** Kullanıcı RAW defterini koştu,
+  ComfyUI'de workflow bulamadı; Templates araması *"çok kötü çalışıyor"*. `raw.ipynb` artık
+  `image_krea2_turbo_t2i_int8.json`'u Turbo'nunkiyle aynı adresten, olduğu gibi koyar. `place_workflow`
+  şablonun `models` listesindeki her dosyayı diskte arar, yalnız Turbo DiT'i (`SWAPPED`) hariç: o
+  "bekleniyor, yok" diye yazılır, kullanıcı `unet_name`'i RAW'a ya da Wulver Non-Turbo'ya çevirir.
+  Başlık, 3. ve 5. bölümlerin markdown'u, hücre 8'in yorumu, son çıktı, `instructions.md` ve
+  `indirilecekler.md` buna göre; Templates araması hiçbir yerde anılmıyor. Raw'ın şablon + resim
+  baytları 1.558.142 B.
+- [x] **Reviewer'ın bulguları** *(21 Ekim)*:
+  - `raw.ipynb`'nin `TEMPLATES`'ine `image_krea2_turbo_int8_image_style_reference.json` de girdi,
+    Turbo'nunkiyle aynı adresten; `SWAPPED` onun Turbo DiT'ini de kapsıyor. `krea2_style_reference`
+    LoRA'sı ve `krea2_reference_image.png` yeniden bir şablona bağlı. Raw'ın başlığı, 5. bölümün
+    markdown'u, hücre 8'in yorumu, son çıktı, `instructions.md`'nin "Hangi şablon"u (iki şablon iki
+    defterde de Workflows'ta; RAW'da her birinde `unet_name` çevrilir) ve `indirilecekler.md`
+    (raw'ın şablon + resim baytları artık turbo'nunkiyle aynı, 1.621.141 B).
+  - `place_workflow` (raw): Turbo DiT'i şablonun listesinde yoksa mevcut uyumsuzluk hatasının parçası
+    olarak durur — RAW talimatı o yükleyiciyi çeviriyor. `if` dalı kalktı; çevirme ipucu her şablonda
+    basılıyor, sözü "bu defterde indirilmedi" (dosya bir şekilde diskte olsa da doğru kalır).
+  - 6. bölümden "Templates listesinde Krea şablonları" satırı çıktı, Sick Ollie satırından Moody.
+  - İki defter yerelde `ast.parse`'tan geçti.
+
 ---
 
 ## 5. Maliyet ve bozulabilecekler
@@ -469,10 +498,9 @@ Kısa, Türkçe, test planı yok.
   bakıyor. Comfy-Org'un int8'lerinin işareti taşıdığı da kendi gözümle görülmedi; özet onu da basıyor.
 - **Sick Ollie fp8'inin biçimi:** düz e4m3fn mi scaled mı yazılı değil; ikisini de ComfyUI A100'de bf16'ya
   çevirip okur ≈.
-- **Sick Ollie ve Moody'nin RAW'dan mı Turbo'dan mı türediği** (S4).
+- **Sick Ollie'nin RAW'dan mı Turbo'dan mı türediği** (S4).
 - **Çıplak RAW'da Turbo LoRA'sı:** kaynak Wulver'ın README'si, RAW'ın bir ince ayarı için ≈.
 - **RAW'ın sampler'ı ve scheduler'ı:** yazılı değil ≈.
-- **Templates listesinde Krea şablonları:** paketin içi okunmadı ≈.
 - **fp8 kodlayıcının A100'de hızı** ≈.
 - **Krea'nın tarz LoRA'larının, Civitai LoRA'larının ve stil referansının RAW'da etkisi:** hepsi
   Turbo'da kullanılmak için; RAW'da denenmemiş ≈.

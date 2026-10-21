@@ -11,11 +11,13 @@ LoRA'sıyla 8). Grafikler Comfy-Org'un **resmî şablonları**, olduğu gibi. Ha
    isteğe bağlı.
 2. Defteri Colab'a yükle (**File → Upload notebook**), **Runtime → Change runtime type → A100**,
    **Run all**. Her şey baştan iner. En alttaki linke gir.
-3. Turbo: sol kenarda **Workflows** → bir workflow. RAW: sol kenarda **Templates** → Krea 2 → int8
-   *Text to Image*; eksik model penceresini kapat (Turbo modeli bu defterde yok). Yaz → **Run**
-   (Ctrl+Enter).
+3. Sol kenarda **Workflows** → bir workflow. RAW defterinde büyük node'da `unet_name`'i RAW'a ya da
+   Wulver Non-Turbo'ya çevir (şablonların Turbo modeli bu defterde inmiyor). Yaz → **Run** (Ctrl+Enter).
 
 ## Hangi şablon
+
+İki şablon da iki defterde Workflows panelinde. RAW defterinde her birinde `unet_name`'i RAW'a ya da
+Wulver Non-Turbo'ya çevir.
 
 - `image_krea2_turbo_t2i_int8`: prompt'tan resim; `prompt`'a yaz.
 - `image_krea2_turbo_int8_image_style_reference`: referans resmin tarzında. Resmi bağlı `Load Image`'a
@@ -30,8 +32,7 @@ yazar. Bizim etiket listemizi olduğu gibi denemek için büyük node'da **kapat
 ## Model değiştirmek
 
 Büyük node'da `unet_name`:
-- Turbo defterinde: `krea2_turbo_int8_convrot`, `Wulver_v0.5_fp8_e4m3fn`, `sickOllie_krea2_3035266`,
-  `moodyKrea2MixUncensoredV8FREEV8_v80BF16FP8_3213091`.
+- Turbo defterinde: `krea2_turbo_int8_convrot`, `Wulver_v0.5_fp8_e4m3fn`, `sickOllie_krea2_3035266`.
 - RAW defterinde: `krea2_raw_int8_convrot`, `Wulver_v0.5_non_turbo_bf16`.
 
 ## Adım ve cfg
@@ -53,8 +54,6 @@ boş bir `CLIPTextEncode` ekle, `clip`'ini `CLIPLoader`'dan al, ve `KSampler`'ı
 - **Wulver Non-Turbo:** LoRA'sız 52 adım, cfg 3,5 (negatif yukarıdaki gibi); ya da Turbo LoRA'sıyla
   1,0 / 8 adım / cfg 1 (0,6 / 14 adım da olur); `euler` / `simple`.
 - **Sick Ollie:** Euler, Beta, cfg 1, 9 adım; yazarı en iyi 1440 × 1920 diyor.
-- **Moody:** Euler A (`euler_ancestral`), Beta, 8 adım (ayrıntı için 12'ye kadar) — yazarın V6 notu;
-  V8 için ayrıca bir ayar yazılı değil.
 
 RAW defterinin özeti Krea'nın RAW int8'inde ComfyUI'nin niceleme işaretini bulamazsa uyarır: o modelde
 resim bozuk çıkarsa sebep bu olabilir.
@@ -104,5 +103,4 @@ listesi. Konusu anthro / furry, anime / kemono.
 
 ## Not
 
-Moody V8 gerçekçi fotoğrafa yönelik (yazarı: *"RAW-style photography, skin texture"*). Civitai'nin öteki
-NSFW LoRA'larının ve Sick Ollie'nin de gerçekçi fotoğraf tarzında olduğu doğrulanmadı.
+Civitai'nin NSFW LoRA'larının ve Sick Ollie'nin gerçekçi fotoğraf tarzında olduğu doğrulanmadı.

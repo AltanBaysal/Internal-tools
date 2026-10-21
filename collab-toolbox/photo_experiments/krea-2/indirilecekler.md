@@ -1,7 +1,7 @@
 # Krea 2 (Turbo + RAW) — indirilecekler
 
 Madde 485. Comfy-Org'un dosyalarının kaynağı resmî şablonlar: her yükleyici node'un kendi `models`
-listesi dosyanın adını, klasörünü ve adresini veriyor. Şablonlar 21 Ekim'de okundu, ve Turbo defteri bir
+listesi dosyanın adını, klasörünü ve adresini veriyor. Şablonlar 21 Ekim'de okundu, ve iki defter de bir
 workflow'u koymadan önce bu listeyi diskteki dosyalarla yeniden karşılaştırıyor. Her şey baştan iner;
 doldurulacak seçenek yok.
 
@@ -14,16 +14,18 @@ açık); defterler her HF indirmesini bu sayıya tutuyor.
 
 | Defter | Workflow | Bayt | Kaynak |
 |---|---|---|---|
-| `turbo.ipynb` | `image_krea2_turbo_t2i_int8` | 60.684 | https://github.com/Comfy-Org/workflow_templates/blob/main/templates/image_krea2_turbo_t2i_int8.json |
-| `turbo.ipynb` | `image_krea2_turbo_int8_image_style_reference` | 62.999 | https://github.com/Comfy-Org/workflow_templates/blob/main/templates/image_krea2_turbo_int8_image_style_reference.json |
+| ikisi | `image_krea2_turbo_t2i_int8` | 60.684 | https://github.com/Comfy-Org/workflow_templates/blob/main/templates/image_krea2_turbo_t2i_int8.json |
+| ikisi | `image_krea2_turbo_int8_image_style_reference` | 62.999 | https://github.com/Comfy-Org/workflow_templates/blob/main/templates/image_krea2_turbo_int8_image_style_reference.json |
 
 İkisinin `models` listesi: `krea2_turbo_int8_convrot`, `qwen3vl_4b_fp8_scaled`, `qwen_image_vae`, ve
 t2i'de `krea2_darkbrush`, stil referansında `krea2_style_reference`.
 
-**RAW defterinde şablon yok.** Krea'nın üç şablonu da Turbo için; resmî RAW şablonu yok
-([docs.comfy.org](https://docs.comfy.org/tutorials/image/krea/krea-2)). Turbo şablonlarının `models`
-listesi RAW defterinde inmeyen Turbo DiT'ini istiyor; şablon ComfyUI'nin kendi **Templates** listesinden
-açılır ve `unet_name` RAW'a çevrilir.
+**RAW defterinde Turbo şablonları.** Krea'nın üç şablonu da Turbo için; resmî RAW şablonu yok
+([docs.comfy.org](https://docs.comfy.org/tutorials/image/krea/krea-2)). RAW defteri iki int8 Turbo
+şablonunu olduğu gibi Workflows paneline koyar; kullanıcı her birinde `unet_name`'i RAW'a ya da Wulver
+Non-Turbo'ya çevirir. Şablonların `models` listesindeki Turbo DiT RAW defterinde inmiyor: kontrol onu
+"bu defterde indirilmedi" diye yazar, listedeki öteki her dosyayı diskte arar, ve Turbo DiT listede
+yoksa durur — RAW talimatı tam o yükleyiciyi çeviriyor.
 
 Custom node yok: bütün node'lar ComfyUI'nin kendinde (`CLIPLoader`'ın `krea2` türü, `ResolutionSelector`,
 `TextGenerate`, `TextEncodeQwenImageEditPlus`, …). Stil referansı LoRA'sının kartı ostris'in custom
@@ -109,7 +111,6 @@ bedeli iki kat disk. `.json` inmiyor: yalnız resmî şablonlar.
 | ikisi | `loras/` | krea2 sex · spo (3169634) | `kea2 spooning.safetensors` | 228.587.720 | https://civitai.red/api/download/models/3169634 |
 | ikisi | `loras/` | krea2 sex · BJ (3158893) | `kreablowjob.safetensors` | 228.587.720 | https://civitai.red/api/download/models/3158893 |
 | turbo | `diffusion_models/` | [Sick Ollie](https://civitai.com/models/2676616) · Krea2 (3154408), fp8, dosya 3035266 | `sickOllie_krea2_3035266.safetensors` | 12.821.587.640 | https://civitai.red/api/download/models/3154408?fileId=3035266 |
-| turbo | `diffusion_models/` | [Moody Krea2 Mix](https://civitai.com/models/2731187) · V8.0 BF16 & FP8 (3327123), fp8_scaled, dosya 3213091 | `moodyKrea2MixUncensoredV8FREEV8_v80BF16FP8_3213091.safetensors` | 13.141.769.512 | https://civitai.red/api/download/models/3327123?fileId=3213091 |
 
 **SNOFS:** en yeni Krea 2 sürümü v1.5; tek dosya, bf16. Yazar: etiketle değil düzyazıyla eğitilmiş.
 
@@ -117,20 +118,14 @@ bedeli iki kat disk. `.json` inmiyor: yalnız resmî şablonlar.
 alındı (carry 5.352, dog 4.652, Mis 4.485, CG 4.475, spo 4.252, BJ 4.100). Daha yeni BJ2 (3401693) ve
 SP2 (3398592) alınmadı. Tetik kelimeleri her sürümün sayfasında (`instructions.md`'de bağlantılar).
 
-**Checkpoint'ler `diffusion_models/`'a:** yalnız DiT taşıyorlar — bf16'ları 25,6 – 26,3 GB, Krea'nın
-bf16 DiT'i (26,28 GB) kadar; metin kodlayıcı ve VAE ayrı. `Load Diffusion Model` onları orada arar. İkisi de yalnız
-Turbo defterinde: yazarları onları Turbo gibi koşuyor (aşağıda); RAW'dan mı Turbo'dan mı türedikleri
-yazılı değil.
+**Sick Ollie `diffusion_models/`'a:** yalnız DiT taşıyor — bf16'sı 25,6 GB, Krea'nın bf16 DiT'i (26,28 GB)
+kadar; metin kodlayıcı ve VAE ayrı. `Load Diffusion Model` onu orada arar. Yalnız Turbo defterinde:
+yazarı onu Turbo gibi koşuyor; RAW'dan mı Turbo'dan mı türediği yazılı değil. Sürümde bf16 (birincil),
+int8, nf4, mxfp8 ve fp8 var; yazarın verdiği fp8 alındı (Civitai türü "Diffusion Model"). Ayarları:
+Euler, Beta, cfg 1, 9 adım, en iyi 1440 × 1920. Tarzının gerçekçi fotoğraf olduğu doğrulanmadı.
 
-- **Sick Ollie:** sürümde bf16 (birincil), int8, nf4, mxfp8 ve fp8 var; yazarın verdiği fp8 alındı
-  (Civitai türü "Diffusion Model"). Ayarları: Euler, Beta, cfg 1, 9 adım, en iyi 1440 × 1920.
-- **Moody V8.0:** V8.0'ın 3327244 girdisinde int4, nvfp4 ve int8 var; fp8'ler kardeş girdisi
-  *"V8.0 BF16 & FP8"*'de (3327123), o da int4, nvfp4 ve int8'i taşıyor, ayrıca `fp8` (birincil,
-  13.782.043.152 B), **`fp8_scaled`** (alınan) ve bf16. fp8_scaled'in boyu Comfy-Org'un
-  `krea2_turbo_fp8_scaled`'inden (13.141.730.784 B) yalnız 38 KB farklı, yani büyük olasılıkla
-  ComfyUI'nin okuduğu aynı biçim; birincil `fp8`'in biçimi yazılı değil. Ayarları yazarın V6 notunda:
-  Euler A, Beta, 8 adım (12'ye kadar); V8 için ayrıca yazılı değil. V8 gerçekçi fotoğrafa yönelik
-  (*"RAW-style photography, skin texture"*); öteki Civitai dosyalarının tarzı doğrulanmadı.
+**Moody Krea2 Mix çıkarıldı** (21 Ekim): kullanıcının ilk koşusunda probe'u `HTTP 403 "Early Access"`
+döndü; sürümleri Buzz'la açılan erken erişimde, yani paralı.
 
 **Civitai girişi gerekiyor.** Defter çerezi Colab Secrets'tan **`CIVITAI_COOKIE`** adıyla okuyor
 (queen-editor'ün adı), `civitai.red`'e `__Secure-civ-token` çereziyle gidiyor, önce her sürümün çıplak
@@ -138,7 +133,7 @@ adresinden ilk 1 KB'ı deniyor (seçicili adres probe'da 401 veriyor), sonra tek
 gerekirse `?fileId=` ile indiriyor. Ayna yok: denemedeki dosyalar aynaya konmuyor (queen-editor, madde
 327).
 
-Dosyanın boyunu safetensors header'ı zaten kanıtlıyor. `fileId` ile seçilen iki checkpoint ayrıca API'nin
+Dosyanın boyunu safetensors header'ı zaten kanıtlıyor. `fileId` ile seçilen Sick Ollie ayrıca API'nin
 bayt sayısına tutuluyor: gelenin istenen dosya olduğunu, sürümün birincil dosyası olmadığını o gösterir.
 Ötekilerde API'nin sayısı (`sizeKB`) yalnız boş disk toplamında. Civitai indirmesinin toplam süre sınırı
 yok: hız 5 dakika boyunca 1 MiB/s'in altında kalırsa durur (üst sınır 4 saat).
@@ -153,10 +148,10 @@ yok: hız 5 dakika boyunca 1 MiB/s'in altında kalırsa durur (üst sınır 4 sa
 
 ## Toplam (model dosyaları)
 
-- **`turbo.ipynb`: 65.388.593.954 B ≈ 65,4 GB (60,9 GiB)**
+- **`turbo.ipynb`: 52.246.824.442 B ≈ 52,2 GB (48,7 GiB)**
 - **`raw.ipynb`: 52.713.251.872 B ≈ 52,7 GB (49,1 GiB)**
 
-Workflow'lar ve resim bunun dışında (turbo 1.621.141 B, raw 1.497.458 B). Boş disk kontrolü henüz
+Workflow'lar ve resim bunun dışında (ikisinde de 1.621.141 B). Boş disk kontrolü henüz
 yerinde olmayan her model dosyasını toplar ve 5 GiB pay ister.
 
 ---
@@ -171,7 +166,7 @@ yerinde olmayan her model dosyasını toplar ve 5 GiB pay ister.
 | `qwen3vl_4b_int8_convrot` / `qwen3vl_4b_bf16` | 4,86 / 8,88 GB | Şablonlar fp8_scaled'i istiyor |
 | Wulver'ın int8 ConvRot (Turbo), düz int8, W4A8, GGUF, `.json`'u, Non-Turbo int8 ConvRot | 7,7 – 13,5 GB | 3. bölüm |
 | Sick Ollie'nin bf16, int8, nf4, mxfp8'i | 7,7 – 25,6 GB | Yazarın fp8'i alındı |
-| Moody V8.0'ın int8, int4, nvfp4, birincil `fp8`, bf16'sı | 7,5 – 26,3 GB | fp8_scaled alındı |
+| Moody Krea2 Mix | — | Paralı erken erişim (4. bölüm) |
 | ostris'in `ComfyUI-Krea2-Ostris-Edit` custom node'u | — | Resmî şablon çekirdek node'larla yapıyor |
 
 ---
@@ -184,7 +179,6 @@ ComfyUI/
 │   ├── diffusion_models/   krea2_turbo_int8_convrot.safetensors              (turbo)
 │   │                       Wulver_v0.5_fp8_e4m3fn.safetensors                (turbo)
 │   │                       sickOllie_krea2_3035266.safetensors               (turbo)
-│   │                       moodyKrea2MixUncensoredV8FREEV8_v80BF16FP8_3213091.safetensors  (turbo)
 │   │                       krea2_raw_int8_convrot.safetensors                (raw)
 │   │                       Wulver_v0.5_non_turbo_bf16.safetensors            (raw)
 │   ├── text_encoders/      qwen3vl_4b_fp8_scaled.safetensors
@@ -192,8 +186,8 @@ ComfyUI/
 │   └── loras/              dokuz tarz LoRA'sı, krea2_style_reference, SNOFS, altı pozisyon LoRA'sı
 │                           krea2_turbo_lora_rank_64_bf16.safetensors         (raw)
 ├── input/                  krea2_reference_image.png
-└── user/default/workflows/ image_krea2_turbo_t2i_int8.json,
-                            image_krea2_turbo_int8_image_style_reference.json (turbo)
+└── user/default/workflows/ image_krea2_turbo_t2i_int8.json
+                            image_krea2_turbo_int8_image_style_reference.json
 ```
 
 Alt klasör yok: yükleyiciler dosyaları kendi klasörlerinin kökünde arıyor.
