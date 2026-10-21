@@ -110,6 +110,18 @@ silme (`remove_frames`) bugün bu yola varıyor. 481'in düzeltmesi böyle bir k
 panel" gibi bir yere bağlanıyor, ama repo'da — git geçmişinde de — öyle bir dosya hiç olmamış. Ya
 bağlantılar doğru belgeye çevrilir ya kaldırılır. Kullanıcının göreceği bir şey değişmez.
 
+### Qwen Image 2.1 için LoRA eğitimi
+
+*(Kullanıcı, 21 Ekim — "ilk küçük lora eğitiriz olmazsa büyük yaparız"; "lorayı şuan sadece qwen için
+düşünüyoruz".)* **v11'in tek maddesi olarak (v11-1) yol haritasındaydı, koşulmadan backlog'a döndü**
+*(kullanıcı, 21 Ekim — "qweni fine etmeyi sonraya bırakalım backloga koyalım"; Krea 2 Turbo denemesi
+işe yaradı ve tarz prompt'a yazılarak belirlenebiliyor: "bu ayar güzel stylei yazarak
+belirleyebiliyoruz zaten")*.
+
+**Kararlaşanlar:** önce küçük bir LoRA, yetmezse büyük; ana modelde eğitilir, Turbo'da kullanılır ve
+Turbo'da çalışıp çalışmadığı ilk denemede ölçülür. Geri kalan ayrıntıları iş yapılırken kullanıcı
+belirler.
+
 ### Karakter LoRA'sı eklenecek
 
 *(Kullanıcı, 6 Eylül.)* Aynı kişinin her karede aynı çıkması için. Bugün bunu tutan tek şey etiket:
