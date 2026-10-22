@@ -1,6 +1,6 @@
 # QueenAgent — Yol Haritası v11
 
-**Tarih:** 2026-10-20 · **Koşu dalı:** `feat/queenagent-v11` *(henüz açılmadı)* · **Durum:** 0/5 · v11-1, v11-2 ve v11-4 hizalandı *(20 Ekim)*; v11-3 22 Ekim'de backlog'a döndü; v11-5 21 Ekim'de, v11-6 22 Ekim'de eklendi, hizalanacak; kullanıcının ekleyeceği maddeler bekleniyor *(20 Ekim — "bu quee nagetn eksik ben biraz daha madde kelicek bekle")*
+**Tarih:** 2026-10-20 · **Koşu dalı:** `feat/queenagent-v11` *(22 Ekim'de `feat/queen-editor-v10`'dan açıldı: bu yol haritası ve v10'un işi orada; v10 main'e birleşmeden)* · **Durum:** 0/5 · v11-1, v11-2 ve v11-4 hizalandı *(20 Ekim)*; v11-3 22 Ekim'de backlog'a döndü; v11-5 21 Ekim'de, v11-6 22 Ekim'de eklendi, hizalanacak; kullanıcının ekleyeceği maddeler bekleniyor *(20 Ekim — "bu quee nagetn eksik ben biraz daha madde kelicek bekle")*
 **Öncesi:** [v10](2026-10-05-queen-agent-v10-roadmap.md) — 27/27 kapandı ve main'e birleşti.
 **Kaynak:** Maddelerin hepsi kullanıcının 19 – 25 Ekim haftası için yazdığı plandan, 20 Ekim'de
 verildi: v11-1 planın 10. maddesi, v11-2 12.'si, v11-3 13.'sü. Üçü de
@@ -21,8 +21,13 @@ proje")*: iki madde ayrı yazılır, ayrı koşar, ve ikisini bağlayan bir test
 *(kullanıcı, 5 Ekim — "iki roadmepi ortak koşmacayğız ve ortak klasöür olmayacak önce queen editoru
 koşucaz bitiricez sonra queen agnetı koşucaz")*; o söz o iki koşu içindi.
 
-**Numaralar:** maddeler v11-1 – v11-4 diye yazıldı, ve koşu başlarken ortak sayaçtan gerçek
-numaralarını alır. Sayaçta en yüksek numara bugün 470 (Queen Editor v9).
+**Numaralar:** maddeler v11-… diye yazıldı, ve koşu başlarken *(22 Ekim)* ortak sayaçtan, koşu
+sırasıyla gerçek numaralarını aldı — sayaçta en yüksek numara 488'di (Queen Editor v10): **489 · v11-4,
+490 · v11-1, 491 · v11-2, 492 · v11-5, 493 · v11-6.**
+
+**Kullanıcıyla birlikte:** prompt'u değiştiren iki madde, v11-5 ve v11-6 *(kullanıcı, 22 Ekim — "içinde
+prompt değiştirme olacak task'ları beraber yapıcaz, gerisini sen direkt koşabilirsin")*. Koşu onlara
+gelince durur ve kullanıcıyı bekler.
 
 **Sıra: tek tek, dalga yok** *(kullanıcı, 22 Ekim — "dalga yok sıralı yapılacak görevler")*. Bir
 madde birleşince sıradaki başlar; worktree açılmaz, iş ana klasörde koşunun dalında yürür.
