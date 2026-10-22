@@ -74,11 +74,12 @@ The cost is a second engine to install and a second model on the card; the alter
 work standing between us and a library call.
 
 **7. Google Drive is the only persistent store.**
-Everything that must survive the Colab session — outputs, project data — lives under one
-Drive root, and that root folder is named in exactly one place: the notebook's CONFIG cell.
+Everything that must survive the Colab session — outputs, project data — lives under two Drive
+folders side by side, the projects' and the exports' (madde 494), and each is named in exactly one
+place: the notebook's CONFIG cell.
 Why: Colab machines are disposable, Drive is where the user already works, and a single
 naming point makes renaming a one-line change.
-Consequence: every read and write of that root goes through one door, `services/storage/`, and a save
+Consequence: every read and write of those roots goes through one door, `services/storage/`, and a save
 counts as done only once the whole file is on the mount and in place. Colab's mount can drop
 mid-session and leave writes on the machine's own disk while the screen says they were saved, so the
 door checks the mount before each operation and the error reaches the screen in the OS's own words

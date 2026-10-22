@@ -1,8 +1,9 @@
-"""The one door to the persistent store: every read and write of the Drive root goes through here.
+"""The one door to the persistent store: every read and write of a Drive root goes through here.
 
-It knows folders and files under one root and nothing else -- no project, no JSON, no schema. On
-Colab the root sits inside the mounted Drive, which queeneditor.ipynb opens before the server
-starts; locally it is any folder.
+It knows folders and files under one root and nothing else -- no project, no JSON, no schema. A
+second root is a second door: the projects' and the exports' are two (main.py). On Colab each root
+sits inside the mounted Drive, which queeneditor.ipynb opens before the server starts; locally it
+is any folder.
 
 Its rules come from how Colab's Drive mount fails. A mount that drops mid-session (colabtools #3441)
 answers Errno 107, or leaves the path empty, or comes back as another device -- and a write that
@@ -13,8 +14,8 @@ So:
   first use. Any of the three failures stops the operation with the OS's own words.
 - A save is whole or absent: written to a temporary file in the target's own folder, flushed to the
   mount, then moved over the target in one step. A save returning is what "saved" means.
-- No write opens the root or a project folder: only make_dir creates a project. Folders inside a
-  project are opened by their first file.
+- No write opens a root or a folder directly under it; only make_dir does. Folders below those are
+  opened by their first file.
 - Missing means FileNotFoundError and nothing else. Every other OSError is raised, never read as
   "nothing there".
 
@@ -103,12 +104,13 @@ class Storage:
         try:
             device = os.stat(self._root).st_dev
         except OSError as exc:
-            raise StorageError(f"Proje köküne ulaşılamıyor: {exc}") from exc
+            # The OS's words name the path, so the one sentence serves whichever root this is.
+            raise StorageError(f"Kök klasöre ulaşılamıyor: {exc}") from exc
         if self._device is None:
             self._device = device
         elif device != self._device:
             raise StorageError(
-                f"Proje kökü başka bir aygıtta: {self._root} ({self._device} → {device})")
+                f"Kök klasör başka bir aygıtta: {self._root} ({self._device} → {device})")
 
     def _folder(self, folder):
         """The folder's absolute path: its names checked first, then the mount."""
@@ -128,8 +130,8 @@ class Storage:
             return [(e.name, e.stat().st_mtime) for e in entries if e.is_dir()]
 
     def make_dir(self, name):
-        """Create a folder directly under the root -- the one way a project folder comes to be.
-        Returns its mtime, or None when the name is already taken."""
+        """Create a folder directly under the root -- the one way a project folder, or an export's
+        own, comes to be. Returns its mtime, or None when the name is already taken."""
         path = self._folder(_checked(name))
         try:
             os.mkdir(path)
@@ -141,7 +143,7 @@ class Storage:
         """Remove the folder and everything in it. Returns False when it was not there -- the
         caller decides whether a missing folder is an error, this layer only reports."""
         if not _parts(folder):
-            raise NameRefused("Proje kökü silinemez.")
+            raise NameRefused("Kök klasör silinemez.")
         try:
             shutil.rmtree(self._folder(folder))
         except FileNotFoundError:
@@ -152,7 +154,7 @@ class Storage:
         """Remove the folder only if nothing is in it. False when it holds something or is not
         there: what is left in a folder is somebody's, and this never takes it along."""
         if not _parts(folder):
-            raise NameRefused("Proje kökü silinemez.")
+            raise NameRefused("Kök klasör silinemez.")
         try:
             os.rmdir(self._folder(folder))
         except FileNotFoundError:
@@ -295,9 +297,9 @@ class Storage:
 
         os.replace rather than os.rename: on Windows rename refuses a target that is already there.
 
-        The temporary file opens in the target's folder or not at all. A folder inside a project is
-        opened only when that is why it failed, and only below the project: the root and the project
-        are never opened by a write, so a project that is not there stays an error.
+        The temporary file opens in the target's folder or not at all. A folder is opened only when
+        that is why it failed, and only below the folder directly under the root: the root and that
+        folder are never opened by a write, so one that is not there stays an error.
         """
         parts = _parts(folder)
         target = self._file(parts, name)
@@ -322,8 +324,9 @@ class Storage:
             raise
 
     def _open_inside(self, parts):
-        """Open the folders below the project, one level at a time. The project's own folder is the
-        first part and is never made here: when it is not there, the first mkdir says so."""
+        """Open the folders below the folder directly under the root, one level at a time. That
+        folder is the first part and is never made here: when it is not there, the first mkdir says
+        so."""
         path = os.path.join(self._root, parts[0])
         for part in parts[1:]:
             path = os.path.join(path, part)

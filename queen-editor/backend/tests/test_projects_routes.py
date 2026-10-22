@@ -165,50 +165,48 @@ def test_the_archive_name_cannot_be_taken_by_a_project(tmp_path):
     assert "ayrılmış" in resp.get_json()["error"]
 
 
-def test_the_exports_folder_cannot_be_taken_by_a_project(tmp_path):
-    """Madde 473: every export would be written into such a project, and the list would not show
-    it. Neither by creating nor by renaming, and nothing is opened or moved."""
+def test_exportlar_is_a_project_name_like_any_other(tmp_path):
+    """Madde 494: exports have a root of their own beside the projects', so the name their folder
+    had here is free again, and a project of that name is listed like any other."""
     client, drive = make_client(tmp_path)
-    client.post("/api/projects", json={"name": "düğün"})
 
     created = client.post("/api/projects", json={"name": "Exportlar"})
-    renamed = client.post("/api/projects/düğün/rename", json={"name": "exportlar"})
 
-    assert (created.status_code, renamed.status_code) == (400, 400)
-    assert "ayrılmış" in created.get_json()["error"]
-    assert "ayrılmış" in renamed.get_json()["error"]
-    assert sorted(path.name for path in drive.iterdir()) == ["düğün"]
+    assert created.status_code == 201
+    assert [p["name"] for p in client.get("/api/projects").get_json()["projects"]] == [
+        "Exportlar"]
+    assert (drive / "Exportlar").is_dir()
 
 
-@pytest.mark.parametrize("folder", [name_rules.EXPORTS_DIR, name_rules.ARCHIVE_DIR])
 @pytest.mark.parametrize("method, url, body", [
     ("delete", "/api/projects/{}", None),
     ("post", "/api/projects/{}/rename", {"name": "nikah"}),
     ("post", "/api/projects/{}/archive", None),
 ], ids=["delete", "rename", "archive"])
-def test_a_reserved_folder_is_not_a_project_a_url_can_reach(tmp_path, folder, method, url, body):
-    """Madde 473: the tunnel is public and has no login, and the exports folder holds every export.
-    A reserved folder is not a project, so a URL naming it finds none -- whatever is in it stays,
-    nothing is halted, and no list draws it as a card. arsiv has had the same exposure since 221."""
+def test_a_reserved_folder_is_not_a_project_a_url_can_reach(tmp_path, method, url, body):
+    """Madde 473: the tunnel is public and has no login. A reserved folder is not a project, so a
+    URL naming it finds none -- whatever is in it stays, nothing is halted, and no list draws it as
+    a card. arsiv has had the exposure since 221, and is the one reserved folder since 494."""
+    folder = name_rules.ARCHIVE_DIR
     halted = []
     client, drive = make_client(tmp_path, halted)
-    (drive / folder / "2026-10-20 14-30 düğün").mkdir(parents=True)
+    (drive / folder / "düğün").mkdir(parents=True)
 
     resp = getattr(client, method)(url.format(folder), json=body)
 
     assert resp.status_code == 404
     assert resp.get_json() == {"error": f"Proje yok: {folder}"}
-    assert (drive / folder / "2026-10-20 14-30 düğün").is_dir()
+    assert (drive / folder / "düğün").is_dir()
     assert not (drive / "nikah").exists()
     assert halted == []
     assert client.get("/api/projects").get_json()["projects"] == []
     assert client.get("/api/projects/archived").get_json()["projects"] == []
 
 
-@pytest.mark.parametrize("folder", [name_rules.EXPORTS_DIR, name_rules.ARCHIVE_DIR])
-def test_a_reserved_folder_has_no_settings_to_read_or_write(tmp_path, folder):
+def test_a_reserved_folder_has_no_settings_to_read_or_write(tmp_path):
     """The panel's settings door asks the same question: a reserved folder is not a project, so a
-    URL naming it finds none, and no settings.json lands among the exports."""
+    URL naming it finds none, and no settings.json lands in it."""
+    folder = name_rules.ARCHIVE_DIR
     client, drive = make_client(tmp_path)
     (drive / folder).mkdir()
     url = f"/api/projects/{folder}/settings"

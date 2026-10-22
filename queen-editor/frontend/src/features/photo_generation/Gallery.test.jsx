@@ -98,7 +98,7 @@ describe("Gallery — the empty project", () => {
 // Madde 472: a gallery the server could not read is never drawn as empty, nor as the list it had
 // before -- the screen says what went wrong instead.
 describe("Gallery — a read that failed", () => {
-  const SAID = "Proje köküne ulaşılamıyor: [Errno 107] Transport endpoint is not connected";
+  const SAID = "Kök klasöre ulaşılamıyor: [Errno 107] Transport endpoint is not connected";
 
   it("says the server's sentence instead of an empty gallery", () => {
     renderGallery({ frames: [], failure: SAID });

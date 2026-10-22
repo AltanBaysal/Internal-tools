@@ -96,7 +96,6 @@ from backend.features.photo_generation.runner import PhotoRunner
 from backend.features.projects.data.project_store import DriveProjectStore
 from backend.features.projects.data.reference_settings_store import DriveReferenceSettingsStore
 from backend.features.projects.data.settings_store import DriveSettingsStore
-from backend.features.projects.domain import name_rules
 from backend.features.projects.domain.usecases.archive_project import (
     archive_project,
     list_archived_projects,
@@ -129,12 +128,15 @@ from backend.web.app import create_app
 # One storage, shared by every feature that keeps files: they are separate features over the same
 # Drive root, and every read and write of it goes through this one door.
 _storage = Storage(config.DRIVE_ROOT)
+# The exports' root beside it (madde 494): a door of its own, so every export is checked and bounded
+# the same way, and nothing an export writes can land among the projects.
+_exports = Storage(config.EXPORT_ROOT)
 
 _project_store = DriveProjectStore(_storage)
 _settings_store = DriveSettingsStore(_storage)
 _reference_settings_store = DriveReferenceSettingsStore(_storage)
 
-_photo_store = DrivePhotoStore(_storage, name_rules.EXPORTS_DIR)
+_photo_store = DrivePhotoStore(_storage, _exports)
 _comfy_client = ComfyClient(config.COMFY_URL, poll_interval=config.POLL_INTERVAL,
                             log_path=config.COMFY_LOG)
 # Each frame goes to its model's graph: Krea 2 Turbo has one of its own (madde 482), every other
@@ -378,5 +380,6 @@ app = create_app(blueprints=[_projects_bp, _reference_settings_bp, _photo_bp, _r
 
 if __name__ == "__main__":
     print(f"Proje kökü: {config.DRIVE_ROOT}")
+    print(f"Export kökü: {config.EXPORT_ROOT}")
     print(f"ComfyUI: {config.COMFY_URL}")
     app.run(host=config.HOST, port=config.PORT)

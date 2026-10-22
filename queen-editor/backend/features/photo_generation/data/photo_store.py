@@ -9,9 +9,11 @@ number -- that claim is the record's to keep (see usecases/start_batch.next_numb
 Listing the folder is deliberately not offered: which photos a project has is the photo record's
 answer, and two ways to ask it would be two ways to disagree.
 
-Drive is reached through the storage door alone, exports included. What an export cuts on the
-machine's own disk -- its pieces, scaffolding thrown away again -- is the one thing here that is not
-Drive, and the one thing handled with tempfile and shutil.
+Drive is reached through the storage door alone, through two of them: the projects' root, and the
+exports' beside it (madde 494) -- every export is written through the second, so nothing it writes
+can land among the projects. What an export cuts on the machine's own disk -- its pieces,
+scaffolding thrown away again -- is the one thing here that is not Drive, and the one thing handled
+with tempfile and shutil.
 """
 import os
 import shutil
@@ -29,7 +31,8 @@ VIDEOS_DIR = "video"
 
 class DrivePhotoStore:
     def __init__(self, storage, exports):
-        """`exports` names the folder beside the projects that every export lands in (madde 473)."""
+        """`storage` is the projects' root; `exports` the root every export lands in, beside it
+        (madde 494)."""
         self._storage = storage
         self._exports = exports
 
@@ -62,30 +65,32 @@ class DrivePhotoStore:
     # --- export ------------------------------------------------------------------------------
 
     def export_dir(self):
-        """Where exports land: one folder beside the projects, the same for every project, so they
-        are found without opening a project first (madde 473). What the screen shows before a run;
-        nothing is opened.
+        """Where exports land: a root of their own beside the projects', the same for every project,
+        so they are found without opening a project first (madde 473, 494). What the screen shows
+        before a run; nothing is opened.
 
-        Named here rather than in the domain, which knows nothing about paths. Exports written
+        Answered here rather than in the domain, which knows nothing about paths. Exports written
         before madde 473 stay where they were, in the project's own export/ folder; nothing new is
         written there.
         """
-        return self._storage.path(self._exports)
+        return self._exports.path(())
 
     def open_export(self, project, stamp):
         """Make ready where one export lands, and say where that is -- what the screen is told.
 
-        The exports folder is opened here, once a run: it sits directly under the root, and no save
-        opens a folder there (madde 472) -- a dropped mount would otherwise have it opened on the
-        machine's own disk. make_dir checks the mount first, and one already there is left as it
-        is. The dated folder inside is opened by its first file, like every folder in an export.
+        The export's own folder is opened here, once a run: it sits directly under the exports'
+        root, and no save opens a folder there -- a folder that is not there stays an error rather
+        than coming back with one file in it (madde 472). One already there -- the other mode's,
+        opened in the same minute -- is left as it is. The folders inside are opened by their
+        first file.
 
         Named date first and project after, down to the minute (design v3, madde 92): the newest
         exports stand together in Drive, and two exports of the same opening land in one folder
         where neither overwrites the other -- their file names never collide.
         """
-        self._storage.make_dir(self._exports)
-        return self._storage.path(self._dated(project, stamp))
+        name = self._dated(project, stamp)
+        self._exports.make_dir(name)
+        return self._exports.path(name)
 
     def copy_photo(self, project, photo, stamp, filename):
         """Put one picture in the export's photos folder, unless it is already there.
@@ -96,10 +101,10 @@ class DrivePhotoStore:
         writing them again buys nothing. Two threads that both find it missing both save it, and a
         save lands whole, so the last one leaves the same whole file.
         """
-        photos = (*self._dated(project, stamp), PHOTOS_DIR)
-        if self._storage.stamp(photos, filename) is not None:
+        photos = (self._dated(project, stamp), PHOTOS_DIR)
+        if self._exports.stamp(photos, filename) is not None:
             return
-        self._storage.save_file(photos, filename, self._storage.path(project, photo))
+        self._exports.save_file(photos, filename, self._storage.path(project, photo))
 
     def copy_video(self, project, stamp, source, filename):
         """Bring one of a separate export's videos in from the machine's own disk, whole, into a
@@ -109,7 +114,7 @@ class DrivePhotoStore:
         them gathered (madde 283). ffmpeg cuts them on the machine now, not onto Drive's mount: what
         reaches Drive goes through the storage door, as one whole file (madde 472).
         """
-        self._storage.save_file((*self._dated(project, stamp), VIDEOS_DIR), filename, source)
+        self._exports.save_file((self._dated(project, stamp), VIDEOS_DIR), filename, source)
 
     def copy_export(self, project, stamp, source, filename):
         """Bring the merged file in from the machine's own disk, whole.
@@ -119,7 +124,7 @@ class DrivePhotoStore:
         end (madde 282). One save, so a half written file is never there to be seen -- a folder that
         looks finished is what madde 94 forbids.
         """
-        self._storage.save_file(self._dated(project, stamp), filename, source)
+        self._exports.save_file(self._dated(project, stamp), filename, source)
 
     def remove_export(self, project, stamp, videos, in_use):
         """Take back what a run that failed or was cancelled wrote, and nothing of anybody else's
@@ -130,17 +135,21 @@ class DrivePhotoStore:
         picture first wrote it, and the other counts on it -- so they go only when no other export
         needs them: none is writing here now (`in_use`, which only the runner knows) and none has
         left its output here, videos or a merged file, which is all that stands in this folder
-        beside the photos. Then each folder goes if it is empty.
+        beside the photos. Then each folder goes if it is empty -- the export's own only when none
+        is writing here: a merged run still cutting its pieces has an empty folder waiting, and
+        once gone its first save would fail on it, since no save opens a folder directly under a
+        root (madde 472, 494).
         """
         folder = self._dated(project, stamp)
-        videos_dir = (*folder, VIDEOS_DIR)
+        videos_dir = (folder, VIDEOS_DIR)
         for name in videos:
-            self._storage.delete_file(videos_dir, name)
-        if not in_use and not (self._storage.list_files(videos_dir)
-                               or self._storage.list_files(folder)):
-            self._storage.delete_dir((*folder, PHOTOS_DIR))
-        self._storage.remove_empty_dir(videos_dir)
-        self._storage.remove_empty_dir(folder)
+            self._exports.delete_file(videos_dir, name)
+        if not in_use and not (self._exports.list_files(videos_dir)
+                               or self._exports.list_files(folder)):
+            self._exports.delete_dir((folder, PHOTOS_DIR))
+        self._exports.remove_empty_dir(videos_dir)
+        if not in_use:
+            self._exports.remove_empty_dir(folder)
 
     def make_pieces_dir(self):
         """An empty folder on the machine's own disk, for files that are thrown away again.
@@ -161,4 +170,4 @@ class DrivePhotoStore:
         shutil.rmtree(pieces, ignore_errors=True)
 
     def _dated(self, project, stamp):
-        return (self._exports, f"{stamp} {project}")
+        return f"{stamp} {project}"

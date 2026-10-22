@@ -4,35 +4,55 @@ import os
 import pytest
 
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
-from backend.features.projects.domain import name_rules
 from backend.services.storage.storage import TEMP_PREFIX, Storage, StorageError
 from backend.tests.test_storage import root_stat_fails
 
 STAMP = "2026-08-12 14-32"
-# The folder main.py hands the store: the one the projects feature keeps from being a project.
-EXPORTS = name_rules.EXPORTS_DIR
 
 
-def store_at(path):
-    return DrivePhotoStore(Storage(str(path)), EXPORTS)
+def projects_of(tmp_path):
+    return tmp_path / "projeler"
 
 
-def project_at(path):
-    """A store over a root holding düğün -- a save never opens a project's folder."""
-    (path / "düğün").mkdir()
-    return store_at(path)
+def exports_of(tmp_path):
+    return tmp_path / "export"
+
+
+def roots(tmp_path):
+    """The two roots the notebook opens side by side: the projects', and the exports' beside it
+    (madde 494)."""
+    projects, exports = projects_of(tmp_path), exports_of(tmp_path)
+    projects.mkdir()
+    exports.mkdir()
+    return projects, exports
+
+
+def store_over(projects, exports):
+    return DrivePhotoStore(Storage(str(projects)), Storage(str(exports)))
+
+
+def store_at(tmp_path):
+    """A store over the two roots, holding no project yet."""
+    return store_over(*roots(tmp_path))
+
+
+def project_at(tmp_path):
+    """A store over the two roots, with düğün in the projects' -- a save never opens a project's
+    folder."""
+    projects, exports = roots(tmp_path)
+    (projects / "düğün").mkdir()
+    return store_over(projects, exports)
 
 
 def test_project_exists_follows_the_folder(tmp_path):
     store = store_at(tmp_path)
-    (tmp_path / "düğün").mkdir()
+    (projects_of(tmp_path) / "düğün").mkdir()
     assert store.project_exists("düğün") is True
     assert store.project_exists("yok") is False
 
 
 def test_next_number_starts_at_zero(tmp_path):
-    (tmp_path / "düğün").mkdir()
-    assert store_at(tmp_path).next_number("düğün") == 0
+    assert project_at(tmp_path).next_number("düğün") == 0
 
 
 def test_delete_removes_the_photo_from_the_project_folder(tmp_path):
@@ -41,28 +61,27 @@ def test_delete_removes_the_photo_from_the_project_folder(tmp_path):
 
     store.delete("düğün", "P0_0.png")
 
-    assert list((tmp_path / "düğün").iterdir()) == []
+    assert list((projects_of(tmp_path) / "düğün").iterdir()) == []
 
 
 def test_next_number_is_highest_plus_one(tmp_path):
-    project = tmp_path / "düğün"
-    project.mkdir()
+    store = project_at(tmp_path)
+    project = projects_of(tmp_path) / "düğün"
     for name in ("0_a.png", "P7_2.png", "3_b.png", "notlar.txt", "_bozuk.png"):
         (project / name).write_bytes(b"x")
     # Both naming schemes claim numbers: the folder can hold frames from before and after.
-    assert store_at(tmp_path).next_number("düğün") == 8
+    assert store.next_number("düğün") == 8
 
 
 def test_a_layer_file_claims_its_frames_number(tmp_path):
-    project = tmp_path / "düğün"
-    project.mkdir()
-    (project / "P4_0_V1_0.mp4").write_bytes(b"x")
-    assert store_at(tmp_path).next_number("düğün") == 5
+    store = project_at(tmp_path)
+    (projects_of(tmp_path) / "düğün" / "P4_0_V1_0.mp4").write_bytes(b"x")
+    assert store.next_number("düğün") == 5
 
 
 def test_save_writes_the_file_and_returns_its_name(tmp_path):
     assert project_at(tmp_path).save("düğün", "P4_0.png", b"PNG") == "P4_0.png"
-    assert (tmp_path / "düğün" / "P4_0.png").read_bytes() == b"PNG"
+    assert (projects_of(tmp_path) / "düğün" / "P4_0.png").read_bytes() == b"PNG"
 
 
 def test_a_photo_is_never_saved_into_a_project_that_is_not_there(tmp_path):
@@ -70,11 +89,11 @@ def test_a_photo_is_never_saved_into_a_project_that_is_not_there(tmp_path):
     with pytest.raises(FileNotFoundError):
         store_at(tmp_path).save("yok", "P4_0.png", b"PNG")
 
-    assert not (tmp_path / "yok").exists()
+    assert not (projects_of(tmp_path) / "yok").exists()
 
 
 def test_photo_dir_is_the_project_folder(tmp_path):
-    assert project_at(tmp_path).photo_dir("düğün") == str(tmp_path / "düğün")
+    assert project_at(tmp_path).photo_dir("düğün") == str(projects_of(tmp_path) / "düğün")
 
 
 def test_a_photos_bytes_can_be_read_back(tmp_path):
@@ -87,57 +106,73 @@ def test_a_photos_bytes_can_be_read_back(tmp_path):
 
 
 def export_folder(tmp_path):
-    """Beside the projects rather than inside one, named date first and project after, so the
-    newest exports stand together in Drive (madde 473)."""
-    return tmp_path / EXPORTS / f"{STAMP} düğün"
+    """In the exports' own root beside the projects', named date first and project after, so the
+    newest exports stand together in Drive (madde 473, 494)."""
+    return exports_of(tmp_path) / f"{STAMP} düğün"
 
 
-def test_opening_an_export_opens_the_exports_folder_and_nothing_inside_it(tmp_path):
-    """A save never opens a folder directly under the root (madde 472), so the exports folder is
-    opened here, once a run. The dated folder is opened by the first file that goes into it."""
+def test_opening_an_export_opens_its_own_folder_in_the_exports_root(tmp_path):
+    """A save never opens a folder directly under a root (madde 472), and an export's own folder
+    sits directly under the exports' root -- so the run opens it, once. Nothing goes among the
+    projects (madde 494)."""
     store = project_at(tmp_path)
 
     assert store.open_export("düğün", STAMP) == str(export_folder(tmp_path))
-    assert (tmp_path / EXPORTS).is_dir()
-    assert list((tmp_path / EXPORTS).iterdir()) == []
+    assert export_folder(tmp_path).is_dir()
+    assert list(export_folder(tmp_path).iterdir()) == []
+    assert sorted(path.name for path in projects_of(tmp_path).iterdir()) == ["düğün"]
 
 
-def test_opening_an_export_leaves_the_exports_already_there_alone(tmp_path):
+def test_opening_an_export_leaves_what_is_already_there_alone(tmp_path):
+    """The other mode, opened in the same minute, already made the folder and wrote into it."""
     store = project_at(tmp_path)
-    earlier = tmp_path / EXPORTS / "2026-08-11 09-00 nikah"
-    earlier.mkdir(parents=True)
-    (earlier / "nikah.mp4").write_bytes(b"MP4")
+    export_folder(tmp_path).mkdir()
+    (export_folder(tmp_path) / "düğün.mp4").write_bytes(b"MP4")
 
-    store.open_export("düğün", STAMP)
+    assert store.open_export("düğün", STAMP) == str(export_folder(tmp_path))
 
-    assert (earlier / "nikah.mp4").read_bytes() == b"MP4"
+    assert (export_folder(tmp_path) / "düğün.mp4").read_bytes() == b"MP4"
 
 
 def test_an_export_opened_while_the_mount_is_gone_opens_nothing(tmp_path, monkeypatch):
-    """The mount check stands before the folder is made: a dropped mount must not leave an exports
+    """The exports' root is checked like the projects': a dropped mount must not leave an export's
     folder on the machine's own disk."""
     store = project_at(tmp_path)
-    root_stat_fails(monkeypatch, str(tmp_path),
+    root_stat_fails(monkeypatch, str(exports_of(tmp_path)),
                     OSError(errno.ENOTCONN, "Transport endpoint is not connected"))
 
     with pytest.raises(StorageError):
         store.open_export("düğün", STAMP)
 
     monkeypatch.undo()
-    assert not (tmp_path / EXPORTS).exists()
+    assert list(exports_of(tmp_path).iterdir()) == []
 
 
-def test_the_screen_is_told_the_exports_folder_and_nothing_is_opened(tmp_path):
+def test_an_export_with_no_exports_root_fails_and_opens_none(tmp_path):
+    """The notebook opens the root, as it opens the projects'. One that is not there is an error,
+    never a folder the app makes on its own."""
+    projects = projects_of(tmp_path)
+    (projects / "düğün").mkdir(parents=True)
+    store = store_over(projects, exports_of(tmp_path))
+
+    with pytest.raises(StorageError):
+        store.open_export("düğün", STAMP)
+
+    assert not exports_of(tmp_path).exists()
+
+
+def test_the_screen_is_told_the_exports_root_and_nothing_is_opened(tmp_path):
     """What the export screen shows before a run: where exports land. The run's own folder is named
     after the minute it starts, which is not known yet."""
     store = project_at(tmp_path)
 
-    assert store.export_dir() == str(tmp_path / EXPORTS)
-    assert not (tmp_path / EXPORTS).exists()
+    assert store.export_dir() == str(exports_of(tmp_path))
+    assert list(exports_of(tmp_path).iterdir()) == []
 
 
-def test_a_save_never_opens_the_exports_folder_itself(tmp_path):
-    """Why a run opens it first: it sits directly under the root, where no save opens a folder."""
+def test_a_save_never_opens_the_exports_own_folder(tmp_path):
+    """Why a run opens it first: it sits directly under the exports' root, where no save opens a
+    folder -- one that is not there stays an error (madde 472)."""
     store = project_at(tmp_path)
     piece = tmp_path / "01.mp4"
     piece.write_bytes(b"MP4")
@@ -145,19 +180,19 @@ def test_a_save_never_opens_the_exports_folder_itself(tmp_path):
     with pytest.raises(FileNotFoundError):
         store.copy_video("düğün", STAMP, str(piece), "01.mp4")
 
-    assert not (tmp_path / EXPORTS).exists()
+    assert list(exports_of(tmp_path).iterdir()) == []
 
 
-def export_at(path):
-    """A store over a root holding düğün, with an export of it opened the way a run opens one."""
-    store = project_at(path)
+def export_at(tmp_path):
+    """A store over the two roots, with düğün and an export of it opened the way a run opens one."""
+    store = project_at(tmp_path)
     store.open_export("düğün", STAMP)
     return store
 
 
-def test_an_export_lands_beside_the_projects_and_leaves_the_project_alone(tmp_path):
-    """Madde 473: "Export dosyaları proje dosyalarının içine değil, ayrı bir klasöre kaydedilsin".
-    Inside, nothing changed: foto/, and video/ or the merged file."""
+def test_an_export_lands_in_its_own_root_and_leaves_the_projects_alone(tmp_path):
+    """Madde 494: "exportları queeneditorun içinde değil queen editorun yanında". Inside, nothing
+    changed: foto/, and video/ or the merged file."""
     store = export_at(tmp_path)
     store.save("düğün", "0_a.png", b"PNG")
     piece = tmp_path / "01.mp4"
@@ -167,16 +202,18 @@ def test_an_export_lands_beside_the_projects_and_leaves_the_project_alone(tmp_pa
     store.copy_photo("düğün", "0_a.png", STAMP, "01.png")
 
     assert sorted(path.name for path in export_folder(tmp_path).iterdir()) == ["foto", "video"]
-    assert sorted(path.name for path in (tmp_path / "düğün").iterdir()) == ["0_a.png"]
+    assert sorted(path.name for path in projects_of(tmp_path).iterdir()) == ["düğün"]
+    assert sorted(path.name for path in (projects_of(tmp_path) / "düğün").iterdir()) == [
+        "0_a.png"]
 
 
 def test_an_old_export_inside_the_project_is_left_where_it_is(tmp_path):
     """Exports written before madde 473 stay in the project's export/ folder: nothing is moved, and
     nothing new goes there."""
-    old = tmp_path / "düğün" / "export" / "2026-08-01 10-00"
+    store = project_at(tmp_path)
+    old = projects_of(tmp_path) / "düğün" / "export" / "2026-08-01 10-00"
     (old / "foto").mkdir(parents=True)
     (old / "düğün.mp4").write_bytes(b"OLD")
-    store = store_at(tmp_path)
     store.open_export("düğün", STAMP)
     joined = tmp_path / "düğün.mp4"
     joined.write_bytes(b"MP4")
@@ -185,7 +222,7 @@ def test_an_old_export_inside_the_project_is_left_where_it_is(tmp_path):
     store.remove_export("düğün", STAMP, [], in_use=False)
 
     assert (old / "düğün.mp4").read_bytes() == b"OLD"
-    assert [path.name for path in (tmp_path / "düğün" / "export").iterdir()] == [
+    assert [path.name for path in (projects_of(tmp_path) / "düğün" / "export").iterdir()] == [
         "2026-08-01 10-00"]
 
 
@@ -261,9 +298,9 @@ def test_an_export_that_did_not_finish_alone_takes_its_folder_and_nothing_else(t
     store.remove_export("düğün", STAMP, ["01.mp4"], in_use=False)
 
     assert not export_folder(tmp_path).exists()
-    # The exports folder is every export's, and stays.
-    assert (tmp_path / EXPORTS).is_dir()
-    assert (tmp_path / "düğün" / "0_a.png").read_bytes() == b"PNG"
+    # The exports' root is every export's, and stays.
+    assert exports_of(tmp_path).is_dir()
+    assert (projects_of(tmp_path) / "düğün" / "0_a.png").read_bytes() == b"PNG"
 
 
 def test_a_merged_export_that_did_not_finish_alone_leaves_nothing_behind(tmp_path):
@@ -275,7 +312,7 @@ def test_a_merged_export_that_did_not_finish_alone_leaves_nothing_behind(tmp_pat
 
     store.remove_export("düğün", STAMP, [], in_use=False)
 
-    assert list((tmp_path / EXPORTS).iterdir()) == []
+    assert list(exports_of(tmp_path).iterdir()) == []
 
 
 def test_a_failed_separate_export_leaves_the_merged_one_beside_it(tmp_path):
@@ -315,6 +352,19 @@ def test_the_photos_stay_while_the_other_export_is_writing_into_the_folder(tmp_p
     folder = export_folder(tmp_path)
     assert sorted(path.name for path in folder.iterdir()) == ["foto"]
     assert (folder / "foto" / "01.png").read_bytes() == b"PNG"
+
+
+def test_the_folder_stays_while_the_other_export_is_writing_into_it(tmp_path):
+    """Madde 494: a merged export cutting its pieces has written nothing to Drive yet, so the
+    folder it opened is empty -- and no save of its own could open it again, directly under the
+    exports' root. A separate run cancelled meanwhile leaves the folder to it."""
+    store = export_at(tmp_path)
+    store.copy_video("düğün", STAMP, a_piece(tmp_path), "01.mp4")
+
+    store.remove_export("düğün", STAMP, ["01.mp4"], in_use=True)
+
+    assert export_folder(tmp_path).is_dir()
+    assert list(export_folder(tmp_path).iterdir()) == []
 
 
 def test_the_pieces_are_cut_off_drive(tmp_path):

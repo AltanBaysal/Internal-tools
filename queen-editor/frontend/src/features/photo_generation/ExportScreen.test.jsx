@@ -26,13 +26,13 @@ vi.mock("../../shared/router.js", () => ({
 // count of its own.
 vi.mock("./useGeneration.js", () => ({ useGeneration: vi.fn() }));
 
-// The folder every export lands in, beside the projects (madde 473); a run's own is named after the
-// minute it starts and the project.
+// The root every export lands in, beside the projects' (madde 494); a run's own folder is named
+// after the minute it starts and the project.
 const SUMMARY = { videos: 22, seconds: 110, silent: 0, withoutVideo: 0,
-                  folder: "/drive/Exportlar" };
+                  folder: "/drive/queenEditorExport" };
 const EMPTY = { videos: 0, seconds: 0, silent: 0, withoutVideo: 0,
-                folder: "/drive/Exportlar" };
-const TARGET = "/drive/Exportlar/2026-08-12 14-32 düğün";
+                folder: "/drive/queenEditorExport" };
+const TARGET = "/drive/queenEditorExport/2026-08-12 14-32 düğün";
 
 const IDLE = { job: { status: "idle" }, frames: [], queue: [] };
 const FLOWING = { job: { status: "running", project: "düğün" }, frames: [],
@@ -94,7 +94,7 @@ describe("ExportScreen", () => {
     await open();
 
     expect(screen.getByText("Şuraya yazılacak:")).toBeTruthy();
-    expect(screen.getByText("/drive/Exportlar")).toBeTruthy();
+    expect(screen.getByText("/drive/queenEditorExport")).toBeTruthy();
   });
 
   it("offers the two exports side by side, both accent", async () => {

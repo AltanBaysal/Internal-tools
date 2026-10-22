@@ -20,7 +20,6 @@ from backend.features.photo_generation.data.photo_store import DrivePhotoStore
 from backend.features.photo_generation.domain.orientation import LANDSCAPE, PORTRAIT
 from backend.features.photo_generation.domain.usecases.run_export import run_export
 from backend.features.photo_generation.export_runner import ExportRunner
-from backend.features.projects.domain import name_rules
 from backend.services.storage.storage import Storage
 from backend.tests.test_photo_usecases import (
     FakeOrderStore,
@@ -31,7 +30,7 @@ from backend.tests.test_photo_usecases import (
 )
 
 MINUTE = "2026-08-12 14-32"         # the export's opening, which names its dated folder
-FOLDER = f"/fake/Exportlar/{MINUTE} düğün"
+FOLDER = f"/fake/queenEditorExport/{MINUTE} düğün"
 # Not under /fake: every piece is cut on the machine's own disk, never on Drive (madde 235, 472).
 PIECES = "/tmp/fake-pieces"
 
@@ -51,13 +50,13 @@ class ExportStore(FakeStore):
         return f"/fake/{project}/{filename}"
 
     def open_export(self, project, stamp):
-        """The real one opens the exports folder beside the projects; that is tested against a
+        """The real one opens the export's folder in the exports' root; that is tested against a
         real folder in test_photo_store.py."""
         self.order.append("open_export")
         return self._folder(project, stamp)
 
     def _folder(self, project, stamp):
-        return f"/fake/Exportlar/{stamp} {project}"
+        return f"/fake/queenEditorExport/{stamp} {project}"
 
     def piece_path(self, pieces, filename):
         return f"{pieces}/{filename}"
@@ -187,16 +186,16 @@ def test_separate_export_numbers_the_videos_from_the_foot_of_the_gallery():
 
 
 class DriveGoneAtOpening(ExportStore):
-    """The mount has dropped before the run begins: the exports folder cannot be opened."""
+    """The mount has dropped before the run begins: the export's folder cannot be opened."""
 
     def open_export(self, project, stamp):
         raise OSError(107, "Transport endpoint is not connected")
 
 
 def test_an_export_opens_its_place_on_drive_before_anything_is_cut():
-    """Madde 473: the exports folder sits directly under the root, where no save opens a folder, so
-    the run opens it first -- and before the machine's own pieces folder, so a mount that refuses
-    leaves nothing to clean up on either disk."""
+    """Madde 473, 494: the export's folder sits directly under the exports' root, where no save
+    opens a folder, so the run opens it first -- and before the machine's own pieces folder, so a
+    mount that refuses leaves nothing to clean up on either disk."""
     _, record, plan_store = with_videos()
     store = DriveGoneAtOpening()
     exporter = FakeExporter()
@@ -710,12 +709,14 @@ class CuttingExporter:
 
 
 def on_drive(tmp_path, project):
-    """A real store over a Drive root holding the project and its two pictures."""
-    drive = tmp_path / "drive"
+    """A real store over a Drive root holding the project and its two pictures, and the exports'
+    root beside it (madde 494) -- which is what comes back, with the store."""
+    drive, exports = tmp_path / "drive", tmp_path / "export"
     (drive / project).mkdir(parents=True)
+    exports.mkdir()
     for photo in ("0_a.png", "1_a.png"):
         (drive / project / photo).write_bytes(photo.encode())
-    return drive, DrivePhotoStore(Storage(str(drive)), name_rules.EXPORTS_DIR)
+    return exports, DrivePhotoStore(Storage(str(drive)), Storage(str(exports)))
 
 
 def export_to(store, runner, project, mode, exporter):
@@ -728,38 +729,38 @@ def test_a_project_named_like_a_piece_gets_a_whole_merged_file(tmp_path):
     """The join was cut as <proje>.mp4 beside pieces named 01.mp4, 02.mp4 …, so a project named 01
     had ffmpeg write over its own first piece. It is cut as birlesik.mp4 now, and Drive still gets
     the project's name."""
-    drive, store = on_drive(tmp_path, "01")
+    exports, store = on_drive(tmp_path, "01")
 
     export_to(store, sync_runner(), "01", "merged", CuttingExporter())
 
-    landed = drive / name_rules.EXPORTS_DIR / f"{MINUTE} 01" / "01.mp4"
+    landed = exports / f"{MINUTE} 01" / "01.mp4"
     assert landed.read_bytes() == b"0_a_V1_0.mp4|1_a_V1_0.mp4|"
 
 
 def test_a_failed_export_leaves_the_one_finished_beside_it_in_the_same_minute(tmp_path):
     """Madde 474: the two modes share the minute's folder, and a failed run used to take all of it.
     Now it takes back its own videos; the merged file and the photos it counts on stay."""
-    drive, store = on_drive(tmp_path, "düğün")
+    exports, store = on_drive(tmp_path, "düğün")
     runner = sync_runner()
     export_to(store, runner, "düğün", "merged", CuttingExporter())
 
     with pytest.raises(RuntimeError):
         export_to(store, runner, "düğün", "separate", CuttingExporter(fails_on="02.mp4"))
 
-    folder = drive / name_rules.EXPORTS_DIR / f"{MINUTE} düğün"
+    folder = exports / f"{MINUTE} düğün"
     assert sorted(path.name for path in folder.iterdir()) == ["düğün.mp4", "foto"]
     assert sorted(path.name for path in (folder / "foto").iterdir()) == ["01.png", "02.png"]
     assert (folder / "düğün.mp4").read_bytes() == b"0_a_V1_0.mp4|1_a_V1_0.mp4|"
 
 
-def test_a_failed_export_alone_leaves_nothing_but_the_exports_folder(tmp_path):
+def test_a_failed_export_alone_leaves_nothing_but_the_exports_root(tmp_path):
     """Nobody else wrote into the folder, so half an export goes whole (madde 94)."""
-    drive, store = on_drive(tmp_path, "düğün")
+    exports, store = on_drive(tmp_path, "düğün")
 
     with pytest.raises(RuntimeError):
         export_to(store, sync_runner(), "düğün", "separate", CuttingExporter(fails_on="02.mp4"))
 
-    assert list((drive / name_rules.EXPORTS_DIR).iterdir()) == []
+    assert list(exports.iterdir()) == []
 
 
 def test_the_state_counts_what_has_been_written():
@@ -880,11 +881,41 @@ def test_the_runner_says_whether_the_other_mode_is_writing_into_a_folder():
 
     assert runner.others_writing("separate", FOLDER) is True
     assert runner.others_writing("merged", FOLDER) is False
-    assert runner.others_writing("separate", "/fake/Exportlar/başka") is False
+    assert runner.others_writing("separate", "/fake/queenEditorExport/başka") is False
 
     runner.report("merged", state="done")
 
     assert runner.others_writing("separate", FOLDER) is False
+
+
+def test_a_cancelled_mode_is_not_counted_as_writing():
+    """It is on its way to taking its own back, not writing on."""
+    runner = ExportRunner(spawn=lambda fn: None)
+    runner.start("merged", lambda: None)
+    runner.report("merged", state="photos", target=FOLDER)
+
+    runner.cancel("merged")
+
+    assert runner.others_writing("separate", FOLDER) is False
+
+
+def test_two_exports_cancelled_together_leave_nothing_behind(tmp_path):
+    """Madde 494: the screen cancels both modes at once, and each cleanup used to see the other as
+    still busy -- so neither took the shared photos or the folder, and a half export stayed."""
+    exports, store = on_drive(tmp_path, "düğün")
+    folder = store.open_export("düğün", MINUTE)
+    store.copy_photo("düğün", "0_a.png", MINUTE, "01.png")
+    runner = ExportRunner(spawn=lambda fn: None)
+    for mode in ("merged", "separate"):
+        runner.start(mode, lambda: None)
+        runner.report(mode, state="photos", target=folder)
+    for mode in ("merged", "separate"):
+        runner.cancel(mode)
+
+    for mode in ("merged", "separate"):
+        store.remove_export("düğün", MINUTE, [], in_use=runner.others_writing(mode, folder))
+
+    assert list(exports.iterdir()) == []
 
 
 class _Answer:

@@ -343,14 +343,14 @@ describe("ProjectScreen — an open project waits for the user", () => {
     // Madde 472: the mount drops, /frames answers 503 with Drive's sentence, and /api/status --
     // which never touches Drive -- goes on answering.
     listFrames.mockRejectedValue(new Error(
-      "Proje köküne ulaşılamıyor: [Errno 107] Transport endpoint is not connected"));
+      "Kök klasöre ulaşılamıyor: [Errno 107] Transport endpoint is not connected"));
     getStatus.mockResolvedValue({ status: "idle" });
 
     renderScreen("kopuk bağlantı");
     await settle();
 
     expect(screen.getByText(
-      "Proje köküne ulaşılamıyor: [Errno 107] Transport endpoint is not connected")).toBeTruthy();
+      "Kök klasöre ulaşılamıyor: [Errno 107] Transport endpoint is not connected")).toBeTruthy();
     expect(screen.queryByText("henüz kare yok")).toBeNull();
   });
 

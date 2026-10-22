@@ -23,7 +23,6 @@ from backend.features.photo_generation.presentation.reference_routes import (
     make_reference_blueprint,
 )
 from backend.features.photo_generation.runner import PhotoRunner
-from backend.features.projects.domain import name_rules
 from backend.services.storage.storage import Storage
 from backend.web.app import create_app
 
@@ -50,7 +49,8 @@ def client_over(drive, dist, clips=None):
     """A server over this Drive folder. A second one is what a restart looks like from here: the
     pool is a folder, not a session."""
     storage = Storage(str(drive))
-    store = DrivePhotoStore(storage, name_rules.EXPORTS_DIR)
+    # Nothing here exports: the exports' root is named and never asked.
+    store = DrivePhotoStore(storage, Storage(str(drive.parent / "export")))
     record = DrivePhotoRecord(storage)
     plan_store = DrivePlanStore(storage)
     gallery = DriveOrderStore(storage)

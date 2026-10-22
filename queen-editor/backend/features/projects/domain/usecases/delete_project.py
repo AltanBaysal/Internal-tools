@@ -12,8 +12,8 @@ There is no separate existence check before the delete: between a check and the 
 can disappear anyway, so the store's own answer ("there was nothing to remove") is the one truth
 worth acting on.
 
-A reserved folder is not a project (name_rules): the tunnel is public, and the exports folder a URL
-could otherwise name holds every export. It is refused before anything is halted or removed.
+A reserved folder is not a project (name_rules): the tunnel is public, and a URL could otherwise
+name it. It is refused before anything is halted or removed.
 """
 from backend.features.projects.domain import name_rules
 from backend.features.projects.domain.usecases.get_settings import ProjectMissing
