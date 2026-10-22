@@ -16,6 +16,11 @@ from backend.features.photo_generation.domain import production_mode
 # fact rather than the scene's. dynv2, the word that wakes the Motion Booster lora, is not asked for
 # either: the user adds it by hand to the prompts that want it (madde 331), and the producer moves it
 # in front (246).
+#
+# The three rules after the soundscape's are the user's, word for word (madde 483, 22 Ekim): the
+# man's voice drowned the woman's ("Erkek sesini azalt"); through a slime girl's translucent body H3
+# moved the penis inside her apart from the man's ("içinde penis ayrı adamın penisi ayrı hareket
+# ediyor"); and her voice and body came out as water ("normal kadının sesi çıksın, su sesi değil").
 H3_VIDEO_INSTRUCTION = """
 You are an expert prompt writer for the MiniMax H3 video model.
 
@@ -46,6 +51,9 @@ Rules
 - If the scenario has spoken words, give the speaker an ID and a short description of the voice, and put the spoken words inside <d> tags, as in: The young man with a warm voice (S1) says: <d>[English] Hello there.</d> Keep the spoken words exactly as in the scenario.
 - If the scenario has no spoken words, write no speech at all, and end overall_soundscape with "No one speaks."
 - In overall_soundscape, write one to four sentences about the sounds of the place, the movement and the breathing. Never repeat the spoken words there.
+- In overall_soundscape, keep the man's sounds few and quiet: write at most his quiet breathing and a few soft grunts. Write the woman's breathing and moans as the main voice.
+- Look at Picture 1. If a woman is a slime girl, with a translucent body made of slime, and the man's penis can be seen through her body, write in [Shot 1] that it is one penis: the part seen inside her body and the part outside are one continuous shaft, and they move together as one piece with the man's hips.
+- If a woman in Picture 1 is a slime girl, write her voice in overall_soundscape as a normal woman's voice: her breathing and moans sound like any woman's. Never write water, liquid, splashing or bubbling sounds for her voice or her body.
 - Write only the prompt. No quotes, no explanations, no extra text.
 """
 
@@ -91,12 +99,13 @@ This video ends on the photo of the next frame. Two photos are given: the first 
 # (madde 426). The video is made with HMCumshot, whose author says the effect "is mostly prompting",
 # that "A thorough description of the cum texture helps a lot!", and that "Sound is still off, I
 # recommend adding explicit sound description in your prompts" -- so the ending, its texture and its
-# sound are asked for in so many words. v1.0 has no trigger word, so none is asked for.
+# sound are asked for in so many words. v1.0 has no trigger word, so none is asked for. The moans are
+# hers, not his groans, so the ending keeps the man quiet too (madde 483).
 HAPPY_ENDING_RULE = """
 This video ends with a cumshot.
 - Write the cumshot as the last thing that happens in [Shot 1], after everything the scenario says.
 - Describe the cum plainly, in concrete words: its color, its texture, how thick and sticky it is, how it shoots out in spurts, where it lands, and how it drips and spreads.
-- In overall_soundscape, write the sound of the cumshot plainly: the moans or groans, the breathing, and the wet sounds of the cum as it shoots out and lands.
+- In overall_soundscape, write the sound of the cumshot plainly: her moans, the breathing, and the wet sounds of the cum as it shoots out and lands.
 """
 
 

@@ -194,6 +194,38 @@ def test_the_two_sentences_that_said_a_length_keep_the_rest_of_their_words():
     assert "from the first frame to the end of the video.\n" in instruction
 
 
+# --- Madde 483: the man's voice, and the slime girl ----------------------------------------------
+
+def test_the_h3_text_keeps_the_man_quiet_and_the_woman_the_main_voice():
+    """The user's words (22 Ekim): "Erkek sesini azalt"."""
+    instruction, _writer = _h3()
+
+    assert ("- In overall_soundscape, keep the man's sounds few and quiet: write at most his quiet "
+            "breathing and a few soft grunts. Write the woman's breathing and moans as the main "
+            "voice.\n") in instruction
+
+
+def test_the_h3_text_says_a_penis_seen_through_a_slime_girl_is_one_piece():
+    """The user's words (22 Ekim): "karakter transparan kadının içinde penis ayrı adamın penisi ayrı
+    hareket ediyor"."""
+    instruction, _writer = _h3()
+
+    assert ("- Look at Picture 1. If a woman is a slime girl, with a translucent body made of slime, "
+            "and the man's penis can be seen through her body, write in [Shot 1] that it is one "
+            "penis: the part seen inside her body and the part outside are one continuous shaft, and "
+            "they move together as one piece with the man's hips.\n") in instruction
+
+
+def test_the_h3_text_gives_a_slime_girl_a_woman_s_voice_and_no_water_sounds():
+    """The user's words (22 Ekim): "bir slime girl ise aynı normal kadının sesi çıksın, su sesi
+    değil" -- for her voice and her body."""
+    instruction, _writer = _h3()
+
+    assert ("- If a woman in Picture 1 is a slime girl, write her voice in overall_soundscape as a "
+            "normal woman's voice: her breathing and moans sound like any woman's. Never write "
+            "water, liquid, splashing or bubbling sounds for her voice or her body.\n") in instruction
+
+
 def _loop_rule():
     from backend.features.photo_generation.data import prompt_writer
     return prompt_writer.LOOP_RULE
@@ -400,6 +432,14 @@ def test_the_happy_ending_asks_for_its_sound_plainly_in_the_soundscape():
     rule = _happy_rule()
 
     assert "overall_soundscape" in rule and "sound" in rule
+
+
+def test_the_happy_ending_asks_for_her_moans_not_his_groans():
+    """Madde 483: the man's sounds stay few and quiet, the ending's too."""
+    rule = _happy_rule()
+
+    assert "her moans" in rule
+    assert "groans" not in rule
 
 
 def test_the_happy_ending_says_no_length_and_asks_for_no_trigger_word():
