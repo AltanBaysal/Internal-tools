@@ -10,6 +10,22 @@ bu akışı nasıl daha basitleştiriz ve agenta bırakırız yükü", "komplesl
 özgürlük sunalım", "abi bunuda backloga alalım yapyalım ilk yöntemden gidleim sonra farkıda görmüş
 oluruz hem".)* **Ayrıntılar kullanıcıyla konuşulacak.**
 
+## Ajanın dosya araçları Claude Code'unkiler gibi olacak
+
+*(Kullanıcı, 20 Ekim — "grep ve read_file gibi araçları geliştir"; 28 Eylül — "büyük dosyalarının
+hepsini de okumak zorunda kalmasın gerekli kısımlarını okusun".)* **v11'de v11-3 olarak hizalandı,
+koşulmadan backlog'a döndü** *(kullanıcı, 22 Ekim — "backloga al")*; hizalanan hâli
+[v11'in](../docs/roadmaps/2026-10-20-queen-agent-v11-roadmap.md) geçmişinde, 22 Ekim'den önceki
+commit'lerde.
+
+**Kararlaşanlar:** önce bir agent Claude Code'un araçlarını ve nasıl çalıştıklarını Türkçe bir belgede
+listeler, ana agent kontrol eder; sonra seçilen araçların tasarımı — Read'in `offset`/`limit`'i, Grep'in
+arama ve çevre satırları gibi — QueenAgent'ın ajanına kopyalanır. Bugünkü yapılı araçlar
+(`set_character`, `add_frame`, …) kalır *(kullanıcı — "set character falan silinmez")*. **Bugün**
+`read_file` dosyanın tamamını döner, grep diye bir araç yok
+*([read_file.py](backend/features/workspace/domain/usecases/read_file.py))*. Araçların modele giden
+açıklamaları `prompt.py`'de *(`READ_FILE`, `THE_FILES_NAME`)*.
+
 ## Token kullanımı optimize edilecek
 
 *(Kullanıcı, 29 Eylül — "queen agentta token kullanımını optimize et", "bunu en son al beraber
