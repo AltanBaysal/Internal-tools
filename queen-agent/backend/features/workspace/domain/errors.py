@@ -53,5 +53,16 @@ class FileNotFound(Exception):
     """The project holds no file by this name."""
 
 
+class ReadOnlyFile(Exception):
+    """A prompt guide (Madde 492): read by anyone, changed and removed by nobody.
+
+    Carries its own sentence, as BadStructure carries its words: the panel's refusal and the agent's
+    tools say it alike.
+    """
+
+    def __init__(self, name):
+        super().__init__(f"{name} is read-only; it is read, not written.")
+
+
 class BadStructure(Exception):
     """No prompts can be built from this file. Carries what is wrong, in words."""

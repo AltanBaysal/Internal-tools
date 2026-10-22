@@ -5,7 +5,17 @@ from backend.features.workspace.domain.skills import INSTRUCTIONS, instruction_f
 # Written out rather than imported: the picker's ids live in the frontend's skills.js and Python
 # cannot read it. If the two ever drift apart, a skill answers with no instruction at all -- so the
 # match is pinned here, in words.
-ALL_SKILLS = ["edit-prompts", "improve", "start-a-scenario"]
+ALL_SKILLS = ["edit-prompts", "krea-edit", "krea-start-scenario", "start-a-scenario"]
+# Madde 492: two skills a model, and each opens by sending the model to its own guide (the user, 22
+# October: "bizim skillimizin başında söyleriz git ve şu skili oku önce").
+SDXL_SKILLS = ["start-a-scenario", "edit-prompts"]
+KREA_SKILLS = ["krea-start-scenario", "krea-edit"]
+FIRST_LINE = {
+    "start-a-scenario": "Read sdxl-prompt-writing.md first.\n\n",
+    "edit-prompts": "Read sdxl-prompt-writing.md first.\n\n",
+    "krea-start-scenario": "Read krea-prompt-writing.md first.\n\n",
+    "krea-edit": "Read krea-prompt-writing.md first.\n\n",
+}
 
 # Madde 94's deletion. The names live here because the proof of a deletion is an absence, and only a
 # test that looks for it sees one -- putting any of them back has to come past this line.
@@ -19,6 +29,9 @@ DELETED = [
     # Madde 185 made the actions one call; what was left of it is Edit prompts, under a name of its
     # own. A record written before today still names this one, and that turn runs on the base text.
     "generate-prompts-plus",
+    # Madde 492, the user's decision of 22 October: "improve skilinin kendisi kalksın". Its checks
+    # stay in the SDXL flow's Steps 6 - 10, for a new scenario.
+    "improve",
 ]
 
 
@@ -31,9 +44,14 @@ def _edit():
     return instruction_for("edit-prompts")
 
 
-def _improve():
-    """Madde 394's skill: the flow's checks, run on a scenario that already exists."""
-    return instruction_for("improve")
+def _krea_flow():
+    """Madde 492's Krea start scenario."""
+    return instruction_for("krea-start-scenario")
+
+
+def _krea_edit():
+    """Madde 492's Krea edit."""
+    return instruction_for("krea-edit")
 
 
 @pytest.mark.parametrize("skill", ALL_SKILLS)
@@ -42,11 +60,35 @@ def test_every_skill_in_the_menu_carries_an_instruction(skill):
 
 
 def test_the_menu_and_the_instructions_carry_the_same_names():
-    # Three since Madde 394. Madde 186 made the first two the halves of the work rather than two
-    # ways into it: one makes a scenario and finishes it, the other fixes what the user points at.
-    # Improve runs the flow's checks again on a scenario that already exists. A name in the menu
-    # with no instruction here is a turn that quietly runs on the base text alone.
+    # Four since Madde 492: a start and an edit for each image model. Madde 186 made a start and an
+    # edit the halves of the work rather than two ways into it. A name in the menu with no
+    # instruction here is a turn that quietly runs on the base text alone.
     assert sorted(INSTRUCTIONS) == sorted(ALL_SKILLS)
+
+
+@pytest.mark.parametrize("skill", ALL_SKILLS)
+def test_every_skill_opens_by_sending_the_model_to_its_guide(skill):
+    # The guides ride in no request on their own (the user, 22 October: "hiçbiri gitmez"), so the
+    # skill is what says to read one, and says it first.
+    assert instruction_for(skill).startswith(FIRST_LINE[skill])
+
+
+@pytest.mark.parametrize("skill", KREA_SKILLS)
+def test_a_krea_skill_says_nothing_about_sdxl(skill):
+    # Each model's rules in its own place (the user, 22 October).
+    said = instruction_for(skill)
+    assert "krea-prompt-writing.md" in said
+    # Asked after the presence above, so the absence cannot pass on a text nobody wrote.
+    assert "sdxl" not in said.lower()
+    assert "Danbooru" not in said
+    assert "The image model is weak" not in said
+
+
+@pytest.mark.parametrize("skill", SDXL_SKILLS)
+def test_an_sdxl_skill_says_nothing_about_krea(skill):
+    said = instruction_for(skill)
+    assert "sdxl-prompt-writing.md" in said
+    assert "krea" not in said.lower()
 
 
 @pytest.mark.parametrize("skill", DELETED)
@@ -202,16 +244,15 @@ def test_no_instruction_opens_a_pov_entry():
         assert "pov_" not in said, skill
 
 
-def test_no_instruction_carries_the_prompt_rules():
-    # It was one text with two readers until Madde 94 took the checking skill away, and one reader
-    # until Madde 96 moved it out of the texts entirely. Madde 172 moved it to the six tools that
-    # take tags, and Madde 453 into one document sent behind the system prompt in every request.
-    # That document carries a copy of the flow's image-model rules, and the skills keep theirs on
-    # purpose -- the model is weak (the user, 10 October: "Evet, kopyası belgeye de girsin"). The
-    # whole document copied back into a skill would be a second one in the same request.
-    from backend.features.workspace.domain.prompt import SDXL_DOCUMENT
+def test_no_instruction_carries_a_whole_guide():
+    # Madde 453 gathered the rules into one document, and Madde 492 made it one of two guides the
+    # skill sends the model to read. The guide carries a copy of the flow's image-model rules, and
+    # the skills keep theirs on purpose -- the model is weak (the user, 10 October: "Evet, kopyası
+    # belgeye de girsin"). A whole guide copied into a skill would be a second one in the same turn.
+    from backend.features.workspace.domain.prompt import GUIDES
 
-    assert not [skill for skill in INSTRUCTIONS if SDXL_DOCUMENT in INSTRUCTIONS[skill]]
+    for name, guide in GUIDES.items():
+        assert not [skill for skill in INSTRUCTIONS if guide in INSTRUCTIONS[skill]], name
 
 
 def test_a_place_gets_a_mirror_only_when_the_user_asks():
@@ -289,9 +330,11 @@ def test_the_scenes_are_written_in_english_with_the_words_in_quotes():
     assert "- Write each scene in English.\n" in said
     assert "inside quotes, in natural, well-written English" in said
     assert "one sentence" not in said
-    # The field the scene is written into says the same, or the two would disagree.
-    assert "in English" in ADD_FRAME_SCENE
-    assert "one sentence" not in ADD_FRAME_SCENE
+    # Madde 492: the field's "Never tags" left the tool, and the flow's own step says it instead
+    # (the user, 22 October). The field says what a scene is, and no rule about writing one.
+    assert "- Write each scene in sentences, never as tags.\n" in said
+    assert "in English" not in ADD_FRAME_SCENE
+    assert "tags" not in ADD_FRAME_SCENE.lower()
 
 
 def test_the_scenario_is_opened_once_with_the_characters():
@@ -655,123 +698,96 @@ def test_the_checks_are_written_in_the_flow_itself():
     # The owner, 30 September: no separate fields. A line of these steps found in another of the
     # module's texts is a line kept somewhere else and joined in -- the shape that was taken back.
     #
-    # The editor's text is left out: it is a skill of its own and joined into nothing, and since
-    # Madde 393 both skills close a change with the same plain line, build the prompts again.
-    # Improve's is left out as well: Madde 394, the owner's decision of 30 September, copies these
-    # steps into it word for word, and it too is a skill of its own, joined into nothing.
+    # The editors' texts are left out: each is a skill of its own and joined into nothing, and since
+    # Madde 393 every editor closes a change with the same plain line, build the prompts again. The
+    # Krea flow is a skill of its own as well (Madde 492).
     from backend.features.workspace.domain import prompt
 
+    skills = ("START_A_SCENARIO", "EDIT_PROMPTS", "KREA_START_SCENARIO", "KREA_EDIT")
     lines = [
         line for number in CHECKS for line in _step(number).splitlines() if line.startswith("- ")
     ]
     assert lines
     for name, value in vars(prompt).items():
-        if isinstance(value, str) and name not in ("START_A_SCENARIO", "EDIT_PROMPTS", "IMPROVE"):
+        if isinstance(value, str) and name not in skills:
             for line in lines:
                 assert line not in value, (name, line)
 
 
-# --- Improve: the checks on a scenario that already exists (Madde 394) ----------------------------
+# --- Krea: a start and an edit of its own (Madde 492) ---------------------------------------------
 #
-# 30 September, the owner: Improve is a skill of its own, like Edit prompts, and its text is Start a
-# scenario's Steps 6 - 10 copied word for word -- only the context at the head differs. Written with
-# the owner line by line: the steps are numbered 1 - 5, Step 5's six rules move into the context,
-# and the prompts are built once before the steps.
+# 22 October, the user: "Krea start scenario olacak, bir de Krea edit olacak". Simple texts in the
+# shape of the SDXL two, carrying no SDXL rule; how a character is described is left open ("şu an bu
+# kısıtlamalara girmeyelim"). The Krea flow asks the name and the style first ("senaryo başlarken
+# sorulsun"), and keeps the characters' and places' looks in a notes file.
 
-IMPROVE_STEPS = (
-    "Step 1 -- fit each scene into four seconds",
-    "Step 2 -- fit each prompt into one photo",
-    "Step 3 -- remove tags hidden by the camera angle",
-    "Step 4 -- simplify prompts too hard to draw",
-    "Step 5 -- write the negative list",
+KREA_STEPS = (
+    "Step 1 -- open the scenario with its name and style",
+    "Step 2 -- write the scenes",
+    "Step 3 -- write the notes",
+    "Step 4 -- add the frames with their prompts",
+    "Step 5 -- build the prompts",
 )
-IMPROVE_CHECKS = [1, 2, 3, 4]
 
 
-def _improve_step(number):
-    """One step of Improve by its own number, cut the way _step cuts the flow's."""
-    said = _improve()
-    start = said.index(IMPROVE_STEPS[number - 1])
-    if number == len(IMPROVE_STEPS):
+def _krea_step(number):
+    """One step of the Krea flow by its own number, cut the way _step cuts the SDXL flow's."""
+    said = _krea_flow()
+    start = said.index(KREA_STEPS[number - 1])
+    if number == len(KREA_STEPS):
         return said[start:]
-    return said[start : said.index(IMPROVE_STEPS[number])]
+    return said[start : said.index(KREA_STEPS[number])]
 
 
-def test_improve_opens_as_a_persona():
-    # The owner: the same writer as the other two skills, and the context says the scenario is
-    # already there -- Improve checks a scenario, it never starts one.
-    said = _improve()
-    assert said.startswith("You are an expert scenario writer and prompt writer.")
-    assert "You improve an existing scenario JSON" in said
-
-
-def test_improve_runs_five_numbered_steps():
-    # Madde 108's reason holds here too: a stage outside the numbered list is a stage a weak model
-    # walks past. The flow's ten are its own; Improve counts from one.
-    said = _improve().lower()
+def test_the_krea_flow_runs_five_steps_in_order():
+    said = _krea_flow()
     assert "five steps" in said
-    assert "ten steps" not in said
-    for step in IMPROVE_STEPS:
-        assert step.lower() in said, step
-
-
-def test_improves_steps_are_written_in_the_order_they_run():
-    # The flow's order: the scenes are fitted before the prompts are cut, and the negative list is
-    # written once the prompts are final.
-    said = _improve()
-    places = [said.index(step) for step in IMPROVE_STEPS]
+    places = [said.index(step) for step in KREA_STEPS]
     assert places == sorted(places)
 
 
-@pytest.mark.parametrize("number", IMPROVE_CHECKS)
-def test_every_improve_check_says_why_then_reviews_then_fixes(number):
-    # The flow's checks, numbered from one: the reason first, then the review written to a file of
-    # the check's own -- or no file when nothing fails -- then a fix of the listed frames alone.
-    said = _improve_step(number)
-    places = [said.index(part) for part in ("Context", "Part 1 -- review", "Part 2 -- fix")]
-    assert places == sorted(places)
-    assert f"-review-{number}.md" in said
-    assert "write no review file" in said
-    assert "Fix only the frames in the review file." in said
+def test_the_krea_flow_asks_the_name_and_the_style_first():
+    said = _krea_step(1)
+    assert "the name of the scenario and for the style of the photos" in said
+    assert "Open the scenario file once, with the name and the style." in said
 
 
-@pytest.mark.parametrize("number", IMPROVE_CHECKS)
-def test_improves_checks_wait_for_no_approval(number):
-    # The owner: update directly. Nothing in Improve asks for a yes, so each check says it goes on.
-    said = _improve_step(number)
-    assert "This step waits for no approval." in said
-    assert f"Go on to Step {number + 1} in the same turn." in said
+def test_the_krea_flow_writes_the_scenes_by_the_scene_rules():
+    said = _krea_step(2)
+    assert "- Write each scene in English.\n" in said
+    assert "- Write each scene in sentences, never as tags.\n" in said
+    assert "inside quotes, in natural, well-written English" in said
+    assert "short enough for four seconds" in said
 
 
-def test_improve_ends_by_writing_the_negative_list():
-    # The flow's last step, unchanged: one list for the whole scenario, in a file of its own, and
-    # the user is told the work is complete -- no approval line at the end.
-    said = _improve_step(5)
-    assert "-negative.md" in said
-    # Asked after the presence above, so the absence cannot pass on a text nobody wrote.
-    assert "approval" not in said
-    assert _improve().endswith(LAST_WORD)
+def test_the_krea_flow_keeps_the_looks_in_a_notes_file():
+    # The user, 22 October: the notes go into <scenario>-notes.md.
+    said = _krea_step(3)
+    assert "-notes.md" in said
+    assert "beach-notes.md for beach.krea.json" in said
 
 
-def test_improves_context_carries_the_six_rules():
-    # The owner: the rules of the flow's Step 5 go into Improve's context, in front of the steps,
-    # and a check that changes a frame updates the frame by them. Step 1 says the rules rather than
-    # the rules of Step 5: Improve's own Step 5 is the negative list.
-    said = _improve()
-    context = said[: said.index("Before the steps:")]
-    for number in range(1, 7):
-        assert f"- Rule {number}:" in context, number
-    assert "Update each changed frame and each new frame by the rules." in _improve_step(1)
+def test_the_krea_flow_adds_the_frames_from_the_notes_in_one_go():
+    # One call writes many frames; a call per frame would spend the turn's rounds.
+    said = _krea_step(4)
+    assert "from the notes" in said
+    assert "many frames in one go" in said
+    assert "This step waits for no approval. Go on to Step 5 in the same turn." in said
 
 
-def test_improve_builds_the_prompts_before_the_first_step():
-    # The checks read the built prompt file, and a scenario changed since its last build would be
-    # checked against an old one -- so the file is read and the prompts are built once, before
-    # Step 1.
-    said = _improve()
-    before = said[said.index("Before the steps:") : said.index(IMPROVE_STEPS[0])]
-    assert "- Read the scenario file named in the request." in before
-    assert "- Build the prompts, so the built prompt file matches the scenario file." in before
+def test_the_krea_flow_ends_by_saying_the_prompts_are_complete():
+    said = _krea_flow()
+    assert "- Build the prompts.\n" in _krea_step(5)
+    assert said.endswith("never print the prompts back.")
+
+
+def test_the_krea_editor_reads_the_scenario_and_its_notes():
+    said = _krea_edit()
+    assert "You change an existing Krea scenario JSON." in said
+    assert "and the notes file of the scenario" in said
+    assert "goes into the notes file too" in said
+    assert "Build the prompts again." in said
+    assert "The built prompt file is the answer: never print the prompts back." in said
 
 
 @pytest.mark.parametrize("skill", ALL_SKILLS)
@@ -780,16 +796,17 @@ def test_every_skill_says_what_the_prompts_are_for(skill):
     # where would it know it from? Neither text said what the prompts are for.
     #
     # Madde 393, the owner: what the work is for is a video now. Every text opens with a context
-    # that says the prompt makes a photo, the video starts from the photo, and the image model is
-    # weak. The owner took the model's name out -- the context says what the model is like instead.
-    #
-    # Asked without the full stop since Madde 394: Improve says it in one sentence with what the
-    # model does with a tag, "The image model is weak and draws every tag", and the claim is the
-    # weakness rather than where the sentence ends.
+    # that says the prompt makes a photo and the video starts from the photo. The owner took the
+    # model's name out -- the context says what the model is like instead.
     said = instruction_for(skill)
     assert "The prompt of the frame makes a photo. The video starts from the photo." in said
-    assert "The image model is weak" in said
     assert "SDXL" not in said
+
+
+@pytest.mark.parametrize("skill", SDXL_SKILLS)
+def test_every_sdxl_skill_says_the_image_model_is_weak(skill):
+    # Madde 393's other half, and an SDXL rule: since Madde 492 it stays with the SDXL skills.
+    assert "The image model is weak" in instruction_for(skill)
 
 
 def test_the_plan_no_longer_opens_with_a_line_of_context():
@@ -801,16 +818,25 @@ def test_the_plan_no_longer_opens_with_a_line_of_context():
     assert "inherits the work" not in said
 
 
+def _after_the_first_line(skill):
+    """The text behind the line that sends the model to its guide (Madde 492)."""
+    return instruction_for(skill)[len(FIRST_LINE[skill]) :]
+
+
 def test_the_flow_opens_as_a_persona():
     # Madde 123, the user's own framing: you are an expert scenario writer laying the ground,
     # and an expert prompt writer takes over. A role holds a weak model better than a rule list.
-    assert _flow().startswith("You are an expert scenario writer")
+    # Since Madde 492 behind the line that sends the model to its guide.
+    assert _after_the_first_line("start-a-scenario").startswith("You are an expert scenario writer")
 
 
-def test_the_editor_opens_as_a_persona():
-    # Madde 393, the owner: the same writer as the flow -- only the context differs, a scenario that
-    # already exists rather than one to create.
-    assert _edit().startswith("You are an expert scenario writer and prompt writer.")
+@pytest.mark.parametrize("skill", ["edit-prompts", "krea-start-scenario", "krea-edit"])
+def test_the_other_skills_open_as_the_same_persona(skill):
+    # Madde 393, the owner: the same writer as the flow -- only the context differs. The Krea two
+    # are the same writer for another model.
+    assert _after_the_first_line(skill).startswith(
+        "You are an expert scenario writer and prompt writer."
+    )
 
 
 # --- the ritual openings (Madde 107) --------------------------------------------------------------
@@ -911,10 +937,13 @@ def test_the_texts_stay_short_enough_to_be_read():
     # list, and its context carries the owner's own lessons -- what the list is for, what it must
     # never hold, and what to write instead.
     #
-    # Madde 394 gives Improve a cap of its own, written here as the rule asks. The owner wrote its
-    # text line by line as the flow's Steps 6 - 10 word for word, with Step 5's six rules in its
-    # context and a short block before the steps that reads the file and builds the prompts. The cap
-    # is what that text came to and a few words of room -- not room for the next sentence.
-    assert len(_flow().split()) <= 1830
+    # Madde 492 raises the flow's to 1835, on the user's written decision of 22 October: Step 4
+    # says a scene is never tags, the sentence that left the scene field, so the scene rules read
+    # the same in the flow, the Krea flow and both guides. The line that sends each skill to its
+    # guide fits under the old caps. The Krea two get caps of their own, written here as the rule
+    # asks: what the texts came to and a few words of room -- not room for the next sentence.
+    # Improve's went with it.
+    assert len(_flow().split()) <= 1835
     assert len(_edit().split()) <= 205
-    assert len(_improve().split()) <= 1480
+    assert len(_krea_flow().split()) <= 430
+    assert len(_krea_edit().split()) <= 270

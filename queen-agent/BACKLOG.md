@@ -26,6 +26,13 @@ arama ve çevre satırları gibi — QueenAgent'ın ajanına kopyalanır. Bugün
 *([read_file.py](backend/features/workspace/domain/usecases/read_file.py))*. Araçların modele giden
 açıklamaları `prompt.py`'de *(`READ_FILE`, `THE_FILES_NAME`)*.
 
+## `tools.py` SDXL ve Krea diye bölünecek
+
+*(Kullanıcı, 22 Ekim — "ileride böleriz".)* 492'yle *(v11-5)* Krea'nın araçları eklenince `tools.py`
+yaklaşık 1500 satıra çıktı *(492'nin reviewer'ı)*. SDXL araçları bir dosyaya, Krea araçları başka bir
+dosyaya taşınır; ortak araçlar (`remove_frame`, `build_prompts`, dosya araçları) ayrı kalır.
+**Ayrıntılar kullanıcıyla konuşulacak.**
+
 ## Token kullanımı optimize edilecek
 
 *(Kullanıcı, 29 Eylül — "queen agentta token kullanımını optimize et", "bunu en son al beraber

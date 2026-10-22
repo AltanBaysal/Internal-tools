@@ -174,7 +174,8 @@ def _tags(parts):
 
 
 def _quoted(text):
-    # Tags carry no quotes in practice, but a file that will not parse is worse than an ugly one.
+    # A Krea prompt is sentences and can quote words (Madde 492), and a file that will not parse is
+    # worse than an ugly one.
     escaped = text.replace("\\", "\\\\").replace('"""', '\\"\\"\\"')
     # A quote at the very end would run into the closing three and end the string early.
     return f'{escaped[:-1]}\\"' if escaped.endswith('"') else escaped

@@ -12,7 +12,7 @@ test("with nothing selected the button says Skills and stays quiet", () => {
 
 test("a selected skill gives the button its name and its warm tone", () => {
   const { container } = render(<SkillPicker skill="edit-prompts" />);
-  expect(screen.getByRole("button", { name: /Edit prompts/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /SDXL edit/ })).toBeTruthy();
   expect(container.querySelector(".picker--on")).toBeTruthy();
 });
 
@@ -23,22 +23,19 @@ test("open, it lists every skill under a label", () => {
   expect(screen.getByText(SKILLS[0].detail)).toBeTruthy();
 });
 
-test("open, Improve is the last row, right after Edit prompts", () => {
-  // Madde 394: the third row goes at the end, so the two that were there keep their places.
+test("open, the SDXL two lead and the Krea two follow", () => {
+  // Madde 492: the two that were there keep their places, under names that say their model.
   const { container } = render(<SkillPicker skill="" open />);
   const names = [...container.querySelectorAll(".menu__item-name")].map(
     (name) => name.textContent,
   );
-  expect(names).toEqual(["Start a scenario", "Edit prompts", "Improve"]);
-  const detail =
-    "Check a scenario you already have, fix what fails, and write its negative list again.";
-  expect(screen.getByText(detail)).toBeTruthy();
+  expect(names).toEqual(["SDXL start scenario", "SDXL edit", "Krea start scenario", "Krea edit"]);
 });
 
 test("choosing one hands the id over", () => {
   const onChange = vi.fn();
   render(<SkillPicker skill="" open onChange={onChange} />);
-  fireEvent.click(screen.getByText("Edit prompts"));
+  fireEvent.click(screen.getByText("SDXL edit"));
   expect(onChange).toHaveBeenCalledWith("edit-prompts");
 });
 
@@ -47,7 +44,7 @@ test("pressing the selected one clears it", () => {
   // back there.
   const onChange = vi.fn();
   render(<SkillPicker skill="edit-prompts" open onChange={onChange} />);
-  fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
+  fireEvent.click(screen.getByText("SDXL edit", { selector: ".menu__item-name" }));
   expect(onChange).toHaveBeenCalledWith("");
 });
 
@@ -55,7 +52,7 @@ test("the selected row is the marked one", () => {
   const { container } = render(<SkillPicker skill="edit-prompts" open />);
   const checked = [...container.querySelectorAll(".menu__item--checked")];
   expect(checked.length).toBe(1);
-  expect(checked[0].textContent).toContain("Edit prompts");
+  expect(checked[0].textContent).toContain("SDXL edit");
 });
 
 // Whether a picker is open is App's business now: Escape closes them in a fixed order and one menu

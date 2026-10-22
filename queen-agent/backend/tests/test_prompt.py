@@ -57,24 +57,97 @@ def test_every_text_a_tool_carries_comes_from_the_prompt_module():
             assert said in known, function["name"]
 
 
-def test_no_tool_carries_the_sdxl_document():
-    # Madde 453. It rides once, behind the system prompt, where its rules used to ride six times --
-    # once on each tool that takes tags. A copy back on a tool is paid for on every request.
+def _rules_of(guide):
+    """A guide's rules, one per line, without the dash they are listed with."""
+    from backend.features.workspace.domain.prompt import GUIDES
+
+    return [line[2:] for line in GUIDES[guide].splitlines() if line.startswith("- ")]
+
+
+GUIDE_NAMES = ["sdxl-prompt-writing.md", "krea-prompt-writing.md"]
+
+
+@pytest.mark.parametrize("guide", GUIDE_NAMES)
+def test_no_tool_carries_a_guides_rule(guide):
+    # Madde 492, the user's decision of 22 October: a model's prompt rules stand in its own guide
+    # and its own skills and nowhere else ("model instructlarını onunla alakalı skill hariç hiçbir
+    # yerde olmadığından emin olalım"). A tool's description says what the tool does and what a
+    # field holds; a rule copied back onto one would ride every request, in front of either model.
     #
-    # Line by line as well as whole: a copy of one rule, or of the document with a line changed,
-    # is the same rule said twice and would slip past a search for the whole text.
-    from backend.features.workspace.domain.prompt import SDXL_DOCUMENT
+    # Line by line: a copy of one rule is the same rule said twice and would slip past a search for
+    # the whole text.
     from backend.features.workspace.domain.tools import TOOL_SPECS
 
-    rules = [line[2:] for line in SDXL_DOCUMENT.splitlines() if line.startswith("- ")]
-    # Before the loop: an empty document would let it pass over nothing.
-    assert len(rules) > 10
+    rules = _rules_of(guide)
+    # Before the loop: an empty guide would let it pass over nothing.
+    assert len(rules) > 5
     for spec in TOOL_SPECS:
         function = spec["function"]
         said = [function["description"], *_descriptions_in(function["parameters"]["properties"])]
         for text in said:
             for rule in rules:
                 assert rule not in text, (function["name"], rule)
+
+
+@pytest.mark.parametrize("guide", GUIDE_NAMES)
+def test_the_system_prompt_carries_no_guides_rule(guide):
+    # The same decision for the text every request opens with: no rule goes out in a turn that has
+    # no skill selected (the user, 22 October: "hiçbiri gitmez").
+    rules = _rules_of(guide)
+    assert rules
+    for rule in rules:
+        assert rule not in SYSTEM_PROMPT, rule
+
+
+def test_there_are_two_guides_and_both_say_something():
+    from backend.features.workspace.domain.prompt import GUIDES
+
+    assert sorted(GUIDES) == sorted(GUIDE_NAMES)
+    for name, text in GUIDES.items():
+        assert text.strip(), name
+
+
+def test_the_krea_guide_says_nothing_about_sdxl():
+    # Each model's rules in its own place, never in the other's.
+    from backend.features.workspace.domain.prompt import GUIDES
+
+    said = GUIDES["krea-prompt-writing.md"]
+    assert "Write the prompt in English, as one paragraph of plain sentences." in said
+    # Asked after the presence above, so the absence cannot pass on a text nobody wrote.
+    for word in ("SDXL", "Danbooru", "Write tags", "Rule 1"):
+        assert word not in said, word
+
+
+def test_the_sdxl_guide_says_nothing_about_krea():
+    from backend.features.workspace.domain.prompt import GUIDES
+
+    said = GUIDES["sdxl-prompt-writing.md"]
+    assert "Write tags, never sentences." in said
+    assert "krea" not in said.lower()
+
+
+def test_the_sdxl_guide_carries_the_rules_the_tools_gave_up():
+    # Madde 492's audit: what left the tool texts was a rule the guide did not already have -- solo,
+    # who leads a frame, the fixed order -- and the scene's own rules (the user, 22 October).
+    from backend.features.workspace.domain.prompt import GUIDES
+
+    said = GUIDES["sdxl-prompt-writing.md"]
+    assert "Never write solo in a character's entry." in said
+    assert "Whoever is written first among a frame's characters leads the frame's prompt." in said
+    assert "fixed order, so a character reads the same in all of them" in said
+    assert "## The scene" in said
+
+
+@pytest.mark.parametrize("guide", GUIDE_NAMES)
+def test_both_guides_carry_the_scene_rules(guide):
+    # The scene becomes the video in either model, so each guide says how one is written.
+    from backend.features.workspace.domain.prompt import GUIDES
+
+    scene = GUIDES[guide].split("## The scene")[1]
+    assert "- Write each scene in English.\n" in scene
+    assert "- Write each scene in sentences, never as tags.\n" in scene
+    assert "inside quotes" in scene
+    assert "four seconds" in scene
 
 
 @pytest.mark.parametrize(
@@ -87,6 +160,9 @@ def test_no_tool_carries_the_sdxl_document():
         # the same failure as one put back under the new one.
         ("skills", "GENERATE_PROMPTS_PLUS"),
         ("skills", "EDIT_PROMPTS"),
+        # Madde 492. The SDXL document is a guide's body now, and Improve is gone.
+        ("prompt", "SDXL_DOCUMENT"),
+        ("prompt", "IMPROVE"),
     ],
 )
 def test_no_text_is_still_written_down_where_it_used_to_live(module, name):
@@ -96,19 +172,20 @@ def test_no_text_is_still_written_down_where_it_used_to_live(module, name):
     after the text has moved. What this madde forbids is the text being *written* in two places, and
     only the source says where it was written. test_notebook.py watches its notebook the same way.
     """
-    from backend.features.workspace.domain import skills, tools
+    from backend.features.workspace.domain import prompt, skills, tools
 
-    source = Path({"tools": tools, "skills": skills}[module].__file__).read_text(encoding="utf-8")
+    modules = {"tools": tools, "skills": skills, "prompt": prompt}
+    source = Path(modules[module].__file__).read_text(encoding="utf-8")
     assert f"{name} = " not in source, f"{name} is still assigned in {module}.py"
 
 
 MUST_BE_FULL = (
     "SYSTEM_PROMPT",
     "LAST_ROUND",
-    "SDXL_DOCUMENT",
     "START_A_SCENARIO",
     "EDIT_PROMPTS",
-    "IMPROVE",
+    "KREA_START_SCENARIO",
+    "KREA_EDIT",
 )
 """The texts this app writes, and every one of them says something.
 

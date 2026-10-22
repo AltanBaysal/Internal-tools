@@ -19,7 +19,13 @@ from backend.features.workspace.domain.build_prompts import (
     prompts_name,
     render_module,
 )
-from backend.features.workspace.domain.errors import BadStructure
+from backend.features.workspace.domain.errors import BadStructure, ReadOnlyFile
+from backend.features.workspace.domain.krea_prompts import (
+    EMPTY_KREA_SCENARIO,
+    FRAME_KEYS,
+    build_krea_prompts,
+    krea_problems,
+)
 
 # What the model is told, separately whether a file was born, and separately the file the call was
 # about. Parsing the sentence back out would be fragile.
@@ -56,17 +62,32 @@ DEFAULT_NAME = "note.md"
 # here: the file was already there.
 WRITES_FILES = {
     "create_file",
-    "start_scenario",
+    "sdxl_start_scenario",
+    "krea_start_scenario",
     "build_prompts",
 }
 
-# What a scenario is on the day it is born (Madde 167). The one place this shape is written down:
-# the maps empty and waiting, and no frames -- a scenario opens with nobody in it, and the tools
-# that follow are what put someone there.
+# What an SDXL scenario is on the day it is born (Madde 167). The one place this shape is written
+# down: the maps empty and waiting, and no frames -- a scenario opens with nobody in it, and the
+# tools that follow are what put someone there.
 #
 # Dumped rather than copied, everywhere it is used. What goes to disk is text, and a constant nobody
 # can reach into cannot be edited by accident from across the module.
 EMPTY_SCENARIO = {"characters": {}, "outfits": {}, "locations": {}, "frames": []}
+
+# The two kinds of scenario (Madde 492), each named in the file's name: plaj.sdxl.json and
+# plaj.krea.json (the user, 22 October). How the kind is written in a sentence goes with it.
+KINDS = {"sdxl": "an SDXL", "krea": "a Krea"}
+
+# What a frame without its scene is told, in either kind, born or changed: a scene is the one thing
+# no frame is without.
+_NEEDS_A_SCENE = "a scene needs a sentence saying what happens."
+
+# What a Krea frame cannot be without, said the same way whether it is being added or changed. The
+# keys are krea_prompts' FRAME_KEYS, in their order, so the shape is written in one place.
+_KREA_NEEDS = dict(
+    zip(FRAME_KEYS, (_NEEDS_A_SCENE, "a prompt needs the words that describe the photo."))
+)
 
 TOOL_SPECS = [
     {
@@ -99,7 +120,7 @@ TOOL_SPECS = [
     {
         "type": "function",
         "function": {
-            "name": "start_scenario",
+            "name": "sdxl_start_scenario",
             "description": prompt.START_SCENARIO,
             "parameters": {
                 "type": "object",
@@ -133,7 +154,7 @@ TOOL_SPECS = [
     {
         "type": "function",
         "function": {
-            "name": "set_character",
+            "name": "sdxl_set_character",
             "description": prompt.SET_CHARACTER,
             "parameters": {
                 "type": "object",
@@ -150,7 +171,7 @@ TOOL_SPECS = [
     {
         "type": "function",
         "function": {
-            "name": "remove_character",
+            "name": "sdxl_remove_character",
             "description": prompt.REMOVE_CHARACTER,
             "parameters": {
                 "type": "object",
@@ -165,7 +186,7 @@ TOOL_SPECS = [
     {
         "type": "function",
         "function": {
-            "name": "set_outfit",
+            "name": "sdxl_set_outfit",
             "description": prompt.SET_OUTFIT,
             "parameters": {
                 "type": "object",
@@ -182,7 +203,7 @@ TOOL_SPECS = [
     {
         "type": "function",
         "function": {
-            "name": "remove_outfit",
+            "name": "sdxl_remove_outfit",
             "description": prompt.REMOVE_OUTFIT,
             "parameters": {
                 "type": "object",
@@ -197,7 +218,7 @@ TOOL_SPECS = [
     {
         "type": "function",
         "function": {
-            "name": "set_location",
+            "name": "sdxl_set_location",
             "description": prompt.SET_LOCATION,
             "parameters": {
                 "type": "object",
@@ -214,7 +235,7 @@ TOOL_SPECS = [
     {
         "type": "function",
         "function": {
-            "name": "remove_location",
+            "name": "sdxl_remove_location",
             "description": prompt.REMOVE_LOCATION,
             "parameters": {
                 "type": "object",
@@ -229,7 +250,7 @@ TOOL_SPECS = [
     {
         "type": "function",
         "function": {
-            "name": "add_frame",
+            "name": "sdxl_add_frame",
             "description": prompt.ADD_FRAME,
             "parameters": {
                 "type": "object",
@@ -266,7 +287,7 @@ TOOL_SPECS = [
     {
         "type": "function",
         "function": {
-            "name": "update_frame",
+            "name": "sdxl_update_frame",
             "description": prompt.UPDATE_FRAME,
             "parameters": {
                 "type": "object",
@@ -280,6 +301,80 @@ TOOL_SPECS = [
                     },
                     "location": {"type": "string", "description": prompt.UPDATE_FRAME_LOCATION},
                     "action": {"type": "string", "description": prompt.UPDATE_FRAME_ACTION},
+                },
+                "required": ["file", "frame"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "krea_start_scenario",
+            "description": prompt.KREA_START_SCENARIO_TOOL,
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": prompt.START_SCENARIO_NAME},
+                    "style": {"type": "string", "description": prompt.KREA_STYLE},
+                },
+                "required": ["name", "style"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "krea_set_style",
+            "description": prompt.KREA_SET_STYLE,
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file": {"type": "string", "description": prompt.THE_SCENARIOS_FILE},
+                    "style": {"type": "string", "description": prompt.KREA_STYLE},
+                },
+                "required": ["file", "style"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "krea_add_frame",
+            "description": prompt.KREA_ADD_FRAME,
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file": {"type": "string", "description": prompt.THE_SCENARIOS_FILE},
+                    "before": {"type": "integer", "description": prompt.ADD_FRAME_BEFORE},
+                    "frames": {
+                        "type": "array",
+                        "description": prompt.ADD_FRAME_FRAMES,
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "scene": {"type": "string", "description": prompt.KREA_SCENE},
+                                "prompt": {"type": "string", "description": prompt.KREA_PROMPT},
+                            },
+                            "required": ["scene", "prompt"],
+                        },
+                    },
+                },
+                "required": ["file", "frames"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "krea_update_frame",
+            "description": prompt.KREA_UPDATE_FRAME,
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file": {"type": "string", "description": prompt.THE_SCENARIOS_FILE},
+                    "frame": {"type": "integer", "description": prompt.WHICH_FRAME},
+                    "scene": {"type": "string", "description": prompt.KREA_SCENE},
+                    "prompt": {"type": "string", "description": prompt.KREA_PROMPT},
                 },
                 "required": ["file", "frame"],
             },
@@ -349,16 +444,33 @@ def safe_name(raw):
     return name if "." in name else f"{name}.md"
 
 
-def scenario_name(name):
-    """A scenario is always .json, whatever it was asked for (Madde 167).
+def scenario_kind(name):
+    """"sdxl" or "krea" as the name says it, or None when it says neither (Madde 492).
+
+    The name is the one thing that says a scenario's kind (the user, 22 October): what is inside is
+    checked against it, never read to choose it. Case folded, for _shut's reason.
+    """
+    folded = name.lower()
+    return next((kind for kind in KINDS if folded.endswith(f".{kind}.json")), None)
+
+
+def scenario_name(name, kind):
+    """A scenario is always .<kind>.json, whatever it was asked for (Madde 167, Madde 492).
 
     Runs after safe_name, which is where a name from the model is cleaned: naming is this one's
     job. The reason is not tidiness: Madde 171 shuts .json to create_file and edit_file, so the
     tool that opens one has to land on the extension the door guards. Two that disagreed would
     leave the door in front of a file nothing writes, and the model holding a structure it could
     still edit as text.
+
+    The kind is the tool's: a kind written into the asked name is dropped with the extension, so
+    sdxl_start_scenario asked for plaj.krea still opens plaj.sdxl.json.
     """
-    return f"{name.rsplit('.', 1)[0]}.json"
+    stem = name.rsplit(".", 1)[0]
+    for written in KINDS:
+        if stem.lower().endswith(f".{written}"):
+            stem = stem[: -len(written) - 1]
+    return f"{stem}.{kind}.json"
 
 
 def run_tool(file_store, project_id, name, arguments):
@@ -388,7 +500,7 @@ def run_tool(file_store, project_id, name, arguments):
 
     if name == "create_file":
         wanted = safe_name(args.get("name"))
-        shut = _shut(wanted)
+        shut = _shut(wanted) or _read_only(wanted)
         if shut is not None:
             return shut
         # Asked of the names rather than by reading the file: the question is whether the name is
@@ -408,54 +520,54 @@ def run_tool(file_store, project_id, name, arguments):
         # repeated in the outcome: the line above already carries it.
         return ToolResult(f"Saved as {written}.", written, written, "Saved")
 
-    if name == "start_scenario":
-        wanted = scenario_name(safe_name(args.get("name")))
-        # Asked of the names rather than by reading the file, for create_file's reason: the question
-        # is whether the name is taken, and pulling a whole scenario back to learn that is work
-        # nobody needs.
-        if wanted in file_store.list_names(project_id):
-            # Its own way out rather than create_file's. A scenario is not changed with edit_file --
-            # Madde 171 shuts that door -- so the sentence points at the tools that add to one.
-            return ToolResult(
-                f"There is already a file called {wanted}. Open it and add to it, or pick "
-                "another name for a new scenario.",
-                None,
-                wanted,
-                "Already there",
-            )
-        # Indented and with ensure_ascii off, the way every write to a structure goes: the user
-        # opens this file and fixes it by hand, and their work is the first principle.
-        written = file_store.write(
-            project_id, wanted, json.dumps(EMPTY_SCENARIO, indent=2, ensure_ascii=False)
-        )
-        return ToolResult(f"Started {written}.", written, written, "Started")
+    if name == "sdxl_start_scenario":
+        wanted = scenario_name(safe_name(args.get("name")), "sdxl")
+        return _started(file_store, project_id, wanted, EMPTY_SCENARIO)
+
+    if name == "krea_start_scenario":
+        wanted = scenario_name(safe_name(args.get("name")), "krea")
+        style = str(args.get("style") or "").strip()
+        if not style:
+            # The user, 22 October: the style is asked as the scenario starts, so it is born with
+            # one -- and a build of a scenario without one has nothing to put in front.
+            return ToolResult("A Krea scenario needs a style.", None, wanted, "Refused")
+        return _started(file_store, project_id, wanted, {**EMPTY_KREA_SCENARIO, "style": style})
 
     if name == "edit_file":
         return _edit(file_store, project_id, args)
 
-    if name == "set_character":
+    if name == "sdxl_set_character":
         return _set_entry(file_store, project_id, args, "characters")
 
-    if name == "remove_character":
+    if name == "sdxl_remove_character":
         return _remove_entry(file_store, project_id, args, "characters")
 
-    if name == "set_outfit":
+    if name == "sdxl_set_outfit":
         return _set_entry(file_store, project_id, args, "outfits")
 
-    if name == "remove_outfit":
+    if name == "sdxl_remove_outfit":
         return _remove_entry(file_store, project_id, args, "outfits")
 
-    if name == "set_location":
+    if name == "sdxl_set_location":
         return _set_entry(file_store, project_id, args, "locations")
 
-    if name == "remove_location":
+    if name == "sdxl_remove_location":
         return _remove_entry(file_store, project_id, args, "locations")
 
-    if name == "add_frame":
+    if name == "sdxl_add_frame":
         return _add_frame(file_store, project_id, args)
 
-    if name == "update_frame":
+    if name == "sdxl_update_frame":
         return _update_frame(file_store, project_id, args)
+
+    if name == "krea_set_style":
+        return _krea_set_style(file_store, project_id, args)
+
+    if name == "krea_add_frame":
+        return _krea_add_frame(file_store, project_id, args)
+
+    if name == "krea_update_frame":
+        return _krea_update_frame(file_store, project_id, args)
 
     if name == "remove_frame":
         return _remove_frame(file_store, project_id, args)
@@ -466,6 +578,27 @@ def run_tool(file_store, project_id, name, arguments):
     return ToolResult(f"There is no tool called {name}.", None, "", "Unknown tool")
 
 
+def _started(file_store, project_id, wanted, born):
+    """A new scenario of either kind, in the shape it is born with, unless the name is taken."""
+    # Asked of the names rather than by reading the file, for create_file's reason: the question is
+    # whether the name is taken, and pulling a whole scenario back to learn that is work nobody
+    # needs.
+    if wanted in file_store.list_names(project_id):
+        # Its own way out rather than create_file's. A scenario is not changed with edit_file --
+        # Madde 171 shuts that door -- so the sentence points at the tools that add to one.
+        return ToolResult(
+            f"There is already a file called {wanted}. Open it and add to it, or pick "
+            "another name for a new scenario.",
+            None,
+            wanted,
+            "Already there",
+        )
+    # Indented and with ensure_ascii off, the way every write to a structure goes: the user opens
+    # this file and fixes it by hand, and their work is the first principle.
+    written = file_store.write(project_id, wanted, json.dumps(born, indent=2, ensure_ascii=False))
+    return ToolResult(f"Started {written}.", written, written, "Started")
+
+
 def _edit(file_store, project_id, args):
     """create_file refuses a name that is taken, so this is the only way to change a document.
 
@@ -473,7 +606,7 @@ def _edit(file_store, project_id, args):
     know its shape, and this one is shut out of it before it reads anything.
     """
     wanted = safe_name(args.get("name"))
-    shut = _shut(wanted)
+    shut = _shut(wanted) or _read_only(wanted)
     if shut is not None:
         return shut
     content = file_store.read(project_id, wanted)
@@ -519,18 +652,32 @@ def _edit(file_store, project_id, args):
     )
 
 
-def _opened(file_store, project_id, args):
-    """The file, parsed, with a frames list -- or the answer saying why not (Madde 168).
+def _opened(file_store, project_id, args, wanted):
+    """The scenario, parsed and of the kind asked for -- or the answer saying why not (Madde 168).
 
-    Written once so the map tools cannot start disagreeing about what a missing file or a broken one
-    is called. Hands back (source, structure, refused); a caller with a refusal returns it as it is.
+    Written once so the scenario tools cannot start disagreeing about what a missing file or a
+    broken one is called. Hands back (source, structure, refused); a caller with a refusal returns
+    it as it is.
 
-    The frames list is demanded even by the tools that never touch it. Removing an entry asks
-    whether anything still stands on it and renaming rewrites whatever does -- both answered in the
-    frames -- so a file without one cannot do this work at all, and saying so while adding beats
+    `wanted` is the tool's kind, "sdxl" or "krea", or None for a tool that works on either (Madde
+    492). The name is asked first, before anything is read: a name that says no kind, or the other
+    kind, is refused for what it says. What the file holds is then checked against its kind, and a
+    file that does not fit is refused naming what does not fit -- never read as the other kind.
+
+    An SDXL file's frames list is demanded even by the tools that never touch it. Removing an entry
+    asks whether anything still stands on it and renaming rewrites whatever does -- both answered in
+    the frames -- so a file without one cannot do this work at all, and saying so while adding beats
     crashing while removing.
     """
     source = safe_name(args.get("file"))
+    kind = scenario_kind(source)
+    if kind is None:
+        return source, None, _not_a_scenario(source)
+    if wanted is not None and kind != wanted:
+        return source, None, ToolResult(
+            f"{source} is {KINDS[kind]} scenario; use the {kind}_ tools.", None, source, "Refused"
+        )
+
     content = file_store.read(project_id, source)
     if content is None:
         return source, None, ToolResult(
@@ -546,15 +693,47 @@ def _opened(file_store, project_id, args):
             f"{source} is not valid JSON: {broken}", None, source, "Not valid JSON"
         )
 
-    frames = structure.get("frames") if isinstance(structure, dict) else None
-    if not isinstance(frames, list):
-        return source, None, ToolResult(
-            f"{source} has no frames list to add to; a structure file carries one.",
-            None,
-            source,
-            "Refused",
-        )
+    if kind == "krea":
+        problems = krea_problems(source, structure)
+    else:
+        frames = structure.get("frames") if isinstance(structure, dict) else None
+        if not isinstance(frames, list):
+            return source, None, ToolResult(
+                f"{source} has no frames list to add to; a structure file carries one.",
+                None,
+                source,
+                "Refused",
+            )
+        problems = _not_sdxl(source, structure)
+    if problems:
+        return source, None, ToolResult("\n".join(problems), None, source, "Refused")
     return source, structure, None
+
+
+def _not_a_scenario(source):
+    """What a name that says no kind gets, from every scenario tool (Madde 492).
+
+    The scenarios written before the kinds are named plaj.json: they are not built and not changed,
+    and the answer says only that -- no road elsewhere (the user, 22 October: "yönlendirme
+    yapmasın, valid değil desin yeter").
+    """
+    return ToolResult(f"{source} is not a valid scenario file.", None, source, "Refused")
+
+
+def _not_sdxl(source, structure):
+    """What a Krea scenario holds and an SDXL one never does: a style, a frame's prompt (Madde 492).
+
+    The rest of the SDXL shape is checked where it always was -- the frames list by _opened, the
+    names by the tools and by build_prompts -- so this asks only what tells the two kinds apart.
+    """
+    problems = [f"{source} has a style; an SDXL scenario has none."] if "style" in structure else []
+    frames = structure.get("frames")
+    problems.extend(
+        f"{source}: frame {number} has a prompt; an SDXL frame has none."
+        for number, frame in enumerate(frames if isinstance(frames, list) else [], start=1)
+        if isinstance(frame, dict) and "prompt" in frame
+    )
+    return problems
 
 
 def _saved(file_store, project_id, source, structure):
@@ -579,12 +758,25 @@ def _shut(wanted):
     if not wanted.lower().endswith(".json"):
         return None
     return ToolResult(
-        f"{wanted} is a structure file; it is not written or changed as text. Use start_scenario "
-        "to open one, and the set_, add_, update_ and remove_ tools to change it.",
+        f"{wanted} is a structure file; it is not written or changed as text. Use "
+        "sdxl_start_scenario or krea_start_scenario to open one, and the sdxl_ and krea_ tools to "
+        "change it.",
         None,
         wanted,
         "Not as text",
     )
+
+
+def _read_only(wanted):
+    """The refusal a prompt guide gets from the text tools, or None if this is not one (Madde 492).
+
+    A guide is read and never changed (the user, 22 October: "ajan değiştiremez sadece okur").
+    Asked of the name, so nothing is read to refuse it; and create_file says this rather than
+    pointing at edit_file, which would only refuse it a round later.
+    """
+    if wanted not in prompt.GUIDES:
+        return None
+    return ToolResult(str(ReadOnlyFile(wanted)), None, wanted, "Read-only")
 
 
 def _article(word):
@@ -722,7 +914,7 @@ def _set_entry(file_store, project_id, args, which):
     that will not build. Every refusal is answered before anything is written, and a call that would
     change nothing writes nothing.
     """
-    source, structure, refused = _opened(file_store, project_id, args)
+    source, structure, refused = _opened(file_store, project_id, args, "sdxl")
     if refused is not None:
         return refused
 
@@ -818,7 +1010,7 @@ def _remove_entry(file_store, project_id, args, which):
     failed to fill a field wipe the entry in silence, and nothing here can be undone by calling it
     again.
     """
-    source, structure, refused = _opened(file_store, project_id, args)
+    source, structure, refused = _opened(file_store, project_id, args, "sdxl")
     if refused is not None:
         return refused
 
@@ -864,36 +1056,13 @@ def _add_frame(file_store, project_id, args):
     inside build_prompts, as a miss in a file nobody was editing any more. The fields are in the
     signature now, and every name in them is looked for before anything is written.
     """
-    source, structure, refused = _opened(file_store, project_id, args)
+    source, structure, refused = _opened(file_store, project_id, args, "sdxl")
     if refused is not None:
         return refused
 
-    coming = args.get("frames")
-    if not isinstance(coming, list):
-        return ToolResult(
-            "add_frame takes a list of frames, even when there is one of them.",
-            None,
-            source,
-            "Refused",
-        )
-
-    frames = structure["frames"]
-    if not coming:
-        # Nothing to do is not a failure, and writing the file to say so would touch a document for
-        # no reason at all.
-        return ToolResult(
-            f"No frames were given, so {source} is unchanged.", None, source, "Nothing to add"
-        )
-
-    # Where they go (Madde 180). The end unless a frame is named to go in front of, and one past the
-    # last frame is the end -- refusing that would refuse a call that named its place correctly.
-    # A ceiling of its own, because the sentence has to say how many frames there are rather than
-    # how many places they leave.
-    place = len(frames) + 1
-    if args.get("before") is not None:
-        place, missing = _numbered(args["before"], source, len(frames), ceiling=place)
-        if missing is not None:
-            return missing
+    coming, place, refused = _placed(args, source, structure["frames"], "sdxl_add_frame")
+    if refused is not None:
+        return refused
 
     born, problems = [], []
     for offset, given in enumerate(coming):
@@ -909,10 +1078,54 @@ def _add_frame(file_store, project_id, args):
         # leave the model working out which half, and the numbers it was told would be wrong.
         return ToolResult("\n".join(problems + ["Nothing was added."]), None, source, "Refused")
 
+    return _inserted(file_store, project_id, source, structure, born, place)
+
+
+def _placed(args, source, frames, tool):
+    """The frames a call brings and the place they go -- or the answer saying why not.
+
+    Both kinds' add tools start here (Madde 492), so a list that is not one, an empty one and a
+    place that is not there read the same whichever was called. Hands back (coming, place, refused).
+    """
+    coming = args.get("frames")
+    if not isinstance(coming, list):
+        return None, None, ToolResult(
+            f"{tool} takes a list of frames, even when there is one of them.",
+            None,
+            source,
+            "Refused",
+        )
+    if not coming:
+        # Nothing to do is not a failure, and writing the file to say so would touch a document for
+        # no reason at all.
+        return None, None, ToolResult(
+            f"No frames were given, so {source} is unchanged.", None, source, "Nothing to add"
+        )
+
+    # Where they go (Madde 180). The end unless a frame is named to go in front of, and one past the
+    # last frame is the end -- refusing that would refuse a call that named its place correctly.
+    # A ceiling of its own, because the sentence has to say how many frames there are rather than
+    # how many places they leave.
+    place = len(frames) + 1
+    if args.get("before") is not None:
+        place, missing = _numbered(args["before"], source, len(frames), ceiling=place)
+        if missing is not None:
+            return None, None, missing
+    return coming, place, None
+
+
+def _inserted(file_store, project_id, source, structure, born, place):
+    """The new frames put in at their place and saved, and the answer naming them.
+
+    An SDXL frame carries its place as its number, so its frames are numbered again; a Krea frame
+    carries none (the user, 22 October), and its place is all the number it has.
+    """
+    frames = structure["frames"]
     # Counted before the insertion, while the list still means what the number was measured against.
     moved = len(frames) - (place - 1)
     frames[place - 1 : place - 1] = born
-    _renumbered(frames)
+    if scenario_kind(source) == "sdxl":
+        _renumbered(frames)
     _saved(file_store, project_id, source, structure)
     # Said only when something did move. A sentence about frames that stayed where they were is the
     # one Madde 174 refused when the last frame came out and there was nothing left to renumber.
@@ -920,7 +1133,8 @@ def _add_frame(file_store, project_id, args):
     # The numbers rather than a total. What the model does next is name one of these frames, and a
     # count would send it reading the file back to learn what to call them.
     return ToolResult(
-        f"Added {counted(len(born), 'scene')} to {source} as {_made_frames(born)}{after}.",
+        f"Added {counted(len(born), 'scene')} to {source} as "
+        f"{_made_frames(place, len(born))}{after}.",
         None,
         source,
         counted(len(born), "scene"),
@@ -956,7 +1170,7 @@ def _frame_from(given, number, structure, problems):
     if not said:
         # The one required field. A frame with a cast and no scene is a frame there is nothing to
         # write a prompt from, and a space is not a brief.
-        problems.append(f"frame {number}: a scene needs a sentence saying what happens.")
+        problems.append(f"frame {number}: {_NEEDS_A_SCENE}")
     frame = {"number": number, "scene": said}
 
     people = given.get("characters")
@@ -1023,20 +1237,19 @@ def _looked_for(name, known, which, number, problems):
         problems.append(f"frame {number}: {_unknown(name, known, which)}")
 
 
-def _made_frames(born):
+def _made_frames(first, many):
     """"frame 3", or "frames 3-5". Always one run: they go in side by side, wherever they go."""
-    numbers = [frame["number"] for frame in born]
-    if len(numbers) == 1:
-        return f"frame {numbers[0]}"
-    return f"frames {numbers[0]}-{numbers[-1]}"
+    if many == 1:
+        return f"frame {first}"
+    return f"frames {first}-{first + many - 1}"
 
 
 def _numbered(wanted, source, many, ceiling=None):
     """Which frame a call means, or the answer saying there is no such frame (Madde 174).
 
-    Both frame tools start here, so a number that is not one reads the same whichever was called.
+    Every frame tool starts here, so a number that is not one reads the same whichever was called.
 
-    `ceiling` is how high a number may go when that is not how many frames there are: add_frame's
+    `ceiling` is how high a number may go when that is not how many frames there are: an add tool's
     `before` may name the place after the last one (Madde 180), and the sentence still has to say
     how many frames the file holds rather than how many places they leave between them.
     """
@@ -1070,7 +1283,7 @@ def _update_frame(file_store, project_id, args):
     Madde 208: the tool that took the second is gone, and neither job was ever worth carrying to a
     model that had not read the line.
     """
-    source, structure, refused = _opened(file_store, project_id, args)
+    source, structure, refused = _opened(file_store, project_id, args, "sdxl")
     if refused is not None:
         return refused
 
@@ -1094,8 +1307,8 @@ def _update_frame(file_store, project_id, args):
         said = str(given["scene"] or "").strip()
         if not said:
             # Required at birth, so it cannot be emptied later: the two together would leave a
-            # frame add_frame refuses to write sitting in the file anyway.
-            problems.append(f"frame {number}: a scene needs a sentence saying what happens.")
+            # frame sdxl_add_frame refuses to write sitting in the file anyway.
+            problems.append(f"frame {number}: {_NEEDS_A_SCENE}")
         changing["scene"] = said
     if "characters" in given:
         people = given["characters"]
@@ -1129,9 +1342,88 @@ def _update_frame(file_store, project_id, args):
     )
 
 
+def _krea_set_style(file_store, project_id, args):
+    """A Krea scenario's style, the look put in front of every frame's prompt (Madde 492)."""
+    style = str(args.get("style") or "").strip()
+    if not style:
+        # Asked of the argument before the file is read: an empty style is refused whatever the
+        # file holds.
+        return ToolResult(
+            "A Krea scenario needs a style.", None, safe_name(args.get("file")), "Refused"
+        )
+    source, structure, refused = _opened(file_store, project_id, args, "krea")
+    if refused is not None:
+        return refused
+    if style == structure["style"]:
+        # No silent success, and no write to say nothing.
+        return ToolResult(
+            "Nothing would change about the style.", None, source, "Nothing to change"
+        )
+    structure["style"] = style
+    _saved(file_store, project_id, source, structure)
+    return ToolResult(f"Changed the style of {source}.", None, source, "Changed")
+
+
+def _krea_add_frame(file_store, project_id, args):
+    """Krea frames, each a scene and a prompt, at the end or in front of a frame (Madde 492).
+
+    Many in one call, as the SDXL frames are: one read and one write however many there are, which
+    is why the Krea skill adds them in one go. Nothing is written unless every frame is good.
+    """
+    source, structure, refused = _opened(file_store, project_id, args, "krea")
+    if refused is not None:
+        return refused
+
+    coming, place, refused = _placed(args, source, structure["frames"], "krea_add_frame")
+    if refused is not None:
+        return refused
+
+    born, problems = [], []
+    for number, given in enumerate(coming, start=place):
+        if not isinstance(given, dict):
+            problems.append(f"frame {number}: a frame is an object with scene and prompt.")
+            continue
+        frame = {key: str(given.get(key) or "").strip() for key in _KREA_NEEDS}
+        problems.extend(f"frame {number}: {_KREA_NEEDS[key]}" for key in frame if not frame[key])
+        born.append(frame)
+
+    if problems:
+        return ToolResult("\n".join(problems + ["Nothing was added."]), None, source, "Refused")
+
+    return _inserted(file_store, project_id, source, structure, born, place)
+
+
+def _krea_update_frame(file_store, project_id, args):
+    """A Krea frame's scene or prompt, or both; neither can be emptied (Madde 492)."""
+    source, structure, refused = _opened(file_store, project_id, args, "krea")
+    if refused is not None:
+        return refused
+
+    frames = structure["frames"]
+    number, missing = _numbered(args.get("frame"), source, len(frames))
+    if missing is not None:
+        return missing
+
+    changing = {key: str(args[key] or "").strip() for key in _KREA_NEEDS if key in args}
+    if not changing:
+        # No silent success: a model told nothing happened moves on believing it did.
+        return ToolResult(
+            f"Nothing was given to change about frame {number}.", None, source, "Nothing to change"
+        )
+    problems = [f"frame {number}: {_KREA_NEEDS[key]}" for key in changing if not changing[key]]
+    if problems:
+        return ToolResult("\n".join(problems + ["Nothing was changed."]), None, source, "Refused")
+
+    frames[number - 1].update(changing)
+    _saved(file_store, project_id, source, structure)
+    return ToolResult(
+        f"Changed {_and_joined(changing)} of frame {number} in {source}.", None, source, "Changed"
+    )
+
+
 def _remove_frame(file_store, project_id, args):
-    """One frame out, and every frame after it moves up a place (Madde 174)."""
-    source, structure, refused = _opened(file_store, project_id, args)
+    """One frame out, and every frame after it moves up a place (Madde 174), in either kind."""
+    source, structure, refused = _opened(file_store, project_id, args, None)
     if refused is not None:
         return refused
 
@@ -1143,13 +1435,24 @@ def _remove_frame(file_store, project_id, args):
     del frames[number - 1]
     # The number is a frame's place, so a removal moves every number after it. Nothing in the maps
     # is touched: an entry left in no frame stays where it is, and asking for it to go is the
-    # user's (their decision, 5 Sep).
-    _renumbered(frames)
+    # user's (their decision, 5 Sep). A Krea frame carries no number to move (Madde 492).
+    numbered = scenario_kind(source) == "sdxl"
+    if numbered:
+        _renumbered(frames)
     _saved(file_store, project_id, source, structure)
-    left = (
-        f"{counted(len(frames), 'frame')} left, renumbered from 1" if frames else "no frames left"
-    )
+    # "Renumbered" only where numbers were written: said of a Krea file it would claim a change the
+    # file does not show.
+    renumbered = ", renumbered from 1" if numbered else ""
+    left = f"{counted(len(frames), 'frame')} left{renumbered}" if frames else "no frames left"
     return ToolResult(f"Removed frame {number} from {source}; {left}.", None, source, "Removed")
+
+
+def _sdxl_built(source, structure):
+    """build_prompts, once the structure holds nothing only a Krea scenario holds (Madde 492)."""
+    mismatch = _not_sdxl(source, structure) if isinstance(structure, dict) else []
+    if mismatch:
+        raise BadStructure("\n".join(mismatch))
+    return build_prompts(structure)
 
 
 def _and_joined(words):
@@ -1161,22 +1464,21 @@ def _and_joined(words):
 
 
 def _build(file_store, project_id, args):
-    """The structure is the model's; the prompts are the code's."""
+    """The structure is the model's; the prompts are the code's.
+
+    The builder is the name's kind's (Madde 492), asked before anything is read. A name that says a
+    kind ends in .json, so the built file -- the same name with .py -- can never be its own source,
+    and the kind stays in it: plaj.sdxl.py and plaj.krea.py, never one plaj.py for both.
+    """
     source = safe_name(args.get("name"))
+    kind = scenario_kind(source)
+    if kind is None:
+        return _not_a_scenario(source)
     content = file_store.read(project_id, source)
     # The source rather than the output, all the way through: the file card already names what was
     # written, and a line repeating it would carry nothing the card does not.
     if content is None:
         return ToolResult("There is no file by that name.", None, source, "No file by that name")
-
-    target = prompts_name(source)
-    if target == source:
-        return ToolResult(
-            f"{source} would be written over by its own output; a structure belongs in a .json file.",
-            None,
-            source,
-            "Refused",
-        )
 
     try:
         structure = json.loads(content)
@@ -1184,14 +1486,15 @@ def _build(file_store, project_id, args):
         # The parser's own sentence. A guessed cause would send the model looking in the wrong place.
         return ToolResult(f"{source} is not valid JSON: {broken}", None, source, "Not valid JSON")
 
+    builder = build_krea_prompts if kind == "krea" else _sdxl_built
     try:
-        prompts = build_prompts(structure)
+        prompts = builder(source, structure)
     except BadStructure as refused:
         return ToolResult(str(refused), None, source, "Refused")
 
     # Written over on purpose: this file is derived, and regenerating it after an edit is the whole
     # point. Numbering it would leave a pile with no way to tell which one is now.
-    written = file_store.write(project_id, target, render_module(prompts))
+    written = file_store.write(project_id, prompts_name(source), render_module(prompts))
     return ToolResult(
         f"Wrote {counted(len(prompts), 'prompt')} to {written}.",
         written,

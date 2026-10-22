@@ -219,7 +219,7 @@ class FakeEngine:
 def _wired(tmp_path):
     store = Store(str(tmp_path))
     projects = FileProjectStore(store)
-    files = FileFileStore(store, projects)
+    files = FileFileStore(store, projects, {}, "")
     app = create_app(
         dist_dir=str(tmp_path),
         blueprints=(

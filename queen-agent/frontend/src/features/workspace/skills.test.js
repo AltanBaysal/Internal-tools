@@ -3,25 +3,38 @@ import { expect, test } from "vitest";
 import { SKILLS, skillName } from "./skills.js";
 
 // Madde 94 deleted five of the six and said more rows would come. Madde 101 is the first of them.
-test("the menu offers the flow, the editor and Improve, in that order", () => {
-  // The flow comes first: it is the road for somebody with nothing yet, and since Madde 186 it
-  // runs the whole way to the prompts. The second row is for somebody who has them already, and
-  // the third, since Madde 394, checks a scenario that is already there.
+test("the menu offers a start and an edit for each image model, in that order", () => {
+  // Madde 492, the user's decision of 22 October: SDXL start scenario, SDXL edit, Krea start
+  // scenario, Krea edit. The SDXL two keep their ids, so an old chat still finds them. The start
+  // comes first in each pair: it is the road for somebody with nothing yet.
   expect(SKILLS.map((skill) => skill.id)).toEqual([
     "start-a-scenario",
     "edit-prompts",
-    "improve",
+    "krea-start-scenario",
+    "krea-edit",
+  ]);
+  expect(SKILLS.map((skill) => skill.name)).toEqual([
+    "SDXL start scenario",
+    "SDXL edit",
+    "Krea start scenario",
+    "Krea edit",
   ]);
 });
 
-test("Improve stands last and says what it does", () => {
-  // Madde 394. Its steps wait for no yes, so the line promises none -- the designer's placeholder
-  // asked for one after each step, and that is not what happens.
-  expect(SKILLS[SKILLS.length - 1]).toEqual({
-    id: "improve",
-    name: "Improve",
-    detail: "Check a scenario you already have, fix what fails, and write its negative list again.",
-  });
+test("the Krea rows say they are for Krea", () => {
+  for (const id of ["krea-start-scenario", "krea-edit"]) {
+    expect(SKILLS.find((skill) => skill.id === id).detail).toMatch(/Krea/);
+  }
+  const editor = SKILLS.find((skill) => skill.id === "krea-edit");
+  expect(editor.detail).toMatch(/already/i);
+  expect(editor.detail).toMatch(/fix|change/i);
+});
+
+test("Improve is gone, and a chat that remembers it shows its id", () => {
+  // Madde 492: "improve skilinin kendisi kalksın". The button says the id rather than going blank,
+  // the road every deleted skill takes.
+  expect(SKILLS.map((skill) => skill.id)).not.toContain("improve");
+  expect(skillName("improve")).toBe("improve");
 });
 
 test("the rows tell each other apart", () => {
@@ -58,7 +71,7 @@ test("no row promises to stay in the chat any more", () => {
 });
 
 test("a name is the label, not the id", () => {
-  expect(skillName("edit-prompts")).toBe("Edit prompts");
+  expect(skillName("edit-prompts")).toBe("SDXL edit");
 });
 
 test("the name that was renamed away keeps its id on the screen", () => {
@@ -68,7 +81,7 @@ test("the name that was renamed away keeps its id on the screen", () => {
 });
 
 test("the flow's name is the label, not the id", () => {
-  expect(skillName("start-a-scenario")).toBe("Start a scenario");
+  expect(skillName("start-a-scenario")).toBe("SDXL start scenario");
 });
 
 test("a deleted skill keeps its id on the screen rather than vanishing", () => {

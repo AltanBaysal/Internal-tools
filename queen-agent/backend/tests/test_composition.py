@@ -70,6 +70,15 @@ def test_a_root_that_cannot_be_reached_stops_the_start(tmp_path):
     assert not root.exists(), "Açılış kökü açtı"
 
 
+def test_the_file_store_is_handed_the_guides_and_the_moment_once():
+    """Madde 492. The two prompt guides are text in the code, listed among every project's files by
+    the one class that knows those files; their time is the moment the server opened, taken once
+    here rather than on every listing, so a guide's row does not move under the panel."""
+    said = _main()
+    assert "FileFileStore(store, projects, GUIDES, opened_at)" in said, "Belgeler bağlanmıyor"
+    assert said.count("datetime.now(") == 1, "Açılış anı birden çok kez alınıyor"
+
+
 def test_no_prompt_writer_is_wired():
     """Madde 395, the owner's decision of 30 September: the main model writes each frame's action
     itself, so the engine is built with its default and nothing else."""

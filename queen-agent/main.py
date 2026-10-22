@@ -1,6 +1,7 @@
 """Composition root -- the only place that wires concrete classes together."""
 import signal
 import sys
+from datetime import datetime, timezone
 
 from backend import config
 from backend.features.workspace.data.file_chat_store import FileChatStore
@@ -11,6 +12,7 @@ from backend.features.workspace.data.file_project_store import (
 )
 from backend.features.workspace.data.live_turns import LiveTurns
 from backend.features.workspace.data.model_engine import ModelEngine
+from backend.features.workspace.domain.prompt import GUIDES
 from backend.features.workspace.presentation.routes import make_workspace_bp
 from backend.services.model.client import ModelClient
 from backend.services.store.store import Store
@@ -46,13 +48,17 @@ engine = ModelEngine(
     },
     default=config.DEFAULT_MODEL,
 )
+# The two prompt guides' time in every project's list (Madde 492): when this server opened, in the
+# shape the routes stamp everything with. Taken once, so a guide's row stands still in the panel.
+opened_at = datetime.now(timezone.utc).isoformat(timespec="milliseconds")
 app = create_app(
     blueprints=(
         make_workspace_bp(
             projects,
             # The one holder of projects.json: what they write is listed, and what it lists they read.
             FileChatStore(store, projects),
-            FileFileStore(store, projects),
+            # The guides ride with the files: every reader of a project's files finds them there.
+            FileFileStore(store, projects, GUIDES, opened_at),
             engine,
             # One for the whole app: two would be two requests unable to find each other's turn.
             LiveTurns(),

@@ -559,7 +559,7 @@ test("the skill picked in a draft is what the chat is born with", async () => {
   render(<App />);
 
   fireEvent.click(await screen.findByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
+  fireEvent.click(screen.getByText("SDXL edit", { selector: ".menu__item-name" }));
   const box = screen.getByPlaceholderText("Reply...");
   fireEvent.change(box, { target: { value: "Write it" } });
   fireEvent.keyDown(box, { key: "Enter" });
@@ -2802,9 +2802,9 @@ test("picking a skill asks the server for nothing", async () => {
   await chatOpened();
 
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Edit prompts"));
+  fireEvent.click(screen.getByText("SDXL edit"));
 
-  await waitFor(() => expect(screen.getByRole("button", { name: /Edit prompts/ })).toBeTruthy());
+  await waitFor(() => expect(screen.getByRole("button", { name: /SDXL edit/ })).toBeTruthy());
   expect(fetch.mock.calls.filter(([, options]) => options?.method === "PATCH")).toHaveLength(0);
 });
 
@@ -2815,7 +2815,7 @@ test("a chat that stored a skill does not put it in the picker", async () => {
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
   await chatOpened();
-  expect(screen.queryByRole("button", { name: /Edit prompts/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: /SDXL edit/ })).toBeNull();
 });
 
 test("what the picker shows is what the message carries", async () => {
@@ -2835,7 +2835,7 @@ test("what the picker shows is what the message carries", async () => {
     expect(sent).toBeTruthy();
     expect(JSON.parse(sent[1].body).skill).toBe("");
   });
-  expect(screen.queryByRole("button", { name: /Edit prompts/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: /SDXL edit/ })).toBeNull();
 });
 
 // --- one door for every sentence (Madde 87) ------------------------------------------------------
@@ -3115,14 +3115,14 @@ test("the skill picked in a draft survives landing in the chat it created", asyn
   render(<App />);
   await chatOpened();
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
+  fireEvent.click(screen.getByText("SDXL edit", { selector: ".menu__item-name" }));
 
   const box = await chatOpened();
   fireEvent.change(box, { target: { value: "Write it" } });
   fireEvent.keyDown(box, { key: "Enter" });
 
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c1"));
-  expect(screen.getByRole("button", { name: /Edit prompts/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /SDXL edit/ })).toBeTruthy();
 });
 
 test("a draft's first answer never wears the old chat's transcript", async () => {
@@ -3705,8 +3705,8 @@ test("a skill picked in a chat does not ride into a chat born in the draft", asy
   render(<App />);
   await chatOpened();
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Edit prompts"));
-  await waitFor(() => expect(screen.getByRole("button", { name: /Edit prompts/ })).toBeTruthy());
+  fireEvent.click(screen.getByText("SDXL edit"));
+  await waitFor(() => expect(screen.getByRole("button", { name: /SDXL edit/ })).toBeTruthy());
 
   fireEvent.click(screen.getByRole("button", { name: /New chat/ }));
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/new"));
@@ -3757,19 +3757,19 @@ test("a skill picked in one chat stays that chat's own", async () => {
   render(<App />);
   await chatOpened();
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
+  fireEvent.click(screen.getByText("SDXL edit", { selector: ".menu__item-name" }));
   await waitFor(() =>
-    expect(screen.getByRole("button", { name: /Edit prompts/ })).toBeTruthy(),
+    expect(screen.getByRole("button", { name: /SDXL edit/ })).toBeTruthy(),
   );
 
   fireEvent.click(screen.getByText("Second", { selector: ".sidebar__chat" }));
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c2"));
   expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy();
-  expect(screen.queryByRole("button", { name: /Edit prompts/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: /SDXL edit/ })).toBeNull();
 
   fireEvent.click(screen.getByText("First", { selector: ".sidebar__chat" }));
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c1"));
-  expect(screen.getByRole("button", { name: /Edit prompts/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /SDXL edit/ })).toBeTruthy();
 });
 
 test("a second draft does not wear the first one's skill", async () => {
@@ -3796,7 +3796,7 @@ test("a second draft does not wear the first one's skill", async () => {
   render(<App />);
   await chatOpened();
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
+  fireEvent.click(screen.getByText("SDXL edit", { selector: ".menu__item-name" }));
 
   const box = await chatOpened();
   fireEvent.change(box, { target: { value: "Write it" } });
@@ -3806,7 +3806,7 @@ test("a second draft does not wear the first one's skill", async () => {
   fireEvent.click(screen.getByRole("button", { name: /New chat/ }));
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/new"));
   expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy();
-  expect(screen.queryByRole("button", { name: /Edit prompts/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: /SDXL edit/ })).toBeNull();
 });
 
 test("picking a skill closes the menu", async () => {
@@ -3818,7 +3818,7 @@ test("picking a skill closes the menu", async () => {
   await chatOpened();
 
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
+  fireEvent.click(screen.getByText("SDXL edit", { selector: ".menu__item-name" }));
   await waitFor(() => expect(screen.queryByText("SKILLS")).toBeNull());
 });
 
@@ -3830,7 +3830,7 @@ test("in a draft, picking a skill closes the menu too", async () => {
   await chatOpened();
 
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
+  fireEvent.click(screen.getByText("SDXL edit", { selector: ".menu__item-name" }));
   await waitFor(() => expect(screen.queryByText("SKILLS")).toBeNull());
 });
 
@@ -4120,9 +4120,9 @@ async function picked() {
   render(<App />);
   await chatOpened();
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
+  fireEvent.click(screen.getByText("SDXL edit", { selector: ".menu__item-name" }));
   return waitFor(() =>
-    expect(screen.getByRole("button", { name: /Edit prompts/ })).toBeTruthy(),
+    expect(screen.getByRole("button", { name: /SDXL edit/ })).toBeTruthy(),
   );
 }
 
@@ -4132,7 +4132,7 @@ test("a skill picked survives the app being mounted again", async () => {
   await picked();
 
   await reborn();
-  expect(screen.getByRole("button", { name: /Edit prompts/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /SDXL edit/ })).toBeTruthy();
 });
 
 test("the message sent after a reload carries the remembered skill", async () => {

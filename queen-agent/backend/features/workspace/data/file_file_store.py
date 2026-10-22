@@ -4,10 +4,16 @@ It takes the name it is given: what a file may be called is decided in the domai
 project holds, and when each was written, is projects.json's answer (FileProjectStore, Madde 447):
 the panel and the agent's list of names are read from there, and a file is opened only once its row
 names it.
+
+The two prompt guides (Madde 492) are among every project's files too, after the project's own: text
+in the code, handed in by main.py, read from memory and never written or removed here. One door for
+both, so the agent's list, read_file, the opened files and the panel find a guide the way they find
+any file, and none of them changed for it. A file of the project with a guide's name is shadowed by
+the guide -- it stays on Drive, and the user accepted that (22 October).
 """
 from datetime import datetime, timezone
 
-from backend.features.workspace.domain.file import FileBody
+from backend.features.workspace.domain.file import File, FileBody, extension_of
 from backend.features.workspace.domain.naming import unique_name
 
 FILES_DIR = "files"
@@ -15,17 +21,23 @@ TRASH_DIR = "trash"
 
 
 class FileFileStore:
-    def __init__(self, store, projects):
+    def __init__(self, store, projects, guides, listed_at):
         self._store = store
         self._projects = projects
+        # Name -> text. `listed_at` is every guide's time in a list: the moment the server opened.
+        self._guides = guides
+        self._guide_rows = {name: File(name, extension_of(name), listed_at) for name in guides}
 
     def list_names(self, project_id):
-        return [file.name for file in self._projects.files(project_id)]
+        return [file.name for file in self.list_files(project_id)]
 
     def list_files(self, project_id):
-        return self._projects.files(project_id)
+        own = [file for file in self._projects.files(project_id) if file.name not in self._guides]
+        return own + list(self._guide_rows.values())
 
     def read(self, project_id, name):
+        if name in self._guides:
+            return self._guides[name]
         if self._projects.file(project_id, name) is None:
             return None
         return self._text(project_id, name)
@@ -33,6 +45,8 @@ class FileFileStore:
     def read_body(self, project_id, name):
         # The row and the text together: the panel wants the file's particulars and its contents in
         # the same breath, and the row is in memory.
+        if name in self._guides:
+            return FileBody(self._guide_rows[name], self._guides[name])
         file = self._projects.file(project_id, name)
         text = None if file is None else self._text(project_id, name)
         return None if text is None else FileBody(file, text)

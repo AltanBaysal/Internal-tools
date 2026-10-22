@@ -200,7 +200,8 @@ class ScriptedEngine:
 def _seeded(tmp_path):
     store = Store(str(tmp_path))
     projects = FileProjectStore(store)
-    chats, files = FileChatStore(store, projects), FileFileStore(store, projects)
+    # No guides: what these tests count is the project's own files (Madde 492).
+    chats, files = FileChatStore(store, projects), FileFileStore(store, projects, {}, "")
     now = "2026-08-09T11:04:00.000+00:00"
     create_project(projects, new_id="p1", name="Thesis", now=now)
     # Handing no chat is what asks for one, since Madde 87.
@@ -615,13 +616,16 @@ def test_reading_a_file_announces_nothing(tmp_path):
 
 def test_building_prompts_announces_itself_twice(tmp_path):
     chats, files = _seeded(tmp_path)
-    files.write("p1", "frames.json", STRUCTURE)
-    rounds = [[{"tool_calls": [call("build_prompts", name="frames.json")]}], [{"text": "done"}]]
+    files.write("p1", "frames.sdxl.json", STRUCTURE)
+    rounds = [
+        [{"tool_calls": [call("build_prompts", name="frames.sdxl.json")]}],
+        [{"text": "done"}],
+    ]
     produced = _answer(chats, files, ScriptedEngine(rounds))
     # A file is born here too, so it gets the same dashed card and the same filled one.
     cards = [piece for piece in produced if isinstance(piece, (FileStarted, FileWritten))]
     assert isinstance(cards[0], FileStarted)
-    assert cards[1] == FileWritten("frames.py")
+    assert cards[1] == FileWritten("frames.sdxl.py")
 
 
 def test_editing_a_file_announces_nothing(tmp_path):
@@ -639,13 +643,13 @@ def test_editing_a_file_announces_nothing(tmp_path):
 
 def test_a_name_born_twice_in_one_turn_is_remembered_once(tmp_path):
     chats, files = _seeded(tmp_path)
-    files.write("p1", "frames.json", STRUCTURE)
+    files.write("p1", "frames.sdxl.json", STRUCTURE)
     rounds = [
         [
             {
                 "tool_calls": [
-                    call("build_prompts", call_id="a", name="frames.json"),
-                    call("build_prompts", call_id="b", name="frames.json"),
+                    call("build_prompts", call_id="a", name="frames.sdxl.json"),
+                    call("build_prompts", call_id="b", name="frames.sdxl.json"),
                 ]
             }
         ],
@@ -653,7 +657,7 @@ def test_a_name_born_twice_in_one_turn_is_remembered_once(tmp_path):
     ]
     _answer(chats, files, ScriptedEngine(rounds))
     # The card says a file exists, not how many times it was written.
-    assert chats.get("p1", "c1").messages[-1].files == ("frames.py",)
+    assert chats.get("p1", "c1").messages[-1].files == ("frames.sdxl.py",)
 
 
 def test_a_silent_turn_that_made_a_file_is_still_an_answer(tmp_path):

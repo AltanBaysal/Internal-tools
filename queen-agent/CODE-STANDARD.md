@@ -43,7 +43,9 @@ The store follows the same rule:
 
 `projects.json` is the one place a list is read from (Madde 447): the project list, the sidebar's
 chats, the files panel and the agent's file names all come out of the server's memory of it, and a
-chat or a file is opened only once its entry names it. To be that, it repeats on purpose what a list
+chat or a file is opened only once its entry names it. The two prompt guides are the exception: they
+come from the code (`prompt.GUIDES`, Madde 492), listed after every project's own files and never
+written to disk. To be that, it repeats on purpose what a list
 shows of a chat — its title, birth and last activity — and of a file — its time. That is the one
 exception to "no file repeats another's answer" (Madde 346), and it holds because both copies are
 written by the same server at the same moment, contents first. Nothing else is repeated: the

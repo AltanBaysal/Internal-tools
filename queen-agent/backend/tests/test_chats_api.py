@@ -111,7 +111,8 @@ def _app(tmp_path, engine=None, store=None, files=None, projects=None):
             make_workspace_bp(
                 projects,
                 chats,
-                (files or FileFileStore)(store, projects),
+                # No guides: what these tests count is the project's own files (Madde 492).
+                (files or FileFileStore)(store, projects, {}, ""),
                 engine or FakeEngine(),
                 turns,
             ),

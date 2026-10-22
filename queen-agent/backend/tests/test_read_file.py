@@ -13,7 +13,7 @@ def _files(tmp_path):
     store = Store(str(tmp_path))
     projects = FileProjectStore(store)
     projects.add(Project(id="p1", name="Thesis", created_at="2026-08-09T10:00:00+00:00"))
-    return FileFileStore(store, projects)
+    return FileFileStore(store, projects, {}, "")
 
 
 def test_reading_gives_the_text_with_its_chip_and_time(tmp_path):

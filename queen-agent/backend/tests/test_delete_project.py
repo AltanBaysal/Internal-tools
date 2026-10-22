@@ -34,7 +34,7 @@ def _with_contents(projects, store, project_id="p1"):
         project_store=projects,
         new_id="c1",
     )
-    FileFileStore(store, projects).write(project_id, "plan.md", "body")
+    FileFileStore(store, projects, {}, "").write(project_id, "plan.md", "body")
 
 
 def _project_with_contents(tmp_path):

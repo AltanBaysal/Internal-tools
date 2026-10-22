@@ -146,7 +146,7 @@ def _client(tmp_path):
             make_workspace_bp(
                 projects,
                 FileChatStore(store, projects),
-                FileFileStore(store, projects),
+                FileFileStore(store, projects, {}, ""),
                 FakeEngine(),
                 LiveTurns(),
             ),

@@ -1066,7 +1066,7 @@ test("the picker shows the skill it is handed, not the chat's", () => {
     <ChatScreen project={PROJECT} chat={{ ...CHAT, skill: "edit-prompts" }} skill="" />,
   );
   expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy();
-  expect(screen.queryByRole("button", { name: /Edit prompts/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: /SDXL edit/ })).toBeNull();
 });
 
 test("picking a skill is passed up rather than kept here", () => {
@@ -1079,7 +1079,7 @@ test("picking a skill is passed up rather than kept here", () => {
       onSkillChange={onSkillChange}
     />,
   );
-  fireEvent.click(screen.getByText("Edit prompts"));
+  fireEvent.click(screen.getByText("SDXL edit"));
   expect(onSkillChange).toHaveBeenCalledWith("edit-prompts");
 });
 

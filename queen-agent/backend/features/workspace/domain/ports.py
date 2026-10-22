@@ -78,12 +78,11 @@ class Engine(Protocol):
     def stream_alone(self, system: str, text: str, on_open=None):
         """One instruction and one text in a request of their own, answered like `stream`.
 
-        No conversation, no tools, and none of the fixed head -- QueenAgent's system prompt and the
-        SDXL document (Madde 453): `system` is the whole of what the model is told and `text` the
-        whole of what it reads. The black box's check asks
-        this (Madde 445) -- QueenAgent's page is about tools, files and chats, in front of a model
-        whose whole job is one word. A stream rather than one piece so that a stop cuts it like any
-        other request: `on_open` is the same as `stream`'s.
+        No conversation, no tools, and not the fixed head -- QueenAgent's system prompt: `system` is
+        the whole of what the model is told and `text` the whole of what it reads. The black box's
+        check asks this (Madde 445) -- QueenAgent's page is about tools, files and chats, in front
+        of a model whose whole job is one word. A stream rather than one piece so that a stop cuts
+        it like any other request: `on_open` is the same as `stream`'s.
         """
 
 
@@ -151,6 +150,15 @@ class Turns(Protocol):
 
 
 class FileStore(Protocol):
+    """A project's files, and among them the two prompt guides (Madde 492).
+
+    The guides are prompt.GUIDES, which main.py hands the store, and the store lists and reads them
+    after the project's own files. Two other places ask the same map rather than the store, because
+    they refuse before the store is reached: tools.py's text tools, which will not write over a
+    guide, and the delete_file use case, which will not move one to the trash. All three are one
+    map, so a guide added to it is listed, read and refused alike.
+    """
+
     def list_names(self, project_id: str) -> list[str]:
         """The names of the files a project holds."""
 

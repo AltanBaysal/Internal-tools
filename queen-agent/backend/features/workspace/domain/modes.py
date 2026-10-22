@@ -37,27 +37,32 @@ _WITHOUT_ASKING = {
     EDIT: READS
     + (
         "create_file",
-        "start_scenario",
+        "sdxl_start_scenario",
         # Madde 168, and 456. A rename is the widest edit any tool here makes -- the map entry and
         # every frame naming it, in one call -- so the quieter modes keep their gate in front of
         # both.
-        "set_character",
-        "remove_character",
+        "sdxl_set_character",
+        "sdxl_remove_character",
         # Madde 169. Same reason, second map.
-        "set_outfit",
-        "remove_outfit",
+        "sdxl_set_outfit",
+        "sdxl_remove_outfit",
         # Madde 170, third map.
-        "set_location",
-        "remove_location",
+        "sdxl_set_location",
+        "sdxl_remove_location",
         "edit_file",
         "build_prompts",
         # Madde 128. It gives no position, but it changes the user's file, so ask and plan keep
         # their gate in front of it while this mode keeps none.
-        "add_frame",
+        "sdxl_add_frame",
         # Madde 174. A removal renumbers every frame left standing, which is the widest change any
         # of these makes to a file the user is reading.
-        "update_frame",
+        "sdxl_update_frame",
         "remove_frame",
+        # Madde 492. A Krea scenario's own four, gated in the quieter modes for the same reasons.
+        "krea_start_scenario",
+        "krea_set_style",
+        "krea_add_frame",
+        "krea_update_frame",
     ),
 }
 # Every mode there is: what a request may name (Madde 467), read off the rule so the two cannot part.

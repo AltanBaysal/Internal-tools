@@ -4,16 +4,18 @@ The texts themselves are in prompt.py since Madde 189, beside everything else th
 What is left here is the mapping: the picker's ids on one side, a text on the other. It is a
 product behaviour like the texts are, so it stays in the domain.
 
-Three texts: two since Madde 101, and Improve since Madde 394. Five others stood beside the first
-two and were deleted in Madde 94. The picker still has an empty state -- having no skill selected
-is ordinary, and the base text holds anyway.
+Four texts since Madde 492: a start and an edit for each image model. The SDXL two keep the ids they
+had, so old messages and the picker a browser remembers still find them; Improve went in the same
+item, and a record naming it runs on the base text like any id nobody knows. The picker still has
+an empty state -- having no skill selected is ordinary, and the base text holds anyway.
 """
 from backend.features.workspace.domain import prompt
 
 INSTRUCTIONS = {
     "start-a-scenario": prompt.START_A_SCENARIO,
     "edit-prompts": prompt.EDIT_PROMPTS,
-    "improve": prompt.IMPROVE,
+    "krea-start-scenario": prompt.KREA_START_SCENARIO,
+    "krea-edit": prompt.KREA_EDIT,
 }
 
 

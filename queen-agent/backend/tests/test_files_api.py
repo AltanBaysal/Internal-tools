@@ -19,12 +19,12 @@ class FakeEngine:
         yield {"text": "Done."}
 
 
-def _wired(tmp_path):
+def _wired(tmp_path, guides=None):
     # The client and its own file store: what the model writes reaches the list through the same
-    # projects.json the routes read (Madde 447).
+    # projects.json the routes read (Madde 447). No guides unless a test is about them.
     store = Store(str(tmp_path))
     projects = FileProjectStore(store)
-    files = FileFileStore(store, projects)
+    files = FileFileStore(store, projects, guides or {}, LISTED_AT)
     app = create_app(
         dist_dir=str(tmp_path),
         blueprints=(
@@ -44,12 +44,15 @@ def _client(tmp_path):
     return _wired(tmp_path)[0]
 
 
-def _files(tmp_path):
+LISTED_AT = "2026-10-22T09:00:00.000+00:00"
+
+
+def _files(tmp_path, guides=None, store=None):
     # A file lives in a project, and projects.json is what says it is there.
-    store = Store(str(tmp_path))
+    store = store or Store(str(tmp_path))
     projects = FileProjectStore(store)
     projects.add(Project(id="p1", name="Thesis", created_at="2026-08-09T10:00:00+00:00"))
-    return FileFileStore(store, projects)
+    return FileFileStore(store, projects, guides or {}, LISTED_AT)
 
 
 def test_the_chip_is_three_letters_of_the_extension():
@@ -184,3 +187,117 @@ def test_the_list_and_one_file_are_different_addresses(tmp_path):
     files.write(pid, "plan.md", "x")
     assert isinstance(client.get(f"/api/projects/{pid}/files").get_json(), list)
     assert isinstance(client.get(f"/api/projects/{pid}/files/plan.md").get_json(), dict)
+
+
+# --- the two prompt guides, among every project's files (Madde 492) -------------------------------
+#
+# 22 October, the user: two guides the agent reads and cannot change ("ajan değiştiremez sadece
+# okur"), seen in the file panel too ("dosya panelimde de görünse sıkıntı yok"). They are text in
+# the code, handed to the one class that knows a project's files, so every reader finds them
+# through the door it already uses -- and none of them is a trip to Drive.
+
+GUIDES = {"sdxl-prompt-writing.md": "# SDXL\n- one rule", "krea-prompt-writing.md": "# Krea"}
+
+
+class _CountingStore(Store):
+    """The store, counting its reads: each is a round trip on Drive."""
+
+    reads = 0
+
+    def read_text(self, path):
+        _CountingStore.reads += 1
+        return super().read_text(path)
+
+
+def test_every_project_lists_the_two_guides_after_its_own_files(tmp_path):
+    files = _files(tmp_path, GUIDES)
+    files.write("p1", "plan.md", "body")
+    assert files.list_names("p1") == ["plan.md", "sdxl-prompt-writing.md", "krea-prompt-writing.md"]
+    guide = files.list_files("p1")[1]
+    assert (guide.name, guide.ext, guide.modified_at) == ("sdxl-prompt-writing.md", "md", LISTED_AT)
+
+
+def test_a_guide_is_read_out_of_memory(tmp_path):
+    _CountingStore.reads = 0
+    files = _files(tmp_path, GUIDES, store=_CountingStore(str(tmp_path)))
+    reads = _CountingStore.reads
+    assert files.read("p1", "sdxl-prompt-writing.md") == "# SDXL\n- one rule"
+    body = files.read_body("p1", "krea-prompt-writing.md")
+    assert (body.file.name, body.file.ext, body.text) == ("krea-prompt-writing.md", "md", "# Krea")
+    assert _CountingStore.reads == reads
+
+
+def test_a_guide_shadows_a_file_of_the_same_name(tmp_path):
+    # Accepted by the user: the file stays on Drive, and the list names the guide once.
+    files = _files(tmp_path, GUIDES)
+    files.write("p1", "sdxl-prompt-writing.md", "the user's own")
+    assert files.list_names("p1") == ["sdxl-prompt-writing.md", "krea-prompt-writing.md"]
+    assert files.read("p1", "sdxl-prompt-writing.md") == "# SDXL\n- one rule"
+
+
+def test_the_panel_lists_and_opens_a_guide(tmp_path):
+    client, _ = _wired(tmp_path, GUIDES)
+    pid = client.post("/api/projects", json={"name": "Thesis"}).get_json()["id"]
+    listed = client.get(f"/api/projects/{pid}/files").get_json()
+    assert [row["name"] for row in listed] == ["sdxl-prompt-writing.md", "krea-prompt-writing.md"]
+    body = client.get(f"/api/projects/{pid}/files/krea-prompt-writing.md").get_json()
+    assert (body["ext"], body["text"]) == ("md", "# Krea")
+
+
+def test_deleting_a_guide_is_refused_and_says_why(tmp_path):
+    from backend.features.workspace.domain.prompt import GUIDES as REAL
+
+    _CountingStore.reads = 0
+    store = _CountingStore(str(tmp_path))
+    projects = FileProjectStore(store)
+    files = FileFileStore(store, projects, REAL, LISTED_AT)
+    app = create_app(
+        dist_dir=str(tmp_path),
+        blueprints=(
+            make_workspace_bp(
+                projects, FileChatStore(store, projects), files, FakeEngine(), LiveTurns()
+            ),
+        ),
+    )
+    client = app.test_client()
+    pid = client.post("/api/projects", json={"name": "Thesis"}).get_json()["id"]
+    resp = client.delete(f"/api/projects/{pid}/files/sdxl-prompt-writing.md")
+    assert resp.status_code == 409
+    assert resp.get_json() == {
+        "error": "sdxl-prompt-writing.md is read-only; it is read, not written."
+    }
+    # Still there, and nothing went to the trash.
+    assert "sdxl-prompt-writing.md" in files.list_names(pid)
+    assert not (tmp_path / pid / "trash").exists()
+
+
+def test_a_read_only_file_carries_its_own_sentence():
+    # Written once, as BadStructure carries its words: the route and the agent's tools say it alike.
+    from backend.features.workspace.domain.errors import ReadOnlyFile
+
+    assert str(ReadOnlyFile("a.md")) == "a.md is read-only; it is read, not written."
+
+
+def test_the_agent_cannot_change_or_write_over_a_guide(tmp_path):
+    import json
+
+    from backend.features.workspace.domain.prompt import GUIDES as REAL
+    from backend.features.workspace.domain.tools import run_tool
+
+    files = _files(tmp_path, REAL)
+    edited = run_tool(
+        files,
+        "p1",
+        "edit_file",
+        json.dumps({"name": "krea-prompt-writing.md", "old": "Krea", "new": "SDXL"}),
+    )
+    assert edited.text == "krea-prompt-writing.md is read-only; it is read, not written."
+    created = run_tool(
+        files, "p1", "create_file", json.dumps({"name": "krea-prompt-writing.md", "content": "x"})
+    )
+    # The same sentence as the edit's, rather than a pointer to edit_file that edit_file refuses.
+    assert created.text == "krea-prompt-writing.md is read-only; it is read, not written."
+    assert created.created is None
+    assert files.read("p1", "krea-prompt-writing.md") == REAL["krea-prompt-writing.md"]
+    read = run_tool(files, "p1", "read_file", json.dumps({"name": "sdxl-prompt-writing.md"}))
+    assert read.text.startswith("sdxl-prompt-writing.md, ")

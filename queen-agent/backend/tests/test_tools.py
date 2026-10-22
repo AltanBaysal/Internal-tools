@@ -15,6 +15,8 @@ from backend.features.workspace.domain.tools import (
     numbered,
     run_tool,
     safe_name,
+    scenario_kind,
+    scenario_name,
 )
 from backend.services.store.store import Store
 
@@ -52,7 +54,8 @@ def _files(tmp_path):
         store = Store(str(tmp_path))
         projects = FileProjectStore(store)
         projects.add(Project(id="p1", name="Thesis", created_at="2026-08-09T10:00:00+00:00"))
-        _FILES[tmp_path] = FileFileStore(store, projects)
+        # No guides: what these tests count is the project's own files (Madde 492).
+        _FILES[tmp_path] = FileFileStore(store, projects, {}, "")
     return _FILES[tmp_path]
 
 
@@ -118,7 +121,7 @@ def test_reading_a_file_that_is_not_there_is_an_answer_not_a_crash(tmp_path):
 
 
 def _started(files, name="bar-scene"):
-    return json.loads(files.read("p1", run_tool(files, "p1", "start_scenario", json.dumps({"name": name})).target))
+    return json.loads(files.read("p1", run_tool(files, "p1", "sdxl_start_scenario", json.dumps({"name": name})).target))
 
 
 def test_start_scenario_writes_the_empty_maps_and_no_frames(tmp_path):
@@ -134,27 +137,27 @@ def test_start_scenario_names_the_file_after_the_scenario(tmp_path, asked):
     # .json, so the tool that opens one has to land on the same extension -- two that disagreed
     # would leave the door guarding a file nothing writes.
     files = _files(tmp_path)
-    assert run_tool(files, "p1", "start_scenario", json.dumps({"name": asked})).target == (
-        "bar-scene.json"
+    assert run_tool(files, "p1", "sdxl_start_scenario", json.dumps({"name": asked})).target == (
+        "bar-scene.sdxl.json"
     )
 
 
 def test_start_scenario_refuses_a_name_that_is_taken(tmp_path):
     # Madde 69's rule on this path too, with its own way out: a scenario is opened and added to,
     # never born a second time. Saying only that one exists would leave the next move to a guess.
-    files = _with(tmp_path, "bar-scene.json", STRUCTURE)
-    said = _call(files, "start_scenario", name="bar-scene")
-    assert "There is already a file called bar-scene.json." in said
+    files = _with(tmp_path, "bar-scene.sdxl.json", STRUCTURE)
+    said = _call(files, "sdxl_start_scenario", name="bar-scene")
+    assert "There is already a file called bar-scene.sdxl.json." in said
     assert "Open it and add to it, or pick another name for a new scenario." in said
     # And the scenario that was there is untouched -- the refusal is a refusal, not a rewrite.
-    assert files.read("p1", "bar-scene.json") == STRUCTURE
+    assert files.read("p1", "bar-scene.sdxl.json") == STRUCTURE
 
 
 def test_start_scenario_says_what_it_started(tmp_path):
     # One call, both halves read off it. Calling twice over the same tmp_path would meet the
     # scenario the first call wrote, and the second answer would be the refusal.
-    made = run_tool(_files(tmp_path), "p1", "start_scenario", json.dumps({"name": "bar-scene"}))
-    assert made.text == "Started bar-scene.json."
+    made = run_tool(_files(tmp_path), "p1", "sdxl_start_scenario", json.dumps({"name": "bar-scene"}))
+    assert made.text == "Started bar-scene.sdxl.json."
     assert made.outcome == "Started"
 
 
@@ -162,16 +165,16 @@ def test_start_scenario_hands_the_name_back_so_a_card_is_drawn(tmp_path):
     from backend.features.workspace.domain.tools import WRITES_FILES
 
     files = _files(tmp_path)
-    assert run_tool(files, "p1", "start_scenario", json.dumps({"name": "bar"})).created == "bar.json"
-    assert "start_scenario" in WRITES_FILES
+    assert run_tool(files, "p1", "sdxl_start_scenario", json.dumps({"name": "bar"})).created == "bar.sdxl.json"
+    assert "sdxl_start_scenario" in WRITES_FILES
 
 
 def test_start_scenario_writes_the_file_for_a_person_to_read(tmp_path):
     # The user opens this file and fixes it by hand, so it is indented rather than one long line --
     # the rule every write to a structure keeps, and the same person opening the same file.
     files = _files(tmp_path)
-    _call(files, "start_scenario", name="bar-scene")
-    assert '\n  "characters": {}' in files.read("p1", "bar-scene.json")
+    _call(files, "sdxl_start_scenario", name="bar-scene")
+    assert '\n  "characters": {}' in files.read("p1", "bar-scene.sdxl.json")
 
 
 # --- character management (Madde 168, and 456) ----------------------------------------------------
@@ -219,20 +222,20 @@ CAST = json.dumps(
 
 
 def _cast(tmp_path):
-    return _with(tmp_path, "bar-scene.json", CAST)
+    return _with(tmp_path, "bar-scene.sdxl.json", CAST)
 
 
 def _read_back(files, key="characters"):
-    return json.loads(files.read("p1", "bar-scene.json"))[key]
+    return json.loads(files.read("p1", "bar-scene.sdxl.json"))[key]
 
 
-def _set(files, tool="set_character", **arguments):
-    return run_tool(files, "p1", tool, json.dumps({"file": "bar-scene.json", **arguments}))
+def _set(files, tool="sdxl_set_character", **arguments):
+    return run_tool(files, "p1", tool, json.dumps({"file": "bar-scene.sdxl.json", **arguments}))
 
 
 def test_set_character_adds_a_name_that_is_not_there(tmp_path):
     files = _cast(tmp_path)
-    _call(files, "set_character", file="bar-scene.json", name="lara", tags="1girl, red hair")
+    _call(files, "sdxl_set_character", file="bar-scene.sdxl.json", name="lara", tags="1girl, red hair")
     assert _read_back(files)["lara"] == "1girl, red hair"
 
 
@@ -248,7 +251,7 @@ def test_an_addition_names_what_was_known_before_it(tmp_path):
 
 
 def test_an_addition_to_an_empty_map_says_nothing_was_known(tmp_path):
-    files = _with(tmp_path, "bar-scene.json", json.dumps(EMPTY_SCENARIO))
+    files = _with(tmp_path, "bar-scene.sdxl.json", json.dumps(EMPTY_SCENARIO))
     assert _set(files, name="aylin", tags="1girl").text == (
         "Added aylin to characters as a new character; known before it: nothing."
     )
@@ -256,7 +259,7 @@ def test_an_addition_to_an_empty_map_says_nothing_was_known(tmp_path):
 
 def test_an_addition_opens_a_map_the_file_does_not_have(tmp_path):
     # Absent is not broken: a file with no characters yet takes its first one, as add_ always did.
-    files = _with(tmp_path, "bar-scene.json", json.dumps({"frames": []}))
+    files = _with(tmp_path, "bar-scene.sdxl.json", json.dumps({"frames": []}))
     _set(files, name="aylin", tags="1girl")
     assert _read_back(files) == {"aylin": "1girl"}
 
@@ -277,7 +280,7 @@ def test_a_new_character_needs_tags(tmp_path, tags):
     made = _set(files, name="lara", **given)
     assert made.text == "A new character needs tags."
     assert made.outcome == "Refused"
-    assert files.read("p1", "bar-scene.json") == CAST
+    assert files.read("p1", "bar-scene.sdxl.json") == CAST
 
 
 def test_set_character_changes_a_name_that_is_there(tmp_path):
@@ -346,7 +349,7 @@ def test_a_new_name_for_a_name_that_is_not_there_is_refused(tmp_path):
     made = _set(files, name="lara", new_name="ayla", tags="1girl")
     assert made.text == "lara is not in characters; known: aylin, deniz, eda."
     assert made.outcome == "Not there"
-    assert files.read("p1", "bar-scene.json") == CAST
+    assert files.read("p1", "bar-scene.sdxl.json") == CAST
 
 
 def test_the_same_tags_change_nothing(tmp_path):
@@ -356,7 +359,7 @@ def test_the_same_tags_change_nothing(tmp_path):
     made = _set(files, name="aylin", tags="1girl, long teal hair")
     assert made.text == "Nothing would change about aylin."
     assert made.outcome == "Nothing to change"
-    assert files.read("p1", "bar-scene.json") == CAST
+    assert files.read("p1", "bar-scene.sdxl.json") == CAST
 
 
 def test_a_name_that_is_there_with_nothing_else_changes_nothing(tmp_path):
@@ -379,28 +382,28 @@ def test_a_new_name_that_is_taken_is_refused(tmp_path):
     made = _set(files, name="aylin", new_name="deniz", tags="1girl, red hair")
     assert made.text == "There is already a character called deniz."
     assert made.outcome == "Already there"
-    assert files.read("p1", "bar-scene.json") == CAST
+    assert files.read("p1", "bar-scene.sdxl.json") == CAST
 
 
-@pytest.mark.parametrize("tool", ["set_character", "remove_character"])
+@pytest.mark.parametrize("tool", ["sdxl_set_character", "sdxl_remove_character"])
 @pytest.mark.parametrize("broken", [["aylin"], "aylin"])
 def test_a_map_that_is_not_a_map_is_refused_and_left_as_it_is(tmp_path, broken, tool):
     # add_ used to put an empty map in its place and write the file: a hand-written list wiped to
     # make room for one name. The user's work comes first, so the file stays as they wrote it. And
     # remove_ looked the name up in it and crashed the turn.
     written = json.dumps({"characters": broken, "frames": []})
-    files = _with(tmp_path, "bar-scene.json", written)
+    files = _with(tmp_path, "bar-scene.sdxl.json", written)
     made = _set(files, tool, name="aylin", tags="1girl")
     assert made.text == (
-        "characters in bar-scene.json is not a map of names to tags, so nothing was written."
+        "characters in bar-scene.sdxl.json is not a map of names to tags, so nothing was written."
     )
     assert made.outcome == "Refused"
-    assert files.read("p1", "bar-scene.json") == written
+    assert files.read("p1", "bar-scene.sdxl.json") == written
 
 
 def test_a_null_map_takes_its_first_entry(tmp_path):
     # Null holds nothing a hand wrote, so it is a map with nothing in it yet, as a missing one is.
-    files = _with(tmp_path, "bar-scene.json", json.dumps({"characters": None, "frames": []}))
+    files = _with(tmp_path, "bar-scene.sdxl.json", json.dumps({"characters": None, "frames": []}))
     assert _set(files, name="aylin", tags="1girl").outcome == "Added"
     assert _read_back(files) == {"aylin": "1girl"}
 
@@ -418,7 +421,7 @@ def test_set_character_reads_the_old_list_form_when_it_renames(tmp_path):
     # what is already on the user's disk into rubbish.
     old = json.loads(CAST)
     old["frames"] = [{"characters": ["aylin", "deniz"], "location": "bedroom", "action": "one"}]
-    files = _with(tmp_path, "bar-scene.json", json.dumps(old))
+    files = _with(tmp_path, "bar-scene.sdxl.json", json.dumps(old))
     _set(files, name="aylin", new_name="ayla")
     assert _read_back(files, "frames")[0]["characters"] == ["ayla", "deniz"]
 
@@ -484,7 +487,7 @@ def test_a_set_that_changes_nothing_reads_once_and_writes_nothing(tmp_path, give
 
 def test_remove_character_takes_the_name_out(tmp_path):
     files = _cast(tmp_path)
-    said = _call(files, "remove_character", file="bar-scene.json", name="eda")
+    said = _call(files, "sdxl_remove_character", file="bar-scene.sdxl.json", name="eda")
     assert said == "Removed eda from characters."
     assert "eda" not in _read_back(files)
 
@@ -493,33 +496,33 @@ def test_remove_character_refuses_while_a_frame_names_it(tmp_path):
     # The frames are the answer to whether anything stands on this entry, which is why removing
     # opens the file where adding could have worked on the map alone.
     files = _cast(tmp_path)
-    said = _call(files, "remove_character", file="bar-scene.json", name="aylin")
+    said = _call(files, "sdxl_remove_character", file="bar-scene.sdxl.json", name="aylin")
     assert said == "aylin is still in frames 1, 3. Nothing was removed."
     assert "aylin" in _read_back(files)
 
 
 def test_remove_character_refuses_a_name_nobody_knows(tmp_path):
     files = _cast(tmp_path)
-    assert _call(files, "remove_character", file="bar-scene.json", name="lara") == (
+    assert _call(files, "sdxl_remove_character", file="bar-scene.sdxl.json", name="lara") == (
         "lara is not in characters; known: aylin, deniz, eda."
     )
 
 
 def test_remove_character_leaves_the_frames_alone(tmp_path):
     files = _cast(tmp_path)
-    _call(files, "remove_character", file="bar-scene.json", name="eda")
+    _call(files, "sdxl_remove_character", file="bar-scene.sdxl.json", name="eda")
     # First, or the line below is vacuously true on a call that removed nothing.
     assert "eda" not in _read_back(files)
     assert _read_back(files, "frames") == json.loads(CAST)["frames"]
 
 
-CHARACTER_TOOLS = ("set_character", "remove_character")
+CHARACTER_TOOLS = ("sdxl_set_character", "sdxl_remove_character")
 
 
 @pytest.mark.parametrize("tool", CHARACTER_TOOLS)
 def test_a_character_tool_says_when_the_file_is_not_there(tmp_path, tool):
     files = _files(tmp_path)
-    assert _call(files, tool, file="ghost.json", name="aylin", tags="1girl") == (
+    assert _call(files, tool, file="ghost.sdxl.json", name="aylin", tags="1girl") == (
         "There is no file by that name."
     )
 
@@ -527,9 +530,9 @@ def test_a_character_tool_says_when_the_file_is_not_there(tmp_path, tool):
 @pytest.mark.parametrize("tool", CHARACTER_TOOLS)
 def test_a_character_tool_says_when_the_file_is_not_json(tmp_path, tool):
     # The parser's own sentence. A guessed cause sends the model somewhere else entirely.
-    files = _with(tmp_path, "bar-scene.json", "not json at all")
-    said = _call(files, tool, file="bar-scene.json", name="aylin", tags="1girl")
-    assert said.startswith("bar-scene.json is not valid JSON:")
+    files = _with(tmp_path, "bar-scene.sdxl.json", "not json at all")
+    said = _call(files, tool, file="bar-scene.sdxl.json", name="aylin", tags="1girl")
+    assert said.startswith("bar-scene.sdxl.json is not valid JSON:")
 
 
 @pytest.mark.parametrize("tool", CHARACTER_TOOLS)
@@ -537,9 +540,9 @@ def test_a_character_tool_says_when_the_file_has_no_frames_list(tmp_path, tool):
     # Asked of every one of them, not only of the two that read the frames. Removing asks whether
     # anything stands on the entry and renaming rewrites what does -- so a file with no list cannot
     # do this work, and saying so while adding beats crashing while removing.
-    files = _with(tmp_path, "bar-scene.json", json.dumps({"characters": {}}))
-    said = _call(files, tool, file="bar-scene.json", name="aylin", tags="1girl")
-    assert said == "bar-scene.json has no frames list to add to; a structure file carries one."
+    files = _with(tmp_path, "bar-scene.sdxl.json", json.dumps({"characters": {}}))
+    said = _call(files, tool, file="bar-scene.sdxl.json", name="aylin", tags="1girl")
+    assert said == "bar-scene.sdxl.json has no frames list to add to; a structure file carries one."
 
 
 def test_the_cast_of_a_frame_is_read_the_same_way_everywhere():
@@ -568,7 +571,7 @@ def test_the_cast_of_a_frame_is_read_the_same_way_everywhere():
 
 def test_set_outfit_adds_a_name_that_is_not_there(tmp_path):
     files = _cast(tmp_path)
-    made = _set(files, "set_outfit", name="palto", tags="long wool coat")
+    made = _set(files, "sdxl_set_outfit", name="palto", tags="long wool coat")
     assert made.text == (
         "Added palto to outfits as a new outfit; known before it: atki, gecelik, takim."
     )
@@ -577,14 +580,14 @@ def test_set_outfit_adds_a_name_that_is_not_there(tmp_path):
 
 def test_an_outfit_needs_a_name_and_a_new_one_needs_tags(tmp_path):
     files = _cast(tmp_path)
-    assert _set(files, "set_outfit", tags="coat").text == "An outfit needs a name."
-    assert _set(files, "set_outfit", name="palto").text == "A new outfit needs tags."
+    assert _set(files, "sdxl_set_outfit", tags="coat").text == "An outfit needs a name."
+    assert _set(files, "sdxl_set_outfit", name="palto").text == "A new outfit needs tags."
 
 
 def test_set_outfit_changes_a_name_that_is_there(tmp_path):
     # Worn in frames 1 and 3: an outfit's frames are read inside whoever wears it.
     files = _cast(tmp_path)
-    assert _set(files, "set_outfit", name="gecelik", tags="black slip").text == (
+    assert _set(files, "sdxl_set_outfit", name="gecelik", tags="black slip").text == (
         'Changed gecelik in outfits; frames naming it: 1, 3. Its text was "white nightgown".'
     )
     assert _read_back(files, "outfits")["gecelik"] == "black slip"
@@ -593,7 +596,7 @@ def test_set_outfit_changes_a_name_that_is_there(tmp_path):
 def test_a_new_name_for_an_outfit_that_is_not_there_is_refused(tmp_path):
     # This map's names only. A character's name is no help to somebody looking for an outfit.
     files = _cast(tmp_path)
-    assert _set(files, "set_outfit", name="palto", new_name="coat").text == (
+    assert _set(files, "sdxl_set_outfit", name="palto", new_name="coat").text == (
         "palto is not in outfits; known: atki, gecelik, takim."
     )
 
@@ -602,7 +605,7 @@ def test_set_outfit_renames_and_the_frames_follow(tmp_path):
     # An outfit lives inside a character's list, not as a key of the cast. The rename has to reach
     # in there and leave the character's own name exactly where it was.
     files = _cast(tmp_path)
-    assert _set(files, "set_outfit", name="gecelik", new_name="pijama").text == (
+    assert _set(files, "sdxl_set_outfit", name="gecelik", new_name="pijama").text == (
         "Renamed gecelik to pijama in outfits; 2 frames followed."
     )
     frames = _read_back(files, "frames")
@@ -617,22 +620,22 @@ def test_set_outfit_renames_inside_the_short_form_too(tmp_path):
     # leave a frame naming something the map no longer has.
     short = json.loads(CAST)
     short["frames"] = [{"characters": {"aylin": "gecelik"}, "location": "bedroom", "action": "one"}]
-    files = _with(tmp_path, "bar-scene.json", json.dumps(short))
-    _set(files, "set_outfit", name="gecelik", new_name="pijama")
+    files = _with(tmp_path, "bar-scene.sdxl.json", json.dumps(short))
+    _set(files, "sdxl_set_outfit", name="gecelik", new_name="pijama")
     assert _read_back(files, "frames")[0]["characters"] == {"aylin": "pijama"}
 
 
 def test_a_new_outfit_name_that_is_taken_is_refused(tmp_path):
     files = _cast(tmp_path)
-    assert _set(files, "set_outfit", name="gecelik", new_name="takim").text == (
+    assert _set(files, "sdxl_set_outfit", name="gecelik", new_name="takim").text == (
         "There is already an outfit called takim."
     )
-    assert files.read("p1", "bar-scene.json") == CAST
+    assert files.read("p1", "bar-scene.sdxl.json") == CAST
 
 
 def test_remove_outfit_takes_the_name_out(tmp_path):
     files = _cast(tmp_path)
-    assert _call(files, "remove_outfit", file="bar-scene.json", name="atki") == (
+    assert _call(files, "sdxl_remove_outfit", file="bar-scene.sdxl.json", name="atki") == (
         "Removed atki from outfits."
     )
     assert "atki" not in _read_back(files, "outfits")
@@ -642,36 +645,36 @@ def test_remove_outfit_refuses_while_a_frame_wears_it(tmp_path):
     # Its own verb. An outfit is worn by somebody; saying it is "in" a frame would read as a thing
     # lying there with nobody in it.
     files = _cast(tmp_path)
-    said = _call(files, "remove_outfit", file="bar-scene.json", name="gecelik")
+    said = _call(files, "sdxl_remove_outfit", file="bar-scene.sdxl.json", name="gecelik")
     assert said == "gecelik is still worn in frames 1, 3. Nothing was removed."
     assert "gecelik" in _read_back(files, "outfits")
 
 
 def test_remove_outfit_leaves_the_characters_alone(tmp_path):
     files = _cast(tmp_path)
-    _call(files, "remove_outfit", file="bar-scene.json", name="atki")
+    _call(files, "sdxl_remove_outfit", file="bar-scene.sdxl.json", name="atki")
     # First, or the line below is vacuously true on a call that removed nothing.
     assert "atki" not in _read_back(files, "outfits")
     assert _read_back(files) == json.loads(CAST)["characters"]
 
 
-OUTFIT_TOOLS = ("set_outfit", "remove_outfit")
+OUTFIT_TOOLS = ("sdxl_set_outfit", "sdxl_remove_outfit")
 
 
 @pytest.mark.parametrize("tool", OUTFIT_TOOLS)
 def test_an_outfit_tool_opens_the_file_the_same_way(tmp_path, tool):
     # The shared opener, measured on a second map: one missing file reads the same wherever it is
     # met, and that is the whole reason those four lines live in one place.
-    assert _call(_files(tmp_path), tool, file="ghost.json", name="gecelik", tags="x") == (
+    assert _call(_files(tmp_path), tool, file="ghost.sdxl.json", name="gecelik", tags="x") == (
         "There is no file by that name."
     )
-    broken = _with(tmp_path, "bar-scene.json", "not json at all")
-    assert _call(broken, tool, file="bar-scene.json", name="gecelik", tags="x").startswith(
-        "bar-scene.json is not valid JSON:"
+    broken = _with(tmp_path, "bar-scene.sdxl.json", "not json at all")
+    assert _call(broken, tool, file="bar-scene.sdxl.json", name="gecelik", tags="x").startswith(
+        "bar-scene.sdxl.json is not valid JSON:"
     )
-    listless = _with(tmp_path, "listless.json", json.dumps({"outfits": {}}))
-    assert _call(listless, tool, file="listless.json", name="gecelik", tags="x") == (
-        "listless.json has no frames list to add to; a structure file carries one."
+    listless = _with(tmp_path, "listless.sdxl.json", json.dumps({"outfits": {}}))
+    assert _call(listless, tool, file="listless.sdxl.json", name="gecelik", tags="x") == (
+        "listless.sdxl.json has no frames list to add to; a structure file carries one."
     )
 
 
@@ -688,7 +691,7 @@ def test_an_outfit_tool_opens_the_file_the_same_way(tmp_path, tool):
 
 def test_set_location_adds_a_name_that_is_not_there(tmp_path):
     files = _cast(tmp_path)
-    made = _set(files, "set_location", name="balkon", tags="balcony, night")
+    made = _set(files, "sdxl_set_location", name="balkon", tags="balcony, night")
     assert made.text == (
         "Added balkon to locations as a new location; known before it: bedroom, kapi_onu."
     )
@@ -698,13 +701,13 @@ def test_set_location_adds_a_name_that_is_not_there(tmp_path):
 def test_a_location_needs_a_name(tmp_path):
     # The article goes back to "a" here: one rule over three singulars, and this is the third.
     files = _cast(tmp_path)
-    assert _set(files, "set_location", tags="balcony").text == "A location needs a name."
+    assert _set(files, "sdxl_set_location", tags="balcony").text == "A location needs a name."
 
 
 def test_set_location_changes_a_name_that_is_there(tmp_path):
     # A frame names its place in a field of its own, so the frames come from there.
     files = _cast(tmp_path)
-    assert _set(files, "set_location", name="bedroom", tags="dark bedroom").text == (
+    assert _set(files, "sdxl_set_location", name="bedroom", tags="dark bedroom").text == (
         'Changed bedroom in locations; frames naming it: 1, 2, 3. Its text was "sunlit bedroom".'
     )
     assert _read_back(files, "locations")["bedroom"] == "dark bedroom"
@@ -712,7 +715,7 @@ def test_set_location_changes_a_name_that_is_there(tmp_path):
 
 def test_a_new_name_for_a_location_that_is_not_there_is_refused(tmp_path):
     files = _cast(tmp_path)
-    assert _set(files, "set_location", name="balkon", new_name="teras").text == (
+    assert _set(files, "sdxl_set_location", name="balkon", new_name="teras").text == (
         "balkon is not in locations; known: bedroom, kapi_onu."
     )
 
@@ -721,7 +724,7 @@ def test_set_location_renames_and_the_frames_follow(tmp_path):
     # A frame names its place in a field of its own, so the rename writes there and leaves the cast
     # entirely alone.
     files = _cast(tmp_path)
-    assert _set(files, "set_location", name="bedroom", new_name="yatak").text == (
+    assert _set(files, "sdxl_set_location", name="bedroom", new_name="yatak").text == (
         "Renamed bedroom to yatak in locations; 3 frames followed."
     )
     frames = _read_back(files, "frames")
@@ -731,15 +734,15 @@ def test_set_location_renames_and_the_frames_follow(tmp_path):
 
 def test_a_new_location_name_that_is_taken_is_refused(tmp_path):
     files = _cast(tmp_path)
-    assert _set(files, "set_location", name="bedroom", new_name="kapi_onu").text == (
+    assert _set(files, "sdxl_set_location", name="bedroom", new_name="kapi_onu").text == (
         "There is already a location called kapi_onu."
     )
-    assert files.read("p1", "bar-scene.json") == CAST
+    assert files.read("p1", "bar-scene.sdxl.json") == CAST
 
 
 def test_remove_location_takes_the_name_out(tmp_path):
     files = _cast(tmp_path)
-    assert _call(files, "remove_location", file="bar-scene.json", name="kapi_onu") == (
+    assert _call(files, "sdxl_remove_location", file="bar-scene.sdxl.json", name="kapi_onu") == (
         "Removed kapi_onu from locations."
     )
     assert "kapi_onu" not in _read_back(files, "locations")
@@ -749,34 +752,34 @@ def test_remove_location_refuses_while_it_is_a_frames_place(tmp_path):
     # Its own verb, and the row written in 169 that has not run until now. A place is not something
     # standing in a frame; it is what the frame is set in.
     files = _cast(tmp_path)
-    said = _call(files, "remove_location", file="bar-scene.json", name="bedroom")
+    said = _call(files, "sdxl_remove_location", file="bar-scene.sdxl.json", name="bedroom")
     assert said == "bedroom is still the place in frames 1, 2, 3. Nothing was removed."
     assert "bedroom" in _read_back(files, "locations")
 
 
 def test_remove_location_leaves_the_frames_alone(tmp_path):
     files = _cast(tmp_path)
-    _call(files, "remove_location", file="bar-scene.json", name="kapi_onu")
+    _call(files, "sdxl_remove_location", file="bar-scene.sdxl.json", name="kapi_onu")
     # First, or the line below is vacuously true on a call that removed nothing.
     assert "kapi_onu" not in _read_back(files, "locations")
     assert _read_back(files, "frames") == json.loads(CAST)["frames"]
 
 
-LOCATION_TOOLS = ("set_location", "remove_location")
+LOCATION_TOOLS = ("sdxl_set_location", "sdxl_remove_location")
 
 
 @pytest.mark.parametrize("tool", LOCATION_TOOLS)
 def test_a_location_tool_opens_the_file_the_same_way(tmp_path, tool):
-    assert _call(_files(tmp_path), tool, file="ghost.json", name="bedroom", tags="x") == (
+    assert _call(_files(tmp_path), tool, file="ghost.sdxl.json", name="bedroom", tags="x") == (
         "There is no file by that name."
     )
-    broken = _with(tmp_path, "bar-scene.json", "not json at all")
-    assert _call(broken, tool, file="bar-scene.json", name="bedroom", tags="x").startswith(
-        "bar-scene.json is not valid JSON:"
+    broken = _with(tmp_path, "bar-scene.sdxl.json", "not json at all")
+    assert _call(broken, tool, file="bar-scene.sdxl.json", name="bedroom", tags="x").startswith(
+        "bar-scene.sdxl.json is not valid JSON:"
     )
-    listless = _with(tmp_path, "listless.json", json.dumps({"locations": {}}))
-    assert _call(listless, tool, file="listless.json", name="bedroom", tags="x") == (
-        "listless.json has no frames list to add to; a structure file carries one."
+    listless = _with(tmp_path, "listless.sdxl.json", json.dumps({"locations": {}}))
+    assert _call(listless, tool, file="listless.sdxl.json", name="bedroom", tags="x") == (
+        "listless.sdxl.json has no frames list to add to; a structure file carries one."
     )
 
 
@@ -785,12 +788,12 @@ def test_the_three_maps_are_managed_by_the_same_six_tools():
     # the six, or naming a seventh differently, is caught here rather than by a reader noticing.
     declared = {spec["function"]["name"]: spec["function"] for spec in TOOL_SPECS}
     for which in ("character", "outfit", "location"):
-        setting = declared[f"set_{which}"]["parameters"]
+        setting = declared[f"sdxl_set_{which}"]["parameters"]
         # Tags are not required: a rename gives none, and a new name without them is refused in
         # words rather than by the schema.
         assert set(setting["properties"]) == {"file", "name", "tags", "new_name"}
         assert set(setting["required"]) == {"file", "name"}
-        removing = declared[f"remove_{which}"]["parameters"]
+        removing = declared[f"sdxl_remove_{which}"]["parameters"]
         assert set(removing["properties"]) == {"file", "name"}
         assert set(removing["required"]) == {"file", "name"}
 
@@ -829,22 +832,23 @@ def test_no_text_points_at_an_old_add_or_update_tool(gone):
 # user fixes it.
 
 SHUT = (
-    "bar-scene.json is a structure file; it is not written or changed as text. Use start_scenario "
-    "to open one, and the set_, add_, update_ and remove_ tools to change it."
+    "bar-scene.sdxl.json is a structure file; it is not written or changed as text. Use "
+    "sdxl_start_scenario or krea_start_scenario to open one, and the sdxl_ and krea_ tools to "
+    "change it."
 )
 
 
 def test_create_file_refuses_a_structure_file(tmp_path):
     files = _files(tmp_path)
-    assert _call(files, "create_file", name="bar-scene.json", content="{}") == SHUT
+    assert _call(files, "create_file", name="bar-scene.sdxl.json", content="{}") == SHUT
     # And nothing was born: a refusal that still wrote the file would be the worst of both.
     assert files.list_names("p1") == []
 
 
 def test_edit_file_refuses_a_structure_file(tmp_path):
     files = _cast(tmp_path)
-    assert _call(files, "edit_file", name="bar-scene.json", old="aylin", new="ayla") == SHUT
-    assert files.read("p1", "bar-scene.json") == CAST
+    assert _call(files, "edit_file", name="bar-scene.sdxl.json", old="aylin", new="ayla") == SHUT
+    assert files.read("p1", "bar-scene.sdxl.json") == CAST
 
 
 def test_the_door_is_shut_whatever_the_case_of_the_extension(tmp_path):
@@ -860,9 +864,9 @@ def test_the_door_is_shut_even_on_a_broken_structure_file(tmp_path):
     # The exception the archive kept, and the user closed on 5 Sep. The tools refuse to open a
     # broken file, so a broken file came from a hand rather than from here -- and repairing what a
     # person wrote by letting the model guess at it is not a repair.
-    files = _with(tmp_path, "bar-scene.json", "{ not json")
-    assert _call(files, "edit_file", name="bar-scene.json", old="not", new="also not") == SHUT
-    assert files.read("p1", "bar-scene.json") == "{ not json"
+    files = _with(tmp_path, "bar-scene.sdxl.json", "{ not json")
+    assert _call(files, "edit_file", name="bar-scene.sdxl.json", old="not", new="also not") == SHUT
+    assert files.read("p1", "bar-scene.sdxl.json") == "{ not json"
 
 
 def test_create_file_still_writes_a_document(tmp_path):
@@ -880,11 +884,11 @@ def test_the_tool_that_opens_a_scenario_lands_where_the_door_is(tmp_path):
     # here: the one tool that may open a structure lands behind the door that shuts on everything
     # else, so the door never stands in front of a file nothing can write.
     files = _files(tmp_path)
-    born = run_tool(files, "p1", "start_scenario", json.dumps({"name": "bar-scene.md"}))
+    born = run_tool(files, "p1", "sdxl_start_scenario", json.dumps({"name": "bar-scene.md"}))
     assert born.target.endswith(".json")
     assert _call(files, "edit_file", name=born.target, old="{", new="[").endswith(
-        "it is not written or changed as text. Use start_scenario to open one, and the set_, "
-        "add_, update_ and remove_ tools to change it."
+        "it is not written or changed as text. Use sdxl_start_scenario or krea_start_scenario to "
+        "open one, and the sdxl_ and krea_ tools to change it."
     )
 
 
@@ -977,9 +981,10 @@ def test_the_build_tool_says_each_frame_goes_out_with_its_scene():
 
 
 def _rules():
-    from backend.features.workspace.domain.prompt import SDXL_DOCUMENT
+    # The SDXL guide since Madde 492: the model reads it when its skill says to, never on its own.
+    from backend.features.workspace.domain.prompt import GUIDES
 
-    return SDXL_DOCUMENT
+    return GUIDES["sdxl-prompt-writing.md"]
 
 
 def test_the_schema_tool_is_gone(tmp_path):
@@ -1019,7 +1024,7 @@ def test_the_character_preview_tool_is_gone(tmp_path):
         _files(tmp_path),
         "p1",
         "build_character_prompts",
-        json.dumps({"name": "scene.json", "character": "aylin"}),
+        json.dumps({"name": "scene.sdxl.json", "character": "aylin"}),
     ).text
     assert "no tool called" in said
 
@@ -1083,7 +1088,7 @@ def test_the_single_frame_tool_is_gone(tmp_path):
         _files(tmp_path),
         "p1",
         "write_frame_prompt",
-        json.dumps({"file": "scene.json", "frame": 1}),
+        json.dumps({"file": "scene.sdxl.json", "frame": 1}),
     ).text
     assert "no tool called" in said
 
@@ -1101,7 +1106,7 @@ def test_the_bulk_writer_is_gone(tmp_path):
     # Madde 395, the owner's decision of 30 September: the main model writes each frame's action
     # itself, so the tool that asked a second model for them goes.
     assert "write_missing_actions" not in {spec["function"]["name"] for spec in TOOL_SPECS}
-    said = run_tool(_files(tmp_path), "p1", "write_missing_actions", '{"file": "scene.json"}').text
+    said = run_tool(_files(tmp_path), "p1", "write_missing_actions", '{"file": "scene.sdxl.json"}').text
     assert "no tool called" in said
 
 
@@ -1130,7 +1135,7 @@ def test_add_frame_says_where_the_action_is_written():
     from backend.features.workspace.domain.prompt import ADD_FRAME
 
     assert ADD_FRAME.endswith(
-        "- A frame is born without its action. Write the action afterwards with update_frame."
+        "- A frame is born without its action. Write the action afterwards with sdxl_update_frame."
     )
 
 
@@ -1168,17 +1173,84 @@ def test_the_document_keeps_a_mirror_out_unless_the_user_asks():
     assert "user asks" in said
 
 
-def test_the_frames_action_points_at_the_document_by_its_title():
-    # The action used to say "the same rules as the entries", which pointed at the six tools the
-    # rules rode with. They ride in the document now, so the pointer names it.
+def test_the_frames_action_says_what_it_holds_and_no_rule():
+    # The action pointed at the document by its title until Madde 492: a tool's text says what the
+    # field holds, and the rules it is written by are the guide's (the user, 22 October).
     from backend.features.workspace.domain.prompt import UPDATE_FRAME_ACTION
 
-    assert _rules().splitlines()[0] in UPDATE_FRAME_ACTION
+    assert "what the photo shows" in UPDATE_FRAME_ACTION
+    assert "rules" not in UPDATE_FRAME_ACTION
+    assert "as tags" not in UPDATE_FRAME_ACTION
+
+
+@pytest.mark.parametrize(
+    "rule",
+    [
+        "as tags",
+        "in English",
+        "Never tags",
+        "written first",
+        "in your own words",
+        "fixed order",
+        "solo",
+    ],
+)
+def test_no_tool_text_carries_a_prompt_writing_rule(rule):
+    # Madde 492's audit, the user's decision of 22 October: these went to the SDXL guide, or were
+    # already there. A tool's text says what the tool does and what a field holds, in what shape.
+    for spec in TOOL_SPECS:
+        assert rule not in json.dumps(spec["function"]), (spec["function"]["name"], rule)
+
+
+def test_the_two_frame_fields_say_their_shape_in_a_short_sentence():
+    # The user, 22 October (question 6): characters and before keep one short sentence each.
+    from backend.features.workspace.domain import prompt
+
+    shape = "Who is in the frame: a map from each character's name to the list of outfits they wear."
+    assert prompt.ADD_FRAME_CHARACTERS.startswith(shape)
+    assert prompt.UPDATE_FRAME_CHARACTERS.startswith(shape)
+    assert prompt.ADD_FRAME_BEFORE == (
+        "The number of the frame to go in front of. Left out, or one past the last, means the end."
+    )
+    # What the long before used to say is kept, in the tool's own description.
+    assert "keeps everything it carries, its action included" in prompt.ADD_FRAME
+    assert "taking the tail out and adding it again is not" in prompt.ADD_FRAME
+
+
+@pytest.mark.parametrize(
+    "name,prefix",
+    [
+        ("sdxl_start_scenario", "SDXL scenario:"),
+        ("sdxl_set_character", "SDXL scenario:"),
+        ("sdxl_remove_character", "SDXL scenario:"),
+        ("sdxl_set_outfit", "SDXL scenario:"),
+        ("sdxl_remove_outfit", "SDXL scenario:"),
+        ("sdxl_set_location", "SDXL scenario:"),
+        ("sdxl_remove_location", "SDXL scenario:"),
+        ("sdxl_add_frame", "SDXL scenario:"),
+        ("sdxl_update_frame", "SDXL scenario:"),
+        ("krea_start_scenario", "Krea scenario:"),
+        ("krea_set_style", "Krea scenario:"),
+        ("krea_add_frame", "Krea scenario:"),
+        ("krea_update_frame", "Krea scenario:"),
+        ("remove_frame", "SDXL or Krea scenario:"),
+        ("build_prompts", "SDXL or Krea scenario:"),
+    ],
+)
+def test_a_scenario_tool_says_which_kind_it_is_for(name, prefix):
+    # Madde 492: the name and the first words both say which model's scenario a tool works on.
+    assert _said_by(name).startswith(prefix)
+
+
+@pytest.mark.parametrize("name", ["read_file", "create_file", "edit_file"])
+def test_a_file_tool_names_no_kind(name):
+    assert "scenario:" not in _said_by(name)
 
 
 # Correction 34 split the shared text: what is really shared stayed with all six tools, and what
 # ruled on one field went down to that field. Madde 453 moved the shared half into the document and
-# left the fields theirs: a rule about one field is read while that field is being written.
+# left the fields theirs: a rule about one field is read while that field is being written. Madde 492
+# keeps that, and moves solo into the SDXL guide: the user counted it as a prompt writing rule.
 
 
 def test_the_count_lands_in_the_characters_own_entry():
@@ -1194,10 +1266,12 @@ def test_the_count_lands_in_the_characters_own_entry():
 
 def test_solo_is_kept_out_of_a_character():
     # The count travels with the person; solo does not. The same character stands alone in one frame
-    # and beside somebody in the next, so an entry claiming solo is wrong in half of them.
+    # and beside somebody in the next, so an entry claiming solo is wrong in half of them. In the
+    # SDXL guide since Madde 492, and no longer on the field.
     from backend.features.workspace.domain.prompt import SET_CHARACTER_TAGS
 
-    assert "do not write solo" in SET_CHARACTER_TAGS.lower()
+    assert "never write solo in a character's entry" in _rules().lower()
+    assert "solo" not in SET_CHARACTER_TAGS.lower()
 
 
 def test_clothes_are_kept_out_of_a_character():
@@ -1231,7 +1305,7 @@ def test_each_set_tool_closes_on_the_shared_texts(which):
     # three: written once each, so the three tools cannot drift apart.
     from backend.features.workspace.domain import prompt
 
-    spec = next(s for s in TOOL_SPECS if s["function"]["name"] == f"set_{which}")["function"]
+    spec = next(s for s in TOOL_SPECS if s["function"]["name"] == f"sdxl_set_{which}")["function"]
     fields = spec["parameters"]["properties"]
     assert spec["description"].endswith(prompt.SETTING_AN_ENTRY)
     assert fields["tags"]["description"].endswith(prompt.AN_ENTRYS_NEW_TAGS)
@@ -1261,8 +1335,10 @@ def test_the_rules_carry_nothing_that_belongs_to_one_field():
     # Asked of the field rules themselves rather than of the words outfit and location: since
     # Madde 453 the document carries Start a scenario's camera-angle rules, which name an outfit's
     # entries (the user, 10 October: "Evet, kopyası belgeye de girsin").
+    #
+    # Solo left this list in Madde 492: the guide carries it now, by the user's word.
     said = _rules().lower()
-    for moved in ("solo", "pov_", "nowhere else", "after the clothes", "nobody is in it"):
+    for moved in ("pov_", "nowhere else", "after the clothes", "nobody is in it"):
         assert moved not in said, moved
 
 
@@ -1296,7 +1372,7 @@ def test_create_file_no_longer_offers_to_write_a_structure():
     assert ".json" not in said
     # And the way out rides in the tool's own description, where a model choosing between them reads
     # it: not in a skill text a chat may never have selected.
-    assert "start_scenario opens those" in spec["function"]["description"]
+    assert "sdxl_start_scenario and krea_start_scenario open those" in spec["function"]["description"]
 
 
 def test_create_file_counts_the_plan_file():
@@ -1315,7 +1391,7 @@ def test_the_term_structure_file_is_still_anchored_somewhere():
     # before any skill text explains them. With that tool gone the definition has to ride with the
     # one tool that brings a structure into being, or a skill-less chat reads a term nothing
     # anchors.
-    spec = next(s for s in TOOL_SPECS if s["function"]["name"] == "start_scenario")
+    spec = next(s for s in TOOL_SPECS if s["function"]["name"] == "sdxl_start_scenario")
     assert "structure file" in spec["function"]["description"]
 
 
@@ -1341,28 +1417,35 @@ def test_every_tool_is_declared_to_the_model():
         # Madde 128 for the position -- the end of a list is something code knows, so the model
         # never quotes a frame back to reach it -- and Madde 173 for the frame itself: the fields
         # are in the signature, and every name in them is looked for in the maps before it lands.
-        "add_frame",
+        "sdxl_add_frame",
         # Madde 167. create_file writes a document, this writes a structure -- and it takes no
         # content, because the shape is the code's. It has to exist before Madde 171 shuts .json to
         # create_file, or the model would be left with no way to start a scenario at all.
-        "start_scenario",
+        "sdxl_start_scenario",
         # Madde 168, and 456. Two a map: set opens a name that is not there and changes one that
         # is, saying which and quoting what it replaced, and remove refuses while a frame stands on
         # it. Overwriting in silence is not a thing the answers allow.
-        "set_character",
-        "remove_character",
+        "sdxl_set_character",
+        "sdxl_remove_character",
         # Madde 169. The same two over a second map. What is not the same is everything touching
         # a frame: an outfit lives inside a character's list, and it is worn rather than present.
-        "set_outfit",
-        "remove_outfit",
+        "sdxl_set_outfit",
+        "sdxl_remove_outfit",
         # Madde 170. The third and narrowest map: a frame names its place in a field of its own,
         # there is one of it, and it is always a plain string.
-        "set_location",
-        "remove_location",
+        "sdxl_set_location",
+        "sdxl_remove_location",
         # Madde 174. The frame's own two, which complete the three every map has. Between 171 and
         # here a frame already in the file could not be touched at all.
-        "update_frame",
+        "sdxl_update_frame",
         "remove_frame",
+        # Madde 492. A Krea scenario is a style and frames of a scene and a prompt each, so it has
+        # tools of its own; the SDXL ones took the sdxl_ prefix, and the two that work the same on
+        # both kinds -- taking a frame out and building -- kept no prefix.
+        "krea_start_scenario",
+        "krea_set_style",
+        "krea_add_frame",
+        "krea_update_frame",
     }
 
 
@@ -1479,11 +1562,11 @@ def test_an_edit_does_not_report_a_born_file(tmp_path):
 
 
 def test_building_writes_a_file_named_after_the_source(tmp_path):
-    files = _with(tmp_path, "intro-frames.json", STRUCTURE)
-    said = _call(files, "build_prompts", name="intro-frames.json")
-    assert "intro-frames.py" in said and "2" in said
-    assert "PROMPTS" in files.read("p1", "intro-frames.py")
-    assert "long teal hair" in files.read("p1", "intro-frames.py")
+    files = _with(tmp_path, "intro-frames.sdxl.json", STRUCTURE)
+    said = _call(files, "build_prompts", name="intro-frames.sdxl.json")
+    assert "intro-frames.sdxl.py" in said and "2" in said
+    assert "PROMPTS" in files.read("p1", "intro-frames.sdxl.py")
+    assert "long teal hair" in files.read("p1", "intro-frames.sdxl.py")
 
 
 def test_the_built_file_holds_each_frames_scene_beside_its_photo(tmp_path):
@@ -1492,61 +1575,63 @@ def test_the_built_file_holds_each_frames_scene_beside_its_photo(tmp_path):
     structure = json.loads(STRUCTURE)
     structure["frames"][0]["scene"] = "Aylin uyanıyor."
     structure["frames"][1]["scene"] = "Aylin pencereye bakıyor."
-    files = _with(tmp_path, "frames.json", json.dumps(structure))
-    _call(files, "build_prompts", name="frames.json")
-    records = ast.literal_eval(ast.parse(files.read("p1", "frames.py")).body[0].value)
+    files = _with(tmp_path, "frames.sdxl.json", json.dumps(structure))
+    _call(files, "build_prompts", name="frames.sdxl.json")
+    records = ast.literal_eval(ast.parse(files.read("p1", "frames.sdxl.py")).body[0].value)
     assert [record["scene"] for record in records] == ["Aylin uyanıyor.", "Aylin pencereye bakıyor."]
     assert "long teal hair" in records[0]["photo"] and "one" in records[0]["photo"]
 
 
 def test_building_reports_a_born_file(tmp_path):
-    files = _with(tmp_path, "intro-frames.json", STRUCTURE)
-    built = run_tool(files, "p1", "build_prompts", json.dumps({"name": "intro-frames.json"}))
-    assert built.created == "intro-frames.py"
+    files = _with(tmp_path, "intro-frames.sdxl.json", STRUCTURE)
+    built = run_tool(files, "p1", "build_prompts", json.dumps({"name": "intro-frames.sdxl.json"}))
+    assert built.created == "intro-frames.sdxl.py"
 
 
 def test_building_again_writes_over_its_own_output(tmp_path):
-    files = _with(tmp_path, "intro-frames.json", STRUCTURE)
-    _call(files, "build_prompts", name="intro-frames.json")
+    files = _with(tmp_path, "intro-frames.sdxl.json", STRUCTURE)
+    _call(files, "build_prompts", name="intro-frames.sdxl.json")
     # Through the map tool since Madde 171: the structure is no longer changed as text, and this
     # test was reaching for the door that closed. The claim it makes is untouched -- what changes is
     # the only way left to change a character.
     _call(
         files,
-        "set_character",
-        file="intro-frames.json",
+        "sdxl_set_character",
+        file="intro-frames.sdxl.json",
         name="aylin",
         tags="1girl, short red hair",
     )
-    _call(files, "build_prompts", name="intro-frames.json")
+    _call(files, "build_prompts", name="intro-frames.sdxl.json")
     # A derived file: regenerating it is the point, so numbering would only hide which one is now.
-    assert sorted(files.list_names("p1")) == ["intro-frames.json", "intro-frames.py"]
-    assert "teal" not in files.read("p1", "intro-frames.py")
+    assert sorted(files.list_names("p1")) == ["intro-frames.sdxl.json", "intro-frames.sdxl.py"]
+    assert "teal" not in files.read("p1", "intro-frames.sdxl.py")
 
 
 def test_building_from_a_file_that_is_not_there_is_an_answer(tmp_path):
-    assert "no file by that name" in _call(_files(tmp_path), "build_prompts", name="ghost.json")
+    assert "no file by that name" in _call(_files(tmp_path), "build_prompts", name="ghost.sdxl.json")
 
 
 def test_broken_json_is_reported_in_the_parsers_own_words(tmp_path):
-    files = _with(tmp_path, "frames.json", "{oops")
-    said = _call(files, "build_prompts", name="frames.json")
+    files = _with(tmp_path, "frames.sdxl.json", "{oops")
+    said = _call(files, "build_prompts", name="frames.sdxl.json")
     # Never a guessed cause: whatever the parser said is what the model is told.
-    assert "frames.json" in said and "Expecting" in said
-    assert files.list_names("p1") == ["frames.json"]
+    assert "frames.sdxl.json" in said and "Expecting" in said
+    assert files.list_names("p1") == ["frames.sdxl.json"]
 
 
 def test_an_unknown_name_writes_no_file(tmp_path):
     broken = STRUCTURE.replace('{"aylin": ["gecelik"]}', '{"aylinn": ["gecelik"]}', 1)
-    files = _with(tmp_path, "frames.json", broken)
-    said = _call(files, "build_prompts", name="frames.json")
+    files = _with(tmp_path, "frames.sdxl.json", broken)
+    said = _call(files, "build_prompts", name="frames.sdxl.json")
     assert "aylinn" in said and "aylin" in said
-    assert files.list_names("p1") == ["frames.json"]
+    assert files.list_names("p1") == ["frames.sdxl.json"]
 
 
 def test_a_python_source_is_refused_so_it_is_not_written_over(tmp_path):
+    # Since Madde 492 by the name's kind: a .py says none, so nothing is read and nothing written.
     files = _with(tmp_path, "frames.py", STRUCTURE)
-    assert "frames.py" in _call(files, "build_prompts", name="frames.py")
+    assert _call(files, "build_prompts", name="frames.py") == "frames.py is not a valid scenario file."
+    assert files.read("p1", "frames.py") == STRUCTURE
     assert files.read("p1", "frames.py") == STRUCTURE
 
 
@@ -1580,8 +1665,8 @@ def test_an_edit_reports_the_file_it_changed(tmp_path):
 def test_a_build_reports_the_structure_it_built_from(tmp_path):
     # The source rather than the output: the file card already names what was written, and the line
     # saying the same thing twice would carry nothing.
-    files = _with(tmp_path, "frames.json", STRUCTURE)
-    assert _target(files, "build_prompts", name="frames.json") == "frames.json"
+    files = _with(tmp_path, "frames.sdxl.json", STRUCTURE)
+    assert _target(files, "build_prompts", name="frames.sdxl.json") == "frames.sdxl.json"
 
 
 def test_a_call_that_missed_still_reports_its_target(tmp_path):
@@ -1616,8 +1701,8 @@ def test_an_edit_says_it_changed_the_file(tmp_path):
 
 
 def test_a_build_says_how_many_prompts_it_wrote(tmp_path):
-    files = _with(tmp_path, "frames.json", STRUCTURE)
-    assert _outcome(files, "build_prompts", name="frames.json") == "2 prompts"
+    files = _with(tmp_path, "frames.sdxl.json", STRUCTURE)
+    assert _outcome(files, "build_prompts", name="frames.sdxl.json") == "2 prompts"
 
 
 def test_a_call_that_was_refused_says_why(tmp_path):
@@ -1789,9 +1874,9 @@ SCENE = {
 
 
 def test_add_frame_appends_to_the_end_of_the_frames_list(tmp_path):
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    _call(files, "add_frame", file="scene.json", frames=[SCENE])
-    frames = json.loads(files.read("p1", "scene.json"))["frames"]
+    files = _with(tmp_path, "scene.sdxl.json", STRUCTURE)
+    _call(files, "sdxl_add_frame", file="scene.sdxl.json", frames=[SCENE])
+    frames = json.loads(files.read("p1", "scene.sdxl.json"))["frames"]
     assert len(frames) == 3
     assert frames[2]["scene"] == "she turns her head"
     # The two that were there stay where they were: the built list runs in the frames' order.
@@ -1801,39 +1886,39 @@ def test_add_frame_appends_to_the_end_of_the_frames_list(tmp_path):
 def test_add_frame_gives_each_frame_the_number_of_its_place(tmp_path):
     # The place rather than a counter. build_prompts and _frames_naming already count frames by
     # where they sit, and a second source of truth would part from this one on the first removal.
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    _call(files, "add_frame", file="scene.json", frames=[SCENE, SCENE])
-    frames = json.loads(files.read("p1", "scene.json"))["frames"]
+    files = _with(tmp_path, "scene.sdxl.json", STRUCTURE)
+    _call(files, "sdxl_add_frame", file="scene.sdxl.json", frames=[SCENE, SCENE])
+    frames = json.loads(files.read("p1", "scene.sdxl.json"))["frames"]
     assert [frame["number"] for frame in frames[2:]] == [3, 4]
 
 
 def test_add_frame_says_which_frames_it_made(tmp_path):
     # The numbers rather than a total: the model's next move names them, and a count would send it
     # reading the file back to learn what to name.
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    assert _call(files, "add_frame", file="scene.json", frames=[SCENE, SCENE, SCENE]) == (
-        "Added 3 scenes to scene.json as frames 3-5."
+    files = _with(tmp_path, "scene.sdxl.json", STRUCTURE)
+    assert _call(files, "sdxl_add_frame", file="scene.sdxl.json", frames=[SCENE, SCENE, SCENE]) == (
+        "Added 3 scenes to scene.sdxl.json as frames 3-5."
     )
 
 
 def test_one_scene_is_one_frame_and_the_answer_reads_like_one(tmp_path):
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    assert _call(files, "add_frame", file="scene.json", frames=[SCENE]) == (
-        "Added 1 scene to scene.json as frame 3."
+    files = _with(tmp_path, "scene.sdxl.json", STRUCTURE)
+    assert _call(files, "sdxl_add_frame", file="scene.sdxl.json", frames=[SCENE]) == (
+        "Added 1 scene to scene.sdxl.json as frame 3."
     )
 
 
 def test_add_frame_counts_the_scenes_on_the_card(tmp_path):
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    assert _outcome(files, "add_frame", file="scene.json", frames=[SCENE]) == "1 scene"
+    files = _with(tmp_path, "scene.sdxl.json", STRUCTURE)
+    assert _outcome(files, "sdxl_add_frame", file="scene.sdxl.json", frames=[SCENE]) == "1 scene"
 
 
 def test_add_frame_writes_the_three_fields_and_no_action(tmp_path):
     # A frame born without its action is not broken but half finished -- where an empty string
     # would read as an action somebody wrote.
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    _call(files, "add_frame", file="scene.json", frames=[SCENE])
-    born = json.loads(files.read("p1", "scene.json"))["frames"][2]
+    files = _with(tmp_path, "scene.sdxl.json", STRUCTURE)
+    _call(files, "sdxl_add_frame", file="scene.sdxl.json", frames=[SCENE])
+    born = json.loads(files.read("p1", "scene.sdxl.json"))["frames"][2]
     assert born["scene"] == "she turns her head"
     assert born["characters"] == {"aylin": ["gecelik"]}
     assert born["location"] == "bedroom"
@@ -1844,9 +1929,9 @@ def test_a_scene_with_nothing_but_its_sentence_is_a_frame(tmp_path):
     # The user's decision of 5 Sep: a landscape has no cast, and a close-up may name no place. A
     # field that was not given is left out rather than emptied -- build_prompts drops an empty
     # location, but a key sitting there says somebody chose it.
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    answer = _call(files, "add_frame", file="scene.json", frames=[{"scene": "the empty room"}])
-    born = json.loads(files.read("p1", "scene.json"))["frames"][2]
+    files = _with(tmp_path, "scene.sdxl.json", STRUCTURE)
+    answer = _call(files, "sdxl_add_frame", file="scene.sdxl.json", frames=[{"scene": "the empty room"}])
+    born = json.loads(files.read("p1", "scene.sdxl.json"))["frames"][2]
     assert born == {"number": 3, "scene": "the empty room"}
     assert "Added 1 scene" in answer
 
@@ -1855,29 +1940,29 @@ def test_one_outfit_written_without_its_list_is_written_down_as_a_list(tmp_path)
     # cast_of forgives this slip on the way out, so it is forgiven on the way in too -- and
     # straightened as it lands. Reading puts up with two shapes because both are already on disk;
     # writing has no such excuse, and the tool picks which one the file gets.
-    files = _with(tmp_path, "scene.json", STRUCTURE)
+    files = _with(tmp_path, "scene.sdxl.json", STRUCTURE)
     _call(
         files,
-        "add_frame",
-        file="scene.json",
+        "sdxl_add_frame",
+        file="scene.sdxl.json",
         frames=[{"scene": "s", "characters": {"aylin": "gecelik"}}],
     )
-    born = json.loads(files.read("p1", "scene.json"))["frames"][2]
+    born = json.loads(files.read("p1", "scene.sdxl.json"))["frames"][2]
     assert born["characters"] == {"aylin": ["gecelik"]}
 
 
 def test_add_frame_writes_readable_turkish_rather_than_escapes(tmp_path):
     # The user opens this file and fixes it by hand, and a wall of ı is a file they cannot
     # read. Their work is the first principle, and it includes being able to see it.
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    _call(files, "add_frame", file="scene.json", frames=[{"scene": "başını çeviriyor"}])
-    assert "başını çeviriyor" in files.read("p1", "scene.json")
+    files = _with(tmp_path, "scene.sdxl.json", STRUCTURE)
+    _call(files, "sdxl_add_frame", file="scene.sdxl.json", frames=[{"scene": "başını çeviriyor"}])
+    assert "başını çeviriyor" in files.read("p1", "scene.sdxl.json")
 
 
 def test_add_frame_leaves_the_maps_alone(tmp_path):
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    _call(files, "add_frame", file="scene.json", frames=[SCENE])
-    after = json.loads(files.read("p1", "scene.json"))
+    files = _with(tmp_path, "scene.sdxl.json", STRUCTURE)
+    _call(files, "sdxl_add_frame", file="scene.sdxl.json", frames=[SCENE])
+    after = json.loads(files.read("p1", "scene.sdxl.json"))
     before = json.loads(STRUCTURE)
     # The work happened first: without this the loop below passes on a file nothing touched.
     assert len(after["frames"]) == 3
@@ -1887,63 +1972,63 @@ def test_add_frame_leaves_the_maps_alone(tmp_path):
 
 def test_add_frame_brings_no_file_into_being(tmp_path):
     # No card: the file was already there. The rule edit_file follows.
-    files = _with(tmp_path, "scene.json", STRUCTURE)
+    files = _with(tmp_path, "scene.sdxl.json", STRUCTURE)
     added = run_tool(
-        files, "p1", "add_frame", json.dumps({"file": "scene.json", "frames": [SCENE]})
+        files, "p1", "sdxl_add_frame", json.dumps({"file": "scene.sdxl.json", "frames": [SCENE]})
     )
     # The work first: created is None for a tool that did nothing at all, so without this the test
     # is green on the day add_frame stops existing.
-    assert len(json.loads(files.read("p1", "scene.json"))["frames"]) == 3
+    assert len(json.loads(files.read("p1", "scene.sdxl.json"))["frames"]) == 3
     assert added.created is None
 
 
 def test_a_frame_add_frame_wrote_is_a_frame_build_prompts_can_build(tmp_path):
     # The two halves of one shape, put together in the only place that can see both. A tool writing
     # a frame the builder cannot read would pass every test above and fail in front of the user.
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    _call(files, "add_frame", file="scene.json", frames=[SCENE])
-    assert "3 prompts" in _call(files, "build_prompts", name="scene.json")
+    files = _with(tmp_path, "scene.sdxl.json", STRUCTURE)
+    _call(files, "sdxl_add_frame", file="scene.sdxl.json", frames=[SCENE])
+    assert "3 prompts" in _call(files, "build_prompts", name="scene.sdxl.json")
 
 
 def test_add_frame_refuses_a_character_nobody_wrote(tmp_path):
-    files = _with(tmp_path, "scene.json", STRUCTURE)
+    files = _with(tmp_path, "scene.sdxl.json", STRUCTURE)
     answer = _call(
         files,
-        "add_frame",
-        file="scene.json",
+        "sdxl_add_frame",
+        file="scene.sdxl.json",
         frames=[{"scene": "s", "characters": {"deniz": []}}],
     )
     assert "frame 3: deniz is not in characters; known: aylin." in answer
-    assert files.read("p1", "scene.json") == STRUCTURE
+    assert files.read("p1", "scene.sdxl.json") == STRUCTURE
 
 
 def test_add_frame_refuses_an_outfit_nobody_wrote(tmp_path):
-    files = _with(tmp_path, "scene.json", STRUCTURE)
+    files = _with(tmp_path, "scene.sdxl.json", STRUCTURE)
     answer = _call(
         files,
-        "add_frame",
-        file="scene.json",
+        "sdxl_add_frame",
+        file="scene.sdxl.json",
         frames=[{"scene": "s", "characters": {"aylin": ["palto"]}}],
     )
     assert "frame 3: palto is not in outfits; known: gecelik." in answer
-    assert files.read("p1", "scene.json") == STRUCTURE
+    assert files.read("p1", "scene.sdxl.json") == STRUCTURE
 
 
 def test_add_frame_refuses_a_place_nobody_wrote(tmp_path):
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    answer = _call(files, "add_frame", file="scene.json", frames=[{"scene": "s", "location": "bar"}])
+    files = _with(tmp_path, "scene.sdxl.json", STRUCTURE)
+    answer = _call(files, "sdxl_add_frame", file="scene.sdxl.json", frames=[{"scene": "s", "location": "bar"}])
     assert "frame 3: bar is not in locations; known: bedroom." in answer
-    assert files.read("p1", "scene.json") == STRUCTURE
+    assert files.read("p1", "scene.sdxl.json") == STRUCTURE
 
 
 def test_every_name_nobody_knows_comes_back_at_once(tmp_path):
     # build_prompts' rule, one step earlier: one pass fixes them all. Answering with the first miss
     # would spend a round on each of them, and every one of those rounds carries the whole chat.
-    files = _with(tmp_path, "scene.json", STRUCTURE)
+    files = _with(tmp_path, "scene.sdxl.json", STRUCTURE)
     answer = _call(
         files,
-        "add_frame",
-        file="scene.json",
+        "sdxl_add_frame",
+        file="scene.sdxl.json",
         frames=[
             {"scene": "s", "characters": {"deniz": []}},
             {"scene": "s", "location": "bar"},
@@ -1953,66 +2038,66 @@ def test_every_name_nobody_knows_comes_back_at_once(tmp_path):
     assert "frame 4: bar is not in locations" in answer
     # Neither of them landed, not even the frame whose own names were all fine.
     assert "Nothing was added." in answer
-    assert files.read("p1", "scene.json") == STRUCTURE
+    assert files.read("p1", "scene.sdxl.json") == STRUCTURE
 
 
 def test_a_scene_needs_its_sentence(tmp_path):
     # The one field that is required: a frame with a cast and no scene has nothing its action can
     # be written from.
-    files = _with(tmp_path, "scene.json", STRUCTURE)
+    files = _with(tmp_path, "scene.sdxl.json", STRUCTURE)
     answer = _call(
-        files, "add_frame", file="scene.json", frames=[{"characters": {"aylin": []}}]
+        files, "sdxl_add_frame", file="scene.sdxl.json", frames=[{"characters": {"aylin": []}}]
     )
     assert "frame 3: a scene needs a sentence saying what happens." in answer
     # Blank is the same as missing: a space is not a brief.
     assert "frame 3: a scene needs" in _call(
-        files, "add_frame", file="scene.json", frames=[{"scene": "   "}]
+        files, "sdxl_add_frame", file="scene.sdxl.json", frames=[{"scene": "   "}]
     )
-    assert files.read("p1", "scene.json") == STRUCTURE
+    assert files.read("p1", "scene.sdxl.json") == STRUCTURE
 
 
 def test_a_cast_that_is_not_a_map_is_refused_with_the_shape_it_wanted(tmp_path):
     # The run's rule: a wrong shape is refused with a sentence saying what was expected. A plain
     # list of names is what files written before outfits carry and reading still forgives it --
     # but nothing new is written in a shape that cannot say who is wearing what.
-    files = _with(tmp_path, "scene.json", STRUCTURE)
+    files = _with(tmp_path, "scene.sdxl.json", STRUCTURE)
     answer = _call(
-        files, "add_frame", file="scene.json", frames=[{"scene": "s", "characters": ["aylin"]}]
+        files, "sdxl_add_frame", file="scene.sdxl.json", frames=[{"scene": "s", "characters": ["aylin"]}]
     )
     assert "frame 3: characters is a map from a name to the outfits they wear." in answer
-    assert files.read("p1", "scene.json") == STRUCTURE
+    assert files.read("p1", "scene.sdxl.json") == STRUCTURE
 
 
 def test_a_frame_that_is_not_an_object_is_one_problem_rather_than_four(tmp_path):
     # Nothing can be looked for inside it, so it says so once and the walk moves on. Counting the
     # same mistake four times would bury whatever else in the batch is genuinely wrong.
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    answer = _call(files, "add_frame", file="scene.json", frames=["she turns her head"])
+    files = _with(tmp_path, "scene.sdxl.json", STRUCTURE)
+    answer = _call(files, "sdxl_add_frame", file="scene.sdxl.json", frames=["she turns her head"])
     assert "frame 3: a frame is an object with scene, characters and location." in answer
     assert answer.count("frame 3") == 1
 
 
 def test_add_frame_refuses_a_frames_argument_that_is_not_a_list(tmp_path):
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    assert "add_frame takes a list of frames" in _call(
-        files, "add_frame", file="scene.json", frames=SCENE
+    files = _with(tmp_path, "scene.sdxl.json", STRUCTURE)
+    assert "sdxl_add_frame takes a list of frames" in _call(
+        files, "sdxl_add_frame", file="scene.sdxl.json", frames=SCENE
     )
-    assert files.read("p1", "scene.json") == STRUCTURE
+    assert files.read("p1", "scene.sdxl.json") == STRUCTURE
 
 
 def test_adding_no_frames_writes_nothing(tmp_path):
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    assert _call(files, "add_frame", file="scene.json", frames=[]) == (
-        "No frames were given, so scene.json is unchanged."
+    files = _with(tmp_path, "scene.sdxl.json", STRUCTURE)
+    assert _call(files, "sdxl_add_frame", file="scene.sdxl.json", frames=[]) == (
+        "No frames were given, so scene.sdxl.json is unchanged."
     )
-    assert files.read("p1", "scene.json") == STRUCTURE
+    assert files.read("p1", "scene.sdxl.json") == STRUCTURE
 
 
 def test_the_frames_argument_is_named_after_what_it_holds():
     # Madde 454: each item is a frame with its own scene sentence, so the list is frames and scene
     # stays the sentence's name. A list still called scenes would give the word two meanings in one
     # call.
-    spec = next(s for s in TOOL_SPECS if s["function"]["name"] == "add_frame")
+    spec = next(s for s in TOOL_SPECS if s["function"]["name"] == "sdxl_add_frame")
     parameters = spec["function"]["parameters"]
     assert set(parameters["properties"]) == {"file", "before", "frames"}
     assert parameters["required"] == ["file", "frames"]
@@ -2020,27 +2105,27 @@ def test_the_frames_argument_is_named_after_what_it_holds():
 
 def test_add_frame_refuses_a_file_that_is_not_there(tmp_path):
     assert "no file by that name" in _call(
-        _files(tmp_path), "add_frame", file="ghost.json", frames=[SCENE]
+        _files(tmp_path), "sdxl_add_frame", file="ghost.sdxl.json", frames=[SCENE]
     )
 
 
 def test_add_frame_carries_the_parsers_own_sentence_when_the_json_is_broken(tmp_path):
     # A guessed cause would send the model looking in the wrong place -- _build's rule.
-    files = _with(tmp_path, "scene.json", "{ not json")
-    answer = _call(files, "add_frame", file="scene.json", frames=[SCENE])
+    files = _with(tmp_path, "scene.sdxl.json", "{ not json")
+    answer = _call(files, "sdxl_add_frame", file="scene.sdxl.json", frames=[SCENE])
     assert "not valid JSON" in answer
     assert "Expecting" in answer
 
 
 def test_add_frame_refuses_a_structure_with_no_frames_list(tmp_path):
-    files = _with(tmp_path, "scene.json", json.dumps({"characters": {"aylin": "1girl"}}))
-    assert "no frames list" in _call(files, "add_frame", file="scene.json", frames=[SCENE])
+    files = _with(tmp_path, "scene.sdxl.json", json.dumps({"characters": {"aylin": "1girl"}}))
+    assert "no frames list" in _call(files, "sdxl_add_frame", file="scene.sdxl.json", frames=[SCENE])
 
 
 def test_only_the_sentence_is_required_of_a_frame():
     # The user's decision of 5 Sep, in the one place the model reads it. Requiring a cast would
     # make a landscape impossible to write, and requiring a place would do it to a close-up.
-    spec = next(s for s in TOOL_SPECS if s["function"]["name"] == "add_frame")
+    spec = next(s for s in TOOL_SPECS if s["function"]["name"] == "sdxl_add_frame")
     assert spec["function"]["parameters"]["properties"]["frames"]["items"]["required"] == ["scene"]
 
 
@@ -2048,9 +2133,9 @@ def test_add_frames_is_no_longer_a_tool(tmp_path):
     # The road every deleted tool goes down. No saved call goes back to the model, but the name can
     # still sit in words it reads -- an earlier answer, a file -- and a call to it has to get an
     # answer rather than a crash.
-    files = _with(tmp_path, "scene.json", STRUCTURE)
+    files = _with(tmp_path, "scene.sdxl.json", STRUCTURE)
     assert "no tool called add_frames" in run_tool(
-        files, "p1", "add_frames", json.dumps({"name": "scene.json", "frames": [SCENE]})
+        files, "p1", "add_frames", json.dumps({"name": "scene.sdxl.json", "frames": [SCENE]})
     ).text
 
 
@@ -2094,12 +2179,12 @@ WITH_ACTION = json.dumps(
 
 
 def _frames(files):
-    return json.loads(files.read("p1", "scene.json"))["frames"]
+    return json.loads(files.read("p1", "scene.sdxl.json"))["frames"]
 
 
 def test_update_frame_changes_the_scene_and_leaves_the_rest_where_it_was(tmp_path):
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    _call(files, "update_frame", file="scene.json", frame=1, scene="she wakes")
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    _call(files, "sdxl_update_frame", file="scene.sdxl.json", frame=1, scene="she wakes")
     changed = _frames(files)[0]
     assert changed["scene"] == "she wakes"
     assert changed["characters"] == {"aylin": ["gecelik"]}
@@ -2107,21 +2192,21 @@ def test_update_frame_changes_the_scene_and_leaves_the_rest_where_it_was(tmp_pat
 
 
 def test_update_frame_changes_the_cast(tmp_path):
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    _call(files, "update_frame", file="scene.json", frame=1, characters={"aylin": ["palto"]})
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    _call(files, "sdxl_update_frame", file="scene.sdxl.json", frame=1, characters={"aylin": ["palto"]})
     assert _frames(files)[0]["characters"] == {"aylin": ["palto"]}
     assert _frames(files)[0]["scene"] == "one"
 
 
 def test_update_frame_changes_the_place(tmp_path):
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    _call(files, "update_frame", file="scene.json", frame=1, location="balcony")
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    _call(files, "sdxl_update_frame", file="scene.sdxl.json", frame=1, location="balcony")
     assert _frames(files)[0]["location"] == "balcony"
 
 
 def test_update_frame_changes_several_fields_in_one_call(tmp_path):
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    _call(files, "update_frame", file="scene.json", frame=1, scene="she wakes", location="balcony")
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    _call(files, "sdxl_update_frame", file="scene.sdxl.json", frame=1, scene="she wakes", location="balcony")
     changed = _frames(files)[0]
     assert (changed["scene"], changed["location"]) == ("she wakes", "balcony")
 
@@ -2130,8 +2215,8 @@ def test_update_frame_does_not_touch_the_action(tmp_path):
     # Only what is given changes, and that holds for the action as it does for everything else
     # (Madde 201 gave it a field of its own). A scene corrected leaves the line that was written
     # from the old one standing, which is what lets the model fix one thing at a time.
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    _call(files, "update_frame", file="scene.json", frame=2, scene="she looks away")
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    _call(files, "sdxl_update_frame", file="scene.sdxl.json", frame=2, scene="she looks away")
     changed = _frames(files)[1]
     assert changed["scene"] == "she looks away"
     assert changed["action"] == "she turns her head, close-up"
@@ -2144,8 +2229,8 @@ def test_the_agent_writes_a_frames_action_itself(tmp_path):
     # Madde 176 kept this field away from the main model because it would not write that kind of
     # sentence. It writes it now (user, 8 September), and the road that went round the agent -- a
     # note handed to a second model -- was carrying everything that model heard about the fix.
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    said = _call(files, "update_frame", file="scene.json", frame=1, action="she smiles, close-up")
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    said = _call(files, "sdxl_update_frame", file="scene.sdxl.json", frame=1, action="she smiles, close-up")
     assert _frames(files)[0]["action"] == "she smiles, close-up"
     assert "action" in said
 
@@ -2154,13 +2239,13 @@ def test_an_action_given_empty_takes_the_line_off_the_frame(tmp_path):
     # The rule every other field here keeps: empty is how a field is taken off, and a frame born
     # without an action looks exactly like this (Madde 173). An empty string left in its place
     # would be a second way of saying nothing.
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    _call(files, "update_frame", file="scene.json", frame=2, action="")
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    _call(files, "sdxl_update_frame", file="scene.sdxl.json", frame=2, action="")
     assert "action" not in _frames(files)[1]
 
 
 def test_the_frame_tool_takes_an_action():
-    spec = next(s for s in TOOL_SPECS if s["function"]["name"] == "update_frame")
+    spec = next(s for s in TOOL_SPECS if s["function"]["name"] == "sdxl_update_frame")
     assert "action" in spec["function"]["parameters"]["properties"]
 
 
@@ -2175,8 +2260,8 @@ def test_the_frame_tools_text_no_longer_sends_the_action_elsewhere():
 
 def test_update_frame_keeps_the_frames_number(tmp_path):
     # The number is the frame's place, and an update moves nothing.
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    _call(files, "update_frame", file="scene.json", frame=2, scene="she looks away")
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    _call(files, "sdxl_update_frame", file="scene.sdxl.json", frame=2, scene="she looks away")
     # The work first: the numbers are already 1, 2, 3 on disk, so without this the test is green
     # on a call that did nothing at all.
     assert _frames(files)[1]["scene"] == "she looks away"
@@ -2184,81 +2269,81 @@ def test_update_frame_keeps_the_frames_number(tmp_path):
 
 
 def test_update_frame_names_what_it_changed(tmp_path):
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
     assert _call(
-        files, "update_frame", file="scene.json", frame=1, scene="she wakes", location="balcony"
-    ) == "Changed scene and location of frame 1 in scene.json."
+        files, "sdxl_update_frame", file="scene.sdxl.json", frame=1, scene="she wakes", location="balcony"
+    ) == "Changed scene and location of frame 1 in scene.sdxl.json."
 
 
 def test_an_empty_place_takes_the_field_off_the_frame(tmp_path):
     # A frame that shows no place of its own is a frame written without the field (Madde 173), so
     # clearing one has to arrive at the same shape: two roads to one frame, or the file grows two
     # ways of saying nothing.
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    _call(files, "update_frame", file="scene.json", frame=1, location="")
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    _call(files, "sdxl_update_frame", file="scene.sdxl.json", frame=1, location="")
     assert "location" not in _frames(files)[0]
     assert _frames(files)[0]["scene"] == "one"
 
 
 def test_an_empty_cast_takes_the_field_off_the_frame(tmp_path):
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    _call(files, "update_frame", file="scene.json", frame=1, characters={})
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    _call(files, "sdxl_update_frame", file="scene.sdxl.json", frame=1, characters={})
     assert "characters" not in _frames(files)[0]
 
 
 def test_update_frame_straightens_a_lone_outfit_the_way_add_frame_does(tmp_path):
     # Both roads write the same shape, or a frame born one way and changed the other holds two.
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    _call(files, "update_frame", file="scene.json", frame=1, characters={"aylin": "palto"})
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    _call(files, "sdxl_update_frame", file="scene.sdxl.json", frame=1, characters={"aylin": "palto"})
     assert _frames(files)[0]["characters"] == {"aylin": ["palto"]}
 
 
 def test_update_frame_refuses_when_nothing_was_given(tmp_path):
     # No silent success: a model told nothing happened moves on believing it did.
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
     assert "Nothing was given to change about frame 1." in _call(
-        files, "update_frame", file="scene.json", frame=1
+        files, "sdxl_update_frame", file="scene.sdxl.json", frame=1
     )
 
 
 def test_update_frame_refuses_a_frame_that_is_not_there(tmp_path):
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    assert "scene.json has 3 frames; there is no frame 9." in _call(
-        files, "update_frame", file="scene.json", frame=9, scene="s"
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    assert "scene.sdxl.json has 3 frames; there is no frame 9." in _call(
+        files, "sdxl_update_frame", file="scene.sdxl.json", frame=9, scene="s"
     )
 
 
 def test_a_frame_is_named_by_its_number(tmp_path):
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
     assert "counting from 1" in _call(
-        files, "update_frame", file="scene.json", frame="the last one", scene="s"
+        files, "sdxl_update_frame", file="scene.sdxl.json", frame="the last one", scene="s"
     )
     # Zero and below are not places in a list the model counts from 1.
-    assert "counting from 1" in _call(files, "update_frame", file="scene.json", frame=0, scene="s")
+    assert "counting from 1" in _call(files, "sdxl_update_frame", file="scene.sdxl.json", frame=0, scene="s")
     # True is an int in Python, and taking it would quietly mean frame 1.
     assert "counting from 1" in _call(
-        files, "update_frame", file="scene.json", frame=True, scene="s"
+        files, "sdxl_update_frame", file="scene.sdxl.json", frame=True, scene="s"
     )
 
 
 def test_a_number_written_as_a_string_is_forgiven(tmp_path):
     # 173's lone outfit, again: a small slip costs a round to send back, and there is exactly one
     # thing "3" can mean here.
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    _call(files, "update_frame", file="scene.json", frame="3", scene="she leaves")
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    _call(files, "sdxl_update_frame", file="scene.sdxl.json", frame="3", scene="she leaves")
     assert _frames(files)[2]["scene"] == "she leaves"
 
 
 def test_update_frame_refuses_a_name_nobody_wrote(tmp_path):
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    answer = _call(files, "update_frame", file="scene.json", frame=1, location="bar")
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    answer = _call(files, "sdxl_update_frame", file="scene.sdxl.json", frame=1, location="bar")
     assert "frame 1: bar is not in locations; known: balcony, bedroom." in answer
     assert _frames(files)[0]["location"] == "bedroom"
 
 
 def test_update_frame_refuses_a_cast_that_is_not_a_map(tmp_path):
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    answer = _call(files, "update_frame", file="scene.json", frame=1, characters=["aylin"])
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    answer = _call(files, "sdxl_update_frame", file="scene.sdxl.json", frame=1, characters=["aylin"])
     assert "frame 1: characters is a map from a name to the outfits they wear." in answer
     assert _frames(files)[0]["characters"] == {"aylin": ["gecelik"]}
 
@@ -2266,8 +2351,8 @@ def test_update_frame_refuses_a_cast_that_is_not_a_map(tmp_path):
 def test_a_frames_scene_cannot_be_emptied(tmp_path):
     # Required at birth, so it cannot be cleared later: the two would leave a frame that add_frame
     # would refuse to write sitting in the file anyway.
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    answer = _call(files, "update_frame", file="scene.json", frame=1, scene="   ")
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    answer = _call(files, "sdxl_update_frame", file="scene.sdxl.json", frame=1, scene="   ")
     assert "frame 1: a scene needs a sentence saying what happens." in answer
     assert _frames(files)[0]["scene"] == "one"
 
@@ -2275,46 +2360,46 @@ def test_a_frames_scene_cannot_be_emptied(tmp_path):
 def test_update_frame_refuses_a_file_that_is_not_there(tmp_path):
     # The shared road: _opened answers for every tool that opens a structure.
     assert "no file by that name" in _call(
-        _files(tmp_path), "update_frame", file="ghost.json", frame=1, scene="s"
+        _files(tmp_path), "sdxl_update_frame", file="ghost.sdxl.json", frame=1, scene="s"
     )
 
 
 def test_remove_frame_takes_the_frame_out(tmp_path):
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    _call(files, "remove_frame", file="scene.json", frame=2)
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    _call(files, "remove_frame", file="scene.sdxl.json", frame=2)
     assert [frame["scene"] for frame in _frames(files)] == ["one", "three"]
 
 
 def test_remove_frame_renumbers_what_is_left_from_one(tmp_path):
     # The number is the frame's place, and a removal is the one thing that moves places. A number
     # left where it was would part from build_prompts, which counts frames by where they sit.
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    _call(files, "remove_frame", file="scene.json", frame=1)
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    _call(files, "remove_frame", file="scene.sdxl.json", frame=1)
     assert [frame["number"] for frame in _frames(files)] == [1, 2]
     assert [frame["scene"] for frame in _frames(files)] == ["two", "three"]
 
 
 def test_remove_frame_says_what_is_left(tmp_path):
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    assert _call(files, "remove_frame", file="scene.json", frame=2) == (
-        "Removed frame 2 from scene.json; 2 frames left, renumbered from 1."
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    assert _call(files, "remove_frame", file="scene.sdxl.json", frame=2) == (
+        "Removed frame 2 from scene.sdxl.json; 2 frames left, renumbered from 1."
     )
 
 
 def test_removing_the_last_frame_says_nothing_about_renumbering(tmp_path):
     # There is nothing left to renumber, and a sentence saying otherwise is a sentence about work
     # that did not happen.
-    files = _with(tmp_path, "scene.json", json.dumps({"frames": [{"number": 1, "scene": "one"}]}))
-    assert _call(files, "remove_frame", file="scene.json", frame=1) == (
-        "Removed frame 1 from scene.json; no frames left."
+    files = _with(tmp_path, "scene.sdxl.json", json.dumps({"frames": [{"number": 1, "scene": "one"}]}))
+    assert _call(files, "remove_frame", file="scene.sdxl.json", frame=1) == (
+        "Removed frame 1 from scene.sdxl.json; no frames left."
     )
     assert _frames(files) == []
 
 
 def test_remove_frame_refuses_a_frame_that_is_not_there(tmp_path):
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    assert "scene.json has 3 frames; there is no frame 9." in _call(
-        files, "remove_frame", file="scene.json", frame=9
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    assert "scene.sdxl.json has 3 frames; there is no frame 9." in _call(
+        files, "remove_frame", file="scene.sdxl.json", frame=9
     )
     assert len(_frames(files)) == 3
 
@@ -2322,9 +2407,9 @@ def test_remove_frame_refuses_a_frame_that_is_not_there(tmp_path):
 def test_remove_frame_leaves_the_maps_alone(tmp_path):
     # The user's decision of 5 Sep: nothing here deletes on the model's behalf. A character left in
     # no frame at all stays in the map, and removing it is the user's to ask for.
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    _call(files, "remove_frame", file="scene.json", frame=1)
-    after = json.loads(files.read("p1", "scene.json"))
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    _call(files, "remove_frame", file="scene.sdxl.json", frame=1)
+    after = json.loads(files.read("p1", "scene.sdxl.json"))
     before = json.loads(WITH_ACTION)
     assert len(after["frames"]) == 2
     for key in ("characters", "outfits", "locations"):
@@ -2334,8 +2419,8 @@ def test_remove_frame_leaves_the_maps_alone(tmp_path):
 def test_a_removal_gives_an_older_files_frames_the_numbers_they_never_had(tmp_path):
     # Frames written before Madde 173 carry no number at all. Renumbering counts places rather than
     # reading what is there, so it repairs them on the way past.
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    _call(files, "remove_frame", file="scene.json", frame=1)
+    files = _with(tmp_path, "scene.sdxl.json", STRUCTURE)
+    _call(files, "remove_frame", file="scene.sdxl.json", frame=1)
     assert [frame["number"] for frame in _frames(files)] == [1]
 
 
@@ -2355,8 +2440,8 @@ def test_a_removal_gives_an_older_files_frames_the_numbers_they_never_had(tmp_pa
 
 
 def test_before_puts_the_scene_in_front_of_that_frame(tmp_path):
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    _call(files, "add_frame", file="scene.json", frames=[SCENE], before=2)
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    _call(files, "sdxl_add_frame", file="scene.sdxl.json", frames=[SCENE], before=2)
     assert [frame["scene"] for frame in _frames(files)] == [
         "one",
         "she turns her head",
@@ -2368,16 +2453,16 @@ def test_before_puts_the_scene_in_front_of_that_frame(tmp_path):
 def test_the_frames_that_move_keep_their_action(tmp_path):
     # The whole madde. Re-adding through add_frame is what lost them, because a frame is born
     # without one -- an insertion removes nothing, so there is nothing to lose.
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    _call(files, "add_frame", file="scene.json", frames=[SCENE], before=1)
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    _call(files, "sdxl_add_frame", file="scene.sdxl.json", frames=[SCENE], before=1)
     assert _frames(files)[2]["action"] == "she turns her head, close-up"
 
 
 def test_an_insertion_renumbers_every_frame_from_one(tmp_path):
     # The numbers beside the scenes rather than on their own: five frames come out numbered 1 to 5
     # whether they were inserted or appended, so a bare list of numbers proves nothing at all.
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    _call(files, "add_frame", file="scene.json", frames=[SCENE, SCENE], before=2)
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    _call(files, "sdxl_add_frame", file="scene.sdxl.json", frames=[SCENE, SCENE], before=2)
     assert [(frame["number"], frame["scene"]) for frame in _frames(files)] == [
         (1, "one"),
         (2, "she turns her head"),
@@ -2390,8 +2475,8 @@ def test_an_insertion_renumbers_every_frame_from_one(tmp_path):
 def test_without_before_a_scene_still_goes_to_the_end(tmp_path):
     # The parameter is not a change of behaviour, it is a second one. A file's frames keep their
     # order and their numbers when nobody asks for a place.
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    _call(files, "add_frame", file="scene.json", frames=[SCENE])
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    _call(files, "sdxl_add_frame", file="scene.sdxl.json", frames=[SCENE])
     assert [frame["scene"] for frame in _frames(files)] == [
         "one",
         "two",
@@ -2402,36 +2487,36 @@ def test_without_before_a_scene_still_goes_to_the_end(tmp_path):
 
 
 def test_an_insertion_names_the_frames_it_made(tmp_path):
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    assert _call(files, "add_frame", file="scene.json", frames=[SCENE, SCENE], before=2).startswith(
-        "Added 2 scenes to scene.json as frames 2-3"
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    assert _call(files, "sdxl_add_frame", file="scene.sdxl.json", frames=[SCENE, SCENE], before=2).startswith(
+        "Added 2 scenes to scene.sdxl.json as frames 2-3"
     )
 
 
 def test_an_insertion_says_how_many_frames_moved(tmp_path):
     # remove_frame's sentence from the other side, and there for the same reason: a number the model
     # was told before this call may not mean the same frame after it.
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    assert _call(files, "add_frame", file="scene.json", frames=[SCENE], before=2) == (
-        "Added 1 scene to scene.json as frame 2; 2 frames after it moved up."
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    assert _call(files, "sdxl_add_frame", file="scene.sdxl.json", frames=[SCENE], before=2) == (
+        "Added 1 scene to scene.sdxl.json as frame 2; 2 frames after it moved up."
     )
 
 
 def test_adding_to_the_end_says_nothing_about_moving(tmp_path):
     # Nothing moved, and a sentence about work that did not happen is the thing Madde 174 refused
     # when the last frame came out.
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    assert _call(files, "add_frame", file="scene.json", frames=[SCENE]) == (
-        "Added 1 scene to scene.json as frame 4."
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    assert _call(files, "sdxl_add_frame", file="scene.sdxl.json", frames=[SCENE]) == (
+        "Added 1 scene to scene.sdxl.json as frame 4."
     )
 
 
 def test_before_one_past_the_end_is_the_end(tmp_path):
     # It is what the word says: in front of the frame after the last one. Refusing it would be
     # refusing a call that named its place correctly.
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    assert _call(files, "add_frame", file="scene.json", frames=[SCENE], before=4) == (
-        "Added 1 scene to scene.json as frame 4."
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    assert _call(files, "sdxl_add_frame", file="scene.sdxl.json", frames=[SCENE], before=4) == (
+        "Added 1 scene to scene.sdxl.json as frame 4."
     )
     assert [frame["scene"] for frame in _frames(files)][-1] == "she turns her head"
 
@@ -2439,17 +2524,17 @@ def test_before_one_past_the_end_is_the_end(tmp_path):
 def test_before_a_frame_that_is_not_there_is_refused(tmp_path):
     # Madde 174's sentence, with the ceiling one higher: 4 is a place in a file of three frames,
     # and 5 is not.
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    assert "scene.json has 3 frames; there is no frame 5." in _call(
-        files, "add_frame", file="scene.json", frames=[SCENE], before=5
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    assert "scene.sdxl.json has 3 frames; there is no frame 5." in _call(
+        files, "sdxl_add_frame", file="scene.sdxl.json", frames=[SCENE], before=5
     )
     assert len(_frames(files)) == 3
 
 
 def test_a_before_that_is_not_a_number_is_refused(tmp_path):
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
     assert "named by its number" in _call(
-        files, "add_frame", file="scene.json", frames=[SCENE], before="ortaya"
+        files, "sdxl_add_frame", file="scene.sdxl.json", frames=[SCENE], before="ortaya"
     )
     assert len(_frames(files)) == 3
 
@@ -2457,9 +2542,9 @@ def test_a_before_that_is_not_a_number_is_refused(tmp_path):
 def test_a_bad_scene_names_the_number_it_would_have_taken(tmp_path):
     # The batch still falls whole, and the number in the complaint is the one the frame was going
     # to get -- not its place in the argument, which would name a frame that already exists.
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
     answer = _call(
-        files, "add_frame", file="scene.json", frames=[SCENE, {"scene": ""}], before=2
+        files, "sdxl_add_frame", file="scene.sdxl.json", frames=[SCENE, {"scene": ""}], before=2
     )
     assert "frame 3: a scene needs a sentence saying what happens." in answer
     assert "Nothing was added." in answer
@@ -2467,13 +2552,13 @@ def test_a_bad_scene_names_the_number_it_would_have_taken(tmp_path):
 
 
 def test_an_insertion_leaves_the_maps_alone(tmp_path):
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    _call(files, "add_frame", file="scene.json", frames=[SCENE], before=2)
+    files = _with(tmp_path, "scene.sdxl.json", WITH_ACTION)
+    _call(files, "sdxl_add_frame", file="scene.sdxl.json", frames=[SCENE], before=2)
     # Where it landed, not how many there are: an append also makes four, so a count would let this
     # pass on the very behaviour the madde is replacing. Four tests in this run went green while red
     # for exactly that reason.
     assert _frames(files)[1]["scene"] == "she turns her head"
-    after = json.loads(files.read("p1", "scene.json"))
+    after = json.loads(files.read("p1", "scene.sdxl.json"))
     before = json.loads(WITH_ACTION)
     for key in ("characters", "outfits", "locations"):
         assert after[key] == before[key]
@@ -2482,15 +2567,15 @@ def test_an_insertion_leaves_the_maps_alone(tmp_path):
 def test_an_insertion_gives_an_older_files_frames_the_numbers_they_never_had(tmp_path):
     # The removal's test from the other side. Renumbering counts places rather than reading what is
     # there, so frames written before Madde 173 are repaired on the way past.
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    _call(files, "add_frame", file="scene.json", frames=[SCENE], before=1)
+    files = _with(tmp_path, "scene.sdxl.json", STRUCTURE)
+    _call(files, "sdxl_add_frame", file="scene.sdxl.json", frames=[SCENE], before=1)
     assert [frame["number"] for frame in _frames(files)] == [1, 2, 3]
 
 
 def test_the_scene_tool_tells_the_model_a_place_can_be_named():
     # A parameter the description never mentions is a parameter a weak model does not reach for --
     # 108 and 118 both showed it going around what it was not shown.
-    said = _said_by("add_frame")
+    said = _said_by("sdxl_add_frame")
     assert "before" in said
 
 
@@ -2508,7 +2593,7 @@ def test_the_character_field_names_no_pov_entry():
 def test_the_map_tools_never_carry_a_frames_anatomy():
     # Madde 181. An anatomy word in a character's entry is drawn into every frame that character is
     # in -- which is the leak the user avoided by hand in Deneme 4.
-    for tool in ("set_character", "set_outfit", "set_location"):
+    for tool in ("sdxl_set_character", "sdxl_set_outfit", "sdxl_set_location"):
         said = _said_by(tool).lower()
         # A text gone empty cannot pass the absences below quietly.
         assert said.strip(), tool
@@ -2583,33 +2668,403 @@ def test_a_build_of_one_frame_counts_it_as_one(tmp_path):
     # one goes through counted(). One result, two grammars.
     one = json.loads(STRUCTURE)
     one["frames"] = one["frames"][:1]
-    files = _with(tmp_path, "one.json", json.dumps(one))
-    answer = _call(files, "build_prompts", name="one.json")
+    files = _with(tmp_path, "one.sdxl.json", json.dumps(one))
+    answer = _call(files, "build_prompts", name="one.sdxl.json")
     assert "1 prompt " in answer
     assert "1 prompts" not in answer
 
 
 def test_a_build_of_more_than_one_still_says_prompts(tmp_path):
     # A guard: counted() is not a rewrite of the sentence, only of the number in it.
-    files = _with(tmp_path, "frames.json", STRUCTURE)
-    assert "2 prompts" in _call(files, "build_prompts", name="frames.json")
+    files = _with(tmp_path, "frames.sdxl.json", STRUCTURE)
+    assert "2 prompts" in _call(files, "build_prompts", name="frames.sdxl.json")
 
 
 def test_the_scene_builder_still_does_not_hand_back_its_prompts(tmp_path):
     # A guard, and the limit of this item. Madde 130 says the built prompts are never printed back,
     # and twenty-five of them inside a tool answer is the invitation to print them: the list is
     # there to sit in the file, and the answer is its name.
-    files = _with(tmp_path, "frames.json", STRUCTURE)
-    answer = _call(files, "build_prompts", name="frames.json")
-    assert "frames.py" in answer
+    files = _with(tmp_path, "frames.sdxl.json", STRUCTURE)
+    answer = _call(files, "build_prompts", name="frames.sdxl.json")
+    assert "frames.sdxl.py" in answer
     assert "long teal hair" not in answer
 
 
 def test_calling_add_frame_twice_puts_the_scenes_in_twice(tmp_path):
     # Appending is not idempotent, and pretending otherwise would have the tool guess which of two
     # identical scenes was meant. Left visible instead, in the numbers the second answer names.
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    _call(files, "add_frame", file="scene.json", frames=[SCENE])
-    answer = _call(files, "add_frame", file="scene.json", frames=[SCENE])
-    assert len(json.loads(files.read("p1", "scene.json"))["frames"]) == 4
+    files = _with(tmp_path, "scene.sdxl.json", STRUCTURE)
+    _call(files, "sdxl_add_frame", file="scene.sdxl.json", frames=[SCENE])
+    answer = _call(files, "sdxl_add_frame", file="scene.sdxl.json", frames=[SCENE])
+    assert len(json.loads(files.read("p1", "scene.sdxl.json"))["frames"]) == 4
     assert "as frame 4." in answer
+
+
+# --- the name says the kind, and Krea has tools of its own (Madde 492) ----------------------------
+#
+# 22 October, the user: a scenario's kind is its file's name -- plaj.sdxl.json or plaj.krea.json
+# ("bu mantıklı") -- and never a guess from what is inside ("hayır kontrol böyle yapılmamalı bu çok
+# kötü bir tasarım"). A name that says no kind is not a scenario, and the answer says only that
+# ("valid değil desin yeter"). A Krea scenario is a style and frames of a scene and a prompt each.
+
+KREA = json.dumps(
+    {
+        "style": "A photorealistic photo taken on a phone.",
+        "frames": [
+            {"scene": "She walks in.", "prompt": "A woman walks into a bar."},
+            {"scene": "He waves.", "prompt": "A man waves from the counter."},
+        ],
+    }
+)
+
+
+def _krea(tmp_path):
+    return _with(tmp_path, "plaj.krea.json", KREA)
+
+
+def _krea_read(files):
+    return json.loads(files.read("p1", "plaj.krea.json"))
+
+
+@pytest.mark.parametrize(
+    "name,kind",
+    [
+        ("plaj.sdxl.json", "sdxl"),
+        ("plaj.krea.json", "krea"),
+        ("PLAJ.KREA.JSON", "krea"),
+        ("plaj.json", None),
+        ("plaj.md", None),
+        ("plaj.sdxl", None),
+        ("sdxl.json", None),
+    ],
+)
+def test_the_kind_is_read_off_the_name(name, kind):
+    assert scenario_kind(name) == kind
+
+
+@pytest.mark.parametrize(
+    "asked,kind,named",
+    [
+        ("plaj.md", "sdxl", "plaj.sdxl.json"),
+        ("plaj.json", "krea", "plaj.krea.json"),
+        ("plaj.krea", "sdxl", "plaj.sdxl.json"),
+        ("plaj.krea.json", "krea", "plaj.krea.json"),
+        ("plaj.sdxl.json", "krea", "plaj.krea.json"),
+    ],
+)
+def test_a_scenarios_name_carries_the_kind_of_the_tool_that_opens_it(asked, kind, named):
+    # The name cannot change the tool's kind: the tool is what says which kind it opens.
+    assert scenario_name(asked, kind) == named
+
+
+UNTYPED_CALLS = [
+    ("sdxl_set_character", {"file": "plaj.json", "name": "a", "tags": "b"}),
+    ("sdxl_remove_character", {"file": "plaj.json", "name": "a"}),
+    ("sdxl_set_outfit", {"file": "plaj.json", "name": "a", "tags": "b"}),
+    ("sdxl_remove_outfit", {"file": "plaj.json", "name": "a"}),
+    ("sdxl_set_location", {"file": "plaj.json", "name": "a", "tags": "b"}),
+    ("sdxl_remove_location", {"file": "plaj.json", "name": "a"}),
+    ("sdxl_add_frame", {"file": "plaj.json", "frames": [{"scene": "x"}]}),
+    ("sdxl_update_frame", {"file": "plaj.json", "frame": 1, "scene": "x"}),
+    ("krea_set_style", {"file": "plaj.json", "style": "x"}),
+    ("krea_add_frame", {"file": "plaj.json", "frames": [{"scene": "x", "prompt": "y"}]}),
+    ("krea_update_frame", {"file": "plaj.json", "frame": 1, "scene": "x"}),
+    ("remove_frame", {"file": "plaj.json", "frame": 1}),
+    ("build_prompts", {"name": "plaj.json"}),
+]
+
+
+@pytest.mark.parametrize("tool,given", UNTYPED_CALLS)
+def test_a_file_whose_name_says_no_kind_is_not_a_scenario(tmp_path, tool, given):
+    # The scenarios written before Madde 492 are named plaj.json. They are not built and not
+    # changed: taking one would be guessing its kind. Refused before the file is read.
+    counting = _Counting(_with(tmp_path, "plaj.json", STRUCTURE))
+    made = run_tool(counting, "p1", tool, json.dumps(given))
+    assert made.text == "plaj.json is not a valid scenario file."
+    assert counting.calls == []
+    assert counting.read("p1", "plaj.json") == STRUCTURE
+
+
+@pytest.mark.parametrize(
+    "tool,given",
+    [
+        ("sdxl_set_character", {"name": "a", "tags": "b"}),
+        ("sdxl_add_frame", {"frames": [{"scene": "x"}]}),
+        ("sdxl_update_frame", {"frame": 1, "scene": "x"}),
+    ],
+)
+def test_an_sdxl_tool_refuses_a_krea_scenario_by_its_name(tmp_path, tool, given):
+    counting = _Counting(_krea(tmp_path))
+    made = run_tool(counting, "p1", tool, json.dumps({"file": "plaj.krea.json", **given}))
+    assert made.text == "plaj.krea.json is a Krea scenario; use the krea_ tools."
+    assert counting.calls == []
+
+
+@pytest.mark.parametrize(
+    "tool,given",
+    [
+        ("krea_set_style", {"style": "x"}),
+        ("krea_add_frame", {"frames": [{"scene": "x", "prompt": "y"}]}),
+        ("krea_update_frame", {"frame": 1, "scene": "x"}),
+    ],
+)
+def test_a_krea_tool_refuses_an_sdxl_scenario_by_its_name(tmp_path, tool, given):
+    counting = _Counting(_with(tmp_path, "plaj.sdxl.json", STRUCTURE))
+    made = run_tool(counting, "p1", tool, json.dumps({"file": "plaj.sdxl.json", **given}))
+    assert made.text == "plaj.sdxl.json is an SDXL scenario; use the sdxl_ tools."
+    assert counting.calls == []
+
+
+def test_an_sdxl_file_holding_a_krea_shape_is_refused_and_left_as_it_is(tmp_path):
+    # Content that does not fit the name's kind is never read as the other kind.
+    written = json.dumps(
+        {"style": "x", "characters": {}, "frames": [{"scene": "x", "prompt": "y"}]}
+    )
+    files = _with(tmp_path, "plaj.sdxl.json", written)
+    given = {"file": "plaj.sdxl.json", "name": "a", "tags": "b"}
+    made = run_tool(files, "p1", "sdxl_set_character", json.dumps(given))
+    assert made.text == (
+        "plaj.sdxl.json has a style; an SDXL scenario has none.\n"
+        "plaj.sdxl.json: frame 1 has a prompt; an SDXL frame has none."
+    )
+    assert made.outcome == "Refused"
+    assert files.read("p1", "plaj.sdxl.json") == written
+    built = _call(files, "build_prompts", name="plaj.sdxl.json")
+    assert built.startswith("plaj.sdxl.json has a style; an SDXL scenario has none.")
+    assert files.list_names("p1") == ["plaj.sdxl.json"]
+
+
+def test_a_krea_file_holding_an_sdxl_shape_is_refused_and_left_as_it_is(tmp_path):
+    files = _with(tmp_path, "plaj.krea.json", STRUCTURE)
+    said = _call(files, "krea_set_style", file="plaj.krea.json", style="A photo.")
+    assert "plaj.krea.json has no style; a Krea scenario has style and frames." in said
+    assert "plaj.krea.json: frame 1 has characters; a Krea frame has scene and prompt." in said
+    assert files.read("p1", "plaj.krea.json") == STRUCTURE
+
+
+def test_krea_start_scenario_opens_the_style_and_no_frames(tmp_path):
+    files = _files(tmp_path)
+    made = run_tool(
+        files, "p1", "krea_start_scenario", json.dumps({"name": "plaj", "style": " A photo. "})
+    )
+    assert made.text == "Started plaj.krea.json."
+    assert made.created == "plaj.krea.json"
+    assert made.outcome == "Started"
+    assert _krea_read(files) == {"style": "A photo.", "frames": []}
+    # Indented, for the person who opens it.
+    assert '\n  "style"' in files.read("p1", "plaj.krea.json")
+
+
+def test_krea_start_scenario_is_a_tool_that_brings_a_file_into_being():
+    from backend.features.workspace.domain.tools import WRITES_FILES
+
+    assert WRITES_FILES == {
+        "create_file",
+        "sdxl_start_scenario",
+        "krea_start_scenario",
+        "build_prompts",
+    }
+
+
+def test_krea_start_scenario_refuses_a_taken_name(tmp_path):
+    files = _krea(tmp_path)
+    said = _call(files, "krea_start_scenario", name="plaj", style="A photo.")
+    assert "There is already a file called plaj.krea.json." in said
+    assert files.read("p1", "plaj.krea.json") == KREA
+
+
+@pytest.mark.parametrize("style", [None, "", "  "])
+def test_a_krea_scenario_needs_a_style(tmp_path, style):
+    # The user, 22 October: the style is asked when the scenario starts, and a scenario is born
+    # with it.
+    files = _files(tmp_path)
+    given = {"name": "plaj"} if style is None else {"name": "plaj", "style": style}
+    made = run_tool(files, "p1", "krea_start_scenario", json.dumps(given))
+    assert made.text == "A Krea scenario needs a style."
+    assert made.outcome == "Refused"
+    assert files.list_names("p1") == []
+
+
+def test_krea_set_style_changes_the_style_and_nothing_else(tmp_path):
+    files = _krea(tmp_path)
+    given = {"file": "plaj.krea.json", "style": "An oil painting."}
+    made = run_tool(files, "p1", "krea_set_style", json.dumps(given))
+    assert made.text == "Changed the style of plaj.krea.json."
+    assert made.outcome == "Changed"
+    assert _krea_read(files) == {**json.loads(KREA), "style": "An oil painting."}
+
+
+def test_the_same_style_changes_nothing(tmp_path):
+    counting = _Counting(_krea(tmp_path))
+    said = run_tool(
+        counting,
+        "p1",
+        "krea_set_style",
+        json.dumps({"file": "plaj.krea.json", "style": "A photorealistic photo taken on a phone."}),
+    ).text
+    assert said == "Nothing would change about the style."
+    assert counting.calls == ["read"]
+
+
+def test_an_empty_style_is_refused_before_anything_is_read(tmp_path):
+    counting = _Counting(_krea(tmp_path))
+    given = {"file": "plaj.krea.json", "style": " "}
+    made = run_tool(counting, "p1", "krea_set_style", json.dumps(given))
+    assert made.text == "A Krea scenario needs a style."
+    assert counting.calls == []
+
+
+def test_krea_add_frame_puts_the_frames_at_the_end_without_numbers(tmp_path):
+    # The user, 22 October: a Krea frame carries no number; its place in the list is its number.
+    files = _krea(tmp_path)
+    said = _call(
+        files,
+        "krea_add_frame",
+        file="plaj.krea.json",
+        frames=[
+            {"scene": " They dance. ", "prompt": "Two people dance."},
+            {"scene": "They leave.", "prompt": "Two people walk out."},
+        ],
+    )
+    assert said == "Added 2 scenes to plaj.krea.json as frames 3-4."
+    assert _krea_read(files)["frames"][2:] == [
+        {"scene": "They dance.", "prompt": "Two people dance."},
+        {"scene": "They leave.", "prompt": "Two people walk out."},
+    ]
+
+
+def test_krea_add_frame_goes_in_front_of_the_frame_before_names(tmp_path):
+    files = _krea(tmp_path)
+    said = _call(
+        files,
+        "krea_add_frame",
+        file="plaj.krea.json",
+        before=1,
+        frames=[{"scene": "Night falls.", "prompt": "A dark street."}],
+    )
+    assert said == "Added 1 scene to plaj.krea.json as frame 1; 2 frames after it moved up."
+    assert [frame["scene"] for frame in _krea_read(files)["frames"]] == [
+        "Night falls.",
+        "She walks in.",
+        "He waves.",
+    ]
+
+
+def test_a_krea_frame_needs_its_scene_and_its_prompt_and_nothing_is_written_without(tmp_path):
+    counting = _Counting(_krea(tmp_path))
+    made = run_tool(
+        counting,
+        "p1",
+        "krea_add_frame",
+        json.dumps(
+            {
+                "file": "plaj.krea.json",
+                "frames": [
+                    {"scene": "Fine.", "prompt": "Fine."},
+                    {"scene": " ", "prompt": "A dog."},
+                    {"scene": "A cat."},
+                    "not a frame",
+                ],
+            }
+        ),
+    )
+    assert made.text == (
+        "frame 4: a scene needs a sentence saying what happens.\n"
+        "frame 5: a prompt needs the words that describe the photo.\n"
+        "frame 6: a frame is an object with scene and prompt.\n"
+        "Nothing was added."
+    )
+    assert counting.calls == ["read"]
+
+
+def test_krea_add_frame_takes_a_list(tmp_path):
+    files = _krea(tmp_path)
+    one = {"scene": "x", "prompt": "y"}
+    said = _call(files, "krea_add_frame", file="plaj.krea.json", frames=one)
+    assert said == "krea_add_frame takes a list of frames, even when there is one of them."
+
+
+def test_adding_krea_frames_is_one_read_and_one_write(tmp_path):
+    # However many frames a call brings: the Krea skill adds them in one go.
+    counting = _Counting(_krea(tmp_path))
+    frames = [{"scene": f"Scene {n}.", "prompt": f"Photo {n}."} for n in range(5)]
+    given = {"file": "plaj.krea.json", "frames": frames}
+    run_tool(counting, "p1", "krea_add_frame", json.dumps(given))
+    assert counting.calls == ["read", "write"]
+
+
+def test_krea_update_frame_changes_what_it_is_given(tmp_path):
+    files = _krea(tmp_path)
+    said = _call(files, "krea_update_frame", file="plaj.krea.json", frame=2, prompt="A man smiles.")
+    assert said == "Changed prompt of frame 2 in plaj.krea.json."
+    assert _krea_read(files)["frames"][1] == {"scene": "He waves.", "prompt": "A man smiles."}
+
+
+def test_a_krea_frames_scene_and_prompt_cannot_be_emptied(tmp_path):
+    files = _krea(tmp_path)
+    said = _call(files, "krea_update_frame", file="plaj.krea.json", frame=1, scene="", prompt=" ")
+    assert said == (
+        "frame 1: a scene needs a sentence saying what happens.\n"
+        "frame 1: a prompt needs the words that describe the photo.\n"
+        "Nothing was changed."
+    )
+    assert files.read("p1", "plaj.krea.json") == KREA
+
+
+def test_krea_update_frame_refuses_when_nothing_was_given(tmp_path):
+    files = _krea(tmp_path)
+    said = _call(files, "krea_update_frame", file="plaj.krea.json", frame=1)
+    assert said == "Nothing was given to change about frame 1."
+
+
+def test_krea_update_frame_refuses_a_frame_that_is_not_there(tmp_path):
+    files = _krea(tmp_path)
+    said = _call(files, "krea_update_frame", file="plaj.krea.json", frame=3, scene="x")
+    assert said == "plaj.krea.json has 2 frames; there is no frame 3."
+
+
+def test_remove_frame_takes_a_krea_frame_out_and_writes_no_number(tmp_path):
+    files = _krea(tmp_path)
+    said = _call(files, "remove_frame", file="plaj.krea.json", frame=1)
+    # No "renumbered": a Krea frame carries no number, so nothing was renumbered.
+    assert said == "Removed frame 1 from plaj.krea.json; 1 frame left."
+    assert _krea_read(files)["frames"] == [
+        {"scene": "He waves.", "prompt": "A man waves from the counter."}
+    ]
+
+
+def test_building_a_krea_scenario_puts_the_style_in_front_of_each_prompt(tmp_path):
+    files = _krea(tmp_path)
+    made = run_tool(files, "p1", "build_prompts", json.dumps({"name": "plaj.krea.json"}))
+    assert made.text == "Wrote 2 prompts to plaj.krea.py."
+    assert made.created == "plaj.krea.py"
+    records = ast.literal_eval(ast.parse(files.read("p1", "plaj.krea.py")).body[0].value)
+    assert records == [
+        {
+            "scene": "She walks in.",
+            "photo": "A photorealistic photo taken on a phone. A woman walks into a bar.",
+        },
+        {
+            "scene": "He waves.",
+            "photo": "A photorealistic photo taken on a phone. A man waves from the counter.",
+        },
+    ]
+
+
+def test_a_krea_build_with_an_empty_prompt_writes_nothing(tmp_path):
+    broken = json.loads(KREA)
+    broken["frames"][1]["prompt"] = ""
+    files = _with(tmp_path, "plaj.krea.json", json.dumps(broken))
+    said = _call(files, "build_prompts", name="plaj.krea.json")
+    assert said == "plaj.krea.json: frame 2 has an empty prompt."
+    assert files.list_names("p1") == ["plaj.krea.json"]
+
+
+def test_the_two_kinds_of_one_name_build_into_two_files(tmp_path):
+    # The kind stays in the built file's name, or plaj.sdxl.json and plaj.krea.json would write the
+    # same plaj.py and one would wipe the other.
+    files = _with(tmp_path, "plaj.sdxl.json", STRUCTURE)
+    files.write("p1", "plaj.krea.json", KREA)
+    _call(files, "build_prompts", name="plaj.sdxl.json")
+    _call(files, "build_prompts", name="plaj.krea.json")
+    assert {"plaj.sdxl.py", "plaj.krea.py"} <= set(files.list_names("p1"))

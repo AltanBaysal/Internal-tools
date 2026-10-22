@@ -18,7 +18,7 @@ would be a cycle waiting for its first line.
 
 The interface is English because its design was written in English. That is a rule about labels and
 was never a reason to answer a Turkish question in English -- the answer follows whoever is asking.
-What must stay English is what an image model reads, and SDXL_DOCUMENT says so itself.
+What must stay English is what an image model reads, and each of the GUIDES says so itself.
 """
 
 # --- what QueenAgent is told about itself ---------------------------------------------------------
@@ -237,12 +237,17 @@ October), so a change to one is made to the other by hand.
 # producing something the moment the user typed "thanks". What to do comes from the user's own
 # sentence.
 #
-# Three texts. Two since Madde 101, and Improve since Madde 394: Start a scenario's checks and its
-# negative list, copied word for word into a skill of its own for a scenario that already exists --
-# the owner's decision, so the copy is meant and is not to be joined back into a shared block.
-# Five others stood beside the first two and were deleted in Madde 94: what they said about how to
-# work now sits in SYSTEM_PROMPT, where it holds whatever is selected. The picker still has an
-# empty state -- having no skill selected is ordinary.
+# Four texts since Madde 492: a start and an edit for each image model, SDXL and Krea (the user, 22
+# October: "Krea start scenario olacak, bir de Krea edit olacak"). Improve went in the same item
+# ("improve skilinin kendisi kalksın"); its checks stay in the SDXL flow's Steps 6 - 10. Five others
+# were deleted in Madde 94: what they said about how to work now sits in SYSTEM_PROMPT, where it
+# holds whatever is selected. The picker still has an empty state -- having no skill selected is
+# ordinary.
+#
+# Each opens by sending the model to its own model's guide (the user: "bizim skillimizin başında
+# söyleriz git ve şu skili oku önce"): the guides ride in no request on their own, so this line is
+# what puts the rules in front of the model. A model's rules stand in its guide and its own skills,
+# never in the other model's.
 #
 # Since Madde 123 each opens as a persona and a word cap in the tests keeps it short: five runs of
 # patches had doubled the texts, and a weak model stops reading the middle. From here a sentence
@@ -250,6 +255,8 @@ October), so a change to one is made to the other by hand.
 # one beside it.
 
 EDIT_PROMPTS = (
+    "Read sdxl-prompt-writing.md first.\n"
+    "\n"
     "You are an expert scenario writer and prompt writer.\n"
     "\n"
     "Context\n"
@@ -277,6 +284,8 @@ EDIT_PROMPTS = (
 )
 
 START_A_SCENARIO = (
+    "Read sdxl-prompt-writing.md first.\n"
+    "\n"
     "You are an expert scenario writer and prompt writer. You walk the user through ten steps in "
     "order, by asking.\n"
     "\n"
@@ -316,6 +325,7 @@ START_A_SCENARIO = (
     "Step 4 -- write the scenes\n"
     "- Ask the user for the number of scenes and the important moments.\n"
     "- Write each scene in English.\n"
+    "- Write each scene in sentences, never as tags.\n"
     "- Write the words a character says inside quotes, in natural, well-written English. "
     "Translate the words when the user gives the words in another language.\n"
     "- Write each scene short enough for four seconds.\n"
@@ -454,17 +464,162 @@ START_A_SCENARIO = (
     "- Tell the user the prompts and the negative list are complete."
 )
 
-IMPROVE = (
-    "You are an expert scenario writer and prompt writer. You improve an existing scenario JSON "
-    "in five steps, in order.\n"
+# The Krea two (Madde 492). Simple, in the shape of the SDXL two, and carrying no SDXL rule; how a
+# character is described is left open on purpose (the user, 22 October: "şu an bu kısıtlamalara
+# girmeyelim"). The flow asks the name and the style first ("senaryo başlarken sorulsun"), and keeps
+# how each character and place looks in <scenario>-notes.md, so the frames read the same. The scenes
+# are agreed in Step 2 and reach the file in Step 4 with their prompts: a Krea frame is never
+# written without one, and one call adds many frames.
+
+KREA_START_SCENARIO = (
+    "Read krea-prompt-writing.md first.\n"
+    "\n"
+    "You are an expert scenario writer and prompt writer. You walk the user through five steps in "
+    "order, by asking.\n"
     "\n"
     "Context\n"
-    "- The scenario JSON is used to make a video of exactly four seconds for each frame.\n"
+    "- The work is to create a Krea scenario JSON, used to create a video.\n"
+    "- The video of each frame is exactly four seconds.\n"
     "- The prompt of the frame makes a photo. The video starts from the photo.\n"
     "- The scene of the frame tells what happens in the video.\n"
+    "- The style of the scenario goes in front of the prompt of every frame.\n"
+    "\n"
+    "How a step runs:\n"
+    "- Ask the user, write the answer, and wait for a yes.\n"
+    "- Never write a placeholder. If something is missing, ask.\n"
+    '- "You decide" is only for the current step.\n'
+    "\n"
+    "Step 1 -- open the scenario with its name and style\n"
+    "- Ask the user for the name of the scenario and for the style of the photos.\n"
+    "- Open the scenario file once, with the name and the style.\n"
+    "\n"
+    "Step 2 -- write the scenes\n"
+    "- Ask the user for the number of scenes and the important moments.\n"
+    "- Write each scene in English.\n"
+    "- Write each scene in sentences, never as tags.\n"
+    "- Write the words a character says inside quotes, in natural, well-written English. "
+    "Translate the words when the user gives the words in another language.\n"
+    "- Write each scene short enough for four seconds.\n"
+    "- Each scene is used later to write the prompt for the video model.\n"
+    "- The scenes go into the scenario file in Step 4, with their prompts.\n"
+    "\n"
+    "Step 3 -- write the notes\n"
+    "- Ask the user who is in the scenario and where the scenario happens.\n"
+    "- Write how each character looks and how each place looks into a notes file. Name the notes "
+    "file after the scenario, ending in -notes.md, as in beach-notes.md for beach.krea.json.\n"
+    "\n"
+    "Step 4 -- add the frames with their prompts\n"
+    "- Write the prompt of each frame from the scene of the frame.\n"
+    "- Take how each character and each place looks from the notes, so a character looks the "
+    "same in every frame.\n"
+    "- Add the frames in the order the frames happen, many frames in one go.\n"
+    "- This step waits for no approval. Go on to Step 5 in the same turn.\n"
+    "\n"
+    "Step 5 -- build the prompts\n"
+    "- Build the prompts.\n"
+    "- Tell the user the prompts are complete. The built prompt file is the answer: never print "
+    "the prompts back."
+)
+
+KREA_EDIT = (
+    "Read krea-prompt-writing.md first.\n"
+    "\n"
+    "You are an expert scenario writer and prompt writer.\n"
+    "\n"
+    "Context\n"
+    "- You change an existing Krea scenario JSON. The scenario JSON is used to make a video of "
+    "exactly four seconds for each frame.\n"
+    "- The prompt of the frame makes a photo. The video starts from the photo.\n"
+    "- The scene of the frame tells what happens in the video.\n"
+    "- The style of the scenario goes in front of the prompt of every frame.\n"
+    "- The notes file of the scenario says how each character and each place looks.\n"
+    "\n"
+    "Step 1 -- find what to change\n"
+    "- Read the scenario file named in the request, and the notes file of the scenario. If more "
+    "than one file can match, ask the user.\n"
+    "- Find the frames or the style the user means. If nothing matches, say so. If something "
+    "close is there, ask whether the close match is right.\n"
+    "\n"
+    "Step 2 -- make the change\n"
+    "- Make the change in the scenario file.\n"
+    "- A change to how a character or a place looks goes into the notes file too, and into every "
+    "frame that shows the character or the place.\n"
+    "- The prompt file is auto-generated from the scenario file. Do not edit the prompt file.\n"
+    "- Make sure the change does not reach frames the user did not mean.\n"
+    "\n"
+    "Step 3 -- build the prompts again and answer\n"
+    "- Build the prompts again.\n"
+    "- Say the change and the changed frames. The built prompt file is the answer: never print "
+    "the prompts back."
+)
+
+
+# --- how each image model's prompts are written: the two guides (Madde 492) -----------------------
+#
+# Two documents, one per image model, read by the agent and changed by nobody (the user, 22 October:
+# "2 skill olacak işte sdxl ve krea prompt yazımı"; "ajan değiştiremez sadece okur"). A model's
+# prompt rules stand here and in that model's own skills, and nowhere else -- not in SYSTEM_PROMPT,
+# not in a tool's text, not in the other model's guide ("model instructlarını onunla alakalı skill
+# hariç hiçbir yerde olmadığından emin olalım"). No request carries one on its own ("hiçbiri
+# gitmez"): the skill's first line sends the model to read its guide.
+#
+# Here, as text, rather than in the user's Drive or in files of the repo: a copy in every project
+# would drift and could be edited, and each read of one would be a round trip; files in the repo
+# would need a port the domain does not have. FileFileStore is handed this map by main.py and lists
+# each guide among every project's files, so the agent's list, read_file, the opened files and the
+# panel all reach them through the one door they already use (the user: "dosya panelimde de görünse
+# sıkıntı yok basit tutabilirsin"). Markdown headings, because the panel draws a .md as Markdown.
+#
+# The SDXL guide is the document Madde 453 sent in every request, and holds only rules that were
+# already written (the user, 9 October: "bizde olan kuralları kullan sadece"): Danbooru's vocabulary
+# since Madde 200, because the anime SDXL checkpoints were trained on that site's tag strings; the
+# mirror (29 September); the photo's size from Queen Editor's workflow, with no model's name (10
+# October: "Model adı olmasın"); the image-model rules of Start a scenario's Step 5 and Step 10,
+# which that skill keeps a copy of because the model is weak ("Evet, kopyası belgeye de girsin");
+# and, since Madde 492, what left the tools' texts -- solo, who leads a frame, the fixed order -- and
+# the scene's rules. A rule about one field's contents stays on that field (correction 34).
+#
+# The Krea guide is from the research of 22 October (the spec of Madde 492 cites it): Krea reads
+# sentences, the style leads, each person's look and action go together, and the SDXL habits --
+# tags, quality words, BREAK, weights, a negative list -- do nothing or harm there. How a character
+# is described is left open ("şu an bu kısıtlamalara girmeyelim"). No size: that is v11-6's.
+#
+# The scene section is the same in both guides and in both start skills: a change to it is made in
+# four places by hand, the price of a rule standing only in its own model's places.
+
+SDXL_GUIDE = (
+    "# SDXL prompt writing\n"
+    "\n"
+    "## The image model\n"
+    "- The photo of each frame is made by an SDXL-family image model trained on Danbooru's own "
+    "tags, at 1024 x 1536: portrait, 2:3.\n"
+    "- The image model reads the tags of every entry and of every frame's action.\n"
+    "- The image model is weak and draws every tag in the prompt. A complex prompt breaks the "
+    "image.\n"
+    "\n"
+    "## Writing a tag\n"
+    "- Write tags, never sentences. An article is not a tag either.\n"
+    "- Use a tag that the Danbooru vocabulary already has, rather than a description of the same "
+    "thing. The model has seen a real tag many times, and has never seen a paraphrase of it.\n"
+    "- Write the tags in English, with spaces where the site writes underscores.\n"
+    "- Put one thing in each tag, split the way the vocabulary splits it. Do not join two tags "
+    "into one longer phrase.\n"
+    "- When the vocabulary has no tag for it, write a few plain words in the same short form.\n"
+    "\n"
+    "## What is left out\n"
+    "- Never write quality tags. The code already puts them at the front of every prompt, so "
+    "yours would be printed twice.\n"
+    "- Never write the word or inside a tag. The model draws one picture and cannot toss a coin "
+    "between two choices, so pick one and write only that.\n"
+    "- Never write solo in a character's entry. The same character stands alone in one frame and "
+    "next to somebody in the next, so an entry claiming solo is wrong in half of them.\n"
+    "- Never add a mirror unless the user asks for one. A mirror breaks the image.\n"
+    "\n"
+    "## The prompt of a frame\n"
+    "- The code builds every frame's prompt in a fixed order, so a character reads the same in all "
+    "of them.\n"
+    "- Whoever is written first among a frame's characters leads the frame's prompt.\n"
     "- The prompt of a frame describes one photo: the first moment of the scene.\n"
-    "- The image model is weak and draws every tag in the prompt. "
-    "A complex prompt breaks the image.\n"
     "- Some tags are not visible from some camera angles. So a character, an outfit or a place "
     "can have more than one entry, for different camera angles.\n"
     "- The most common mistake: a tag hidden by the camera angle goes onto another character. "
@@ -485,92 +640,7 @@ IMPROVE = (
     "- Rule 6: If the scene is NSFW, name each visible body part directly, as in penis or "
     "vagina. Never use a euphemism.\n"
     "\n"
-    "Before the steps:\n"
-    "- Read the scenario file named in the request. If more than one file can match, ask the "
-    "user.\n"
-    "- Build the prompts, so the built prompt file matches the scenario file.\n"
-    "\n"
-    "Step 1 -- fit each scene into four seconds\n"
-    "Context\n"
-    "- The scene of each frame becomes a video of exactly four seconds. A scene with more events "
-    "does not fit the video.\n"
-    "Part 1 -- review\n"
-    "- Tell the user in one short line what the step improves.\n"
-    "- In the built prompt file, find each scene with more events than four seconds can show.\n"
-    "- Write the frame numbers and the reason for each frame in a review file. Name the review "
-    "file after the scenario, ending in -review-1.md. If every scene fits, write no review file "
-    "and go to Step 2.\n"
-    "Part 2 -- fix\n"
-    "- Fix only the frames in the review file.\n"
-    "- If the scene can be written again to fit four seconds with every event kept, write the "
-    "scene again.\n"
-    "- If not, split the scene into two scenes of four seconds each, and put the second scene "
-    "right after the first scene.\n"
-    "- Update each changed frame and each new frame by the rules.\n"
-    "- Build the prompts again.\n"
-    "- This step waits for no approval. Go on to Step 2 in the same turn.\n"
-    "\n"
-    "Step 2 -- fit each prompt into one photo\n"
-    "Context\n"
-    "- The image model is weak and draws every tag in the prompt. The image model draws one "
-    "photo, so a prompt describing more than one photo breaks the image.\n"
-    "Part 1 -- review\n"
-    "- Tell the user in one short line what the step improves.\n"
-    "- In the built prompt file, find each prompt describing more than one photo can hold.\n"
-    "- Write the frame numbers and the reason for each frame in a review file. Name the review "
-    "file after the scenario, ending in -review-2.md. If every prompt fits into one photo, write "
-    "no review file and go to Step 3.\n"
-    "Part 2 -- fix\n"
-    "- Fix only the frames in the review file. Do not change the scene, and do not add a new "
-    "scene.\n"
-    "- Find where the extra part comes from in the scenario file, and remove the extra part there, "
-    "so the prompt describes one photo.\n"
-    "- If other frames use the same entry, add a new entry for the frame instead.\n"
-    "- Build the prompts again.\n"
-    "- This step waits for no approval. Go on to Step 3 in the same turn.\n"
-    "\n"
-    "Step 3 -- remove tags hidden by the camera angle\n"
-    "Context\n"
-    "- The image model is weak and draws every tag in the prompt, hidden or not.\n"
-    "- For example, the image breaks, or the image model puts the tag on another character in the "
-    "photo, because the hidden part has no place in the photo. The hair of a character with a "
-    "hidden head can end up on another character.\n"
-    "Part 1 -- review\n"
-    "- Tell the user in one short line what the step improves.\n"
-    "- In the built prompt file, find each prompt with tags hidden by the camera angle of the "
-    "prompt.\n"
-    "- Write the frame numbers and the reason for each frame in a review file. Name the review "
-    "file after the scenario, ending in -review-3.md. If no prompt has a hidden tag, write no "
-    "review file and go to Step 4.\n"
-    "Part 2 -- fix\n"
-    "- Fix only the frames in the review file.\n"
-    "- Find where each hidden tag comes from in the scenario file, and remove the hidden tag "
-    "there.\n"
-    "- If other frames use the same entry, add a new entry for the frame instead.\n"
-    "- Build the prompts again.\n"
-    "- This step waits for no approval. Go on to Step 4 in the same turn.\n"
-    "\n"
-    "Step 4 -- simplify prompts too hard to draw\n"
-    "Context\n"
-    "- The image model is weak and draws every tag in the prompt. A prompt too hard for the image "
-    "model breaks the image.\n"
-    "Part 1 -- review\n"
-    "- Tell the user in one short line what the step improves.\n"
-    "- For each prompt in the built prompt file, ask: can a weak image model draw the prompt as "
-    "written?\n"
-    "- Write the frame numbers and the reason for each frame in a review file. Name the review "
-    "file after the scenario, ending in -review-4.md. If every prompt can be drawn, write no "
-    "review file and go to Step 5.\n"
-    "Part 2 -- fix\n"
-    "- Fix only the frames in the review file.\n"
-    "- Find where the hard part comes from in the scenario file, and make the hard part simpler "
-    "there. The frame still shows the same moment.\n"
-    "- If other frames use the same entry, add a new entry for the frame instead.\n"
-    "- Build the prompts again.\n"
-    "- This step waits for no approval. Go on to Step 5 in the same turn.\n"
-    "\n"
-    "Step 5 -- write the negative list\n"
-    "Context\n"
+    "## The negative list\n"
     "- The negative list is for the image model, not the video model. The negative list tells the "
     "image model what not to draw in the photo.\n"
     "- The scenario has one negative list, for every frame. A tag in the negative list works on "
@@ -582,117 +652,70 @@ IMPROVE = (
     "negative list made a dark-skinned man come out white.\n"
     "- To keep a feature of a character, write the opposite tags instead. For example, pale male "
     "and white man for a dark-skinned man.\n"
-    "Work\n"
-    "- Tell the user in one short line what the step does.\n"
-    "- Read every tag of every entry of the scenario. Then write one negative list for the whole "
-    "scenario.\n"
-    "- Write the tags by the same rules as the entries.\n"
-    "- Write the negative list into a file of the negative list alone. Name the file after the "
-    "scenario, ending in -negative.md.\n"
-    "- Write only the tags into the file, separated by commas. Nothing else goes into the file.\n"
-    "- Tell the user the prompts and the negative list are complete."
+    "\n"
+    "## The scene\n"
+    "- Write each scene in English.\n"
+    "- Write each scene in sentences, never as tags.\n"
+    "- Write the words a character says inside quotes, in natural, well-written English. "
+    "Translate the words when the user gives the words in another language.\n"
+    "- Write each scene short enough for four seconds.\n"
+    "- Each scene is used later to write the prompt for the video model."
 )
 
-
-# --- what an image model's tags are written by ----------------------------------------------------
-#
-# The whole of what is left of the schema (Madde 172). Named for what it is: the reader is an
-# SDXL-family image model, and these are the rules its prompts hold.
-#
-# Danbooru's vocabulary rather than plain English, since Madde 200. The anime SDXL checkpoints were
-# trained on that site's images with its own tag string as the caption, so a tag it has is a string
-# the model has read hundreds of thousands of times, while a description of the same thing is one it
-# never read at all -- and what it does with the second is land on the average of whatever it
-# resembles. The vocabulary is also controlled: one concept has one spelling there, so no two
-# spellings of it compete. This is a rule about the model at the far end, not a house style.
-#
-# read_prompt_structure_schema handed back two halves. The half describing the file's shape died as
-# the tools took the shape over: start_scenario opens the file, the set_, add_, update_ and remove_
-# tools build it, and create_file cannot touch it -- so the model was studying a JSON example of a
-# form it is no longer allowed to type. Nothing about the shape belongs here, or the dead half comes
-# back in a text that rides in every request.
-#
-# Correction 34 split the other half, by reader. What is left here is what every tag shares; a
-# rule that ruled on one tool's field -- the count, solo, naming an outfit, nobody in a location --
-# went down to that field's own description, where it is read while the value is being written.
-#
-# One document since Madde 453, sent in every request as a message of its own right behind the
-# system prompt -- model_engine's _for_model puts it there. It rode on the six tools that take tags
-# until then, six copies in every request. What it holds is the rules that were already written,
-# gathered (the user, 9 October: "SDXL için yeni bir prompt rule ekleme, bizde olan kuralları kullan
-# sadece, yapılı olarak tek bir yere yaz"): the shared rules from those tools; the mirror (the user,
-# 29 September: only when the user asks for one); the photo's size from Queen Editor's workflow,
-# with no model's name, since Queen Editor lets its user pick one (the user, 10 October: "Model adı
-# olmasın"); and a copy of the image-model rules of Start a scenario's Step 5 and Step 10, as
-# Improve repeats them (the user, 10 October: "Evet, kopyası belgeye de girsin"). The skills keep
-# their own copies, because the model is weak -- so a change to one of those rules is made in all
-# three texts by hand.
-#
-# Not inside SYSTEM_PROMPT (the user: "system promptu karıştırmayalım"), and a constant rather than
-# a function: there is no owner's part to read at request time, so it is the same bytes in every
-# request and stays in the cached prefix. The title is the name UPDATE_FRAME_ACTION points at.
-
-SDXL_DOCUMENT = (
-    "SDXL prompt rules\n"
+KREA_GUIDE = (
+    "# Krea prompt writing\n"
     "\n"
-    "The image model\n"
-    "- The photo of each frame is made by an SDXL-family image model trained on Danbooru's own "
-    "tags, at 1024 x 1536: portrait, 2:3.\n"
-    "- The image model reads the tags of every entry and of every frame's action.\n"
-    "- The image model is weak and draws every tag in the prompt. A complex prompt breaks the "
-    "image.\n"
+    "## The image model\n"
+    "- The photo of each frame is made by the Krea image model, which reads plain English "
+    "sentences.\n"
+    "- The image model was trained on sentences, not on tags. So was the LoRA it draws with.\n"
+    "- Long, detailed prompts give the best photos. A short prompt works too, with less control.\n"
     "\n"
-    "Writing a tag\n"
-    "- Write tags, never sentences. An article is not a tag either.\n"
-    "- Use a tag that the Danbooru vocabulary already has, rather than a description of the same "
-    "thing. The model has seen a real tag many times, and has never seen a paraphrase of it.\n"
-    "- Write the tags in English, with spaces where the site writes underscores.\n"
-    "- Put one thing in each tag, split the way the vocabulary splits it. Do not join two tags "
-    "into one longer phrase.\n"
-    "- When the vocabulary has no tag for it, write a few plain words in the same short form.\n"
+    "## The style\n"
+    "- The scenario has one style: one or two sentences naming the medium and the look of every "
+    "photo, as in: A photorealistic photo taken on a phone, in soft daylight.\n"
+    "- The style is the user's, asked when the scenario starts.\n"
+    "- The code puts the style in front of the prompt of every frame. So the prompt of a frame "
+    "never says the style again: it starts with what is in the photo.\n"
     "\n"
-    "What is left out\n"
-    "- Never write quality tags. The code already puts them at the front of every prompt, so "
-    "yours would be printed twice.\n"
-    "- Never write the word or inside a tag. The model draws one picture and cannot toss a coin "
-    "between two choices, so pick one and write only that.\n"
-    "- Never add a mirror unless the user asks for one. A mirror breaks the image.\n"
+    "## The prompt of a frame\n"
+    "- The photo is the first moment of the scene: the video starts from the photo.\n"
+    "- Write the prompt in English, as one paragraph of plain sentences. No lists, no headings.\n"
+    "- Say who is in the photo, how each person looks and what each person wears, what is "
+    "happening, where it happens, the light, and how close the camera is and from where it "
+    "looks.\n"
+    "- Keep each person's look and action together, in the same sentences, so the image model "
+    "knows whose is whose.\n"
+    "- When the photo holds two or more people, say where each person is in the photo, as in on "
+    "the left, on the right or behind her, and what each person does.\n"
+    "- Words written in the photo itself, as on a sign or a shirt, go inside quotes.\n"
+    "- If the scene is NSFW, say what is happening in plain sentences, and name each visible body "
+    "part directly, as in penis or vagina.\n"
     "\n"
-    "The prompt of a frame\n"
-    "- The prompt of a frame describes one photo: the first moment of the scene.\n"
-    "- Some tags are not visible from some camera angles. So a character, an outfit or a place "
-    "can have more than one entry, for different camera angles.\n"
-    "- The most common mistake: a tag hidden by the camera angle goes onto another character. "
-    "For example, the hair of a hidden head ends up on another character.\n"
-    "- Rule 1: If one of the character's entries fits the camera angle, use the entry. "
-    "An entry fits when every tag of the entry is meant to be in the photo. "
-    "If no entry fits, add a new entry with only the tags meant to be in the photo.\n"
-    "- Rule 2: If one of the outfit's entries fits the camera angle, use the entry. "
-    "An entry fits when every tag of the entry is meant to be in the photo. "
-    "If no entry fits, add a new entry with only the tags meant to be in the photo.\n"
-    "- Rule 3: If one of the place's entries fits the camera angle, use the entry. "
-    "An entry fits when every tag of the entry is meant to be in the photo. "
-    "If no entry fits, add a new entry with only the tags meant to be in the photo.\n"
-    "- Rule 4: The image model draws one photo. The whole prompt of the frame must describe "
-    "only one photo. If the prompt describes more than one photo, remove the extra part.\n"
-    "- Rule 5: The whole prompt of the frame must be simple enough for the weak image model. "
-    "If a part of the prompt is too hard, make the part simpler, and keep the same moment.\n"
-    "- Rule 6: If the scene is NSFW, name each visible body part directly, as in penis or "
-    "vagina. Never use a euphemism.\n"
+    "## What is left out\n"
+    "- Never write tags or a comma-separated list of keywords. The image model reads sentences.\n"
+    "- Never write quality words such as masterpiece, best quality or 4k. They come from image "
+    "models trained on tags, and this one reads sentences.\n"
+    "- Never write BREAK. The image model reads BREAK as one more word.\n"
+    "- Never write weights such as (smile:1.2). The image model does not read weights.\n"
+    "- Never write a LoRA trigger word. The LoRA the image model draws with has none.\n"
+    "- Never write a negative list. The photo is made at cfg 1, where the image model reads no "
+    "negative prompt. Write what the photo shows instead.\n"
     "\n"
-    "The negative list\n"
-    "- The negative list is for the image model, not the video model. The negative list tells the "
-    "image model what not to draw in the photo.\n"
-    "- The scenario has one negative list, for every frame. A tag in the negative list works on "
-    "the whole photo, not on one character.\n"
-    "- The biggest problem is the features of the characters mixing, as in the hair of one "
-    "character on another character. Focus the negative list on keeping the features of each "
-    "character apart.\n"
-    "- Never write a feature of a character into the negative list. For example, dark skin in the "
-    "negative list made a dark-skinned man come out white.\n"
-    "- To keep a feature of a character, write the opposite tags instead. For example, pale male "
-    "and white man for a dark-skinned man."
+    "## The scene\n"
+    "- Write each scene in English.\n"
+    "- Write each scene in sentences, never as tags.\n"
+    "- Write the words a character says inside quotes, in natural, well-written English. "
+    "Translate the words when the user gives the words in another language.\n"
+    "- Write each scene short enough for four seconds.\n"
+    "- Each scene is used later to write the prompt for the video model."
 )
+
+GUIDES = {
+    "sdxl-prompt-writing.md": SDXL_GUIDE,
+    "krea-prompt-writing.md": KREA_GUIDE,
+}
+"""Each guide's file name, the one the agent and the panel see, and its text."""
 
 
 # --- what more than one tool says -----------------------------------------------------------------
@@ -740,17 +763,17 @@ CREATE_FILE = (
     "report, a summary they will come back to.\n"
     "- To change a file that already exists, use edit_file. This tool refuses a name that is "
     "already taken.\n"
-    "- This tool does not write scenarios. start_scenario opens those."
+    "- This tool does not write scenarios. sdxl_start_scenario and krea_start_scenario open those."
 )
 CREATE_FILE_NAME = "A short file name, as in notes.md."
 CREATE_FILE_CONTENT = "The document itself."
 
 START_SCENARIO = (
-    "Open a new scenario: the structure file that prompts are built from.\n"
+    "SDXL scenario: open a new one, the structure file that prompts are built from.\n"
     "- The file is born empty: no characters, no outfits, no locations, no frames. The tools "
     "that add each of those are what fill it.\n"
     "- Give a name and nothing else. The shape belongs to the code, and the file is always "
-    ".json.\n"
+    ".sdxl.json.\n"
     "- This tool refuses a name that is already taken. A scenario is opened once and added to, "
     "never started a second time."
 )
@@ -776,7 +799,7 @@ EDIT_FILE_REPLACE_ALL = (
 )
 
 SET_CHARACTER = (
-    "Add or change a character in a scenario: the tags an image model draws them from.\n"
+    "SDXL scenario: add or change a character, the entry an image model draws them from.\n"
     "- The entry is written once here, and every frame that holds this character names it.\n"
     f"{SETTING_AN_ENTRY}"
 )
@@ -784,15 +807,13 @@ SET_CHARACTER_NAME = (
     "What this character is called in this scenario, as in young man. Frames name them by it."
 )
 SET_CHARACTER_TAGS = (
-    "Write the character as tags: how many people this entry draws, their age, body, hair and "
-    "face. The count goes here and nowhere else, because this is the one place a count sits next "
-    "to the person it counts. Do not write solo: the same character stands alone in one frame "
-    "and next to somebody in the next, so an entry claiming solo is wrong in half of them. Do not "
-    f"write clothes here -- those are outfits. {AN_ENTRYS_NEW_TAGS}"
+    "The character: how many people this entry draws, their age, body, hair and face. The count "
+    "goes here and nowhere else, because this is the one place a count sits next to the person it "
+    f"counts. Do not write clothes here -- those are outfits. {AN_ENTRYS_NEW_TAGS}"
 )
 
 REMOVE_CHARACTER = (
-    "Take a character out of a scenario.\n"
+    "SDXL scenario: take a character out.\n"
     "- This tool refuses while any frame still names the character, and the answer says which "
     "frames. Take the character out of those frames first, or remove the frames.\n"
     "- Nothing here can be undone by calling it again."
@@ -800,7 +821,7 @@ REMOVE_CHARACTER = (
 REMOVE_CHARACTER_NAME = "Which character to remove."
 
 SET_OUTFIT = (
-    "Add or change an outfit in a scenario: a set of clothes with a name, worn by whoever a frame "
+    "SDXL scenario: add or change an outfit, a set of clothes with a name, worn by whoever a frame "
     "puts it on.\n"
     "- An outfit is kept apart from the character because the same person wears different things "
     "across the frames, and the same clothes can be worn by more than one person.\n"
@@ -810,67 +831,63 @@ SET_OUTFIT = (
 )
 SET_OUTFIT_NAME = "What this outfit is called, as in nightgown."
 SET_OUTFIT_TAGS = (
-    "Write the clothes as tags and nothing else: the garments, their colour, their material, and "
-    "what they leave bare. Do not write a person here: no count, no body, no hair. One entry "
-    "dresses one person. Its text is handed whole to whoever wears it, so an entry covering two "
-    f"people would put the man in the dress. {AN_ENTRYS_NEW_TAGS}"
+    "The clothes: the garments, their colour, their material, and what they leave bare. Do not "
+    "write a person here: no count, no body, no hair. One entry dresses one person. Its text is "
+    "handed whole to whoever wears it, so an entry covering two people would put the man in the "
+    f"dress. {AN_ENTRYS_NEW_TAGS}"
 )
 
 REMOVE_OUTFIT = (
-    "Take an outfit out of a scenario.\n"
+    "SDXL scenario: take an outfit out.\n"
     "- This tool refuses while any frame still has somebody wearing the outfit, and the answer "
     "says which frames. Change what those frames wear first, or remove them."
 )
 REMOVE_OUTFIT_NAME = "Which outfit to remove."
 
 SET_LOCATION = (
-    "Add or change a location in a scenario: a place a frame can be set in.\n"
+    "SDXL scenario: add or change a location, a place a frame can be set in.\n"
     f"{SETTING_AN_ENTRY}"
 )
 SET_LOCATION_NAME = "What this place is called, as in bedroom."
 SET_LOCATION_TAGS = (
-    "Write the place as tags: what kind of place it is, whether it is indoors or out, what "
-    "stands in it, and the light. Nobody is in it and it carries no count. Who is in the frame "
+    "The place: what kind of place it is, whether it is indoors or out, what stands in it, and "
+    "the light. Nobody is in it and it carries no count. Who is in the frame "
     "is decided elsewhere, and a person written here would be drawn into every frame set in this "
     f"place. {AN_ENTRYS_NEW_TAGS}"
 )
 
 REMOVE_LOCATION = (
-    "Take a location out of a scenario.\n"
+    "SDXL scenario: take a location out.\n"
     "- This tool refuses while any frame is still set there, and the answer says which frames. A "
     "frame has one place, so give those frames another one first, or remove them."
 )
 REMOVE_LOCATION_NAME = "Which location to remove."
 
 ADD_FRAME = (
-    "Add scenes to a structure file, one frame each, in the order they happen.\n"
+    "SDXL scenario: add scenes to a structure file, one frame each, in the order they happen.\n"
     "- The frames go at the end, unless before names a frame to go in front of.\n"
     "- A frame's number is not yours to give. It is the frame's place in the list, and every "
-    "frame after an insertion moves up.\n"
+    "frame after an insertion moves up and keeps everything it carries, its action included. "
+    "This is how a scene goes into the middle of a scenario; taking the tail out and adding it "
+    "again is not.\n"
     "- Every name a frame uses must already be in the file. A name nobody knows is refused, and "
     "the whole call is refused with it: nothing is written unless every frame in the call is "
     "good.\n"
     "- The answer names the frames it made, which is how you say which frame you mean next.\n"
-    "- A frame is born without its action. Write the action afterwards with update_frame."
+    "- A frame is born without its action. Write the action afterwards with sdxl_update_frame."
 )
+# Shared by both kinds' add tools (Madde 492): the number means the same in either file.
 ADD_FRAME_BEFORE = (
-    "Go in front of this frame, by its number, rather than at the end. The "
-    "frames from there on move up and keep everything they carry, their "
-    "actions included. This is how a scene goes into the middle of a "
-    "scenario; taking the tail out and adding it again is not. One past the "
-    "last frame means the end."
+    "The number of the frame to go in front of. Left out, or one past the last, means the end."
 )
 ADD_FRAME_FRAMES = "The frames to add. A list even when there is one of them."
 ADD_FRAME_SCENE = (
-    "What happens, in English. The scene becomes the video of "
-    "the frame, and the action of the frame is written from "
-    "the scene. Never tags."
+    "What happens. The scene becomes the video of the frame, and the action of the frame is "
+    "written from the scene."
 )
 ADD_FRAME_CHARACTERS = (
-    "Who is in the frame: each name from the file's "
-    "characters, with the list of outfits they wear. Whoever "
-    "is written first leads the frame's prompt. Left out for a "
-    "frame with nobody in it."
+    "Who is in the frame: a map from each character's name to the list of outfits they wear. "
+    "Left out for a frame with nobody in it."
 )
 ADD_FRAME_LOCATION = (
     "Where it happens, named as the file's locations name it. "
@@ -878,31 +895,64 @@ ADD_FRAME_LOCATION = (
 )
 
 UPDATE_FRAME = (
-    "Change a frame that is already in a structure file, naming it by its number.\n"
+    "SDXL scenario: change a frame that is already in a structure file, naming it by its number.\n"
     "- Only what you give is changed. The rest of the frame stays as it is, so correcting a "
     "place leaves the cast alone.\n"
     "- Giving a field empty clears it: a frame with nobody in it, or one that shows no place of "
     "its own. The scene is the exception, because a frame is never without one.\n"
     "- Names come from the file here as they do when the frame is written.\n"
-    "- The action of a frame is written here, and corrected here, in your own words."
+    "- The action of a frame is written here, and corrected here."
 )
 UPDATE_FRAME_SCENE = "What happens. Replaces the scene there."
 UPDATE_FRAME_CHARACTERS = (
-    "Who is in the frame, each name with the outfits they wear. Replaces "
-    "the whole cast rather than adding to it; empty leaves nobody in it."
+    "Who is in the frame: a map from each character's name to the list of outfits they wear. "
+    "Replaces the whole cast rather than adding to it; empty leaves nobody in it."
 )
 UPDATE_FRAME_LOCATION = (
     "Where it happens, named as the file's locations name it. Empty takes "
     "the place off the frame."
 )
 UPDATE_FRAME_ACTION = (
-    "The action of the frame as tags: what the photo shows, and the shot. "
-    "The photo is the first frame of the video. Written by the SDXL prompt "
-    "rules. Replaces the action there. Empty takes the action off the frame."
+    "The action of the frame: what the photo shows, and the shot. The photo is the first frame of "
+    "the video. Replaces the action there. Empty takes the action off the frame."
+)
+
+# --- the Krea tools (Madde 492) -------------------------------------------------------------------
+#
+# A Krea scenario is a style and frames of a scene and a prompt each, so its tools are its own and
+# say so first. What a field holds, never how a prompt is written: that is the Krea guide's. The
+# start tool's name is the skill's with _TOOL behind it, since KREA_START_SCENARIO is the skill.
+
+KREA_START_SCENARIO_TOOL = (
+    "Krea scenario: open a new one, with its style.\n"
+    "- The file is born with the style and no frames, and its name always ends in .krea.json.\n"
+    "- This tool refuses a name that is already taken. A scenario is opened once and added to, "
+    "never started a second time."
+)
+KREA_STYLE = "The look shared by every frame. It is put in front of every frame's prompt."
+KREA_SET_STYLE = (
+    "Krea scenario: change the style. The new style replaces the old one and reaches every frame "
+    "at the next build."
+)
+KREA_ADD_FRAME = (
+    "Krea scenario: add scenes, one frame each, in the order they happen.\n"
+    "- The frames go at the end, unless before names a frame to go in front of.\n"
+    "- A frame's number is not yours to give. It is the frame's place in the list, and every "
+    "frame after an insertion moves up.\n"
+    "- Every frame needs its scene and its prompt. Nothing is written unless every frame in the "
+    "call is good.\n"
+    "- The answer names the frames it made, which is how you say which frame you mean next."
+)
+KREA_SCENE = "What happens. The scene becomes the video of the frame."
+KREA_PROMPT = "The prompt of the frame's photo. The built prompt is the style, then this."
+KREA_UPDATE_FRAME = (
+    "Krea scenario: change a frame, naming it by its number.\n"
+    "- Only what you give is changed.\n"
+    "- A Krea frame always has a scene and a prompt, so neither can be emptied."
 )
 
 REMOVE_FRAME = (
-    "Take one frame out of a structure file, naming it by its number.\n"
+    "SDXL or Krea scenario: take one frame out of a structure file, naming it by its number.\n"
     "- Every frame after it moves up a place and the numbers follow, so the answer says how many "
     "are left. A number you were told before this call may not mean the same frame after it.\n"
     "- Nothing else is touched. A character or a place left in no frame at all stays where it "
@@ -910,10 +960,8 @@ REMOVE_FRAME = (
 )
 
 BUILD_PROMPTS = (
-    "Build the prompt list from a structure file: for each frame, its scene sentence and its "
-    "prompt.\n"
-    "- The code assembles every frame in a fixed order, so a character reads the same in all of "
-    "them.\n"
-    "- This tool writes a Python file named after the structure, replacing what it wrote last "
-    "time."
+    "SDXL or Krea scenario: build the prompt list from a scenario file: for each frame, its scene "
+    "sentence and its prompt.\n"
+    "- The kind comes from the file's name, .sdxl.json or .krea.json.\n"
+    "- This tool writes a Python file named after the scenario, replacing what it wrote last time."
 )

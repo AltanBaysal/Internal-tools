@@ -15,6 +15,7 @@ from backend.features.workspace.domain.errors import (
     NothingToAnswer,
     ProjectAnswering,
     ProjectNotFound,
+    ReadOnlyFile,
     UnknownMode,
     VersionNotFound,
 )
@@ -350,6 +351,9 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, turns):
             trashed = delete_file(file_store, project_id, name)
         except FileNotFound:
             return jsonify({"error": "file not found"}), 404
+        except ReadOnlyFile as refused:
+            # A prompt guide (Madde 492). The panel shows this sentence on its error line.
+            return jsonify({"error": str(refused)}), 409
         # Nobody reads this name any more, but it is the one sentence that says what happened on
         # disk, and deleting a project answers the same way.
         return jsonify({"trashed": trashed})

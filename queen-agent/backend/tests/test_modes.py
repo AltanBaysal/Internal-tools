@@ -15,24 +15,29 @@ WRITES = (
     "build_prompts",
     # Madde 128 and 173. It takes neither a position nor a shape from the model, but it still
     # changes the user's file, so the quieter modes keep their gate in front of it.
-    "add_frame",
+    "sdxl_add_frame",
     # Madde 167. It writes no text of the model's own -- four empty maps the code knows -- but a
     # file appears in the project, and a file appearing is what the quieter modes gate.
-    "start_scenario",
+    "sdxl_start_scenario",
     # Madde 168, and 456. They change the user's scenario, and a rename reaches every frame that
     # names the entry -- the widest edit any tool here makes.
-    "set_character",
-    "remove_character",
+    "sdxl_set_character",
+    "sdxl_remove_character",
     # Madde 169. Same reason, second map.
-    "set_outfit",
-    "remove_outfit",
+    "sdxl_set_outfit",
+    "sdxl_remove_outfit",
     # Madde 170, third map.
-    "set_location",
-    "remove_location",
+    "sdxl_set_location",
+    "sdxl_remove_location",
     # Madde 174. A removal renumbers every frame left, which is the widest change any of these
     # makes to a file the user is reading.
-    "update_frame",
+    "sdxl_update_frame",
     "remove_frame",
+    # Madde 492. A Krea scenario's own four: each opens or changes the user's file.
+    "krea_start_scenario",
+    "krea_set_style",
+    "krea_add_frame",
+    "krea_update_frame",
 )
 
 
@@ -95,7 +100,8 @@ def test_plan_mode_writes_one_file_without_asking():
     # ends the turn, one line below this.
     assert not _asks("plan", "create_file")
     assert _asks("plan", "edit_file")
-    assert _asks("plan", "add_frame")
+    assert _asks("plan", "sdxl_add_frame")
+    assert _asks("plan", "krea_add_frame")
 
 
 def test_a_mode_nobody_knows_never_reaches_the_rule():
