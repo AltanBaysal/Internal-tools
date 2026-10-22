@@ -121,6 +121,10 @@ class LiveTurn:
 class LiveTurns:
     def __init__(self):
         self._turns = {}
+        # The last turn to end in each chat, as (its id, its own fault's words or "") (Madde 491): a
+        # browser asks between two answers, and one whose turn ended in that gap still hears how.
+        # One pair per chat that has run, until the next turn there ends.
+        self._ended = {}
         self._lock = threading.Lock()
 
     def reserve(self, project_id, chat_id):
@@ -134,22 +138,35 @@ class LiveTurns:
             return turn
 
     def release(self, project_id, chat_id, turn, error=""):
-        """Let go of the chat, then end the turn that held it (Madde 462).
+        """Let go of the chat and end the turn that held it, in one step (Madde 462, 491).
 
         Every hold ends here, whatever it was: a turn that ran, a send refused after it was held,
         a version or a trim. Someone may be listening to any of them -- a reload in that moment --
-        and a turn nobody ends keeps its listener waiting for ever. Let go before saying so:
-        whoever hears the end may send the next message at once.
+        and a turn nobody ends keeps its listener waiting for ever. Let go and ended in one step:
+        whoever hears the end may send the next message at once, and finds the chat free.
         """
-        # Only that turn: a release arriving late must not let go of the turn after it.
+        # Only that turn: a release arriving late must not let go of the turn after it, nor be kept.
+        # Ended and kept under the lock it is let go under, so nobody finds the chat free before its
+        # end is kept (Madde 491). Taking the turn's lock inside this one is safe: no turn ever
+        # takes this one, and a turn's lock is never held long.
+        key = (project_id, chat_id)
         with self._lock:
-            if self._turns.get((project_id, chat_id)) is turn:
-                del self._turns[(project_id, chat_id)]
-        turn.end(error)
+            held = self._turns.get(key) is turn
+            if held:
+                del self._turns[key]
+            turn.end(error)
+            if held:
+                # The words its end was said with: the first end is the one listeners heard.
+                self._ended[key] = (turn.id, turn.snapshot().error)
 
     def get(self, project_id, chat_id):
         with self._lock:
             return self._turns.get((project_id, chat_id))
+
+    def ended(self, project_id, chat_id):
+        """(id, its own fault's words or "") of the last turn to end in this chat, or None."""
+        with self._lock:
+            return self._ended.get((project_id, chat_id))
 
     def any_in(self, project_id):
         with self._lock:

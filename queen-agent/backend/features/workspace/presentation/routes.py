@@ -1,9 +1,8 @@
 """Workspace HTTP routes -- request/response translation only, no business rules."""
-import json
 import uuid
 from datetime import datetime, timezone
 
-from flask import Blueprint, Response, jsonify, request
+from flask import Blueprint, jsonify, request
 
 from backend.features.workspace.domain.errors import (
     ChatFull,
@@ -53,19 +52,14 @@ PROJECT_BUSY = "a chat in this project is still answering -- try again once it h
 # What a mode that is none of the three hears (Madde 467), on every door that starts a turn.
 NOT_A_MODE = "mode must be plan, ask or edit"
 
-BEAT_SECONDS = 15
-"""How long the events stream may stay quiet before it says something (Madde 461, 462).
+ASK_WAIT_SECONDS = 15
+"""How long one ask of the events door may wait for the turn to move (Madde 461, 462, 491).
 
 Not a timeout: neither the turn nor its question has an end of its own. What this number says is
 how often the browser hears from us while nothing happens -- the model thinking as well as a
-question waiting: a stream gone quiet inside a tunnel is a stream the tunnel closes (about 100
-seconds on trycloudflare), and a browser that went away is only discovered by writing to it. Since
-the turn runs on its own, that discovery ends only the listening, never the turn.
+question waiting: a request gone quiet inside a tunnel is one the tunnel closes (about 100 seconds
+on trycloudflare). A browser that went away stops asking, and the turn runs on.
 """
-
-# What keeps a proxy from holding the frames back: nothing here may be cached, and nginx-style
-# buffers are told to pass each frame on as it is written.
-EVENT_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
 
 
 def make_workspace_bp(project_store, chat_store, file_store, engine, turns):
@@ -136,11 +130,33 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, turns):
 
     @workspace_bp.get("/api/projects/<project_id>/chats/<chat_id>/events")
     def get_events(project_id, chat_id):
-        # The running turn as it moves (Madde 462). Found here rather than inside the stream, so the
-        # turn listened to is the one running as the request arrives. No chat is read: a name that
-        # holds no turn hears that none runs, which is all this door says.
+        """The running turn as it moves (Madde 462), one answer per ask (Madde 491): the browser asks
+        again with the version it was last told, and is answered once the turn has moved past it, or
+        as it stands after ASK_WAIT_SECONDS. Asked with no version, it is answered at once.
+
+        One answer that ends, because the Quick Tunnel holds a GET's body until it ends. Whole
+        snapshots: an ask that lands after several changes finds the turn where it is, so nothing
+        is missed between asks and no event log is kept. No chat is read: a name that holds no
+        turn hears that none runs, which is all this door says.
+
+        An ask names its turn. One whose turn is not the one running -- it ended between two asks --
+        is answered at once: how it ended, if it is the last to have ended there, and otherwise
+        the chat as it is now, nothing or the turn that came after it.
+        """
         live = turns.get(project_id, chat_id)
-        return Response(_listened(live), mimetype="text/event-stream", headers=EVENT_HEADERS)
+        named = request.args.get("turn")
+        if live is None or (named is not None and named != live.id):
+            over = turns.ended(project_id, chat_id)
+            if over is not None and over[0] == named:
+                return jsonify(_over(over[1]))
+            if live is None:
+                return jsonify({"turn": None})
+            seen = live.snapshot()
+        else:
+            # Not a number is no version: answered at once.
+            after = request.args.get("after", type=int)
+            seen = live.snapshot() if after is None else live.changed_since(after, ASK_WAIT_SECONDS)
+        return jsonify({**_told(seen), "version": seen.version})
 
     def advanced_json(advanced):
         """A started turn's answer, or Try again's when it found nothing: the chat as reading it
@@ -341,42 +357,14 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, turns):
     return workspace_bp
 
 
-def _listened(live):
-    """The running turn, told to one listener (Madde 462): the snapshot as it stands first, then a
-    snapshot on every change, a beat while nothing moves, and the stream ends after the turn does.
-
-    Whole snapshots, small (a few hundred bytes a step): a listener that wakes after several changes
-    lands where the turn is, and one that reconnects needs nothing but the first frame -- no event
-    log, no event ids. It listens rather than drives: a browser that goes away ends this stream at
-    its next write, and the turn runs on.
-    """
-    if live is None:
-        yield _frame({"turn": None})
-        return
-    seen = live.snapshot()
-    yield _frame(_told(seen))
-    while not seen.ended:
-        now = live.changed_since(seen.version, BEAT_SECONDS)
-        if now.version == seen.version:
-            # A comment line, which EventSource drops -- and dropping it is the whole job. This
-            # frame exists to be bytes on a connection that has gone quiet.
-            yield ": beat\n\n"
-            continue
-        seen = now
-        yield _frame(_told(seen))
-
-
 def _told(snapshot):
-    # The last frame says no turn runs; the browser then reads the record the turn wrote. A turn
+    return _over(snapshot.error) if snapshot.ended else {"turn": _turn_json(snapshot)}
+
+
+def _over(error):
+    # The last answer says no turn runs; the browser then reads the record the turn wrote. A turn
     # whose own code broke wrote nothing, and its words travel here: no record will say them.
-    if snapshot.ended and snapshot.error:
-        return {"turn": None, "error": snapshot.error}
-    return {"turn": _turn_json(snapshot)}
-
-
-def _frame(data):
-    # No event name: every frame is a snapshot, and EventSource hands an unnamed one to onmessage.
-    return f"data: {json.dumps(data)}\n\n"
+    return {"turn": None, "error": error} if error else {"turn": None}
 
 
 def _new_id(prefix):

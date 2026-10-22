@@ -318,7 +318,7 @@ export default function ChatScreen({
                   </div>
                 ) : null}
 
-                {/* Born during this answer, so they are drawn from the stream. Once the server's
+                {/* Born during this answer, so they are drawn from the running turn. Once the server's
                     record arrives it carries the same names and these are dropped. */}
                 {createdFiles.length ? (
                   <div className="file-cards">

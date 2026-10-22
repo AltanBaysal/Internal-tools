@@ -6,7 +6,11 @@ import { useChat } from "./useChat.js";
 // The hook draws what the server says the chat is doing (Madde 462): its record, its status and
 // its running turn, read once and then listened to.
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+  asks.length = 0;
+});
 
 const AT = "2026-10-10T10:00:00.000Z";
 const QUESTION = { role: "user", at: AT, text: "write it", calls: [], files: [] };
@@ -39,13 +43,30 @@ const ok = (body, status = 200) => Promise.resolve({ ok: true, status, json: asy
 const no = (status, body) =>
   Promise.resolve({ ok: false, status, text: async () => JSON.stringify(body) });
 
+// The events door (Madde 491): every ask waits here until the test answers it, as a long poll waits
+// for the turn to move.
+const asks = [];
+const asked = () => asks.map((ask) => ask.path);
+const waiting = () => asks.findLast((ask) => !ask.done);
+
+// The newest ask still waiting is answered, and what that sets off -- the next ask, the record read
+// at the end -- is let land.
+async function answered(ask, settle) {
+  ask.done = true;
+  await act(async () => {
+    settle(ask);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+}
+const say = (said) => answered(waiting(), (ask) => ask.resolve(ok(said)));
+
 // A server by hand: `reads` answers each GET of a chat in turn (the last one again once it runs
-// out), `answer` the POSTs, and `events` a GET of the events door asked by hand.
-function server({ reads = {}, answer = () => ok({}), events = () => ok({}) } = {}) {
+// out), `answer` the POSTs, and the events door is `asks`.
+function server({ reads = {}, answer = () => ok({}) } = {}) {
   const left = Object.fromEntries(Object.entries(reads).map(([id, list]) => [id, [...list]]));
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (options?.method === "POST") return answer(path, JSON.parse(options.body ?? "{}"));
-    if (path.endsWith("/events")) return events(path);
+    if (path.includes("/events")) return new Promise((resolve) => asks.push({ path, resolve }));
     const id = path.match(/\/chats\/(\w+)$/)?.[1];
     const list = left[id];
     if (!list) return no(404, { error: "chat not found" });
@@ -59,10 +80,6 @@ const posts = (fetch) =>
   fetch.mock.calls
     .filter(([, options]) => options?.method === "POST")
     .map(([path, options]) => [path, JSON.parse(options.body ?? "{}")]);
-
-const streams = () => globalThis.EventSource.opened;
-const lastStream = () => streams().at(-1);
-const say = (stream, data) => act(() => stream.emit(data));
 
 function opened(chatId, handlers = {}) {
   return renderHook(
@@ -81,14 +98,17 @@ test("a reload during a running turn draws the turn and listens to it", async ()
   const { result } = opened("c1");
   await waitFor(() => expect(result.current.thinking).toBe(true));
   expect(result.current.streamingCalls).toEqual(running.calls);
-  expect(streams().map((stream) => stream.url)).toEqual(["/api/projects/p1/chats/c1/events"]);
+  // Asked first with no version: the door answers at once with the turn and where it stands.
+  await waitFor(() => expect(asked()).toEqual(["/api/projects/p1/chats/c1/events?turn=t1"]));
 
-  say(lastStream(), { turn: turn({ ...running, progress: { round: 2, of: 32, tokens: 140 } }) });
+  await say({ turn: turn({ ...running, progress: { round: 2, of: 32, tokens: 140 } }), version: 7 });
   expect(result.current.progress).toEqual({ round: 2, of: 32, tokens: 140 });
+  // And asked again from there, to be answered once the turn moves past it.
+  expect(asked().at(-1)).toBe("/api/projects/p1/chats/c1/events?turn=t1&after=7");
 
-  // The end: the stream closes and the record the turn wrote is read, its answer fading in.
-  say(lastStream(), { turn: null });
-  expect(lastStream().readyState).toBe(globalThis.EventSource.CLOSED);
+  // The end: nothing more is asked and the record the turn wrote is read, its answer fading in.
+  await say({ turn: null, version: 8 });
+  expect(asks).toHaveLength(2);
   await waitFor(() => expect(result.current.chat.messages).toHaveLength(2));
   expect(result.current.thinking).toBe(false);
   expect(result.current.arrived).toBe(1);
@@ -110,7 +130,7 @@ test("a reload during a waiting question draws its card, and the answer names tu
   expect(posts(fetch)).toEqual([
     ["/api/projects/p1/chats/c1/permission", { turn: "t1", wait: 4, allowed: true }],
   ]);
-  // Taken down at once, before the server's frame says so.
+  // Taken down at once, before the events door says so.
   expect(result.current.permission).toBeNull();
 });
 
@@ -142,100 +162,100 @@ test("a deny carries its reason, and Stop names the turn it was pressed for", as
   ]);
 });
 
-test("a dropped connection is mended by the browser, with no card", async () => {
-  server({ reads: { c1: [ok(record("c1", [QUESTION], turn()))] } });
+// An ask that failed -- the network gone, the tunnel's 502 -- is answered here, and the moment after
+// it waited out on the fake clock. The waits are all the clock is faked for: waitFor runs on it too.
+async function failedThenWaited(ask) {
+  vi.useFakeTimers();
+  ask.done = true;
+  await act(async () => {
+    ask.resolve(no(502, { error: "HTTP 502: Bad Gateway" }));
+    await vi.advanceTimersByTimeAsync(2999);
+  });
+  const before = asks.length;
+  await act(() => vi.advanceTimersByTimeAsync(1));
+  vi.useRealTimers();
+  return before;
+}
+
+test("a failed ask is asked again a moment later from the same version, with no card", async () => {
+  // What EventSource did by itself for a dropped connection, and what it gave up on -- a refusal,
+  // the tunnel's 502 -- is the same here: the turn is asked about again, as it stood.
+  const fetch = server({ reads: { c1: [ok(record("c1", [QUESTION], turn()))] } });
   const { result } = opened("c1");
-  await waitFor(() => expect(streams()).toHaveLength(1));
-  act(() => lastStream().drop());
-  // EventSource reconnects by itself, and the first frame is the turn as it stands.
-  say(lastStream(), { turn: turn({ files: ["a.md"] }) });
+  await waitFor(() => expect(asks).toHaveLength(1));
+  await say({ turn: turn(), version: 4 });
+  expect(await failedThenWaited(waiting())).toBe(2);
+  expect(asked()).toEqual([
+    "/api/projects/p1/chats/c1/events?turn=t1",
+    "/api/projects/p1/chats/c1/events?turn=t1&after=4",
+    "/api/projects/p1/chats/c1/events?turn=t1&after=4",
+  ]);
+  expect([result.current.error, result.current.thinking]).toEqual([null, true]);
+
+  await say({ turn: turn({ files: ["a.md"] }), version: 5 });
   expect(result.current.createdFiles).toEqual(["a.md"]);
-  expect(result.current.error).toBeNull();
-  expect(streams()).toHaveLength(1);
+  expect(fetch.mock.calls.filter(([path]) => path.endsWith("/chats/c1"))).toHaveLength(1);
+  // An answer in between starts the count again: the next failure is one in a row, asked again.
+  expect(await failedThenWaited(waiting())).toBe(4);
+  expect(asks).toHaveLength(5);
 });
 
-test("a stream refused before it said anything has its door asked, and the card says what it said", async () => {
-  // The tunnel's 502 on the first connect: EventSource passes on nothing of it, so the door is asked
-  // once by hand. Left alone, the dots and Stop stood for ever with nothing to press.
-  const fetch = server({
-    reads: { c1: [ok(record("c1", [QUESTION], turn()))] },
-    events: () => Promise.resolve({ ok: false, status: 502, text: async () => "Bad Gateway" }),
+// A second failure in a row, the moment after it run out too: nothing is asked again after it.
+async function failedAgain(ask) {
+  vi.useFakeTimers();
+  ask.done = true;
+  await act(async () => {
+    ask.resolve(no(502, { error: "HTTP 502: Bad Gateway" }));
+    await vi.advanceTimersByTimeAsync(3000);
+  });
+  vi.useRealTimers();
+}
+
+test("a second failure in a row lets the turn go, the card says what the door said, and Try again brings it back", async () => {
+  // A server that is gone answers nothing ever again: the dots and Stop would stand for ever.
+  server({
+    reads: { c1: [ok(record("c1", [QUESTION], turn({ creating: true })))] },
+    answer: () => ok(record("c1", [QUESTION], turn()), 200),
   });
   const { result } = opened("c1");
-  await waitFor(() => expect(streams()).toHaveLength(1));
-  act(() => lastStream().refuse());
-  await waitFor(() => expect(result.current.error).toBe("HTTP 502: Bad Gateway"));
-  expect(streams()).toHaveLength(1);
-  expect(fetch.mock.calls.filter(([path]) => path.endsWith("/events"))).toHaveLength(1);
+  await waitFor(() => expect(asks).toHaveLength(1));
+  await failedThenWaited(waiting());
+  await failedAgain(waiting());
+  expect(result.current.error).toBe("HTTP 502: Bad Gateway");
   // The card takes the wait's place, as the failure card does: nothing frozen above it.
   expect([result.current.thinking, result.current.progress, result.current.creatingFile]).toEqual([
     false,
     null,
     false,
   ]);
-});
+  expect(asks).toHaveLength(2);
 
-test("the refused stream's Try again brings the live view back", async () => {
-  server({
-    reads: { c1: [ok(record("c1", [QUESTION], turn({ creating: true })))] },
-    events: () => Promise.resolve({ ok: false, status: 524, text: async () => "A timeout occurred" }),
-    answer: () => ok(record("c1", [QUESTION], turn()), 200),
-  });
-  const { result } = opened("c1");
-  await waitFor(() => expect(streams()).toHaveLength(1));
-  act(() => lastStream().refuse());
-  await waitFor(() => expect(result.current.error).toBe("HTTP 524: A timeout occurred"));
-  expect(result.current.thinking).toBe(false);
+  // Its Try again is the retry door, which hands the running turn back to be listened to.
   await act(() => result.current.answerAgain("edit"));
-  expect(result.current.error).toBeNull();
-  expect(result.current.thinking).toBe(true);
-  expect(lastStream().readyState).not.toBe(globalThis.EventSource.CLOSED);
+  expect([result.current.error, result.current.thinking]).toEqual([null, true]);
+  expect(asks).toHaveLength(3);
 });
 
-test("a door that answers the hand is listened to once more, and not asked a second time", async () => {
-  const fetch = server({ reads: { c1: [ok(record("c1", [QUESTION], turn()))] } });
-  const { result } = opened("c1");
-  await waitFor(() => expect(streams()).toHaveLength(1));
-  act(() => lastStream().refuse());
-  await waitFor(() => expect(streams()).toHaveLength(2));
-  // Refused again before a word: no third stream and no second ask, but a card to press.
-  act(() => lastStream().refuse());
-  await waitFor(() => expect(result.current.error).toBe("the browser closed this answer's stream"));
-  expect(result.current.thinking).toBe(false);
-  expect(streams()).toHaveLength(2);
-  expect(fetch.mock.calls.filter(([path]) => path.endsWith("/events"))).toHaveLength(1);
-});
-
-test("a stream that had worked is opened again as it was, without a read", async () => {
-  const fetch = server({ reads: { c1: [ok(record("c1", [QUESTION], turn()))] } });
-  opened("c1");
-  await waitFor(() => expect(streams()).toHaveLength(1));
-  say(lastStream(), { turn: turn() });
-  act(() => lastStream().refuse());
-  expect(streams()).toHaveLength(2);
-  expect(fetch.mock.calls.filter(([path]) => path.endsWith("/chats/c1"))).toHaveLength(1);
-});
-
-test("a stream refused before a word whose turn has ended draws the record and asks nothing", async () => {
-  const fetch = server({
-    reads: { c1: [ok(record("c1", [QUESTION], turn())), ok(record("c1", [QUESTION, ANSWER]))] },
-  });
-  const { result } = opened("c1");
-  await waitFor(() => expect(streams()).toHaveLength(1));
-  act(() => lastStream().refuse());
-  await waitFor(() => expect(result.current.chat.messages).toHaveLength(2));
-  expect(result.current.thinking).toBe(false);
-  expect(fetch.mock.calls.filter(([path]) => path.endsWith("/events"))).toHaveLength(0);
-});
-
-test("when the read after a refused stream fails, the card says what the read said", async () => {
+test("a second failure in a row about a turn this hook started, off screen, ends its upkeep once", async () => {
+  const onEnd = vi.fn();
   server({
-    reads: { c1: [ok(record("c1", [QUESTION], turn())), no(502, { error: "HTTP 502: Bad Gateway" })] },
+    reads: {
+      c1: [ok(record("c1", [QUESTION, ANSWER]))],
+      c2: [ok(record("c2", [QUESTION, ANSWER]))],
+    },
+    answer: () => ok(record("c1", [QUESTION, ANSWER, QUESTION], turn()), 202),
   });
-  const { result } = opened("c1");
-  await waitFor(() => expect(streams()).toHaveLength(1));
-  act(() => lastStream().refuse());
-  await waitFor(() => expect(result.current.error).toBe("HTTP 502: Bad Gateway"));
+  const { result, rerender } = opened("c1", { onEnd });
+  await waitFor(() => expect(result.current.chat).not.toBeNull());
+  await act(() => result.current.send("again", "", "edit"));
+  rerender({ id: "c2" });
+  await waitFor(() => expect(result.current.chat?.id).toBe("c2"));
+  await failedThenWaited(waiting());
+  await failedAgain(waiting());
+  expect(onEnd).toHaveBeenCalledTimes(1);
+  expect(asks).toHaveLength(2);
+  // No screen to say it on: the chat on screen is left as it was.
+  expect([result.current.chat.id, result.current.error]).toEqual(["c2", null]);
 });
 
 test("a sentence is drawn at once and handed over to the server's record", async () => {
@@ -257,9 +277,9 @@ test("a sentence is drawn at once and handed over to the server's record", async
   ]);
   // The wait, and its Stop, stand from the moment the sentence leaves.
   expect(result.current.thinking).toBe(true);
-  const asked = { ...QUESTION, text: "more", at: "2026-10-10T10:01:00.000Z" };
+  const more = { ...QUESTION, text: "more", at: "2026-10-10T10:01:00.000Z" };
   await act(async () => {
-    reply({ ok: true, status: 202, json: async () => record("c1", [QUESTION, ANSWER, asked], turn()) });
+    reply({ ok: true, status: 202, json: async () => record("c1", [QUESTION, ANSWER, more], turn()) });
     await sent;
   });
   expect(result.current.chat.messages.at(-1).at).toBe("2026-10-10T10:01:00.000Z");
@@ -267,7 +287,7 @@ test("a sentence is drawn at once and handed over to the server's record", async
   expect(posts(fetch)).toEqual([
     ["/api/projects/p1/messages", { chat: "c1", text: "more", skill: "verify", mode: "edit" }],
   ]);
-  expect(lastStream().url).toBe("/api/projects/p1/chats/c1/events");
+  expect(asked()).toEqual(["/api/projects/p1/chats/c1/events?turn=t1"]);
 });
 
 test("a Stop pressed before the door answers is sent with the turn the door names", async () => {
@@ -318,7 +338,7 @@ test("a draft's first answer names the chat it was born as", async () => {
   const { result } = opened(null, { onBorn });
   await act(() => result.current.send("write it", "", "edit"));
   expect(onBorn).toHaveBeenCalledWith("c9");
-  expect(lastStream().url).toBe("/api/projects/p1/chats/c9/events");
+  expect(asked()).toEqual(["/api/projects/p1/chats/c9/events?turn=t1"]);
 });
 
 // --- the mode, sent with every request (Madde 467) ------------------------------------------------
@@ -375,7 +395,7 @@ test("a send refused into another tab's turn draws the chat as that turn holds i
   expect(result.current.chat.error).toBeUndefined();
   expect(result.current.refused).toBe("this chat is still answering");
   expect(result.current.thinking).toBe(true);
-  await waitFor(() => expect(lastStream()?.url).toBe("/api/projects/p1/chats/c1/events"));
+  await waitFor(() => expect(asked()).toEqual(["/api/projects/p1/chats/c1/events?turn=t1"]));
 });
 
 test("a turn this hook started is heard to its end off screen, and draws nothing there", async () => {
@@ -390,40 +410,44 @@ test("a turn this hook started is heard to its end off screen, and draws nothing
   const { result, rerender } = opened("c1", { onEnd });
   await waitFor(() => expect(result.current.chat).not.toBeNull());
   await act(() => result.current.send("again", "", "edit"));
-  const own = lastStream();
 
   rerender({ id: "c2" });
   await waitFor(() => expect(result.current.chat?.id).toBe("c2"));
-  // Kept open: 452's list is read once the turn is over, wherever the user is.
-  expect(own.readyState).not.toBe(globalThis.EventSource.CLOSED);
-  say(own, { turn: turn({ files: ["a.md"] }) });
+  // Still asked: 452's list is read once the turn is over, wherever the user is.
+  await say({ turn: turn({ files: ["a.md"] }), version: 1 });
   expect(result.current.createdFiles).toEqual([]);
-  say(own, { turn: null });
+  expect(asked().at(-1)).toBe("/api/projects/p1/chats/c1/events?turn=t1&after=1");
+  await say({ turn: null });
   expect(onEnd).toHaveBeenCalledTimes(1);
-  expect(own.readyState).toBe(globalThis.EventSource.CLOSED);
+  expect(asks).toHaveLength(2);
   expect(result.current.chat.id).toBe("c2");
 });
 
-test("a stream the screen opened closes when the screen leaves the chat", async () => {
+test("a turn the screen listened to is let go when the screen leaves the chat", async () => {
+  // The ask still out comes back to nobody: it draws nothing, announces nothing and asks no more.
+  const onFile = vi.fn();
   server({
     reads: {
       c1: [ok(record("c1", [QUESTION], turn()))],
       c2: [ok(record("c2", [QUESTION, ANSWER]))],
     },
   });
-  const { rerender } = opened("c1");
-  await waitFor(() => expect(streams()).toHaveLength(1));
+  const { result, rerender } = opened("c1", { onFile });
+  await waitFor(() => expect(asks).toHaveLength(1));
   rerender({ id: "c2" });
-  expect(streams()[0].readyState).toBe(globalThis.EventSource.CLOSED);
+  await waitFor(() => expect(result.current.chat?.id).toBe("c2"));
+  await say({ turn: turn({ files: ["a.md"] }), version: 1 });
+  expect(onFile).not.toHaveBeenCalled();
+  expect(asks).toHaveLength(1);
 });
 
 test("a file born mid-turn is announced once", async () => {
   const onFile = vi.fn();
   server({ reads: { c1: [ok(record("c1", [QUESTION], turn()))] } });
   opened("c1", { onFile });
-  await waitFor(() => expect(streams()).toHaveLength(1));
-  say(lastStream(), { turn: turn({ files: ["a.md"] }) });
-  say(lastStream(), { turn: turn({ files: ["a.md"], progress: { round: 2, of: 32, tokens: 9 } }) });
+  await waitFor(() => expect(asks).toHaveLength(1));
+  await say({ turn: turn({ files: ["a.md"] }), version: 1 });
+  await say({ turn: turn({ files: ["a.md"], progress: { round: 2, of: 32, tokens: 9 } }), version: 2 });
   expect(onFile).toHaveBeenCalledTimes(1);
 });
 
@@ -432,8 +456,8 @@ test("a turn whose own code broke ends on its words over the unanswered question
     reads: { c1: [ok(record("c1", [QUESTION], turn())), ok({ ...record("c1", [QUESTION]), status: "unanswered" })] },
   });
   const { result } = opened("c1");
-  await waitFor(() => expect(streams()).toHaveLength(1));
-  say(lastStream(), { turn: null, error: "the disk went away" });
+  await waitFor(() => expect(asks).toHaveLength(1));
+  await say({ turn: null, error: "the disk went away", version: 3 });
   await waitFor(() => expect(result.current.error).toBe("the disk went away"));
   expect(result.current.thinking).toBe(false);
 });
@@ -448,7 +472,7 @@ test("an unanswered question is drawn as it is, with nothing asked and no card",
     false,
   ]);
   expect(posts(fetch)).toEqual([]);
-  expect(streams()).toHaveLength(0);
+  expect(asks).toHaveLength(0);
 });
 
 test("Try again asks its own door, and draws what it answers", async () => {
@@ -467,7 +491,8 @@ test("Try again asks its own door, and draws what it answers", async () => {
   expect(result.current.thinking).toBe(true);
 });
 
-async function startedThenLeft(onEnd) {
+test("a failed ask about a turn this hook started is asked again off screen, and its end still heard", async () => {
+  const onEnd = vi.fn();
   server({
     reads: {
       c1: [ok(record("c1", [QUESTION, ANSWER]))],
@@ -475,31 +500,16 @@ async function startedThenLeft(onEnd) {
     },
     answer: () => ok(record("c1", [QUESTION, ANSWER, QUESTION], turn()), 202),
   });
-  const view = opened("c1", { onEnd });
-  await waitFor(() => expect(view.result.current.chat).not.toBeNull());
-  await act(() => view.result.current.send("again", "", "edit"));
-  const own = lastStream();
-  view.rerender({ id: "c2" });
-  await waitFor(() => expect(view.result.current.chat?.id).toBe("c2"));
-  return own;
-}
-
-test("an own stream that had worked and gives up off screen is opened again, and its end still heard", async () => {
-  const onEnd = vi.fn();
-  const own = await startedThenLeft(onEnd);
-  say(own, { turn: turn() });
-  act(() => own.refuse());
-  expect(streams()).toHaveLength(2);
-  say(lastStream(), { turn: null });
+  const { result, rerender } = opened("c1", { onEnd });
+  await waitFor(() => expect(result.current.chat).not.toBeNull());
+  await act(() => result.current.send("again", "", "edit"));
+  rerender({ id: "c2" });
+  await waitFor(() => expect(result.current.chat?.id).toBe("c2"));
+  expect(await failedThenWaited(waiting())).toBe(1);
+  expect(asks).toHaveLength(2);
+  expect(onEnd).not.toHaveBeenCalled();
+  await say({ turn: null });
   expect(onEnd).toHaveBeenCalledTimes(1);
-});
-
-test("an own stream that never worked and gives up off screen ends its turn's upkeep once", async () => {
-  const onEnd = vi.fn();
-  const own = await startedThenLeft(onEnd);
-  act(() => own.refuse());
-  expect(onEnd).toHaveBeenCalledTimes(1);
-  expect(streams()).toHaveLength(1);
 });
 
 test("a tab-return read that lands after a send's answer does not draw over it", async () => {
@@ -528,10 +538,10 @@ test("coming back to the tab reads the chat once, and a turn another tab started
   });
   const { result } = opened("c1");
   await waitFor(() => expect(result.current.chat).not.toBeNull());
-  expect(streams()).toHaveLength(0);
+  expect(asks).toHaveLength(0);
   await act(async () => window.dispatchEvent(new Event("focus")));
   await waitFor(() => expect(result.current.thinking).toBe(true));
-  expect(lastStream().url).toBe("/api/projects/p1/chats/c1/events");
+  await waitFor(() => expect(asked()).toEqual(["/api/projects/p1/chats/c1/events?turn=t1"]));
   // Already followed: coming back again reads nothing.
   await act(async () => document.dispatchEvent(new Event("visibilitychange")));
   expect(fetch.mock.calls.filter(([path]) => path.endsWith("/chats/c1"))).toHaveLength(2);

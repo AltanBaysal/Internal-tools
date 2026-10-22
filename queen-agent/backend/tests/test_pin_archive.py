@@ -239,6 +239,14 @@ def _client(tmp_path):
     return _wired(tmp_path)[0]
 
 
+def _answered(client, pid, cid):
+    """The turn in the chat waited for: the door that starts it answers at once (Madde 462), and the
+    events door is asked from the version it last said until it says no turn runs (Madde 491)."""
+    said = client.get(f"/api/projects/{pid}/chats/{cid}/events").get_json()
+    while said["turn"]:
+        said = client.get(f"/api/projects/{pid}/chats/{cid}/events?after={said['version']}").get_json()
+
+
 def _fresh(projects, tmp_path):
     # A second app on the same root, once the first has written everything: a restart.
     projects.flush()
@@ -337,9 +345,8 @@ def test_an_archived_project_is_used_as_any_other_and_stays_archived(tmp_path):
 
     sent = client.post(f"/api/projects/{pid}/messages", json={"text": "hello"})
     assert sent.status_code == 202, "Arşivdeki projede mesaj reddedildi"
-    # The turn runs on its own since Madde 461 and the door answers at once since 462: its events
-    # stream ends when the turn does.
-    client.get(f"/api/projects/{pid}/chats/{sent.get_json()['id']}/events").get_data()
+    # The turn runs on its own since Madde 461.
+    _answered(client, pid, sent.get_json()["id"])
     chats = client.get(f"/api/projects/{pid}/chats").get_json()
     assert len(chats) == 1, "Arşivdeki projenin sohbeti listelenmedi"
     record = client.get(f"/api/projects/{pid}/chats/{chats[0]['id']}").get_json()

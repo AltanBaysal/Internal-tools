@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { getJson, postJson, reach } from "./api.js";
+import { getJson, postJson } from "./api.js";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -59,15 +59,6 @@ test("what else a refusal said is carried with it", async () => {
     message: "busy",
     body: { error: "busy", turn: { id: "t1" } },
   });
-});
-
-test("reach leaves a body it was not asked for unread, and a refusal says what it said", async () => {
-  const cancel = vi.fn();
-  stubFetch({ ok: true, status: 200, body: { cancel } });
-  await reach("/api/x/events");
-  expect(cancel).toHaveBeenCalled();
-  stubFetch({ ok: false, status: 524, text: async () => "A timeout occurred" });
-  await expect(reach("/api/x/events")).rejects.toThrow("HTTP 524: A timeout occurred");
 });
 
 test("postJson sends POST and needs no body", async () => {

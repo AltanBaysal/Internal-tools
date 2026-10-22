@@ -155,6 +155,14 @@ def _client(tmp_path):
     return app.test_client()
 
 
+def _answered(client, pid, cid):
+    """The turn in the chat waited for: the door that starts it answers at once (Madde 462), and the
+    events door is asked from the version it last said until it says no turn runs (Madde 491)."""
+    said = client.get(f"/api/projects/{pid}/chats/{cid}/events").get_json()
+    while said["turn"]:
+        said = client.get(f"/api/projects/{pid}/chats/{cid}/events?after={said['version']}").get_json()
+
+
 def _made_long_ago(tmp_path, *ids):
     # Born in 2000, a day apart, so nothing done in this test can land in the same millisecond as a
     # birth and leave the order to chance. Written to disk before the app that reads them starts.
@@ -184,8 +192,7 @@ def test_talking_in_a_project_renews_its_moment_and_brings_it_up(tmp_path):
     client = _client(tmp_path)
     assert _order(client) == ["pnew", "pold"], "En son kullanılan proje önde değil"
     born = client.post("/api/projects/pold/messages", json={"text": "Hi"}).get_json()["id"]
-    # The door answers at once since Madde 462; the events stream ends when the turn does.
-    client.get(f"/api/projects/pold/chats/{born}/events").get_data()
+    _answered(client, "pold", born)
     rows = client.get("/api/projects").get_json()
     assert [row["id"] for row in rows] == ["pold", "pnew"], (
         "Sohbet edilen proje listenin önüne geçmedi"
@@ -216,7 +223,7 @@ def test_talking_in_an_existing_chat_brings_its_project_and_the_chat_up(tmp_path
     assert chat_ids() == ["cmid", "cold"], "En son kullanılan sohbet önde değil"
 
     client.post("/api/projects/pold/messages", json={"chat": "cold", "text": "Again"})
-    client.get("/api/projects/pold/chats/cold/events").get_data()
+    _answered(client, "pold", "cold")
 
     rows = client.get("/api/projects").get_json()
     assert [row["id"] for row in rows] == ["pold", "pnew"], (

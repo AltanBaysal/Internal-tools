@@ -1,5 +1,6 @@
 import json
 import threading
+import time
 
 import pytest
 
@@ -132,29 +133,33 @@ def _project(client):
     return client.post("/api/projects", json={"name": "Thesis"}).get_json()["id"]
 
 
-def _chunks(response):
-    for chunk in response.response:
-        yield chunk.decode() if isinstance(chunk, bytes) else chunk
-
-
-def _data(chunks):
-    """What the frames said, in order: a beat carries no data and is dropped, as EventSource does."""
-    said = []
-    for chunk in chunks:
-        said += [json.loads(line[len("data: ") :]) for line in chunk.splitlines() if line.startswith("data: ")]
-    return said
-
-
-def _listen(client, pid, cid):
-    """The events door, opened and not yet read: the turn it hears is the one running now."""
-    return client.get(f"/api/projects/{pid}/chats/{cid}/events")
+def _events(client, pid, cid, after=None, turn=None):
+    """The events door asked once (Madde 491): the turn as it stands, or once it has moved past the
+    version `after` names. `turn` names the turn asked about, as the browser does."""
+    named = {"after": after, "turn": turn}
+    return client.get(
+        f"/api/projects/{pid}/chats/{cid}/events",
+        query_string={key: value for key, value in named.items() if value is not None},
+    )
 
 
 def _heard(client, pid, cid):
-    """The events door read to its end -- which is the end of the turn running in the chat, or at
-    once when none is. Since Madde 462 the door that starts a turn answers before it ends, so this
-    is how a test waits for what the turn wrote."""
-    return _data(_chunks(_listen(client, pid, cid)))
+    """The events door asked until it says no turn runs, each time from the version it last said:
+    its answers, in order. Since Madde 462 the door that starts a turn answers before it ends, so
+    this is how a test waits for what the turn wrote."""
+    said = [_events(client, pid, cid).get_json()]
+    while said[-1]["turn"]:
+        said.append(_events(client, pid, cid, said[-1]["version"]).get_json())
+    return said
+
+
+def _question(client, pid, cid):
+    """The running turn as it asks, or None if it ends first. Asked one change at a time, so a
+    question -- which waits for ever -- does not hold the test with it."""
+    said = _events(client, pid, cid).get_json()
+    while said["turn"] and not said["turn"]["permission"]:
+        said = _events(client, pid, cid, said["version"]).get_json()
+    return said["turn"]
 
 
 def _sent(client, pid, **body):
@@ -793,25 +798,13 @@ def test_a_mode_nobody_knows_is_refused_by_every_door_that_starts_a_turn(tmp_pat
     assert _texts(client, pid, cid) == ["hello", "Done."]
 
 
-def _asks(client, pid, cid):
-    """Whether the turn running in the chat asks before it ends. Read frame by frame, so a question
-    -- which waits for ever -- does not hold the test with it."""
-    for chunk in _chunks(_listen(client, pid, cid)):
-        for frame in _data([chunk]):
-            if frame["turn"] is None:
-                return False
-            if frame["turn"]["permission"]:
-                return True
-    return False
-
-
 @pytest.mark.parametrize("named", [{}, {"mode": None}])
 def test_a_request_that_names_no_mode_runs_in_edit(tmp_path, named):
     # A body with no mode in it -- an older tab's Try again, any caller written before 467.
     client, _turns = _asking_app(tmp_path)
     pid, cid = _started(client)
     client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": "write it", **named})
-    assert not _asks(client, pid, cid)
+    assert _question(client, pid, cid) is None
     assert [file["name"] for file in client.get(f"/api/projects/{pid}/files").get_json()] == ["plan.md"]
 
 
@@ -820,13 +813,12 @@ def test_an_edit_runs_in_the_mode_it_is_sent(tmp_path):
     client, _turns = _asking_app(tmp_path)
     pid, cid = _started(client)
     client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": "write it", "from": 0, "mode": "ask"})
-    frames = _chunks(_listen(client, pid, cid))
-    turn = _until_asked(frames)
+    turn = _question(client, pid, cid)
     client.post(
         f"/api/projects/{pid}/chats/{cid}/permission",
         json={"turn": turn["id"], "wait": turn["permission"]["wait"], "allowed": False},
     )
-    _data(frames)
+    _heard(client, pid, cid)
     assert client.get(f"/api/projects/{pid}/files").get_json() == []
 
 
@@ -1042,13 +1034,11 @@ def test_a_draft_is_held_by_the_chat_it_is_born_as(tmp_path):
 
 
 def test_a_turn_keeps_running_with_nobody_listening(tmp_path):
-    # The tab closed, or the tunnel dropped the stream: the turn ends on its own and writes its
-    # answer, which the next visit reads.
+    # The tab closed, or the tunnel dropped an ask: nobody asks again, and the turn ends on its own
+    # and writes its answer, which the next visit reads.
     client, pid, cid, engine, _sent_, turns = _running(tmp_path)
     live = turns.get(pid, cid)
-    listening = _listen(client, pid, cid)
-    assert _data([next(_chunks(listening))])[0]["turn"]["id"] == live.id
-    listening.close()
+    assert _events(client, pid, cid).get_json()["turn"]["id"] == live.id
     engine.gate.set()
     assert _until_ended(live).error == ""
     assert _texts(client, pid, cid) == ["hello", "Done.", "more", "Done."]
@@ -1070,28 +1060,18 @@ def _asking_app(tmp_path):
     return app.test_client(), turns
 
 
-def _until_asked(frames):
-    """Read the stream frame by frame until its turn asks; the turn as it asks. Frame by frame: the
-    question waits for ever, so a stream read to its end would never end."""
-    for chunk in frames:
-        for frame in _data([chunk]):
-            if frame["turn"] and frame["turn"]["permission"]:
-                return frame["turn"]
-    raise AssertionError("the turn never asked")
-
-
 def _asked(client, pid, cid):
-    """A turn in Ask, sent and listened to until its question stands: the turn as it asks, and the
-    rest of the stream, still unread."""
+    """A turn in Ask, sent and listened to until its question stands: the turn as it asks."""
     client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": "write it", "mode": "ask"})
-    frames = _chunks(_listen(client, pid, cid))
-    return _until_asked(frames), frames
+    turn = _question(client, pid, cid)
+    assert turn, "the turn never asked"
+    return turn
 
 
 def test_a_waiting_turn_names_its_question_with_the_tool_and_its_arguments(tmp_path):
     client, _turns = _asking_app(tmp_path)
     pid, cid = _started(client)
-    turn, _rest = _asked(client, pid, cid)
+    turn = _asked(client, pid, cid)
     assert turn["status"] == "waiting"
     asked = turn["permission"]
     assert asked["tool"] == "create_file"
@@ -1107,7 +1087,7 @@ def test_a_waiting_turn_names_its_question_with_the_tool_and_its_arguments(tmp_p
 def test_an_allow_naming_the_turn_and_its_question_lets_the_turn_finish(tmp_path):
     client, _turns = _asking_app(tmp_path)
     pid, cid = _started(client)
-    turn, rest = _asked(client, pid, cid)
+    turn = _asked(client, pid, cid)
     answered = client.post(
         f"/api/projects/{pid}/chats/{cid}/permission",
         json={"turn": turn["id"], "wait": turn["permission"]["wait"], "allowed": True},
@@ -1115,19 +1095,19 @@ def test_an_allow_naming_the_turn_and_its_question_lets_the_turn_finish(tmp_path
     assert answered.status_code == 200
     # The card goes with the answer: the turn the door hands back no longer asks.
     assert answered.get_json()["turn"]["permission"] is None
-    assert _data(rest)[-1] == {"turn": None}
+    assert _heard(client, pid, cid)[-1]["turn"] is None
     assert [file["name"] for file in client.get(f"/api/projects/{pid}/files").get_json()] == ["plan.md"]
 
 
 def test_a_refusal_at_the_door_writes_no_file_and_the_turn_still_ends(tmp_path):
     client, _turns = _asking_app(tmp_path)
     pid, cid = _started(client)
-    turn, rest = _asked(client, pid, cid)
+    turn = _asked(client, pid, cid)
     client.post(
         f"/api/projects/{pid}/chats/{cid}/permission",
         json={"turn": turn["id"], "wait": turn["permission"]["wait"], "allowed": False, "reason": "no"},
     )
-    _data(rest)
+    _heard(client, pid, cid)
     assert client.get(f"/api/projects/{pid}/files").get_json() == []
     assert _record(client, pid, cid)["messages"][-1]["calls"][0]["outcome"] == "Not allowed"
 
@@ -1136,7 +1116,7 @@ def test_an_answer_naming_another_turn_or_another_question_settles_nothing(tmp_p
     # Gap 1 of Madde 461, closed: a late press names what it was meant for, and reaches nothing else.
     client, turns = _asking_app(tmp_path)
     pid, cid = _started(client)
-    turn, _rest = _asked(client, pid, cid)
+    turn = _asked(client, pid, cid)
     wait = turn["permission"]["wait"]
     for stale in ({"turn": "t-earlier", "wait": wait}, {"turn": turn["id"], "wait": wait - 1}, {}):
         late = client.post(
@@ -1157,7 +1137,7 @@ def test_a_question_waits_with_no_browser_and_is_answered_later(tmp_path):
     # answer arriving later lets the turn finish.
     client, turns = _asking_app(tmp_path)
     pid, cid = _started(client)
-    turn, _rest = _asked(client, pid, cid)
+    turn = _asked(client, pid, cid)
     live = turns.get(pid, cid)
     client.post(
         f"/api/projects/{pid}/chats/{cid}/permission",
@@ -1274,7 +1254,7 @@ def test_reading_a_chat_while_its_turn_waits_draws_the_question_again(tmp_path):
     # Gap 3 of Madde 461: a reload during a waiting permission draws the card and Stop from here.
     client, _turns = _asking_app(tmp_path)
     pid, cid = _started(client)
-    turn, _rest = _asked(client, pid, cid)
+    turn = _asked(client, pid, cid)
     record = _record(client, pid, cid)
     assert record["status"] == "waiting"
     assert record["turn"]["id"] == turn["id"]
@@ -1298,92 +1278,180 @@ def _laid_turn(tmp_path):
     return client, pid, turns, turns.reserve(pid, "c1")
 
 
-def test_with_nothing_running_the_door_says_so_and_closes(tmp_path):
+def _when_waited_on(turn, then, requests=1):
+    """Do `then` on a thread of its own once this many requests wait on this turn's next change --
+    the change they are waiting for. A request that waits holds its turn, so whatever `then` does
+    reaches it even if the turn ends."""
+    waiting = threading.Semaphore(0)
+    wait = turn.changed_since
+
+    def changed_since(version, timeout):
+        waiting.release()
+        return wait(version, timeout)
+
+    turn.changed_since = changed_since
+    threading.Thread(
+        target=lambda: all(waiting.acquire(timeout=5) for _ in range(requests)) and then()
+    ).start()
+
+
+def test_with_nothing_running_the_door_says_so(tmp_path):
     client = _client(tmp_path)
     pid, cid = _started(client)
-    listening = _listen(client, pid, cid)
-    assert listening.mimetype == "text/event-stream"
-    assert listening.headers["Cache-Control"] == "no-cache"
-    assert listening.headers["X-Accel-Buffering"] == "no"
-    assert _data(_chunks(listening)) == [{"turn": None}]
+    for asked in (_events(client, pid, cid), _events(client, pid, cid, 3)):
+        assert asked.mimetype == "application/json"
+        assert asked.get_json() == {"turn": None}
 
 
-def test_the_first_frame_is_the_turn_as_it_stands_and_every_change_is_a_frame(tmp_path):
-    client, pid, turns, turn = _laid_turn(tmp_path)
+def test_asked_with_no_version_or_one_that_is_not_a_number_the_door_answers_at_once(monkeypatch, tmp_path):
+    from backend.features.workspace.presentation import routes
+
+    # Long enough that an answer which waited could not come in under it.
+    monkeypatch.setattr(routes, "ASK_WAIT_SECONDS", 30)
+    client, pid, _turns, turn = _laid_turn(tmp_path)
     turn.apply(Progress(1, 32, 0))
-    frames = _chunks(_listen(client, pid, "c1"))
-    first = _data([next(frames)])[0]["turn"]
-    assert (first["id"], first["status"], first["progress"]) == (
-        turn.id,
-        "running",
-        {"round": 1, "of": 32, "tokens": 0},
-    )
-    turn.apply(FileStarted())
-    assert _data([next(frames)])[0]["turn"]["creating"] is True
+    began = time.monotonic()
+    for asked in (_events(client, pid, "c1"), client.get(f"/api/projects/{pid}/chats/c1/events?after=x")):
+        said = asked.get_json()
+        assert (said["turn"]["id"], said["turn"]["status"], said["turn"]["progress"]) == (
+            turn.id,
+            "running",
+            {"round": 1, "of": 32, "tokens": 0},
+        )
+        assert said["version"] == turn.snapshot().version
+    assert time.monotonic() - began < 10
+
+
+def test_asked_from_a_version_the_door_waits_for_the_next_change(tmp_path):
+    client, pid, turns, turn = _laid_turn(tmp_path)
+    first = _events(client, pid, "c1").get_json()
+    _when_waited_on(turn, lambda: turn.apply(FileStarted()))
+    said = _events(client, pid, "c1", first["version"]).get_json()
+    assert said["turn"]["creating"] is True
+    assert said["version"] == first["version"] + 1
+
+
+def test_every_answer_is_the_whole_turn_where_it_stands(tmp_path):
+    # Whole snapshots: an ask that lands after two changes finds the turn where it is, with nothing
+    # to add up.
+    client, pid, turns, turn = _laid_turn(tmp_path)
+    first = _events(client, pid, "c1").get_json()
     turn.apply(FileWritten("plan.md"))
     turn.apply(ToolCall("create_file", "plan.md", "Saved"))
-    # Whole snapshots: a listener that wakes after two changes lands where the turn is, with nothing
-    # to add up.
-    said = _data([next(frames)])[0]["turn"]
-    assert (said["files"], said["creating"]) == (["plan.md"], False)
-    assert said["calls"] == [{"tool": "create_file", "target": "plan.md", "outcome": "Saved"}]
+    said = _events(client, pid, "c1", first["version"]).get_json()
+    assert (said["turn"]["files"], said["turn"]["creating"]) == (["plan.md"], False)
+    assert said["turn"]["calls"] == [{"tool": "create_file", "target": "plan.md", "outcome": "Saved"}]
     turn.apply(PermissionWanted("edit_file", "{}"))
-    said = _data([next(frames)])[0]["turn"]
+    said = _events(client, pid, "c1", said["version"]).get_json()["turn"]
     assert said["status"] == "waiting"
     assert said["calls"] == [{"tool": "create_file", "target": "plan.md", "outcome": "Saved"}]
     assert said["permission"] == {"wait": turn.snapshot().permission.wait, "tool": "edit_file", "arguments": "{}"}
-    turns.release(pid, "c1", turn)
-    assert _data(frames) == [{"turn": None}]
 
 
-def test_the_door_beats_while_nothing_moves(monkeypatch, tmp_path):
-    # A comment line: EventSource drops it, and a tunnel sees bytes on a connection gone quiet.
-    # Shortened here: a real beat costs fifteen seconds of waiting.
+def test_while_nothing_moves_the_door_answers_with_the_same_version(monkeypatch, tmp_path):
+    # So the browser hears from the server while a turn is quiet, and asks again. Shortened here: a
+    # real wait costs fifteen seconds.
     from backend.features.workspace.presentation import routes
 
-    monkeypatch.setattr(routes, "BEAT_SECONDS", 0.01)
+    monkeypatch.setattr(routes, "ASK_WAIT_SECONDS", 0.01)
+    client, pid, _turns, _turn = _laid_turn(tmp_path)
+    first = _events(client, pid, "c1").get_json()
+    assert _events(client, pid, "c1", first["version"]).get_json() == first
+
+
+def test_a_turn_ending_while_it_is_waited_on_says_no_turn_runs(tmp_path):
     client, pid, turns, turn = _laid_turn(tmp_path)
-    frames = _chunks(_listen(client, pid, "c1"))
-    next(frames)
-    assert next(frames) == ": beat\n\n"
-    turns.release(pid, "c1", turn)
-    assert _data(frames) == [{"turn": None}]
+    first = _events(client, pid, "c1").get_json()
+    _when_waited_on(turn, lambda: turns.release(pid, "c1", turn))
+    said = _events(client, pid, "c1", first["version"]).get_json()
+    assert said["turn"] is None
+    assert "error" not in said
+    # And once it has let go of the chat, the door has no turn to wait on.
+    assert _events(client, pid, "c1", said["version"]).get_json() == {"turn": None}
 
 
 def test_a_turn_whose_own_code_broke_ends_with_its_words(tmp_path):
     client, pid, turns, turn = _laid_turn(tmp_path)
-    frames = _chunks(_listen(client, pid, "c1"))
-    next(frames)
-    turns.release(pid, "c1", turn, "the disk went away")
-    assert _data(frames) == [{"turn": None, "error": "the disk went away"}]
+    first = _events(client, pid, "c1").get_json()
+    _when_waited_on(turn, lambda: turns.release(pid, "c1", turn, "the disk went away"))
+    said = _events(client, pid, "c1", first["version"]).get_json()
+    assert (said["turn"], said["error"]) == (None, "the disk went away")
 
 
-def test_two_listeners_hear_the_same_turn(tmp_path):
-    # Two tabs on one chat: one condition wakes both.
+def test_an_ask_naming_a_turn_that_broke_between_two_asks_still_hears_its_words(tmp_path):
+    # The browser asks again one round trip after each answer; a turn that broke in that gap has let
+    # go of the chat by the time the ask lands, and its words would reach nobody.
     client, pid, turns, turn = _laid_turn(tmp_path)
-    first, second = _chunks(_listen(client, pid, "c1")), _chunks(_listen(client, pid, "c1"))
-    assert _data([next(first)]) == _data([next(second)])
-    turn.apply(Progress(2, 32, 140))
-    assert _data([next(first)]) == _data([next(second)])
-    turns.release(pid, "c1", turn)
-    assert _data(first) == _data(second) == [{"turn": None}]
+    first = _events(client, pid, "c1").get_json()
+    turns.release(pid, "c1", turn, "the disk went away")
+    said = _events(client, pid, "c1", first["version"], turn=turn.id).get_json()
+    assert said == {"turn": None, "error": "the disk went away"}
+    # An ask naming another turn, or none, hears only that none runs.
+    for other in ("t-earlier", None):
+        assert _events(client, pid, "c1", first["version"], turn=other).get_json() == {"turn": None}
+    # And the next turn to end there is the one kept.
+    later = turns.reserve(pid, "c1")
+    turns.release(pid, "c1", later)
+    assert _events(client, pid, "c1", turn=turn.id).get_json() == {"turn": None}
+    assert _events(client, pid, "c1", turn=later.id).get_json() == {"turn": None}
+
+
+def test_an_ask_naming_a_turn_that_is_no_longer_running_is_answered_at_once(monkeypatch, tmp_path):
+    # Its turn ended between two asks and the next one has begun: waiting on the next one's changes
+    # would hold the browser for nothing, and its version means nothing to this turn.
+    from backend.features.workspace.presentation import routes
+
+    # Long enough that an answer which waited could not come in under it.
+    monkeypatch.setattr(routes, "ASK_WAIT_SECONDS", 30)
+    client, pid, turns, turn = _laid_turn(tmp_path)
+    first = _events(client, pid, "c1", turn=turn.id).get_json()
+    turns.release(pid, "c1", turn, "the disk went away")
+    later = turns.reserve(pid, "c1")
+    began = time.monotonic()
+    # The turn asked about is the last to have ended there: how it ended.
+    said = _events(client, pid, "c1", later.snapshot().version, turn=turn.id).get_json()
+    assert said == {"turn": None, "error": "the disk went away"}
+    # One that is not: the chat as it is now, the turn that runs.
+    said = _events(client, pid, "c1", first["version"], turn="t-earlier").get_json()
+    assert (said["turn"]["id"], said["version"]) == (later.id, later.snapshot().version)
+    assert time.monotonic() - began < 10
+    turns.release(pid, "c1", later)
+
+
+def test_two_tabs_asking_at_once_hear_the_same_change(tmp_path):
+    # One condition wakes both: the change comes only once both are waiting on it.
+    client, pid, _turns, turn = _laid_turn(tmp_path)
+    version = _events(client, pid, "c1").get_json()["version"]
+    heard = []
+    tabs = [
+        threading.Thread(target=lambda: heard.append(_events(client, pid, "c1", version).get_json()))
+        for _ in range(2)
+    ]
+    _when_waited_on(turn, lambda: turn.apply(Progress(2, 32, 140)), requests=2)
+    for tab in tabs:
+        tab.start()
+    for tab in tabs:
+        tab.join(5)
+    assert len(heard) == 2
+    assert heard[0] == heard[1]
+    assert heard[0]["turn"]["progress"] == {"round": 2, "of": 32, "tokens": 140}
 
 
 def test_a_reload_during_a_version_switch_hears_the_hold_end(tmp_path):
-    # The hold is a turn too, for that one read and write (Madde 461's gap 4): its listener hears it
-    # end rather than waiting on it for ever.
+    # The hold is a turn too, for that one read and write (Madde 461's gap 4): whoever waits on it
+    # hears it end rather than waiting on it for ever.
     client, pid, turns, _turn = _laid_turn(tmp_path)
     turns.release(pid, "c1", _turn)
     held = turns.reserve(pid, "c1")
-    frames = _chunks(_listen(client, pid, "c1"))
-    next(frames)
-    turns.release(pid, "c1", held)
-    assert _data(frames) == [{"turn": None}]
+    first = _events(client, pid, "c1").get_json()
+    _when_waited_on(held, lambda: turns.release(pid, "c1", held))
+    assert _events(client, pid, "c1", first["version"]).get_json()["turn"] is None
 
 
 def test_a_turn_whose_own_code_breaks_leaves_its_question_unanswered(tmp_path):
-    # The black box answers for the model, so what is left is a tool or the disk: the last frame
-    # carries its words, and nothing is written -- the question stays, unanswered.
+    # The black box answers for the model, so what is left is a tool or the disk: the turn ends on
+    # its words, which the events door carries (above), and nothing is written -- the question
+    # stays, unanswered.
     listening = threading.Event()
 
     class NoDisk(FileFileStore):
@@ -1391,13 +1459,13 @@ def test_a_turn_whose_own_code_breaks_leaves_its_question_unanswered(tmp_path):
             listening.wait(5)
             raise OSError("the disk went away")
 
-    app, _chats, _turns = _app(tmp_path, files=NoDisk)
+    app, _chats, turns = _app(tmp_path, files=NoDisk)
     client = app.test_client()
     pid = _project(client)
     cid = client.post(f"/api/projects/{pid}/messages", json={"text": "hello"}).get_json()["id"]
-    frames = _chunks(_listen(client, pid, cid))
+    live = turns.get(pid, cid)
     listening.set()
-    assert _data(frames)[-1] == {"turn": None, "error": "the disk went away"}
+    assert _until_ended(live).error == "the disk went away"
     record = _record(client, pid, cid)
     assert ([m["text"] for m in record["messages"]], record["status"]) == (["hello"], "unanswered")
 
@@ -1510,7 +1578,7 @@ def test_try_again_runs_in_the_mode_it_is_sent(tmp_path):
     pid = _project(client)
     chats.add(pid, Chat(id="c1", title="go", created_at=AT, messages=(Message("user", AT, "go"),)))
     assert client.post(f"/api/projects/{pid}/chats/c1/retry", json={"mode": "ask"}).status_code == 202
-    turn = _until_asked(_chunks(_listen(client, pid, "c1")))
+    turn = _question(client, pid, "c1")
     assert turn["permission"]["tool"] == "create_file"
     client.post(
         f"/api/projects/{pid}/chats/c1/permission",
@@ -1547,14 +1615,14 @@ UNREACHABLE = "The root cannot be reached: "
 
 
 def _rooted(tmp_path, engine=None):
-    """An app over a root of its own, so a test can take the root away: the client, the root and the
-    project store."""
+    """An app over a root of its own, so a test can take the root away: the client, the root, the
+    project store and the live turns."""
     root = tmp_path / "root"
     root.mkdir()
     store = Store(str(root))
     projects = FileProjectStore(store)
-    app, _chats, _turns = _app(tmp_path, engine, store=store, projects=projects)
-    return app.test_client(), root, projects
+    app, _chats, turns = _app(tmp_path, engine, store=store, projects=projects)
+    return app.test_client(), root, projects, turns
 
 
 def _gone(root, projects):
@@ -1565,7 +1633,7 @@ def _gone(root, projects):
 
 
 def test_a_message_after_the_root_has_gone_is_refused_with_the_disks_sentence(tmp_path):
-    client, root, projects = _rooted(tmp_path)
+    client, root, projects, _turns = _rooted(tmp_path)
     pid, cid = _started(client)
     _gone(root, projects)
     refused = client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": "more"})
@@ -1576,18 +1644,16 @@ def test_a_message_after_the_root_has_gone_is_refused_with_the_disks_sentence(tm
 
 def test_a_turn_running_when_the_root_goes_ends_with_the_disks_sentence(tmp_path):
     engine = GatedEngine()
-    client, root, projects = _rooted(tmp_path, engine)
+    # The turn's end carries the sentence, and the events door carries a turn's end (above).
+    client, root, projects, turns = _rooted(tmp_path, engine)
     pid, cid = _started(client)
     engine.hold_next()
     assert client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": "more"}).status_code == 202
     assert engine.entered.wait(5)
-    frames = _chunks(_listen(client, pid, cid))
-    next(frames)
+    live = turns.get(pid, cid)
     _gone(root, projects)
     engine.gate.set()
-    last = _data(frames)[-1]
-    assert last["turn"] is None
-    assert last["error"].startswith(UNREACHABLE)
+    assert _until_ended(live).error.startswith(UNREACHABLE)
     assert not root.exists(), "Kök yeniden açıldı"
 
 
@@ -1670,9 +1736,8 @@ def test_while_a_turn_runs_reading_listening_and_trying_again_touch_no_disk(tmp_
     client, pid, cid, engine, _sent_, turns = _running(tmp_path, store)
     store.counted()
     assert _texts(client, pid, cid) == ["hello", "Done.", "more"]
-    listening = _chunks(_listen(client, pid, cid))
-    next(listening)
+    assert _events(client, pid, cid).get_json()["turn"]
     client.post(f"/api/projects/{pid}/chats/{cid}/retry", json={})
     assert store.counted() == (0, 0)
     engine.gate.set()
-    _data(listening)
+    _heard(client, pid, cid)

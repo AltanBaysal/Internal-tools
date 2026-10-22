@@ -151,7 +151,8 @@ export default function App() {
     // A turn is the usual writer, so its end is the usual moment for what it wrote to be out of
     // date: the files, however the turn ended (Madde 192), and the order of the sidebar's chats,
     // its messages being the chat's last activity (Madde 447, 452). Once a turn, not on every
-    // frame -- and only a turn's: a send the server refused started none and changed no order.
+    // change it reports -- and only a turn's: a send the server refused started none and changed no
+    // order.
     () => {
       refresh();
       reloadProjectChats();

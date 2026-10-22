@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { getJson, postJson, reach } from "../../shared/api.js";
+import { getJson, postJson } from "../../shared/api.js";
 
-// One chat of one project, as the streams below are kept by it.
+// One chat of one project, as the listeners below are kept by it.
 const chatKey = (projectId, chatId) => `${projectId}/${chatId}`;
 
-// What the card says when the browser refused a stream its door had just answered: nothing on the
-// wire said why, so this says only what happened.
-const GAVE_UP = "the browser closed this answer's stream";
+// How long an ask of the events door that failed -- the network, the tunnel's 502 -- waits before it
+// is asked again: what EventSource waited before it reconnected, the job this took over (Madde 491).
+const AGAIN_MS = 3000;
 
 // The chat as the server says it stands (Madde 462): its record, its status and its running turn,
 // read once and then listened to. The screen draws that and nothing of its own -- what is kept here
@@ -52,74 +52,95 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
   // before the door said which turn it started -- or null.
   const onItsWay = useRef(null);
   const early = useRef(null);
-  // The streams open now, one per turn listened to. A turn this hook started keeps its stream until
-  // it ends, wherever the screen is, so its end is heard (Madde 452); one the screen opened closes
-  // when the screen leaves the chat.
+  // The turns listened to now, one listener each. A turn this hook started keeps its listener until
+  // it ends, wherever the screen is, so its end is heard (Madde 452); one the screen listened to is
+  // let go when the screen leaves the chat.
   //
   // What follows is written as plain functions: each reads only refs and state setters, so the copy
-  // a stream's handler holds is as good as the newest.
-  const streams = useRef(new Map());
+  // an ask's answer reaches is as good as the newest.
+  const listeners = useRef(new Map());
 
-  const letGo = (key, stream) => {
-    stream.source.close();
-    if (streams.current.get(key) === stream) streams.current.delete(key);
+  // Kept is what lets an ask's answer through: one let go of draws nothing and asks no more, so an
+  // ask still out when it was let go needs no cancelling.
+  const kept = (listener) => listeners.current.get(listener.key) === listener;
+  const letGo = (listener) => {
+    if (kept(listener)) listeners.current.delete(listener.key);
   };
 
-  const eventsOf = (project, id) => `/api/projects/${project}/chats/${id}/events`;
-
-  // `probed`: this stream was opened again after asking its door why the last one was refused.
-  const follow = (project, id, own, turnId, probed = false) => {
+  const follow = (project, id, own, turnId) => {
     const key = `${chatKey(project, id)}/${turnId}`;
-    const open = streams.current.get(key);
+    const open = listeners.current.get(key);
     if (open) {
       open.own = open.own || own;
       return;
     }
-    const stream = {
-      project,
-      id,
-      key,
-      own,
-      turnId,
-      probed,
-      // Whether it ever said anything: a stream that worked is simply opened again once it fails.
-      heard: false,
-      files: 0,
-      source: new EventSource(eventsOf(project, id)),
-    };
-    streams.current.set(key, stream);
-    stream.source.onmessage = (event) => heard(stream, JSON.parse(event.data));
-    stream.source.onerror = () => {
-      // A drop is EventSource's own to mend: it reconnects, and its first frame is the turn as it
-      // stands. Only a stream it gave up on -- a refusal, the tunnel's 502 -- is ours.
-      if (stream.source.readyState === EventSource.CLOSED) gaveUp(stream);
-    };
+    // `failed`: how many asks in a row have failed.
+    const listener = { project, id, key, own, turnId, files: 0, failed: 0 };
+    listeners.current.set(key, listener);
+    ask(listener, null);
   };
 
-  const heard = (stream, said) => {
-    stream.heard = true;
+  // The events door, asked once (Madde 491): with no version it answers at once with the turn and
+  // where it stands, and asked from a version, once the turn has moved past it -- or after a quiet
+  // while, as it was. Asked again from each answer until the turn is over. Long polling rather than
+  // EventSource, because the Quick Tunnel holds a GET's body until it ends. The turn is named, so a
+  // turn that ended between two asks still says how, its own fault included.
+  const ask = (listener, after) => {
+    const since = after === null ? "" : `&after=${after}`;
+    const { project, id, turnId } = listener;
+    getJson(`/api/projects/${project}/chats/${id}/events?turn=${turnId}${since}`).then(
+      (said) => {
+        if (!kept(listener)) return;
+        listener.failed = 0;
+        heard(listener, said);
+        if (kept(listener)) ask(listener, said.version);
+      },
+      (failure) => {
+        if (!kept(listener)) return;
+        listener.failed += 1;
+        // Once: no card, the turn stays drawn as it stood and is asked about again, as EventSource
+        // mended a drop. Twice in a row: the server is not coming back by itself.
+        if (listener.failed > 1) return lost(listener, failure);
+        setTimeout(() => kept(listener) && ask(listener, after), AGAIN_MS);
+      },
+    );
+  };
+
+  // The turn can no longer be followed. On screen the card takes the wait's place, as the failure
+  // card does -- a turn nobody can hear is not drawn as one -- and its Try again is the retry door,
+  // which hands a running turn back to be listened to. Off screen nobody will hear its end, so its
+  // upkeep is done now, once: the lists it refreshes are read from memory either way.
+  const lost = (listener, failure) => {
+    letGo(listener);
+    if (chatKey(listener.project, listener.id) === here.current) {
+      setChat((current) => (current?.id === listener.id ? { ...current, turn: null } : current));
+      setError(failure.message);
+    } else if (listener.own) ended.current?.();
+  };
+
+  const heard = (listener, said) => {
     const { turn } = said;
-    // A turn other than the one it opened for -- that one ended before the stream arrived -- is the
+    // A turn other than the one it listens for -- that one ended before the ask arrived -- is the
     // end of this one: the record read then names the next.
-    if (!turn || turn.id !== stream.turnId) return finished(stream, said.error);
+    if (!turn || turn.id !== listener.turnId) return finished(listener, said.error);
     // A file exists this instant, so every list that shows it is out of date -- on every screen.
-    if (turn.files.length > stream.files) {
-      stream.files = turn.files.length;
+    if (turn.files.length > listener.files) {
+      listener.files = turn.files.length;
       announce.current?.();
     }
-    if (chatKey(stream.project, stream.id) !== here.current) return;
-    setChat((current) => (current?.id === stream.id ? { ...current, turn } : current));
+    if (chatKey(listener.project, listener.id) !== here.current) return;
+    setChat((current) => (current?.id === listener.id ? { ...current, turn } : current));
   };
 
-  const finished = (stream, fault) => {
-    letGo(stream.key, stream);
+  const finished = (listener, fault) => {
+    letGo(listener);
     // However the turn ended, wherever the screen is: what it wrote is on disk (Madde 192, 452).
-    if (stream.own) ended.current?.();
-    const key = chatKey(stream.project, stream.id);
+    if (listener.own) ended.current?.();
+    const key = chatKey(listener.project, listener.id);
     if (key !== here.current) return;
     // The record has one home (Madde 89): the turn is over, and what it wrote is read. Until it
     // lands the turn still shows, so the wait does not blink out before the answer comes in.
-    getJson(`/api/projects/${stream.project}/chats/${stream.id}`)
+    getJson(`/api/projects/${listener.project}/chats/${listener.id}`)
       .then((record) => {
         if (key !== here.current) return;
         setChat(record);
@@ -129,54 +150,10 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
       })
       .catch((unreadable) => {
         if (key !== here.current) return;
-        setChat((current) => (current?.id === stream.id ? { ...current, turn: null } : current));
+        setChat((current) => (current?.id === listener.id ? { ...current, turn: null } : current));
         // A fault already said is the real one; otherwise the read speaks for itself.
         setError(fault || unreadable.message);
       });
-  };
-
-  // EventSource gave up: a refusal, the tunnel's 502 or 524. It says nothing of why.
-  const gaveUp = (stream) => {
-    const { project, id, own } = stream;
-    letGo(stream.key, stream);
-    // One that had worked is opened again as it was, on screen or off: the door's first frame says
-    // at no disk whether the turn still runs, and {turn: null} ends it as any end does.
-    if (stream.heard) return follow(project, id, own, stream.turnId);
-    const key = chatKey(project, id);
-    if (key !== here.current) {
-      // Never worked, and no screen to say so on: its end will not be heard, so it is called here,
-      // once -- the lists it refreshes are read from memory either way.
-      if (own) ended.current?.();
-      return;
-    }
-    // The card takes the wait's place, as the failure card does: a turn nobody can hear is not
-    // drawn as one -- no dots, no strip, no dashed card frozen above it. Its Try again is the retry
-    // door, which hands the turn back and listens again.
-    const cannotFollow = (words) => {
-      if (key !== here.current) return;
-      setChat((current) => (current?.id === id ? { ...current, turn: null } : current));
-      setError(words);
-    };
-    // Read once: a server that is down says so in the read's own words, and one that is back says
-    // what the chat is doing now.
-    getJson(`/api/projects/${project}/chats/${id}`)
-      .then((record) => {
-        if (key !== here.current) return;
-        setChat(record);
-        if (!record.turn) {
-          if (own) ended.current?.();
-          return;
-        }
-        // Still running, and the stream never said a word: its door is asked once, by hand, for
-        // what EventSource does not pass on. A second refusal after that is not asked again.
-        if (stream.probed) return cannotFollow(GAVE_UP);
-        reach(eventsOf(project, id))
-          .then(() => {
-            if (key === here.current) follow(project, id, own, record.turn.id, true);
-          })
-          .catch((refusal) => cannotFollow(refusal.message));
-      })
-      .catch((unreadable) => cannotFollow(unreadable.message));
   };
 
   // What the door answered a send or a Try again with: the chat as reading it gives it. `at` names
@@ -240,23 +217,23 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
     follow(projectId, chatId, false, running);
     const key = `${chatKey(projectId, chatId)}/${running}`;
     return () => {
-      const stream = streams.current.get(key);
-      if (stream && !stream.own) letGo(key, stream);
+      const listener = listeners.current.get(key);
+      if (listener && !listener.own) letGo(listener);
     };
   }, [projectId, chatId, running]);
 
   // Coming back to the tab -- switched to, or clicked into beside another -- reads the chat once,
-  // unless a stream already follows a turn in it: a turn another tab started is then drawn, and the
-  // effect above listens to it. One read per return, no connection held while away.
+  // unless a listener already follows a turn in it: a turn another tab started is then drawn, and
+  // the effect above listens to it. One read per return, nothing asked while away.
   useEffect(() => {
     if (!projectId || !chatId) return undefined;
     const key = chatKey(projectId, chatId);
     let reading = false;
-    // Something newer than a look owns the screen: a stream following a turn here, or a sentence
+    // Something newer than a look owns the screen: a listener following a turn here, or a sentence
     // on its way, whose answer is the newer record.
     const busy = () =>
       onItsWay.current !== null ||
-      [...streams.current.values()].some((s) => chatKey(s.project, s.id) === key);
+      [...listeners.current.values()].some((l) => chatKey(l.project, l.id) === key);
     const back = () => {
       if (document.visibilityState === "hidden" || reading || busy()) return;
       if (held.current?.id !== chatId) return;
@@ -278,14 +255,8 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
     };
   }, [projectId, chatId]);
 
-  // Nothing outlives the hook: a stream left open is a connection held for nobody.
-  useEffect(
-    () => () => {
-      for (const stream of streams.current.values()) stream.source.close();
-      streams.current.clear();
-    },
-    [],
-  );
+  // Nothing outlives the hook: a turn still asked about is asked about for nobody.
+  useEffect(() => () => listeners.current.clear(), []);
 
   // A sentence, or an edit of one (`from`, Madde 195). The skill travels with the message rather
   // than being read off the chat: what governed a turn is settled when the turn is sent. So does
@@ -385,7 +356,7 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
   }, [projectId, chatId]);
 
   // Stop names the turn it was pressed for: one landing after it reaches nothing (Madde 462). What
-  // it amounts to is heard on the stream, so the door's answer is not read. Pressed while the
+  // it amounts to is heard on the events door, so this door's answer is not read. Pressed while the
   // sentence is still on its way, it is kept for that send, and sent once the door names the turn.
   const stop = useCallback(async () => {
     const current = held.current;
@@ -437,7 +408,7 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
     createdFiles: turn?.files ?? [],
     streamingCalls: turn?.calls ?? [],
     progress: turn?.progress ?? null,
-    // The frame says `arguments` and this says `args` -- a language rule rather than a rename,
+    // The turn says `arguments` and this says `args` -- a language rule rather than a rename,
     // since `arguments` cannot be destructured as a prop inside a module.
     permission:
       asked && `${turn.id}:${asked.wait}` !== decided ? { tool: asked.tool, args: asked.arguments } : null,
@@ -447,8 +418,8 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
     version,
     trim,
     // The transient card's Try again. A refused reply is the composer's to send: its sentence went
-    // back there. Anything else -- a turn that broke, a refused Try again or edit, a stream that
-    // could not be followed -- asks the chat's own door.
+    // back there. Anything else -- a turn that broke, a refused Try again or edit -- asks the chat's
+    // own door.
     retry: (sendBox, mode) => (refused && refusedReply.current ? sendBox() : retry(mode)),
     // The recorded failed answer's Try again (Madde 440): never the composer -- what it holds is the
     // next thing to say.

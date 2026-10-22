@@ -139,6 +139,10 @@ class Turns(Protocol):
     def get(self, project_id: str, chat_id: str) -> LiveTurn | None:
         """The turn holding this chat, or None."""
 
+    def ended(self, project_id: str, chat_id: str) -> tuple[str, str] | None:
+        """The last turn to end in this chat, as (its id, its own fault's words or ""), or None
+        (Madde 491)."""
+
     def any_in(self, project_id: str) -> bool:
         """Whether any chat of the project is held."""
 

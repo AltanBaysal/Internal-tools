@@ -1,5 +1,5 @@
-// No answer came: a message the server refused, a turn whose stream broke, or an answer the model
-// failed on five times (design items 193, 216 and 221). One card for all of them, with the words the
+// No answer came: a message the server refused, a turn that could not be followed, or an answer the
+// model failed on five times (design items 193, 216 and 221). One card for all of them, with the words the
 // server or the engine said under it. Without `onRetry` it keeps no button: a failed answer the chat
 // has moved on from is still a record of what happened, and nothing more.
 export default function FailureCard({ words, onRetry = null }) {

@@ -237,22 +237,39 @@ def test_the_record_is_handed_before_the_turn_runs():
     _ended(turn)
 
 
-def test_a_turn_lets_go_of_its_chat_before_it_says_it_has_ended():
-    # Whoever hears the end may send the next message at once, and has to find the chat free.
+def test_whoever_hears_a_turn_end_finds_its_chat_free():
+    # Whoever hears the end may send the next message at once, and has to find the chat free. The
+    # end is said under the lock the chat is let go under (Madde 491), after it is let go: a hearer's
+    # next step waits for the lock, and then finds the chat free and the ended turn kept.
     turns = LiveTurns()
     turn = turns.reserve("p1", "c1")
-    free_when_ended = []
+    when_ended = []
     ending = turn.end
 
     def end(error):
-        # Asked at the moment the end is said, not after: afterwards the order no longer shows.
-        free_when_ended.append(turns.get("p1", "c1") is None)
+        # Looked at the moment the end is said, not after: afterwards the order no longer shows.
+        when_ended.append((turns._lock.locked(), ("p1", "c1") in turns._turns))
         ending(error)
 
     turn.end = end
     turns.start("p1", turn, CHAT, iter([]))
     _ended(turn)
-    assert free_when_ended == [True]
+    assert when_ended == [(True, False)]
+
+
+def test_the_last_turn_to_end_in_a_chat_is_kept_as_it_ended():
+    # Madde 491: a browser asking between two answers still hears how its turn ended.
+    turns = LiveTurns()
+    assert turns.ended("p1", "c1") is None
+    first = turns.reserve("p1", "c1")
+    turns.release("p1", "c1", first, "the disk went away")
+    assert turns.ended("p1", "c1") == (first.id, "the disk went away")
+    second = turns.reserve("p1", "c1")
+    turns.release("p1", "c1", second)
+    assert turns.ended("p1", "c1") == (second.id, "")
+    # A release arriving late, for a turn no longer holding the chat, keeps nothing.
+    turns.release("p1", "c1", first)
+    assert turns.ended("p1", "c1") == (second.id, "")
 
 
 def test_a_turn_whose_own_code_breaks_ends_with_its_words_and_lets_go():

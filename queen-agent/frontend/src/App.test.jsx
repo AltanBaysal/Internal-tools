@@ -4,6 +4,8 @@ import { afterEach, expect, test, vi } from "vitest";
 import App from "./App.jsx";
 
 afterEach(() => {
+  // Before anything else: a test that failed while the clock was faked must not hand it on.
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   // jsdom shares one document across tests, so a pushed address has to be put back.
   window.history.pushState(null, "", "/");
@@ -1345,6 +1347,7 @@ test("a chat list that could not be read says so in the sidebar, and Try again r
 test("the first message in a draft creates the chat and takes its address", async () => {
   const chat = { id: "c1", title: "Write the intro", messages: [], lastActivity: "x" };
   const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).includes("/events")) return listened(path);
     if (path === "/api/projects/p1/messages" && options?.method === "POST") {
       // Madde 88, 462: the door's answer is the chat that was born, its turn running.
       return started(chat);
@@ -1407,6 +1410,7 @@ test("a newborn chat is named as the server named it while its first turn still 
   // trimmed name, and the browser keeps no copy of the naming rule.
   const first = "m".repeat(80);
   const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).includes("/events")) return listened(path);
     if (path === "/api/projects/p1/messages" && options?.method === "POST") {
       return started({ id: "c1", title: "m".repeat(42) + "…", messages: [] });
     }
@@ -1470,8 +1474,8 @@ test("the user bubble shows before the server answers, and a refusal hands the w
 // --- the server's side of a turn (Madde 462) ------------------------------------------------------
 //
 // The door answers a message or a Try again at once, with the chat as reading it gives it -- its
-// record, its status and its running turn -- and the turn is then heard on the chat's events
-// stream, which the fake EventSource in test-setup.js lets a test speak for.
+// record, its status and its running turn -- and the turn is then heard on the chat's events door,
+// which a stub hands to `listened` so a test speaks for it.
 
 const TURN = {
   id: "t1",
@@ -1486,17 +1490,34 @@ const live = (fields = {}) => ({ ...TURN, ...fields });
 // The door's 202: this chat, with this turn running in it.
 const started = (chat, turn = live()) => ok({ ...chat, status: turn.status, turn }, 202);
 const OVER = { turn: null };
-const streams = () => globalThis.EventSource.opened;
 
-// What the chat's stream says, once the screen listens: a turn as it stands (sent as {turn}), or a
-// whole frame -- OVER, or the end with the turn's own fault. Spoken on the newest stream, each after
-// whatever reads the last one set off have landed.
-async function hear(...frames) {
-  await waitFor(() => expect(streams().length).toBeGreaterThan(0));
-  const source = streams().at(-1);
-  for (const frame of frames) {
-    await act(async () => source.emit("turn" in frame ? frame : { turn: frame }));
+// The events door (Madde 491): every ask waits here until the test answers it, as a long poll waits
+// for the turn to move. `version` counts what it has said, as the turn counts its changes.
+const asks = [];
+let version = 0;
+afterEach(() => {
+  asks.length = 0;
+  version = 0;
+});
+const listened = (path) => new Promise((resolve) => asks.push({ path, resolve }));
+const askedPaths = () => asks.map((ask) => ask.path);
+
+// What the events door says, once the screen listens: a turn as it stands (sent as {turn}), or a
+// whole answer -- OVER, or the end with the turn's own fault. Each answers the newest ask still
+// waiting, once the screen has asked, one version on, and lands with whatever it sets off. The
+// version last said comes back.
+async function hear(...answers) {
+  for (const said of answers) {
+    await waitFor(() => expect(asks.some((ask) => !ask.done)).toBe(true));
+    const ask = asks.findLast((each) => !each.done);
+    ask.done = true;
+    version += 1;
+    await act(async () => {
+      ask.resolve(ok({ version, ...("turn" in said ? said : { turn: said }) }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
   }
+  return version;
 }
 
 const retryPosts = (fetch) =>
@@ -1518,6 +1539,7 @@ function stubRefusingChat(answers) {
   }));
   let posts = 0;
   const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).includes("/events")) return listened(path);
     if (path.endsWith("/messages") && options?.method === "POST") {
       posts += 1;
       return Promise.resolve(answers(posts));
@@ -1578,7 +1600,7 @@ test("a refusal is not carried into a later send's Try again", async () => {
 
   fireEvent.change(box, { target: { value: "again" } });
   fireEvent.keyDown(box, { key: "Enter" });
-  // The turn's own fault: its words come on its last frame, and nothing was written.
+  // The turn's own fault: its words come on the events door's last answer, and nothing was written.
   await hear({ turn: null, error: "401 bad key" });
   await screen.findByText("401 bad key");
 
@@ -1660,10 +1682,10 @@ test("nothing asks for an answer by itself when a chat is opened", async () => {
   expect(fetch.mock.calls.filter(([, options]) => options?.method === "POST")).toHaveLength(0);
 });
 
-test("a call arrives in the stream and is still there once the record lands", async () => {
-  // Madde 66's handover. The stream draws the line before any record exists, and the record that
-  // follows carries the same call -- so what the browser piled up has to be dropped rather than
-  // added to, or the same step reads as two.
+test("a call arrives with the running turn and is still there once the record lands", async () => {
+  // Madde 66's handover. The running turn draws the line before any record exists, and the record
+  // that follows carries the same call -- so what the browser piled up has to be dropped rather
+  // than added to, or the same step reads as two.
   const owed = {
     id: "c1",
     title: "hello",
@@ -1683,6 +1705,7 @@ test("a call arrives in the stream and is still there once the record lands", as
     ],
   };
   const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).includes("/events")) return listened(path);
     if (path.endsWith("/messages") && options?.method === "POST") return started(owed);
     if (path.endsWith("/chats/c1")) {
       // Madde 89: the record is read back when the turn closes, so the second read is the one
@@ -1708,14 +1731,14 @@ test("a call arrives in the stream and is still there once the record lands", as
   await waitFor(() => expect(screen.getByText("Done.")).toBeTruthy());
   // Since Madde 84 the record's calls sit behind a door, so the claim is asked of what is behind
   // it. Unchanged otherwise, and it is the whole point of the test: one step, kept once, though two
-  // places reported it -- the live stream and the record that followed.
+  // places reported it -- the running turn and the record that followed.
   fireEvent.click(screen.getByRole("button", { name: /1 step/ }));
   expect(screen.getAllByText("⏺ read_file(plan.md)")).toHaveLength(1);
 });
 
-test("sending a sentence is one request, the turn is heard on one stream, and the record is kept", async () => {
-  // Madde 88, 462: the sentence goes out once, the turn is heard on the chat's own stream, and the
-  // record is read when it ends -- the counts below are the whole claim.
+test("sending a sentence is one request, the turn is heard on its events door, and the record is kept", async () => {
+  // Madde 88, 462: the sentence goes out once, the turn is heard on the chat's own events door, and
+  // the record is read when it ends -- the counts below are the whole claim.
   const empty = { id: "c1", title: "hello", messages: [] };
   const answered = {
     ...empty,
@@ -1726,6 +1749,7 @@ test("sending a sentence is one request, the turn is heard on one stream, and th
   };
   let read = 0;
   const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).includes("/events")) return listened(path);
     if (path.endsWith("/messages") && options?.method === "POST") {
       return started({ ...empty, messages: answered.messages.slice(0, 1) });
     }
@@ -1750,16 +1774,17 @@ test("sending a sentence is one request, the turn is heard on one stream, and th
 
   await waitFor(() => expect(screen.getByText("Done.")).toBeTruthy());
   expect(fetch.mock.calls.filter(([, options]) => options?.method === "POST")).toHaveLength(1);
-  expect(streams().map((source) => source.url)).toEqual(["/api/projects/p1/chats/c1/events"]);
+  expect(askedPaths()).toEqual(["/api/projects/p1/chats/c1/events?turn=t1"]);
 });
 
-test("a call frame takes the dashed card down", async () => {
-  // The dashed card lives between "the model asked" and "the tool answered", and a call frame is
+test("a call heard on the running turn takes the dashed card down", async () => {
+  // The dashed card lives between "the model asked" and "the tool answered", and a call heard is
   // the second. Until Madde 69 only a born file took it down, so a tool that wrote nothing left it
   // spinning until the turn ended -- rare then, and the ordinary case now that create_file refuses
   // a name that is taken.
   const owed = { id: "c1", title: "hello", messages: [] };
   const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).includes("/events")) return listened(path);
     if (path.endsWith("/messages") && options?.method === "POST") return started(owed);
     if (path.endsWith("/chats/c1"))
       return Promise.resolve({ ok: true, status: 200, json: async () => owed });
@@ -1793,6 +1818,7 @@ test("a file born mid-answer reaches the rail without a reload", async () => {
   // The directory is the list, so the stub answers differently once the file has been written.
   let onDisk = [];
   const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).includes("/events")) return listened(path);
     if (path.endsWith("/messages") && options?.method === "POST") {
       onDisk = [{ name: "outline.md", ext: "md", modifiedAt: new Date().toISOString() }];
       return started(owed);
@@ -1812,21 +1838,22 @@ test("a file born mid-answer reaches the rail without a reload", async () => {
   const box = await chatOpened();
   fireEvent.change(box, { target: { value: "write the outline" } });
   fireEvent.keyDown(box, { key: "Enter" });
-  // Still running: the file is heard of on the stream, and the rail reads its list then.
+  // Still running: the file is heard of on the events door, and the rail reads its list then.
   await hear(live({ files: ["outline.md"] }));
   await waitFor(() => expect(screen.getByTestId("file-rail").textContent).toContain("outline.md"));
 });
 
-// Madde 192. Until now a `file` frame was the only thing that brought the two lists up to date, so
-// anything that wrote without announcing one -- or a file the user dropped into the Drive folder
-// mid-turn -- stayed invisible until the screen was left and come back to.
+// Madde 192. Until now a file heard of mid-turn was the only thing that brought the two lists up to
+// date, so anything that wrote without announcing one -- or a file the user dropped into the Drive
+// folder mid-turn -- stayed invisible until the screen was left and come back to.
 test("a turn ending brings the file list up to date, whatever wrote the file", async () => {
   const owed = { id: "c1", title: "hello", messages: [] };
   let onDisk = [];
   const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).includes("/events")) return listened(path);
     if (path.endsWith("/messages") && options?.method === "POST") {
       onDisk = [{ name: "plan.md", ext: "md", modifiedAt: new Date().toISOString() }];
-      // No file on any frame: this turn announces nothing it wrote.
+      // No file in any answer: this turn announces nothing it wrote.
       return started(owed);
     }
     if (path.endsWith("/files")) {
@@ -1861,6 +1888,7 @@ test("a turn ending reads the file that is open again", async () => {
   const file = { name: "plan.md", ext: "md", modifiedAt: new Date().toISOString() };
   let text = "the first draft";
   const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).includes("/events")) return listened(path);
     if (path.endsWith("/messages") && options?.method === "POST") {
       text = "the second draft";
       return started(owed);
@@ -1929,6 +1957,7 @@ test("a turn in an existing chat brings the chat up in the sidebar, and leaving 
     { id: "c1", title: "Write the intro", lastActivity: hoursAgo(6) },
   ];
   const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).includes("/events")) return listened(path);
     if (path.endsWith("/messages") && options?.method === "POST") {
       // The question is written before the door answers, and its moment is the chat's last activity.
       const now = new Date().toISOString();
@@ -1956,7 +1985,7 @@ test("a turn in an existing chat brings the chat up in the sidebar, and leaving 
   );
   const strip = await screen.findByTestId("live-strip");
   await waitFor(() => expect(strip.textContent).toContain("round 2/16"));
-  // Not on every frame: once a turn, at its end.
+  // Not on every answer: once a turn, at its end.
   expect(chatReads()).toHaveLength(1);
 
   await hear(OVER);
@@ -1974,7 +2003,7 @@ test("a turn in an existing chat brings the chat up in the sidebar, and leaving 
   expect(listReads(fetch)).toBe(2);
 });
 
-// The reviewer of 452: a send that never reached the server -- no first frame -- has changed no
+// The reviewer of 452: a send that never reached the server -- no turn to hear -- has changed no
 // chat's last activity, and the server that refused it is likely down: a list read then fails, and
 // the sidebar would trade the rows it holds for "Couldn't load chats.".
 test("a send that never reached the server reads no list, and the sidebar keeps its rows", async () => {
@@ -1999,6 +2028,7 @@ function _turnThatReports() {
   const owed = { id: "c1", title: "hello", messages: [] };
   let record = owed;
   const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).includes("/events")) return listened(path);
     if (path.endsWith("/messages") && options?.method === "POST") {
       record = {
         ...owed,
@@ -2063,6 +2093,7 @@ test("a turn's own fault shows the card, and Try again asks the chat's own door"
   // has a door of its own, and carries no sentence: the question is already on disk.
   const empty = { id: "c1", title: "hello", messages: [] };
   const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).includes("/events")) return listened(path);
     if (path.endsWith("/messages") && options?.method === "POST") return started(empty);
     if (path.endsWith("/retry") && options?.method === "POST") return started(empty, live({ id: "t2" }));
     if (path.endsWith("/chats/c1")) {
@@ -2878,6 +2909,7 @@ test("the draft's first answer moves it to the new address", async () => {
     ],
   };
   const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).includes("/events")) return listened(path);
     if (String(path).endsWith("/messages") && options?.method === "POST") {
       return started({ ...answered, messages: answered.messages.slice(0, 1) });
     }
@@ -2928,6 +2960,7 @@ test("when the turn ends the record is read, and what it says is what is drawn",
   };
   let read = 0;
   const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).includes("/events")) return listened(path);
     if (String(path).endsWith("/messages") && options?.method === "POST") return started(empty);
     if (String(path).endsWith("/chats/c1")) {
       read += 1;
@@ -2964,6 +2997,7 @@ test("a chat that was just born is read by the id the door's answer gave", async
     ],
   };
   const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).includes("/events")) return listened(path);
     if (String(path).endsWith("/messages") && options?.method === "POST") {
       return started({ ...written, messages: written.messages.slice(0, 1) });
     }
@@ -2988,7 +3022,7 @@ test("a chat that was just born is read by the id the door's answer gave", async
   await hear(OVER);
 
   await waitFor(() => expect(screen.getByText("Done.")).toBeTruthy());
-  expect(streams()[0].url).toBe("/api/projects/p1/chats/c1/events");
+  expect(askedPaths()[0]).toBe("/api/projects/p1/chats/c1/events?turn=t1");
 });
 
 test("a turn that ended in a fault is read back too", async () => {
@@ -2999,6 +3033,7 @@ test("a turn that ended in a fault is read back too", async () => {
     messages: [{ role: "user", at: new Date().toISOString(), text: "hello" }],
   };
   const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).includes("/events")) return listened(path);
     if (String(path).endsWith("/messages") && options?.method === "POST") return started(written);
     if (String(path).endsWith("/chats/c1")) {
       return Promise.resolve({ ok: true, status: 200, json: async () => written });
@@ -3026,6 +3061,7 @@ test("a record that cannot be read back says so in the read's own words", async 
   const empty = { id: "c1", title: "hello", messages: [] };
   let read = 0;
   const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).includes("/events")) return listened(path);
     if (String(path).endsWith("/messages") && options?.method === "POST") return started(empty);
     if (String(path).endsWith("/chats/c1")) {
       read += 1;
@@ -3060,6 +3096,7 @@ test("the skill picked in a draft survives landing in the chat it created", asyn
   // session picked, and an old record saying a gone name is exactly what happens on disk.
   const born = { id: "c1", title: "Write it", skill: "verify-prompts", messages: [] };
   const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).includes("/events")) return listened(path);
     if (String(path).endsWith("/messages") && options?.method === "POST") return started(born);
     if (String(path).endsWith("/chats/c1")) {
       return Promise.resolve({ ok: true, status: 200, json: async () => born });
@@ -3110,6 +3147,7 @@ test("a draft's first answer never wears the old chat's transcript", async () =>
     ],
   };
   const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).includes("/events")) return listened(path);
     if (String(path).endsWith("/messages") && options?.method === "POST") {
       return started({ ...born, messages: born.messages.slice(0, 1) });
     }
@@ -3165,6 +3203,7 @@ test("an answer streaming in one chat does not show in another", async () => {
   vi.stubGlobal(
     "fetch",
     vi.fn().mockImplementation((path, options) => {
+      if (String(path).includes("/events")) return listened(path);
       if (String(path).endsWith("/messages") && options?.method === "POST") {
         turn = running;
         return started(records.c1);
@@ -3202,8 +3241,9 @@ test("an answer streaming in one chat does not show in another", async () => {
 
   fireEvent.click(screen.getByText("First", { selector: ".sidebar__chat" }));
   await waitFor(() => expect(screen.getByText(step)).toBeTruthy());
-  // Still the one stream: the turn this screen started kept it open, and coming back reuses it.
-  expect(streams()).toHaveLength(1);
+  // Still the one listener: the turn this screen started kept it, and coming back reuses it -- the
+  // door was asked from the start once.
+  expect(askedPaths().filter((path) => !path.includes("after="))).toHaveLength(1);
 });
 
 test("a turn that ends in a left chat does not repaint the one the user is standing in", async () => {
@@ -3231,6 +3271,7 @@ test("a turn that ends in a left chat does not repaint the one the user is stand
   vi.stubGlobal(
     "fetch",
     vi.fn().mockImplementation((path, options) => {
+      if (String(path).includes("/events")) return listened(path);
       if (String(path).endsWith("/messages") && options?.method === "POST") {
         return started({ id: "c1", title: "First", messages: finished.messages.slice(0, 1) });
       }
@@ -3258,14 +3299,14 @@ test("a turn that ends in a left chat does not repaint the one the user is stand
   fireEvent.keyDown(box, { key: "Enter" });
   await hear(live({ calls: [{ tool: "read_file", target: "running.md", outcome: "" }] }));
   await waitFor(() => expect(screen.getByText("⏺ read_file(running.md)")).toBeTruthy());
-  const own = streams().at(-1);
 
   fireEvent.click(screen.getByText("Second", { selector: ".sidebar__chat" }));
   await waitFor(() => expect(screen.getByText("Second's own words")).toBeTruthy());
 
   over = true;
-  await act(async () => own.emit(OVER));
-  expect(own.readyState).toBe(globalThis.EventSource.CLOSED);
+  // Still asked about off screen, and nothing more once it is over.
+  await hear(OVER);
+  expect(asks.every((ask) => ask.done)).toBe(true);
   // Not read here: no screen stands in it.
   expect(c1Reads).toBe(1);
   expect(screen.queryByText("The finished answer.")).toBeNull();
@@ -3298,6 +3339,7 @@ test("coming back to a streaming chat finds its transcript and its stream", asyn
   vi.stubGlobal(
     "fetch",
     vi.fn().mockImplementation((path, options) => {
+      if (String(path).includes("/events")) return listened(path);
       if (String(path).endsWith("/messages") && options?.method === "POST") {
         turn = running;
         return started(first);
@@ -3342,6 +3384,7 @@ test("coming back to a streaming chat finds its transcript and its stream", asyn
 // moves it on as the server would. A message and a Try again each start a turn on it.
 function stubTurn(server) {
   const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).includes("/events")) return listened(path);
     const door = String(path).endsWith("/messages") || String(path).endsWith("/retry");
     if (door && options?.method === "POST") return started(server.record);
     if (String(path).endsWith("/chats/c1")) {
@@ -3471,7 +3514,7 @@ test("a reload during a running turn draws the turn and its Stop, and hears it e
   render(<App />);
   await waitFor(() => expect(screen.getByText("⏺ read_file(plan.md)")).toBeTruthy());
   expect(screen.getByTitle("Stop")).toBeTruthy();
-  expect(streams().map((source) => source.url)).toEqual(["/api/projects/p1/chats/c1/events"]);
+  expect(askedPaths()).toEqual(["/api/projects/p1/chats/c1/events?turn=t1"]);
 
   server.record = { id: "c1", title: "go", messages: [QUESTION, { role: "ai", at: NOW, text: "Done." }] };
   await hear(OVER);
@@ -3505,14 +3548,29 @@ test("a reload during a waiting question draws its card again, and Allow names t
 
 // --- a connection that drops (Madde 449) ---------------------------------------------------------
 
-// --- a connection that drops (Madde 449, the browser's own since 462) -----------------------------
+// --- a connection that drops (Madde 449, the browser's own since 462, asked again since 491) ------
 
 const questions = () =>
   [...document.querySelectorAll(".msg--user .msg__bubble")].map((bubble) => bubble.textContent);
 
-test("a turn whose stream drops is heard again with its question once, and no card", async () => {
-  // EventSource mends a drop by itself, and its first frame is the turn as it stands: nothing to
-  // try again, and the sentence is never sent twice.
+// The newest ask failing -- the network gone, the tunnel's 502 -- and the moment after it, waited
+// out on the fake clock: the screen then asks again from where it stood. Only that wait is faked:
+// waitFor and findBy run on the clock too.
+async function dropped() {
+  await waitFor(() => expect(asks.some((ask) => !ask.done)).toBe(true));
+  const ask = asks.findLast((each) => !each.done);
+  ask.done = true;
+  vi.useFakeTimers();
+  await act(async () => {
+    ask.resolve(Promise.resolve({ ok: false, status: 502, text: async () => "Bad Gateway" }));
+    await vi.advanceTimersByTimeAsync(3000);
+  });
+  vi.useRealTimers();
+}
+
+test("a turn whose ask drops is heard again with its question once, and no card", async () => {
+  // Asked again a moment later, from where it stood: nothing to try again, and the sentence is
+  // never sent twice.
   const server = { record: { id: "c1", title: "go", messages: [] } };
   const fetch = stubTurn(server);
   render(<App />);
@@ -3522,7 +3580,7 @@ test("a turn whose stream drops is heard again with its question once, and no ca
   fireEvent.keyDown(box, { key: "Enter" });
   await hear(live());
 
-  act(() => streams().at(-1).drop());
+  await dropped();
   expect(screen.queryByText("Couldn't get a response.")).toBeNull();
   expect(screen.getByTestId("thinking")).toBeTruthy();
   expect(box.value).toBe("");
@@ -3538,7 +3596,7 @@ test("a turn whose stream drops is heard again with its question once, and no ca
   expect(messagePosts(fetch)).toHaveLength(1);
 });
 
-test("a newborn chat's stream given up on is read again and listened to in the chat it was born as", async () => {
+test("a newborn chat's failed ask is asked again in the chat it was born as", async () => {
   const server = { record: { id: "c1", title: "go", messages: [QUESTION] } };
   stubTurn(server);
   window.history.pushState(null, "", "/p/p1/c/new");
@@ -3547,17 +3605,17 @@ test("a newborn chat's stream given up on is read again and listened to in the c
   fireEvent.change(box, { target: { value: "go" } });
   fireEvent.keyDown(box, { key: "Enter" });
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c1"));
-  await hear(live());
+  const said = await hear(live());
 
-  // The tunnel's 502: EventSource gives up. The chat is read once, and still running, listened to.
-  server.record = { ...server.record, turn: live() };
-  act(() => streams().at(-1).refuse());
-  await waitFor(() => expect(streams()).toHaveLength(2));
-  expect(streams()[1].url).toBe("/api/projects/p1/chats/c1/events");
+  await dropped();
+  expect(askedPaths().slice(-2)).toEqual([
+    `/api/projects/p1/chats/c1/events?turn=t1&after=${said}`,
+    `/api/projects/p1/chats/c1/events?turn=t1&after=${said}`,
+  ]);
   expect(screen.queryByText("Couldn't get a response.")).toBeNull();
 });
 
-test("an edit whose stream drops keeps the corrected question once", async () => {
+test("an edit whose ask drops keeps the corrected question once", async () => {
   // The server opened the new line before it answered: the corrected question stands where the
   // old one stood.
   const answered = { id: "c1", title: "go", messages: [QUESTION, { role: "ai", at: NOW, text: "Here it is." }] };
@@ -3576,7 +3634,7 @@ test("an edit whose stream drops keeps the corrected question once", async () =>
   expect(questions()).toEqual(["go again"]);
   expect(screen.queryByText("Here it is.")).toBeNull();
 
-  act(() => streams().at(-1).drop());
+  await dropped();
   server.record = {
     id: "c1",
     title: "go",
@@ -3594,6 +3652,7 @@ test("a fault the turn said is the one the card keeps, whatever the read after i
   vi.stubGlobal(
     "fetch",
     vi.fn().mockImplementation((path, options) => {
+      if (String(path).includes("/events")) return listened(path);
       if (String(path).endsWith("/messages") && options?.method === "POST") {
         return started({ id: "c1", title: "go", messages: [QUESTION] });
       }
@@ -3718,6 +3777,7 @@ test("a second draft does not wear the first one's skill", async () => {
   // the next draft starts with nothing.
   const born = { id: "c1", title: "Write it", skill: "edit-prompts", messages: [] };
   const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).includes("/events")) return listened(path);
     if (String(path).endsWith("/messages") && options?.method === "POST") return started(born);
     if (String(path).endsWith("/chats/c1")) {
       return Promise.resolve({ ok: true, status: 200, json: async () => born });
@@ -3802,6 +3862,7 @@ function twoChats() {
   };
   const rows = Object.values(records).map(({ id, title }) => ({ id, title, lastActivity: NOW }));
   const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).includes("/events")) return listened(path);
     if (path.endsWith("/messages") && options?.method === "POST") {
       const sent = JSON.parse(options.body);
       return started(records[sent.chat] ?? { id: "c9", title: sent.text, messages: [] });
@@ -3926,6 +3987,7 @@ function paused(onAnswer) {
      what the server would, and nothing in it depends on timing. */
   const owed = { id: "c1", title: "hello", messages: [] };
   const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).includes("/events")) return listened(path);
     if (path.endsWith("/messages") && options?.method === "POST") return started(owed);
     if (path.endsWith("/permission") && options?.method === "POST") {
       onAnswer?.(path, JSON.parse(options.body));
@@ -4145,6 +4207,7 @@ test("a message is edited, the chat carries on from there, and the arrow goes ba
   // and reads back whatever came.
   let open = first;
   const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).includes("/events")) return listened(path);
     if (path.endsWith("/messages") && options?.method === "POST") {
       open = edited;
       return started({ ...edited, messages: edited.messages.slice(0, 1) });
@@ -4249,6 +4312,7 @@ test("a refusal met while the chat was full goes with Continue here", async () =
   // the refusal said stops being true the moment the chat is trimmed.
   let record = { id: "c1", title: "Long", full: false, trimmed: 0, messages: turn("Last answer.") };
   const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).includes("/events")) return listened(path);
     if (path.endsWith("/messages") && options?.method === "POST") {
       const asked = { role: "user", at: new Date().toISOString(), text: "and more" };
       record = { ...record, full: true, messages: [...record.messages, asked] };

@@ -5,12 +5,16 @@ The principles and stack decisions these rules serve: [FOUNDATION.md](FOUNDATION
 
 ## Stack
 
-Backend Flask (sync) + frontend React 18 (JSX, built with Vite) — why: FOUNDATION, Decision 2. Live
-progress is server-sent events, not websockets: the stream is one-way. Every command is a plain
-request answered with JSON, and the browser listens to a chat's running turn on its own stream,
-`GET …/chats/<c>/events` — the turn's whole snapshot first and on every change, a beat every 15
-seconds so a tunnel never sees it idle, and an end when the turn ends (Madde 462). EventSource
-reconnects by itself, so a dropped connection needs nothing from the screen.
+Backend Flask (sync) + frontend React 18 (JSX, built with Vite) — why: FOUNDATION, Decision 2. Every
+command is a plain request answered with JSON, and so is live progress: the browser follows a
+chat's running turn by long polling `GET …/chats/<c>/events?turn=<id>` (Madde 462, 491). Asked
+with no version, the door answers at once with the turn's whole snapshot and its version; asked
+`&after=<version>`, once the turn has moved past it, or after 15 seconds as it stands, so a tunnel
+never sees a request idle; `{"turn": null}` once no turn runs — with the named turn's own fault, if
+it ended in the gap between two asks. Not a stream, because the Cloudflare Quick Tunnel the notebook
+opens holds a streamed GET's body until it ends — server-sent events arrived all at once when the
+turn finished. A failed ask is asked again three seconds later; a second failure in a row shows
+the card.
 
 `frontend/dist` is committed with its source (FOUNDATION, Decision 3). In development the UI runs on
 Vite's own server and proxies `/api` to Flask, so a UI change does not cost a full build; the bundle
