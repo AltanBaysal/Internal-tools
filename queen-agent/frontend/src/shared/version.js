@@ -8,4 +8,4 @@
  * Its own module rather than a line inside the bar: the bar draws it, it does not own it,
  * and whoever opens the next run should find this without reading a component.
  */
-export const VERSION = "V10";
+export const VERSION = "V11";
