@@ -43,7 +43,10 @@ def test_a_dropped_mount_reaches_the_screen_when_a_save_is_asked(tmp_path):
     response = client.put("/api/projects/düğün/settings", json={"prompts": "a"})
 
     assert response.status_code == 503
-    assert "Proje köküne ulaşılamıyor" in response.get_json()["error"]
+    # Which root it was is the OS's own words: the projects' and the exports' are two doors with one
+    # sentence (madde 494).
+    assert "Kök klasöre ulaşılamıyor" in response.get_json()["error"]
+    assert repr(str(drive)) in response.get_json()["error"]
     # Nothing was written anywhere: no root was opened again, and the old file is untouched.
     assert not drive.exists()
     assert (moved / "düğün" / "settings.json").read_text(encoding="utf-8") == "{}"

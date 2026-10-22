@@ -68,8 +68,8 @@ class DriveProjectStore:
     def list(self):
         marks = self._marks()
         # The root's folders ARE the projects, but for the app's own (name_rules): the folder madde
-        # 221 moved archived projects into, which old installs still have, and the one exports land
-        # in (madde 473). Neither list ever draws one as a card.
+        # 221 moved archived projects into, which old installs still have. Neither list ever draws
+        # it as a card.
         return [Project(name, mtime) for name, mtime in self.storage.list_dirs()
                 if name not in marks and not name_rules.is_reserved(name)]
 

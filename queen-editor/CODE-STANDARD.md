@@ -34,12 +34,14 @@ cell, no shared file, no shared Drive folder. What we inherit is knowledge, not 
 | Proven behaviour: `/prompt` → `/history` → `/view`, and the idea that a failure is either the frame's or the run's | Copying those functions — we write them into our own layers. The stop rule itself is ours: the same frame is retried three times, not three frames in a row ([Madde 8](../docs/specs/2026-08-09-queen-editor-v4-madde-8-durma-kurali-design.md)) |
 
 Every direct subfolder of our Drive root is a project, so the root must be ours alone: point it at
-the notebook's folder and its `output/` shows up as a phantom project card. The two exceptions are
-the app's own and no project may take their names (`features/projects/domain/name_rules.py`):
-`Exportlar`, where every export lands, and `arsiv`, left by an old archive. The root is never
-hardcoded — the server reads `QE_DRIVE_ROOT`, and `queeneditor.ipynb`'s CONFIG cell is the one
-place that names the folder (`DRIVE_FOLDER`, currently `queenEditor`). Renaming it is a one-line
-change there, so do not repeat the name in comments, docstrings or here.
+the notebook's folder and its `output/` shows up as a phantom project card. The one exception is
+the app's own and no project may take its name (`features/projects/domain/name_rules.py`): `arsiv`,
+left by an old archive. Exports have a root of their own beside it, so nothing of theirs stands
+among the projects (madde 494). Neither root is hardcoded — the server reads `QE_DRIVE_ROOT` and
+`QE_EXPORT_ROOT`, and `queeneditor.ipynb`'s CONFIG cell is the one place that names the folders
+(`DRIVE_FOLDER`, currently `queenEditor`, and `EXPORT_FOLDER`); its mount cell opens both.
+Renaming one is a one-line change there, so do not repeat the names in comments, docstrings or
+here.
 
 The batch behaviour is the notebook's, the code is ours: same rules, written into `services/comfy/`
 (HTTP transport) and `features/photo_generation/` (node ids, file names, the worker), where they can
@@ -72,11 +74,12 @@ written. Reading two places to decide one thing is what this rule exists to prev
 A service does one job, lives in its own folder, and knows no feature: `comfy/` (ComfyUI
 transport — HTTP, and its socket for the done notice: submit a graph, wait for it, fetch the
 files it produced, read the card's memory; no node id, no prompt, no media concept), `storage/`
-(folders and files under the Drive root; no project, no JSON, no schema).
+(folders and files under one Drive root; no project, no JSON, no schema).
 A service never imports a feature and never imports another service.
 
-`storage/`'s `Storage` is the one door to Drive: every read and write of the root goes through it,
-the files a tool outside the process reads included — ffmpeg, ffprobe and Flask serving a file are
+`storage/`'s `Storage` is the one door to Drive, one instance per root — the projects' and the
+exports' (`main.py`): every read and write of a root goes through its door, the files a tool
+outside the process reads included — ffmpeg, ffprobe and Flask serving a file are
 handed a path by `Storage.path`, never one built by hand. What stays outside is the machine's own
 scratch space (`tempfile`, an export's pieces). Its rules, each because of how Colab's Drive mount
 fails ([madde 472](../docs/specs/2026-10-20-queen-editor-m472-storage-design.md)):
@@ -87,9 +90,9 @@ fails ([madde 472](../docs/specs/2026-10-20-queen-editor-m472-storage-design.md)
   folder, `fsync`, then `os.replace`. Listings skip the prefix. A save returning is what "saved"
   means. The two records that grow line by line, `photos.jsonl` and `chats.jsonl`, are appended to,
   with `fsync`.
-- **No write opens the root or a project folder;** only `make_dir` opens a folder under the root —
-  a project, or the exports folder when an export starts. Folders inside a project are opened by
-  their first file.
+- **No write opens a root or a folder directly under it;** only `make_dir` does — a project, or an
+  export's own folder when the export starts. The roots themselves are opened by the notebook's
+  mount cell. Folders below those are opened by their first file.
 - **Missing means `FileNotFoundError` alone.** Every other `OSError` is raised, never read as empty.
 - **No name leaves the root:** every folder part and file name that is empty, `.`, `..`, or holds `/`,
   `\`, NUL or `:` (a Windows drive letter restarts the join) is refused before it is joined. A folder

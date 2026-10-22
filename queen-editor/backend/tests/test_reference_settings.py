@@ -144,10 +144,10 @@ def test_an_unknown_project_is_a_404(tmp_path):
                       json={"prompts": "x", "variants": 1}).status_code == 404
 
 
-@pytest.mark.parametrize("folder", [name_rules.EXPORTS_DIR, name_rules.ARCHIVE_DIR])
-def test_a_reserved_folder_has_no_record_to_read_or_write(tmp_path, folder):
+def test_a_reserved_folder_has_no_record_to_read_or_write(tmp_path):
     """Madde 473: a reserved folder is not a project, so a URL naming it finds none, and no
-    reference_settings.json lands among the exports."""
+    reference_settings.json lands in it."""
+    folder = name_rules.ARCHIVE_DIR
     client, drive = make_client(tmp_path)
     (drive / folder).mkdir()
     url = f"/api/projects/{folder}/reference-settings"

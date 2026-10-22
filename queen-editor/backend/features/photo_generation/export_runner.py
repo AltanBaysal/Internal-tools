@@ -92,11 +92,13 @@ class ExportRunner:
         What a failed export asks before it takes the photos the two modes share (madde 474): a
         merged export that is still running has nothing on Drive yet but those photos, so only
         this state knows it is there. A finished one is not counted here -- its files on disk say
-        so for themselves.
+        so for themselves -- and neither is a cancelled one: it is on its way to taking its own
+        back, and two cancelled together would otherwise each leave the folder to the other, so
+        a half export stayed (madde 494).
         """
         with self._lock:
             return any(other != mode and state["state"] not in RESTING
-                       and state["target"] == target
+                       and not self._cancel[other] and state["target"] == target
                        for other, state in self._state.items())
 
     def cancel(self, mode):

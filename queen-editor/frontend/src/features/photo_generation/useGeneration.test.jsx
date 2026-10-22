@@ -371,7 +371,7 @@ describe("useGeneration", () => {
   // and its answer used to wipe the gallery's failure, leaving the list it had as if it were current.
   it("keeps a failed gallery read for the gallery to say, whatever the status answers", async () => {
     const dropped = new Error(
-      "Proje köküne ulaşılamıyor: [Errno 107] Transport endpoint is not connected");
+      "Kök klasöre ulaşılamıyor: [Errno 107] Transport endpoint is not connected");
     dropped.evidence = "GET /api/projects/düğün/frames\n503 SERVICE UNAVAILABLE";
     getStatus.mockResolvedValue({ status: "idle" });
     listFrames.mockRejectedValue(dropped);
@@ -381,17 +381,17 @@ describe("useGeneration", () => {
 
     // The sentence alone: the gallery draws it where the frames would be.
     expect(result.current.framesError).toBe(
-      "Proje köküne ulaşılamıyor: [Errno 107] Transport endpoint is not connected");
+      "Kök klasöre ulaşılamıyor: [Errno 107] Transport endpoint is not connected");
   });
 
   it("lifts the failed gallery read once the gallery answers again", async () => {
     getStatus.mockResolvedValue(RUNNING);
-    listFrames.mockRejectedValueOnce(new Error("Proje köküne ulaşılamıyor"))
+    listFrames.mockRejectedValueOnce(new Error("Kök klasöre ulaşılamıyor"))
       .mockResolvedValue([]);
 
     const { result } = renderHook(() => useGeneration("düğün"));
     await settle();
-    expect(result.current.framesError).toBe("Proje köküne ulaşılamıyor");
+    expect(result.current.framesError).toBe("Kök klasöre ulaşılamıyor");
 
     await settle(2000);
     expect(result.current.framesError).toBeNull();

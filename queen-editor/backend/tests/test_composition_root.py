@@ -21,7 +21,6 @@ from backend import config
 from backend.features.photo_generation.data.comfy_h3_video_generator import ComfyH3VideoGenerator
 from backend.features.photo_generation.data.prompt_writer import H3VideoPromptWriter
 from backend.features.photo_generation.domain import layers
-from backend.features.projects.domain import name_rules
 from backend.tests.test_deepseek_box import Answers, calling
 from backend.tests.test_deepseek_client import FakeResponse, answering
 
@@ -68,7 +67,7 @@ def test_a_root_that_is_not_there_is_nobodys_business_until_it_is_asked(import_m
 
     assert not (tmp_path / "yok").exists()
     assert response.status_code == 503
-    assert "Proje köküne ulaşılamıyor" in response.get_json()["error"]
+    assert "Kök klasöre ulaşılamıyor" in response.get_json()["error"]
 
 
 @pytest.fixture
@@ -172,12 +171,16 @@ def test_the_queue_reads_the_projects_happy_ending(import_main, monkeypatch, tmp
     assert main._happy_ending("düğün") is True
 
 
-def test_exports_land_in_the_folder_no_project_may_take(import_main, root, tmp_path):
-    """Madde 473: the photo store is handed the very name the projects feature keeps from being a
-    project -- otherwise a project could take the exports folder and have every export written in."""
+def test_exports_land_in_the_root_the_notebook_hands_over(import_main, monkeypatch, tmp_path):
+    """Madde 494: exports have a root of their own beside the projects', which the notebook opens
+    and passes as QE_EXPORT_ROOT -- and nothing of theirs goes among the projects."""
+    (tmp_path / "projeler").mkdir()
+    (tmp_path / "export").mkdir()
+    monkeypatch.setenv("QE_DRIVE_ROOT", str(tmp_path / "projeler"))
+    monkeypatch.setenv("QE_EXPORT_ROOT", str(tmp_path / "export"))
     main = import_main()
 
-    assert main._photo_store.export_dir() == str(tmp_path / name_rules.EXPORTS_DIR)
+    assert main._photo_store.export_dir() == str(tmp_path / "export")
 
 
 def test_every_session_makes_its_videos_with_h3(import_main, monkeypatch, tmp_path):

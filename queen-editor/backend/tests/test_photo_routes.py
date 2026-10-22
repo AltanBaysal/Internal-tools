@@ -26,7 +26,6 @@ from backend.features.photo_generation.domain.usecases.start_batch import start_
 from backend.features.photo_generation.domain.usecases.stop_generation import stop_generation
 from backend.features.photo_generation.presentation.routes import make_photo_generation_blueprint
 from backend.features.photo_generation.runner import PhotoRunner
-from backend.features.projects.domain import name_rules
 from backend.services.storage.storage import Storage
 from backend.web.app import create_app
 
@@ -80,15 +79,23 @@ class RecordingExporter:
         self.pieces.append(target)
 
 
+def exports_of(tmp_path):
+    """The exports' root make_client opens beside the projects', the way the notebook opens both
+    (madde 494)."""
+    return tmp_path / "export"
+
+
 def make_client(tmp_path, generator=None, runner=None):
     drive = tmp_path / "drive"
     (drive / "düğün").mkdir(parents=True)
     dist = tmp_path / "dist"
     dist.mkdir()
     (dist / "index.html").write_text("x", encoding="utf-8")
+    exports = exports_of(tmp_path)
+    exports.mkdir()
 
     storage = Storage(str(drive))
-    store = DrivePhotoStore(storage, name_rules.EXPORTS_DIR)
+    store = DrivePhotoStore(storage, Storage(str(exports)))
     record = DrivePhotoRecord(storage)
     plan_store = DrivePlanStore(storage)
     order_store = DriveOrderStore(storage)
@@ -1025,9 +1032,9 @@ def test_the_export_summary_is_json_not_a_download(tmp_path):
     assert resp.status_code == 200
     body = resp.get_json()
     assert (body["videos"], body["seconds"]) == (1, 5)
-    # Where exports land, beside the projects (madde 473); the run's own folder is named after the
-    # minute it starts.
-    assert body["folder"] == str(drive / "Exportlar")
+    # Where exports land, in their own root beside the projects' (madde 494); the run's own folder
+    # is named after the minute it starts.
+    assert body["folder"] == str(exports_of(tmp_path))
 
 
 def test_the_summary_of_a_project_with_no_video_is_zero(tmp_path):
@@ -1063,12 +1070,13 @@ def test_an_export_runs_and_says_where_it_wrote(tmp_path):
     assert resp.status_code == 202
     state = client.get("/api/projects/düğün/export/status").get_json()["separate"]
     assert (state["state"], state["written"], state["total"]) == ("done", 1, 1)
-    # Madde 473: beside the projects, date first and project after, and nothing new inside the
-    # project.
-    exported = drive / "Exportlar" / "2026-08-12 14-32 düğün"
+    # Madde 494: in the exports' own root, date first and project after, and nothing new among the
+    # projects or inside one.
+    exported = exports_of(tmp_path) / "2026-08-12 14-32 düğün"
     assert state["target"] == str(exported)
     assert (exported / "video" / "01.mp4").read_bytes() == b"MP4"
     assert (exported / "foto" / "01.png").is_file()
+    assert [path.name for path in drive.iterdir()] == ["düğün"]
     assert not (drive / "düğün" / "export").exists()
 
 
@@ -1079,9 +1087,10 @@ def test_a_merged_export_lands_in_the_same_place(tmp_path):
 
     client.post("/api/projects/düğün/export/merged")
 
-    exported = drive / "Exportlar" / "2026-08-12 14-32 düğün"
+    exported = exports_of(tmp_path) / "2026-08-12 14-32 düğün"
     assert client.get("/api/projects/düğün/export/status").get_json()["merged"]["state"] == "done"
     assert sorted(path.name for path in exported.iterdir()) == ["düğün.mp4", "foto"]
+    assert [path.name for path in drive.iterdir()] == ["düğün"]
     assert not (drive / "düğün" / "export").exists()
 
 

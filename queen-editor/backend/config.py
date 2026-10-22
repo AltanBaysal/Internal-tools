@@ -14,6 +14,10 @@ PORT = 8000
 # when nothing sets the variable.
 DRIVE_ROOT = os.environ.get("QE_DRIVE_ROOT", "/content/drive/MyDrive/queenEditor")
 
+# Every export lands under this root, beside the projects' rather than among them (madde 494). Named
+# and opened by the notebook the same way, passed in QE_EXPORT_ROOT.
+EXPORT_ROOT = os.environ.get("QE_EXPORT_ROOT", "/content/drive/MyDrive/queenEditorExport")
+
 # ComfyUI runs on the same Colab machine; the notebook can point us elsewhere (tests do too).
 COMFY_URL = os.environ.get("QE_COMFY_URL", "http://127.0.0.1:8188")
 

@@ -1,7 +1,6 @@
 import pytest
 
 from backend.features.projects.data.project_store import DriveProjectStore
-from backend.features.projects.domain import name_rules
 from backend.services.storage.storage import Storage
 
 
@@ -238,20 +237,20 @@ def test_a_leftover_archive_folder_is_not_a_project(tmp_path):
     assert [p.name for p in store.list()] == ["nikah"]
 
 
-def test_the_exports_folder_is_not_a_project(tmp_path):
-    """Madde 473: exports land in a folder of their own beside the projects, and it is not one."""
-    (tmp_path / name_rules.EXPORTS_DIR / "2026-10-20 14-30 nikah").mkdir(parents=True)
+def test_a_folder_named_exportlar_is_a_project_like_any_other(tmp_path):
+    """Madde 494: exports have a root of their own beside this one, so every folder here but arsiv
+    is a project -- the name their folder had among the projects included."""
     store = store_at(tmp_path)
-    store.create("nikah")
+    store.create("Exportlar")
 
-    assert [p.name for p in store.list()] == ["nikah"]
+    assert [p.name for p in store.list()] == ["Exportlar"]
 
 
 def test_a_reserved_folder_marked_archived_is_no_archived_card(tmp_path):
     """A mark left on a reserved name -- archiving it was open to a URL until madde 473 -- draws no
     card, and whatever case the folder was written in is the same folder on Windows."""
-    (tmp_path / "exportlar").mkdir()
-    (tmp_path / "arsiv.json").write_text('{"arsiv": ["exportlar"]}', encoding="utf-8")
+    (tmp_path / "ARSIV").mkdir()
+    (tmp_path / "arsiv.json").write_text('{"arsiv": ["ARSIV"]}', encoding="utf-8")
     store = store_at(tmp_path)
 
     assert store.list() == []
