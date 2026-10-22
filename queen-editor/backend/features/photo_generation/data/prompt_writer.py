@@ -17,7 +17,7 @@ from backend.features.photo_generation.domain import production_mode
 # either: the user adds it by hand to the prompts that want it (madde 331), and the producer moves it
 # in front (246).
 #
-# The three rules after the soundscape's are the user's, word for word (madde 483, 22 Ekim): the
+# The three rules after the soundscape's were approved by the user word for word (madde 483, 22 Ekim): the
 # man's voice drowned the woman's ("Erkek sesini azalt"); through a slime girl's translucent body H3
 # moved the penis inside her apart from the man's ("içinde penis ayrı adamın penisi ayrı hareket
 # ediyor"); and her voice and body came out as water ("normal kadının sesi çıksın, su sesi değil").
