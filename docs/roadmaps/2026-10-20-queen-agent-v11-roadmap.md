@@ -24,18 +24,15 @@ koşucaz bitiricez sonra queen agnetı koşucaz")*; o söz o iki koşu içindi.
 **Numaralar:** maddeler v11-1 – v11-4 diye yazıldı, ve koşu başlarken ortak sayaçtan gerçek
 numaralarını alır. Sayaçta en yüksek numara bugün 470 (Queen Editor v9).
 
-**Sıra, dalgalarla** — tablonun sırası dalgaların sırası değil. Bir dalganın maddeleri aynı anda
-koşabilir, aynı yere dokunmaz, ve ikisi birden frontend'e dokunmaz: her biri bütün `dist`'i yeniden
-kurar. Dalga, öncekiler birleşince başlar. v11-2'nin yeri kod derin okunmadan kestirildi: spec'i
-yazılınca yeniden bakılır. v11-5 ve v11-6'nın dalgaları hizalanınca belli olur.
+**Sıra: tek tek, dalga yok** *(kullanıcı, 22 Ekim — "dalga yok sıralı yapılacak görevler")*. Bir
+madde birleşince sıradaki başlar; worktree açılmaz, iş ana klasörde koşunun dalında yürür.
 
-- **Dalga 1:** v11-4, koşunun ilk işi; sonra v11-1. Frontend'e yalnız v11-4 dokunur (`version.js`).
-  v11-1 `store.py`'ye, `web/app.py`'ye, `main.py`'ye, 448'in dosyalarına ve notebook'a dokunur; ekranı
-  değiştirmez: ekran `body.error`'u zaten gösteriyor.
-- **Dalga 2:** v11-2. v11-2'nin düzeltmesi turun
-  dinlenişine — `routes.py`'nin `_listened`'ı, `useChat.js` — ya da notebook'un tüneline dokunur;
-  frontend'e yalnız o dokunabilir. **İlk adımları kod değil** — araştırma, gerekirse kullanıcının
-  Colab'da bakması —, dalgayı beklemeden yapılabilir.
+1. **v11-4** — sürüm V11, koşunun ilk işi.
+2. **v11-1** — bağlantı kontrolü; `store.py`, `web/app.py`, `main.py`, 448'in dosyaları ve notebook.
+3. **v11-2** — canlı akış; ilk adımı araştırma, kod değil.
+4. **v11-5** — Krea için prompt.
+5. **v11-6** — yön ve video süresi; v11-5 gibi QueenAgent'ın prompt talimatına dokunur, onun
+   arkasından.
 
 ---
 
