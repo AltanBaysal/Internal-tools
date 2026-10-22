@@ -49,7 +49,7 @@ class FileWritten:
     name: str
 
 
-# The longest chain is Start a scenario from Step 5 on, which runs in one turn: the frames and the
+# The longest chain is SDXL start scenario from Step 6 on, which runs in one turn: the frames and the
 # build, then four checks that each read the built file and build again, then the negative list.
 # 32 rounds is the owner's number (Madde 396), and the last of them closes the turn (Madde 137); an
 # unbounded loop would burn both money and time. Reaching the limit is a stop, not a failure --

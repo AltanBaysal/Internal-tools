@@ -147,7 +147,38 @@ def test_both_guides_carry_the_scene_rules(guide):
     assert "- Write each scene in English.\n" in scene
     assert "- Write each scene in sentences, never as tags.\n" in scene
     assert "inside quotes" in scene
-    assert "four seconds" in scene
+    # Madde 493: the length the user chose, no longer four seconds (the user, 22 October).
+    assert "short enough for the video length" in scene
+    assert "four seconds" not in GUIDES[guide]
+
+
+@pytest.mark.parametrize("guide", GUIDE_NAMES)
+def test_both_guides_frame_the_photo_for_the_orientation(guide):
+    # Madde 493, the user's decision of 22 October: the prompts frame the photo for the orientation
+    # the user chose, each model in its own guide.
+    from backend.features.workspace.domain.prompt import GUIDES
+
+    said = GUIDES[guide]
+    assert "The photo has the orientation of the video, landscape or portrait." in said
+    assert "to fit the orientation" in said
+
+
+@pytest.mark.parametrize(
+    "guide,landscape,portrait",
+    [
+        # Queen Editor's own sizes, per image model: comfy_photo_generator.SIZES and
+        # comfy_krea_photo_generator.SIZES (madde 476).
+        ("sdxl-prompt-writing.md", "1536 x 864", "1024 x 1536"),
+        ("krea-prompt-writing.md", "1280 x 720", "832 x 1248"),
+    ],
+)
+def test_each_guide_gives_its_photo_size_for_both_orientations(guide, landscape, portrait):
+    # The SDXL guide said portrait 1024 x 1536 alone; the size follows the orientation now.
+    from backend.features.workspace.domain.prompt import GUIDES
+
+    said = GUIDES[guide]
+    assert f"{landscape} for a landscape video, 16:9" in said
+    assert f"{portrait} for a portrait video, 2:3" in said
 
 
 @pytest.mark.parametrize(

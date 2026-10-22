@@ -1156,12 +1156,12 @@ def test_a_result_carries_no_bill():
 
 
 def test_the_document_gives_the_photos_size_and_no_models_name():
-    # The size of Queen Editor's workflow, 1024 by 1536: without the shape a frame's shot was chosen
-    # blind. No model's name, since Queen Editor lets its user pick one (the user, 10 October:
-    # "Model adı olmasın").
+    # The size of Queen Editor's workflow: without the shape a frame's shot was chosen blind. One
+    # for each orientation since Madde 493, where it was portrait 1024 by 1536 alone. No model's
+    # name, since Queen Editor lets its user pick one (the user, 10 October: "Model adı olmasın").
     said = _rules()
-    assert "1024" in said
-    assert "1536" in said
+    assert "1536 x 864" in said
+    assert "1024 x 1536" in said
     assert "nova" not in said.lower()
     assert "dasiwa" not in said.lower()
 
@@ -1376,7 +1376,7 @@ def test_create_file_no_longer_offers_to_write_a_structure():
 
 
 def test_create_file_counts_the_plan_file():
-    # Madde 459. The system prompt and Start a scenario's Step 1 have the model write a plan file
+    # Madde 459. The system prompt and SDXL start scenario's Step 2 have the model write a plan file
     # nobody asked for; a description saying only when the user asked told it the opposite. The first
     # check holds the agreement rather than the sentence, so the line can be reworded; the second
     # keeps the old sentence from coming back.
@@ -1512,7 +1512,7 @@ def test_the_edit_tool_asks_for_a_read_only_when_the_turn_has_not_seen_the_file(
 
 
 def test_the_round_limit_carries_the_longest_chain():
-    # Start a scenario runs from Step 5 on in one turn: the frames and the build, then four checks
+    # SDXL start scenario runs from Step 6 on in one turn: the frames and the build, then four checks
     # that each read the built file and build again, then the negative list. 32 is the owner's
     # number (Madde 396). Pinned, because a limit that quietly cuts the chain short looks like a
     # model that gave up.
@@ -2581,7 +2581,7 @@ def test_the_scene_tool_tells_the_model_a_place_can_be_named():
 
 def test_the_character_field_names_no_pov_entry():
     # Madde 182 wrote the pov_ entry's exception here, beside the count rule. Madde 393 takes pov_
-    # away: an entry for what a camera angle shows is Start a scenario's Step 5 rule now, for every
+    # away: an entry for what a camera angle shows is SDXL start scenario's Step 6 rule now, for every
     # kind of entry, and the count rule stands alone.
     from backend.features.workspace.domain.prompt import SET_CHARACTER_TAGS
 

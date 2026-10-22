@@ -30,7 +30,7 @@ DELETED = [
     # own. A record written before today still names this one, and that turn runs on the base text.
     "generate-prompts-plus",
     # Madde 492, the user's decision of 22 October: "improve skilinin kendisi kalksın". Its checks
-    # stay in the SDXL flow's Steps 6 - 10, for a new scenario.
+    # stay in the SDXL flow's Steps 7 - 11 (6 - 10 until Madde 493), for a new scenario.
     "improve",
 ]
 
@@ -149,9 +149,10 @@ def test_no_instruction_names_the_bulk_writer():
 
 def test_the_frames_are_updated_one_at_a_time_from_the_scene():
     # Madde 393 turns Madde 124's sentence around. One frame at a time was dropped as the expensive
-    # road; the owner, 30 September, takes the cost on purpose -- Step 5 has to get each frame right
-    # before any check sees it. Each frame starts from its scene, whose first moment the photo is.
-    said = _step(5)
+    # road; the owner, 30 September, takes the cost on purpose -- the frame step has to get each
+    # frame right before any check sees it. Each frame starts from its scene, whose first moment the
+    # photo is. Step 6 since Madde 493 put the orientation question in front.
+    said = _step(6)
     assert "- Update the frames one at a time.\n" in said
     assert "first read the scene of the frame" in said
     assert "the first moment of the scene" in said
@@ -159,20 +160,28 @@ def test_the_frames_are_updated_one_at_a_time_from_the_scene():
 
 def test_the_frame_step_says_what_is_true_before_what_to_do():
     # The owner: the rules are context, and the work sits under a heading of its own.
-    said = _step(5)
-    places = [said.index(part) for part in ("Context", "Rule 1:", "Rule 6:", "Work")]
+    said = _step(6)
+    places = [said.index(part) for part in ("Context", "Rule 1:", "Rule 7:", "Work")]
     assert places == sorted(places)
     assert said.index("Work") < said.index("Update the frames")
 
 
 def test_the_frame_step_carries_the_rules_of_the_checks():
-    # Madde 393, the owner: the checks catch what slipped, and Step 5 writes the frame right in the
+    # Madde 393, the owner: the checks catch what slipped, and Step 6 writes the frame right in the
     # first place -- one photo, simple enough for the image model, and every visible part of an NSFW
     # scene named directly.
-    said = _step(5)
+    said = _step(6)
     assert "The whole prompt of the frame must describe only one photo." in said
     assert "must be simple enough for the weak image model" in said
     assert "as in penis or vagina. Never use a euphemism." in said
+
+
+def test_the_frame_step_frames_the_photo_for_the_orientation():
+    # Madde 493, the user's decision of 22 October: the prompts frame the photo for the orientation
+    # the user chose. A rule of the SDXL guide, kept in the frame step beside the six it copies.
+    said = _step(6)
+    assert "Rule 7: The photo has the orientation of the video, landscape or portrait." in said
+    assert "to fit the orientation" in said
 
 
 def test_the_flow_no_longer_offers_a_look_at_one_character():
@@ -219,26 +228,26 @@ def test_the_editor_is_about_what_already_exists():
 # there -- the woman comes back with the man's hair. Madde 182 answered the POV frame alone, with a
 # pov_ entry opened beside each character. The owner, 30 September: every entry -- a character, an
 # outfit, a place -- can have a version for a camera angle that shows only part of it, and one made
-# for an earlier frame is used again. So pov_ is gone, and the rule sits in Step 5.
+# for an earlier frame is used again. So pov_ is gone, and the rule sits in the frame step, Step 6.
 
 
 def test_the_frame_step_names_the_most_common_mistake():
     # The owner: the biggest problem there is, so the reason stands in front of the rules.
-    said = _step(5)
+    said = _step(6)
     assert "The most common mistake: a tag hidden by the camera angle goes onto another" in said
     assert said.index("The most common mistake") < said.index("Rule 1:")
 
 
 @pytest.mark.parametrize("kind", ["character", "outfit", "place"])
 def test_an_entry_is_used_only_when_the_camera_angle_shows_all_of_it(kind):
-    said = _step(5)
+    said = _step(6)
     assert f"If one of the {kind}'s entries fits the camera angle, use the entry." in said
     assert "An entry fits when every tag of the entry is meant to be in the photo." in said
     assert "If no entry fits, add a new entry with only the tags meant to be in the photo." in said
 
 
 def test_no_instruction_opens_a_pov_entry():
-    assert "can have more than one entry, for different camera angles" in _step(5)
+    assert "can have more than one entry, for different camera angles" in _step(6)
     # Asked after the presence above, so the absence cannot pass on a text nobody wrote.
     for skill, said in INSTRUCTIONS.items():
         assert "pov_" not in said, skill
@@ -256,9 +265,10 @@ def test_no_instruction_carries_a_whole_guide():
 
 
 def test_a_place_gets_a_mirror_only_when_the_user_asks():
-    # Madde 453 gives Step 3 the same exception the SDXL document has, so the two texts agree (the
+    # Madde 453 gives the places step (Step 4 since Madde 493) the same exception the SDXL document
+    # has, so the two texts agree (the
     # user, 29 September: a mirror goes in only when the user asks for one).
-    said = _step(3).lower()
+    said = _step(4).lower()
     assert "mirror" in said
     assert "user asks" in said
 
@@ -266,22 +276,37 @@ def test_a_place_gets_a_mirror_only_when_the_user_asks():
 # --- the flow that walks the user through it (Madde 101) -----------------------------------------
 
 
-def test_the_flow_writes_the_plan_before_it_asks_anything():
-    # Step one whatever the user's opening sentence was. Without it the flow starts somewhere
-    # different every time, and has nowhere to keep its place.
+def test_the_flow_takes_them_from_the_notes_when_the_work_carries_on():
+    # A fresh chat carries on from the plan (Step 2), and would ask again what the notes file
+    # already holds.
+    assert "take the orientation and the video length from the notes file instead" in _step(1)
+
+
+def test_the_flow_writes_them_into_a_notes_file_with_the_scenario():
+    # The user, 22 October: "SDXL start scenario da <senaryo>-notes.md açsın, yönü ve süreyi oraya
+    # yazsın". The notes file is named after the scenario, so it opens in the step that names one.
+    said = _step(3)
+    assert "Write the orientation and the video length into a notes file." in said
+    assert NOTES_EXAMPLE["start-a-scenario"] in said
+
+
+def test_the_flow_writes_the_plan_before_the_work_starts():
+    # The plan opened the flow whatever the user's opening sentence was. Without it the flow starts
+    # somewhere different every time, and has nowhere to keep its place. Madde 493 puts the user's
+    # two questions in front of it (the user, 22 October), which writes nothing the plan would keep.
     #
     # Madde 207: the step's own sentence is what says a plan is boxes. Since Madde 393 it names no
     # tool, only the file to write.
-    assert "write a plan file" in _step(1)
+    assert "write a plan file" in _step(2)
 
 
 def test_the_plan_gives_both_the_empty_and_the_done_shape():
     # Madde 466. Madde 198 found the model inventing its own mark when only the empty box was
     # written down, and the next turn did not recognise it. Now that the marks say how far the
-    # work got, Step 1 gives the done shape beside the empty one.
-    said = _step(1)
-    assert "- [ ] 1." in said
-    assert "- [x] 1." in said
+    # work got, the plan step gives the done shape beside the empty one.
+    said = _step(2)
+    assert "- [ ] 2." in said
+    assert "- [x] 2." in said
 
 
 def test_the_flow_carries_on_from_a_plan_that_is_already_there():
@@ -298,7 +323,7 @@ def test_where_the_work_stopped_is_read_off_the_plans_marks():
     # güçlü"): the base tells the model to mark a plan file's done step, so the marks say how far
     # the work got. The files stay as the check -- what the work produced is on disk either way, and
     # a mark can still be skipped.
-    said = _step(1)
+    said = _step(2)
     assert any(
         all(word in line for word in ("marked", "how far the work got", "files of the project"))
         for line in said.splitlines()
@@ -326,7 +351,7 @@ def test_the_scenes_are_written_in_english_with_the_words_in_quotes():
     # character says -- in quotes, translated into good English -- which one sentence could not.
     from backend.features.workspace.domain.prompt import ADD_FRAME_SCENE
 
-    said = _step(4)
+    said = _step(5)
     assert "- Write each scene in English.\n" in said
     assert "inside quotes, in natural, well-written English" in said
     assert "one sentence" not in said
@@ -345,7 +370,7 @@ def test_the_scenario_is_opened_once_with_the_characters():
     # Madde 186 moved that step from the characters to the plan, because what named the file was
     # the context. Madde 198 takes the context away, so the birth goes back where it was: the first
     # character is what the file can be named after. Since Madde 393 without the tool's name.
-    assert "Open the scenario file once" in _step(2)
+    assert "Open the scenario file once" in _step(3)
 
 
 def test_the_flow_names_no_tool_to_mark_a_step():
@@ -365,7 +390,7 @@ def test_the_flow_hands_off_to_nobody():
     said = _flow()
     # Asserted first, and not for company: a test looking for the absence of a name passes on a
     # text that was never read at all, which is how eleven tests in this run went green while red.
-    assert STEPS[4] in said
+    assert STEPS[5] in said
     assert "Generate prompts+" not in said
     assert "skills menu" not in said
 
@@ -386,7 +411,7 @@ def test_a_character_is_named_as_the_user_named_them():
     # Correction 17. Asked for a name, a model invents one -- and the user's own scenario comes back
     # holding somebody they never named. What the user said is the name; where they said nothing,
     # the name is English for what the person is, so it reads as a description rather than a person.
-    said = _step(2)
+    said = _step(3)
     assert "Use the name from the user. Without a name, use short English words" in said
 
 
@@ -400,16 +425,17 @@ def test_no_instruction_writes_a_scene_list_file():
 
 
 STEPS = (
-    "Step 1 -- write the plan",
-    "Step 2 -- write the characters and outfits",
-    "Step 3 -- write the places",
-    "Step 4 -- write the scenes",
-    "Step 5 -- update the frames and build the prompts",
-    "Step 6 -- fit each scene into four seconds",
-    "Step 7 -- fit each prompt into one photo",
-    "Step 8 -- remove tags hidden by the camera angle",
-    "Step 9 -- simplify prompts too hard to draw",
-    "Step 10 -- write the negative list",
+    "Step 1 -- ask the orientation and the video length",
+    "Step 2 -- write the plan",
+    "Step 3 -- write the characters and outfits",
+    "Step 4 -- write the places",
+    "Step 5 -- write the scenes",
+    "Step 6 -- update the frames and build the prompts",
+    "Step 7 -- fit each scene into the video length",
+    "Step 8 -- fit each prompt into one photo",
+    "Step 9 -- remove tags hidden by the camera angle",
+    "Step 10 -- simplify prompts too hard to draw",
+    "Step 11 -- write the negative list",
 )
 """The flow's steps, in the order they run (Madde 198, written this way by correction 9).
 
@@ -418,18 +444,20 @@ Madde 186 had six of these and the first was the context; that question is gone,
 moved with it. Numbered headings became named ones so that every step reads the same way -- a
 heading, then its rules as lines -- and so the loop above them is not read as one more step. Madde
 391 adds four: the checks the flow runs on the prompts it has just built. Madde 392 adds the last
-one: the negative list, written once the prompts are final.
+one: the negative list, written once the prompts are final. Madde 493 puts one in front: the
+orientation and the video length, which every scene and every prompt after it depends on.
 """
 
 
-def test_the_flow_runs_ten_numbered_steps():
+def test_the_flow_runs_eleven_numbered_steps():
     # Madde 108: a stage outside the numbered list is a stage a weak model walks past, because it
     # stops when the list ends. Five since Madde 198 -- the context question in front of them was
     # the one thing a user had to answer before any work could start -- nine since Madde 391, whose
-    # checks follow the build, and ten since Madde 392, whose negative list closes the flow.
+    # checks follow the build, ten since Madde 392, whose negative list closes the flow, and eleven
+    # since Madde 493, whose question opens it.
     said = _flow().lower()
-    assert "ten steps" in said
-    assert "nine steps" not in said
+    assert "eleven steps" in said
+    assert "ten steps" not in said
     assert "five steps" not in said
     for step in STEPS:
         assert step.lower() in said, step
@@ -468,14 +496,14 @@ def test_the_flow_builds_the_prompts_once_the_frames_are_written():
     # file the flow left held no action to build from; now the same step writes them all, and
     # stopping short would leave the user one manual call from what they asked for. Madde 393: the
     # build comes after the last frame, not after each.
-    assert "- After the last frame, build the prompts.\n" in _step(5)
+    assert "- After the last frame, build the prompts.\n" in _step(6)
     assert "build_prompts is never called here" not in _flow()
 
 
 # --- the checks the flow ends with (Madde 391) ----------------------------------------------------
 #
 # 30 September, the owner: the questions they used to put to the model by hand once the prompts were
-# built -- does a scene fit its four-second video, does a prompt hold one photo, does it name only
+# built -- does a scene fit its video, does a prompt hold one photo, does it name only
 # what the angle shows, can the image model draw it -- are the flow's own last four steps. Each is
 # written in its own step of Start a scenario's text: the first try kept them in a block several
 # skills shared, and the owner took it back. Each says why it runs, reviews the built prompt file
@@ -485,7 +513,7 @@ def test_the_flow_builds_the_prompts_once_the_frames_are_written():
 # the file's fields -- the model is strong enough to pick the tool, and a list of fields goes stale
 # the day a field is added.
 
-CHECKS = [6, 7, 8, 9]
+CHECKS = [7, 8, 9, 10]
 LAST_WORD = "- Tell the user the prompts and the negative list are complete."
 
 
@@ -537,17 +565,18 @@ def test_every_review_is_written_to_a_file_of_its_own(number):
 
 
 def test_a_scene_longer_than_its_video_is_shortened_or_split():
-    # The owner: a scene becomes a video of exactly four seconds. A scene that can be written to fit
-    # with every event kept is written again; one that cannot is split in two. The model does not
-    # choose which events matter -- the owner took that reading out.
-    said = _step(6)
-    assert "video of exactly four seconds" in said
+    # The owner: a scene becomes a video of exactly the video length -- four seconds until Madde
+    # 493 let the user choose it (22 October). A scene that can be written to fit with every event
+    # kept is written again; one that cannot is split in two. The model does not choose which events
+    # matter -- the owner took that reading out.
+    said = _step(7)
+    assert "video of exactly the video length" in said
     assert "with every event kept" in said
-    assert "split the scene into two scenes of four seconds each" in said
+    assert "split the scene into two scenes of the video length each" in said
     assert "right after the first scene" in said
-    # Madde 393: a changed or new frame is written again whole, by Step 5's rules, not only its
-    # action -- a split scene's second frame needs its entries chosen for its own camera angle too.
-    assert "Update each changed frame and each new frame by the rules of Step 5." in said
+    # Madde 393: a changed or new frame is written again whole, by the frame step's rules, not only
+    # its action -- a split scene's second frame needs its entries chosen for its own camera angle.
+    assert "Update each changed frame and each new frame by the rules of Step 6." in said
     # Asked after the presence above, so the absence cannot pass on a text nobody wrote.
     assert "important" not in said
     assert "main event" not in said
@@ -555,8 +584,8 @@ def test_a_scene_longer_than_its_video_is_shortened_or_split():
 
 def test_a_prompt_is_cut_to_one_photo_without_touching_the_scene():
     # The owner's fourth question: the image model draws one photo, and a prompt describing more
-    # breaks the image. The scene stays as Step 6 left it, and no scene is added here.
-    said = _step(7)
+    # breaks the image. The scene stays as Step 7 left it, and no scene is added here.
+    said = _step(8)
     assert "more than one photo can hold" in said
     assert "Do not change the scene, and do not add a new scene." in said
 
@@ -565,7 +594,7 @@ def test_a_tag_the_angle_hides_is_taken_out():
     # The owner's second question, widened by the owner: not only a part of a character -- a hidden
     # part of the room or of an outfit is drawn anyway too, and a tag with nowhere to go lands on
     # somebody else. The hair is the owner's example.
-    said = _step(8)
+    said = _step(9)
     assert "hidden by the camera angle" in said
     assert "draws every tag in the prompt, hidden or not" in said
     assert "another character" in said
@@ -574,22 +603,22 @@ def test_a_tag_the_angle_hides_is_taken_out():
 
 def test_the_last_check_asks_the_owners_question():
     # The owner's first question, asked as they ask it.
-    assert "can a weak image model draw the prompt as written?" in _step(9)
+    assert "can a weak image model draw the prompt as written?" in _step(10)
 
 
-@pytest.mark.parametrize("number", [7, 8, 9])
+@pytest.mark.parametrize("number", [8, 9, 10])
 def test_the_image_checks_say_the_model_is_weak(number):
     # The owner: say at the head of each image check that the model is weak and draws every tag. Not
-    # in Step 6, which is about the length of the video rather than the image.
+    # in Step 7, which is about the length of the video rather than the image.
     context = _step(number).split("Part 1 -- review")[0]
     assert "The image model is weak and draws every tag in the prompt" in context
 
 
 def test_the_video_check_says_nothing_of_the_image_model():
-    assert "image model" not in _step(6)
+    assert "image model" not in _step(7)
 
 
-@pytest.mark.parametrize("number", [7, 8, 9])
+@pytest.mark.parametrize("number", [8, 9, 10])
 def test_a_fix_is_made_where_the_part_comes_from(number):
     # The prompt file is rebuilt rather than patched, so a part is fixed in the scenario file where
     # it comes from. An entry is shared by every frame naming it, so a change one frame needs alone
@@ -627,10 +656,10 @@ def test_the_checks_use_no_pronouns():
 def test_no_instruction_says_what_the_model_cannot_draw():
     # The owner, 30 September: told it cannot draw anything complex, the model really does go and
     # ask for only the simplest things. The last check asks the owner's question instead of making
-    # the claim, and Step 5 says what a complex prompt does -- breaks the image -- rather than what
+    # the claim, and Step 6 says what a complex prompt does -- breaks the image -- rather than what
     # the model cannot do (the owner's own line).
-    assert "can a weak image model draw" in _step(9)
-    assert "A complex prompt breaks the image." in _step(5)
+    assert "can a weak image model draw" in _step(10)
+    assert "A complex prompt breaks the image." in _step(6)
     # Asked after the presence above, so the absence cannot pass on a text nobody wrote.
     for skill, said in INSTRUCTIONS.items():
         said = said.lower()
@@ -644,9 +673,10 @@ def test_no_check_reports_every_change():
     assert "Say the changed frames" not in _flow()
 
 
-@pytest.mark.parametrize("number", [5, 6, 7, 8, 9])
+@pytest.mark.parametrize("number", [6, 7, 8, 9, 10])
 def test_the_build_and_the_checks_wait_for_no_approval(number):
-    # How a step runs says every step waits for a yes, and Step 1 already says it does not. These
+    # How a step runs says every step waits for a yes, and the plan step, Step 2, already says it
+    # does not. These
     # say it the same way, and each goes on in the same turn -- the owner: update directly.
     said = _step(number)
     assert "This step waits for no approval." in said
@@ -660,7 +690,7 @@ def test_the_flow_ends_by_saying_the_prompts_are_complete():
     said = _flow()
     assert said.endswith(LAST_WORD)
     assert "Closing" not in said
-    assert "approval" not in _step(10)
+    assert "approval" not in _step(11)
 
 
 # --- the negative list the flow ends with (Madde 392) ---------------------------------------------
@@ -674,13 +704,13 @@ def test_the_flow_ends_by_saying_the_prompts_are_complete():
 
 def test_the_negative_list_is_for_the_image_model():
     # The owner: say so, it matters -- the scenes go to the video model, the negative to the photo.
-    assert "The negative list is for the image model, not the video model." in _step(10)
+    assert "The negative list is for the image model, not the video model." in _step(11)
 
 
 def test_the_negative_list_keeps_the_characters_apart():
     # The owner: characters' features mixing is the biggest problem, and the list is written for
     # it, from every tag of every entry.
-    said = _step(10)
+    said = _step(11)
     assert "The biggest problem is the features of the characters mixing" in said
     assert "Read every tag of every entry of the scenario." in said
     assert "Never write a feature of a character into the negative list." in said
@@ -688,7 +718,7 @@ def test_the_negative_list_keeps_the_characters_apart():
 
 
 def test_the_negative_list_is_a_file_of_tags_alone():
-    said = _step(10)
+    said = _step(11)
     assert "-negative.md" in said
     assert "Write only the tags into the file, separated by commas." in said
     assert "Nothing else goes into the file." in said
@@ -718,15 +748,17 @@ def test_the_checks_are_written_in_the_flow_itself():
 #
 # 22 October, the user: "Krea start scenario olacak, bir de Krea edit olacak". Simple texts in the
 # shape of the SDXL two, carrying no SDXL rule; how a character is described is left open ("şu an bu
-# kısıtlamalara girmeyelim"). The Krea flow asks the name and the style first ("senaryo başlarken
-# sorulsun"), and keeps the characters' and places' looks in a notes file.
+# kısıtlamalara girmeyelim"). The Krea flow asks the name and the style when it starts ("senaryo
+# başlarken sorulsun"), behind the orientation and the video length since Madde 493, and keeps the
+# characters' and places' looks in a notes file.
 
 KREA_STEPS = (
-    "Step 1 -- open the scenario with its name and style",
-    "Step 2 -- write the scenes",
-    "Step 3 -- write the notes",
-    "Step 4 -- add the frames with their prompts",
-    "Step 5 -- build the prompts",
+    "Step 1 -- ask the orientation and the video length",
+    "Step 2 -- open the scenario with its name and style",
+    "Step 3 -- write the scenes",
+    "Step 4 -- write the notes",
+    "Step 5 -- add the frames with their prompts",
+    "Step 6 -- build the prompts",
 )
 
 
@@ -739,45 +771,59 @@ def _krea_step(number):
     return said[start : said.index(KREA_STEPS[number])]
 
 
-def test_the_krea_flow_runs_five_steps_in_order():
+def test_the_krea_flow_runs_six_steps_in_order():
     said = _krea_flow()
-    assert "five steps" in said
+    assert "six steps" in said
     places = [said.index(step) for step in KREA_STEPS]
     assert places == sorted(places)
 
 
-def test_the_krea_flow_asks_the_name_and_the_style_first():
-    said = _krea_step(1)
+def test_the_krea_flow_asks_the_name_and_the_style_when_it_starts():
+    said = _krea_step(2)
     assert "the name of the scenario and for the style of the photos" in said
     assert "Open the scenario file once, with the name and the style." in said
 
 
 def test_the_krea_flow_writes_the_scenes_by_the_scene_rules():
-    said = _krea_step(2)
+    said = _krea_step(3)
     assert "- Write each scene in English.\n" in said
     assert "- Write each scene in sentences, never as tags.\n" in said
     assert "inside quotes, in natural, well-written English" in said
-    assert "short enough for four seconds" in said
+    assert "short enough for the video length" in said
 
 
-def test_the_krea_flow_keeps_the_looks_in_a_notes_file():
-    # The user, 22 October: the notes go into <scenario>-notes.md.
-    said = _krea_step(3)
-    assert "-notes.md" in said
-    assert "beach-notes.md for beach.krea.json" in said
+def test_the_krea_flow_keeps_the_looks_in_the_notes_file():
+    # The user, 22 October: the notes go into the scenario's notes file. The file is opened in Step
+    # 2, with the orientation and the video length, and the looks are written into the same file.
+    said = _krea_step(4)
+    assert "how each place looks into the notes file" in said
+
+
+def test_the_krea_flow_opens_the_notes_file_with_the_scenario():
+    # Madde 493: the answers of Step 1 go into the notes file, which is named after the scenario
+    # and so opens in the step that names one.
+    said = _krea_step(2)
+    assert "Write the orientation and the video length into a notes file." in said
+    assert NOTES_EXAMPLE["krea-start-scenario"] in said
 
 
 def test_the_krea_flow_adds_the_frames_from_the_notes_in_one_go():
     # One call writes many frames; a call per frame would spend the turn's rounds.
-    said = _krea_step(4)
+    said = _krea_step(5)
     assert "from the notes" in said
     assert "many frames in one go" in said
-    assert "This step waits for no approval. Go on to Step 5 in the same turn." in said
+    assert "This step waits for no approval. Go on to Step 6 in the same turn." in said
+
+
+def test_the_krea_flow_frames_each_photo_for_the_orientation():
+    # Madde 493, the user's decision of 22 October: the prompts frame the photo for the
+    # orientation the user chose, in Krea as in SDXL -- each in its own model's texts.
+    assert "Frame the photo of each frame for the orientation in the notes." in _krea_step(5)
 
 
 def test_the_krea_flow_ends_by_saying_the_prompts_are_complete():
     said = _krea_flow()
-    assert "- Build the prompts.\n" in _krea_step(5)
+    assert "- Build the prompts.\n" in _krea_step(6)
     assert said.endswith("never print the prompts back.")
 
 
@@ -788,6 +834,78 @@ def test_the_krea_editor_reads_the_scenario_and_its_notes():
     assert "goes into the notes file too" in said
     assert "Build the prompts again." in said
     assert "The built prompt file is the answer: never print the prompts back." in said
+
+
+# --- the orientation and the video length (Madde 493) ---------------------------------------------
+#
+# 22 October, the user: "biz videoları yatay yapma özelliği eklemedik mi, queen agent başta sormalı
+# ki ona göre prompt yazsın"; "bir de video süresi var". Both start skills ask first, the answers
+# live in the scenario's notes file ("sonra da notes'a not alırlar"), and both edit skills read them
+# there -- asking when an older scenario has none ("mantıklı"). No text fixes a length or a size any
+# more.
+
+START_SKILLS = {"start-a-scenario": _step, "krea-start-scenario": _krea_step}
+EDIT_SKILLS = ["edit-prompts", "krea-edit"]
+
+NOTES_EXAMPLE = {
+    "start-a-scenario": "as in beach.sdxl-notes.md for beach.sdxl.json",
+    "edit-prompts": "as in beach.sdxl-notes.md for beach.sdxl.json",
+    "krea-start-scenario": "as in beach.krea-notes.md for beach.krea.json",
+    "krea-edit": "as in beach.krea-notes.md for beach.krea.json",
+}
+"""How each skill names the notes file: the scenario's file name without .json, kind kept.
+
+The user, 22 October ("evet böyle olsun"): beach.sdxl.json and beach.krea.json in one project would
+otherwise share beach-notes.md, and the second start's file would be refused as taken. The kind stays
+in the name the way build_prompts keeps it in beach.sdxl.py.
+"""
+
+
+@pytest.mark.parametrize("skill", ALL_SKILLS)
+def test_every_skill_names_the_notes_file_with_its_kind(skill):
+    said = instruction_for(skill)
+    assert NOTES_EXAMPLE[skill] in said
+    # Asked after the presence above, so the absence cannot pass on a text nobody wrote.
+    assert "beach-notes.md" not in said
+
+
+@pytest.mark.parametrize("skill", sorted(START_SKILLS))
+def test_every_start_skill_asks_the_orientation_and_the_video_length_first(skill):
+    said = START_SKILLS[skill](1)
+    assert said.startswith("Step 1 -- ask the orientation and the video length\n")
+    assert "whether the video is landscape or portrait" in said
+    assert "how many seconds the video of each frame is" in said
+    assert "Go on to Step 2 in the same turn." in said
+
+
+@pytest.mark.parametrize("skill", sorted(START_SKILLS))
+def test_every_start_skill_says_the_user_chooses_both(skill):
+    said = instruction_for(skill)
+    assert "The user chooses both in Step 1." in said
+
+
+@pytest.mark.parametrize("skill", EDIT_SKILLS)
+def test_every_edit_skill_reads_the_notes_and_asks_when_they_are_missing(skill):
+    # The user, 22 October: "SDXL edit de işe başlarken bu notu okusun"; an older scenario with no
+    # notes file is asked about ("mantıklı"), and the answer kept so the next edit need not ask.
+    said = instruction_for(skill)
+    assert "Read the scenario file named in the request, and the notes file of the scenario." in said
+    assert "says whether the video is landscape or portrait" in said
+    assert (
+        "If the notes file is missing, or does not say the orientation and the video length, ask "
+        "the user." in said
+    )
+    assert "Write the answers into the notes file" in said
+
+
+@pytest.mark.parametrize("skill", ALL_SKILLS)
+def test_no_skill_fixes_the_video_length(skill):
+    # "four seconds" was the length before the user could choose one (Madde 493).
+    said = instruction_for(skill)
+    assert "video length" in said
+    # Asked after the presence above, so the absence cannot pass on a text nobody wrote.
+    assert "four seconds" not in said
+    assert "1536" not in said
 
 
 @pytest.mark.parametrize("skill", ALL_SKILLS)
@@ -849,9 +967,9 @@ def test_the_other_skills_open_as_the_same_persona(skill):
 def test_the_flow_looks_for_a_plan_before_it_writes_one():
     # Madde 107 tied the opening moves to the chat's first turn, and Madde 134 found the model
     # writing a plan and then reading its own new plan as one from before. The owner, 30 September:
-    # which turn it is cannot be told reliably, so Step 1 looks for a plan first and writes one
-    # only when there is none.
-    said = _step(1)
+    # which turn it is cannot be told reliably, so the plan step looks for a plan first and writes
+    # one only when there is none.
+    said = _step(2)
     assert said.index("Look for a plan in the project.") < said.index("If there is no plan")
     assert "first turn" not in _flow()
 
@@ -929,7 +1047,8 @@ def test_the_texts_stay_short_enough_to_be_read():
     # wrote the four steps line by line, and the count is what that text came to.
     #
     # Madde 393 raises the flow's again and lowers the editor's, both on the same written decision.
-    # The owner wrote Step 5 line by line so each frame comes out right before any check sees it:
+    # The owner wrote the frame step (Step 6 since Madde 493) line by line so each frame comes out
+    # right before any check sees it:
     # six rules, one kind of entry to a rule so each stands alone, and the reason in front of them.
     # The editor's came down with the tool names and the rules the owner did not keep.
     #
@@ -943,7 +1062,14 @@ def test_the_texts_stay_short_enough_to_be_read():
     # guide fits under the old caps. The Krea two get caps of their own, written here as the rule
     # asks: what the texts came to and a few words of room -- not room for the next sentence.
     # Improve's went with it.
-    assert len(_flow().split()) <= 1835
-    assert len(_edit().split()) <= 205
-    assert len(_krea_flow().split()) <= 430
-    assert len(_krea_edit().split()) <= 270
+    #
+    # Madde 493 raises all four, on the user's written decision of 22 October: the cap rises as far
+    # as the texts need ("sınır gerektiği kadar yükseltilsin"). Each start skill gains a first step
+    # asking the orientation and the video length, a context line saying the user chooses both, and
+    # a line opening the notes file that keeps them; each edit reads the notes and asks when they are
+    # missing; the SDXL flow's frame step gains Rule 7, framing the photo for the orientation. The
+    # texts came to 2012, 263, 531 and 314 words; each cap is that and a few words of room.
+    assert len(_flow().split()) <= 2020
+    assert len(_edit().split()) <= 275
+    assert len(_krea_flow().split()) <= 540
+    assert len(_krea_edit().split()) <= 325

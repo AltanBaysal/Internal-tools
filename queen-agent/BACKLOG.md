@@ -175,8 +175,8 @@ eklemdğimizde farklı bir taz çıkıyor ve eklemessek farkalı default bunlar�
 yinede usera sorulsun gerçekçiye yakın mı yoksa daha çim gibi ister msiiniz diye".)* `3d`, `cgi`,
 `photorealistic`, `realistic`, `sketch`, `monochrome` ve `glow` negatif listede olunca bir stil, olmayınca
 başka bir stil çıkıyor. Varsayılan: yedisi de negatif listede. Yine de kullanıcıya sorulur: gerçekçiye
-yakın mı, yoksa daha çizim gibi mi. Negatif listeyi bugün Start a scenario'nun Step 10'u ve Improve'un
-Step 5'i yazıyor. **Ayrıntılar kullanıcıyla konuşulacak.**
+yakın mı, yoksa daha çizim gibi mi. Negatif listeyi bugün SDXL start scenario'nun Step 11'i yazıyor
+(Improve 492'de kalktı). **Ayrıntılar kullanıcıyla konuşulacak.**
 
 ## Birden çok proje tek seferde arşivlenecek
 
