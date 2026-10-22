@@ -281,12 +281,21 @@ def test_a_server_that_never_came_up_shows_its_own_log():
 
 
 def test_the_wait_ends_when_the_server_dies():
-    """Madde 448: a start can now take minutes, so the wait is long -- and a server that died is
-    said at once rather than at the end of it."""
+    """A server that died is said at once rather than at the end of the wait -- above all one that
+    refused to start on a root it cannot reach, whose sentence is then the last line of its log
+    (Madde 490)."""
     serve = _cell(SERVE)
     assert "server = subprocess.Popen(" in serve and "server.poll()" in serve, (
         "Sunucu kapanınca bekleme sürüyor"
     )
+
+
+def test_a_server_silent_past_ninety_seconds_is_stuck():
+    """A start reads one file, projects.json, so a server that has not answered within 90 seconds is
+    stuck, and waiting longer only hides it."""
+    cap = re.search(r"^START_CAP = (\d+)", _cell(SERVE), re.M)
+    assert cap, "Serve hücresinde bekleme sınırı yok"
+    assert int(cap.group(1)) <= 90, "Bekleme sınırı 90 saniyeyi aşıyor"
 
 
 def test_the_address_comes_from_cloudflared():

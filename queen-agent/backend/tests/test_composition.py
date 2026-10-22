@@ -3,9 +3,12 @@
 Asked by reading the file rather than importing it. The composition root is the one file whose whole
 content is wiring, and importing it builds a real app against the user's own data root -- a test that
 does that is a test with a side effect on the machine it runs on. Reading a file to ask what it says
-is not new here either: test_notebook.py is nothing else.
+is not new here either: test_notebook.py is nothing else. The one exception runs it against a root
+that does not exist, where it must stop before it builds anything.
 """
 import os
+import subprocess
+import sys
 
 _QUEEN_AGENT = os.path.dirname(          # queen-agent
     os.path.dirname(                     # backend
@@ -48,9 +51,23 @@ def test_a_stop_is_an_ordinary_exit():
     assert "signal.signal(signal.SIGTERM" in _main(), "SIGTERM yazıcıyı beklemeden kapatıyor"
 
 
-def test_old_projects_are_moved_at_start():
-    """Madde 448, until it is confirmed: the move runs once the store is built."""
-    assert "move_old_projects(store, projects)" in _main(), "Eski projeler açılışta taşınmıyor"
+def test_a_root_that_cannot_be_reached_stops_the_start(tmp_path):
+    """Madde 490: no server, and the real sentence, rather than an empty list of projects. Run rather
+    than read, since what is asked is what the process does -- against a root under tmp_path that
+    does not exist, so the run touches nothing of the user's and ends by itself."""
+    root = tmp_path / "root"
+    started = subprocess.run(
+        [sys.executable, "main.py"],
+        cwd=_QUEEN_AGENT,
+        env={**os.environ, "QUEENAGENT_ROOT": str(root)},
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert started.returncode != 0, "Sunucu ulaşılamayan bir kökle açıldı"
+    assert "QueenAgent did not start" in started.stderr
+    assert "The root cannot be reached: " in started.stderr
+    assert not root.exists(), "Açılış kökü açtı"
 
 
 def test_no_prompt_writer_is_wired():

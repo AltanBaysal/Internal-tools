@@ -1,8 +1,9 @@
 import os
+from types import SimpleNamespace
 
 import pytest
 
-from backend.services.store.store import PathOutsideRoot, Store
+from backend.services.store.store import PathOutsideRoot, RootUnreachable, Store
 
 
 @pytest.mark.parametrize(
@@ -86,34 +87,146 @@ def test_the_temporary_file_is_written_beside_its_target(tmp_path, monkeypatch):
     assert os.path.dirname(src) == os.path.dirname(dst)
 
 
-def test_root_is_created_on_first_write_not_on_construction(tmp_path):
-    root = tmp_path / "queenagent-root"
+# Madde 490. The root is stat'ed before every operation, and never made: when Colab's Drive drops,
+# a write that made its folders would make them on Colab's own disk and say it succeeded.
+
+# Every public operation, called on a root holding p1/a.txt. A method added to Store and not here
+# fails test_every_operation_is_checked.
+CALLS = {
+    "read_text": lambda store: store.read_text("p1/a.txt"),
+    "write_text": lambda store: store.write_text("p1/b.txt", "new"),
+    "list_dir": lambda store: store.list_dir("p1"),
+    "move": lambda store: store.move("p1/a.txt", "trash/a.txt"),
+}
+
+DROPPED = "Transport endpoint is not connected"
+
+
+def _root_stat(monkeypatch, root, answer):
+    """os.stat with the root's own answer given by `answer(real_stat, path)`; every other path
+    stats as it does. Returns the list of times the root was asked."""
+    real = os.stat
+    asked = []
+
+    def stat(path, *args, **kwargs):
+        if os.path.abspath(path) == os.path.abspath(root):
+            asked.append(path)
+            return answer(real, path)
+        return real(path, *args, **kwargs)
+
+    monkeypatch.setattr(os, "stat", stat)
+    return asked
+
+
+def _dropped(real, path):
+    raise OSError(107, DROPPED, path)
+
+
+def _tree(root):
+    """Every folder and file under the root, with each file's text."""
+    seen = []
+    for folder, _dirs, files in os.walk(root):
+        seen.append((os.path.relpath(folder, root), None))
+        for name in files:
+            with open(os.path.join(folder, name), encoding="utf-8") as handle:
+                seen.append((os.path.relpath(os.path.join(folder, name), root), handle.read()))
+    return sorted(seen, key=lambda entry: entry[0])
+
+
+def _laid(root):
+    os.mkdir(root)
     store = Store(str(root))
-    assert not os.path.exists(root)
-    store.write_text("a.txt", "x")
-    assert os.path.exists(root)
+    store.write_text("p1/a.txt", "body")
+    return store
+
+
+def test_every_operation_is_checked():
+    public = {name for name in vars(Store) if not name.startswith("_")}
+    assert public == set(CALLS), "Store'un bir açık yöntemi bağlantı testlerinde yok"
+
+
+@pytest.mark.parametrize("operation", sorted(CALLS))
+def test_a_dropped_connection_stops_every_operation_and_writes_nothing(tmp_path, monkeypatch, operation):
+    root = tmp_path / "root"
+    store = _laid(root)
+    before = _tree(root)
+    _root_stat(monkeypatch, root, _dropped)
+    with pytest.raises(RootUnreachable) as refused:
+        CALLS[operation](store)
+    # Not "not found": the callers' except FileNotFoundError would turn it into an empty answer.
+    assert not isinstance(refused.value, FileNotFoundError)
+    assert DROPPED in str(refused.value), "Hata işletim sisteminin cümlesini taşımıyor"
+    assert _tree(root) == before
+
+
+@pytest.mark.parametrize("operation", sorted(CALLS))
+def test_a_missing_root_stops_every_operation_and_is_never_made(tmp_path, operation):
+    root = tmp_path / "root"
+    with pytest.raises(RootUnreachable) as refused:
+        CALLS[operation](Store(str(root)))
+    assert not isinstance(refused.value, FileNotFoundError)
+    assert not root.exists(), "Kök açıldı"
+
+
+def test_a_root_on_another_device_is_refused(tmp_path, monkeypatch):
+    # Drive gone and a folder of the same name made on Colab's own disk: the stat succeeds, the
+    # device is what tells them apart.
+    store = _laid(tmp_path / "root")
+    first = os.stat(tmp_path / "root").st_dev
+    _root_stat(monkeypatch, tmp_path / "root", lambda real, path: SimpleNamespace(st_dev=first + 1))
+    with pytest.raises(RootUnreachable) as refused:
+        store.read_text("p1/a.txt")
+    assert f"device {first}, now {first + 1}" in str(refused.value)
+
+
+def test_construction_stats_nothing_and_each_operation_stats_the_root_once(tmp_path, monkeypatch):
+    asked = _root_stat(monkeypatch, tmp_path, lambda real, path: real(path))
+    store = Store(str(tmp_path))
+    assert asked == [], "Kurulum diske dokundu"
+    store.write_text("p1/a.txt", "body")
+    assert len(asked) == 1
+    for operation in sorted(CALLS):
+        CALLS[operation](store)
+        store.write_text("p1/a.txt", "body")
+    assert len(asked) == 1 + 2 * len(CALLS), "Bir işlem kökü birden çok kez yokladı"
+
+
+def test_a_root_gone_after_the_check_is_still_never_made(tmp_path, monkeypatch):
+    # The connection drops between the check and the write: the write fails on its own, and the
+    # folders it would make stop at the root.
+    root = tmp_path / "root"
+    _root_stat(monkeypatch, root, lambda real, path: real(str(tmp_path)))
+    store = Store(str(root))
+    with pytest.raises(FileNotFoundError):
+        store.write_text("p1/chats/c1.json", "{}")
+    with pytest.raises(FileNotFoundError):
+        store.write_text("projects.json", "{}")
+    with pytest.raises(FileNotFoundError):
+        store.move("p1", "trash/p1")
+    assert not root.exists(), "Kök açıldı"
 
 
 # Madde 447. On Drive every call is a round trip, and making a folder that is already there costs
-# three of them; a folder is made only when the write finds it missing.
+# one; a folder is made only when the write finds it missing.
 
 
-def _counting_makedirs(monkeypatch):
+def _counting_folder_makes(monkeypatch):
     made = []
-    real = os.makedirs
+    for name in ("makedirs", "mkdir"):
+        real = getattr(os, name)
 
-    def counting(path, *args, **kwargs):
-        made.append(path)
-        return real(path, *args, **kwargs)
+        def counting(path, *args, real=real, **kwargs):
+            made.append(path)
+            return real(path, *args, **kwargs)
 
-    monkeypatch.setattr(os, "makedirs", counting)
+        monkeypatch.setattr(os, name, counting)
     return made
 
 
 def test_a_write_into_a_folder_that_is_there_makes_no_folder(tmp_path, monkeypatch):
     store = Store(str(tmp_path))
     store.write_text("a/b.txt", "first")
-    made = _counting_makedirs(monkeypatch)
+    made = _counting_folder_makes(monkeypatch)
     store.write_text("a/b.txt", "second")
     store.write_text("a/c.txt", "third")
     assert made == [], "Var olan klasöre yazmak klasör yarattı"
@@ -124,7 +237,7 @@ def test_a_move_into_a_folder_that_is_there_makes_no_folder(tmp_path, monkeypatc
     store = Store(str(tmp_path))
     store.write_text("files/one.md", "1")
     store.write_text("trash/old.md", "0")
-    made = _counting_makedirs(monkeypatch)
+    made = _counting_folder_makes(monkeypatch)
     store.move("files/one.md", "trash/one.md")
     assert made == [], "Var olan klasöre taşımak klasör yarattı"
     assert store.list_dir("trash") == ["old.md", "one.md"]
@@ -137,13 +250,11 @@ def test_a_move_into_a_missing_folder_makes_it(tmp_path):
     assert store.read_text("deep/trash/one.md") == "1"
 
 
-def test_mtime_is_the_files_own_time(tmp_path):
-    # Only 448's move of old projects reads one: the old layout kept the pin's moment and a file's
-    # time nowhere else. It goes with 448.
+def test_a_write_into_a_new_project_makes_each_missing_folder_once(tmp_path, monkeypatch):
     store = Store(str(tmp_path))
-    store.write_text("p1/pinned", "")
-    os.utime(tmp_path / "p1" / "pinned", (1_000_000_000, 1_000_000_000))
-    assert store.mtime("p1/pinned") == 1_000_000_000
+    made = _counting_folder_makes(monkeypatch)
+    store.write_text("p1/chats/c1.json", "{}")
+    assert made == [str(tmp_path / "p1"), str(tmp_path / "p1" / "chats")]
 
 
 def test_a_move_of_something_that_is_not_there_still_fails(tmp_path):

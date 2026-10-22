@@ -75,9 +75,8 @@ araç çağırırken aynı cevapta söz söylüyor mu, bilinmiyor. Gerçek kulla
 
 *(Kullanıcı, 9 Ekim — "kullandıktan sonra sileceğimiz bir sonraki roadmap'te".)* v10'un 448'i eski
 projeleri `projects.json`'a taşıdı ve eski dosyalara — proje başına `project.json`, `pinned`,
-`archived` — dokunmadı. **Taşıma kodu** [v11-1](../docs/roadmaps/2026-10-20-queen-agent-v11-roadmap.md)'le
-siliniyor *(kullanıcı, 20 Ekim — "sil")*; burada yalnız bu eski dosyalar kalıyor, Drive'da silinmeyi
-bekliyorlar.
+`archived` — dokunmadı. **Taşıma kodu** 490'la *(v11-1)* silindi *(kullanıcı, 20 Ekim — "sil")*;
+burada yalnız bu eski dosyalar kalıyor, Drive'da silinmeyi bekliyorlar.
 
 ## Sürüm değiştirmek kenar çubuğunun sırasını güncellemiyor
 
@@ -198,8 +197,14 @@ kullanıcıya gösterilerek. **Ayrıntılar kullanıcıyla konuşulacak.**
 *(Kullanıcı, 20 Ekim — "abi burası çok karmaşık ve bir şewy analayamıyorum hiç contexti olamayn 2
 agente bunu sıfırdan tasarlattıralım basit olmalı solid olmalı drive istek sayısnı minimzie etmeli";
 "doylarda agnetın güncellendiği an güncellenmelş"; sonra — "yada abi bu kadar büyük bir işe
-girmeyelin şuanlık".)* Şimdilik yalnız küçük düzeltme koşuyor:
-[v11-1](../docs/roadmaps/2026-10-20-queen-agent-v11-roadmap.md) — bağlantı kontrolü ve 448'in silinmesi.
+girmeyelin şuanlık".)* Şimdilik yalnız küçük düzeltme yapıldı:
+490, [v11-1](../docs/roadmaps/2026-10-20-queen-agent-v11-roadmap.md) — bağlantı kontrolü ve 448'in silinmesi.
+**490'dan kalanlar** *(coder'ı ve reviewer'ı buldu, 22 Ekim)*: kök okunur ama `projects.json`
+yanlışlıkla "bulunamadı" derse açılış hâlâ boş başlar; notebook'un CONFIG'i kökün gerçekten Drive'da
+olduğuna bakmıyor; `/api/health` bağlantıya bakmıyor; proje oluşturma, ad değiştirme, sabitleme ve
+arşiv bellekten cevap veriyor, Drive kopukken yazmaları yalnız log'a düşüyor; aynı oturumda Drive
+yeniden bağlanınca uygulama Serve yeniden çalışana kadar her işlemi reddediyor, ve cümlesi bunu
+söylemiyor.
 
 **Kullanıcının Claude'la 20 Ekim'de konuştuğu istekler:**
 

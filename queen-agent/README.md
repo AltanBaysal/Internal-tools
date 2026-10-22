@@ -26,7 +26,9 @@ endpoint that answers with one, which is what makes the Colab address survivable
 app still starts; only asking for an answer fails, and it fails saying so.
 
 Where your projects live is `QUEENAGENT_ROOT` — that, the key and every other setting are named in
-[backend/config.py](backend/config.py), which is the one place they exist.
+[backend/config.py](backend/config.py), which is the one place they exist. The folder must already
+exist: the app never makes it, and does not start without it — on Colab a missing root is a Drive
+that is not connected, and making one would put the work on Colab's own disk.
 
 ## Develop
 

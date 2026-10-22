@@ -118,39 +118,6 @@ class FileProjectStore:
     def put_file(self, project_id, name, modified_at):
         self._put(project_id, "files", "name", _file_row(name, modified_at))
 
-    def take_in(self, moved):
-        """Add projects found in the old layout -- (Project, chats, files) each -- in one change, so
-        one write (Madde 448). An id already here is left as it is. Answers (id, error) for each
-        project left out because the next start could not read its entry.
-
-        Goes, with old_projects.py, once 448 is confirmed (BACKLOG).
-        """
-
-        def taken(projects):
-            refused = []
-            for project, chats, files in moved:
-                if project.id in projects:
-                    continue
-                entry = {
-                    "name": project.name,
-                    "createdAt": project.created_at,
-                    "chats": [_chat_row(chat) for chat in chats],
-                    "files": [_file_row(file.name, file.modified_at) for file in files],
-                }
-                _keep_if(entry, "pinnedAt", project.pinned_at)
-                _keep_if(entry, "archived", project.archived)
-                # Read as the next start reads it, behind old_projects.py's own check of the times: an
-                # entry it cannot read would make every start after this one refuse projects.json.
-                try:
-                    _as_project(project.id, entry)
-                except (ValueError, KeyError, TypeError, AttributeError) as error:
-                    refused.append((project.id, repr(error)))
-                    continue
-                projects[project.id] = entry
-            return refused
-
-        return self._change(taken)
-
     def drop_file(self, project_id, name):
         def dropped(projects):
             entry = projects.get(project_id)

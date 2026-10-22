@@ -580,6 +580,8 @@ def test_a_selected_skill_reaches_the_engine_as_an_instruction(tmp_path):
     client = _client(tmp_path, engine=plain)
     _started(client)
 
+    # A root of its own, made here: the store never makes one (Madde 490).
+    (tmp_path / "second").mkdir()
     other = _client(tmp_path / "second", engine=with_skill)
     opid = _project(other)
     _sent(other, opid, text="hello", skill="edit-prompts")
@@ -1534,9 +1536,59 @@ def test_a_request_that_breaks_before_its_turn_lets_the_chat_go(tmp_path):
         raise OSError("Drive went away")
 
     chats.get = broken
-    assert client.post(f"/api/projects/{pid}/chats/{cid}/retry", json={}).status_code == 500
+    assert client.post(f"/api/projects/{pid}/chats/{cid}/retry", json={}).status_code == 503
     chats.get = reading
     assert _sent(client, pid, chat=cid, text="more").status_code == 202
+
+
+# --- the root going away (Madde 490) ---------------------------------------------------------------
+
+UNREACHABLE = "The root cannot be reached: "
+
+
+def _rooted(tmp_path, engine=None):
+    """An app over a root of its own, so a test can take the root away: the client, the root and the
+    project store."""
+    root = tmp_path / "root"
+    root.mkdir()
+    store = Store(str(root))
+    projects = FileProjectStore(store)
+    app, _chats, _turns = _app(tmp_path, engine, store=store, projects=projects)
+    return app.test_client(), root, projects
+
+
+def _gone(root, projects):
+    # projects.json written out first: a writer holding it open would keep the folder from moving on
+    # Windows.
+    projects.flush()
+    root.rename(root.with_name("elsewhere"))
+
+
+def test_a_message_after_the_root_has_gone_is_refused_with_the_disks_sentence(tmp_path):
+    client, root, projects = _rooted(tmp_path)
+    pid, cid = _started(client)
+    _gone(root, projects)
+    refused = client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": "more"})
+    assert refused.status_code == 503
+    assert refused.get_json()["error"].startswith(UNREACHABLE)
+    assert not root.exists(), "Kök yeniden açıldı"
+
+
+def test_a_turn_running_when_the_root_goes_ends_with_the_disks_sentence(tmp_path):
+    engine = GatedEngine()
+    client, root, projects = _rooted(tmp_path, engine)
+    pid, cid = _started(client)
+    engine.hold_next()
+    assert client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": "more"}).status_code == 202
+    assert engine.entered.wait(5)
+    frames = _chunks(_listen(client, pid, cid))
+    next(frames)
+    _gone(root, projects)
+    engine.gate.set()
+    last = _data(frames)[-1]
+    assert last["turn"] is None
+    assert last["error"].startswith(UNREACHABLE)
+    assert not root.exists(), "Kök yeniden açıldı"
 
 
 # --- what a turn costs the chat file (Madde 461, 462) ----------------------------------------------

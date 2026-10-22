@@ -11,7 +11,6 @@ from backend.features.workspace.data.file_project_store import (
 )
 from backend.features.workspace.data.live_turns import LiveTurns
 from backend.features.workspace.data.model_engine import ModelEngine
-from backend.features.workspace.data.old_projects import move_old_projects
 from backend.features.workspace.presentation.routes import make_workspace_bp
 from backend.services.model.client import ModelClient
 from backend.services.store.store import Store
@@ -20,15 +19,15 @@ from backend.web.app import create_app
 store = Store(config.ROOT)
 # Read once, here, and held in memory from now on (Madde 447). A file that cannot be read stops the
 # start rather than being taken as empty: the first change would then write an empty list over every
-# project the user has.
+# project the user has. So does a disk that refuses the read -- a root the store cannot reach among
+# them, since this read is the start's first check of the connection (Madde 490) -- and the start
+# ends on the disk's own sentence rather than a traceback.
 try:
     projects = FileProjectStore(store)
-except ProjectsUnreadable as unreadable:
+except (ProjectsUnreadable, OSError) as unreadable:
     raise SystemExit(
         f"QueenAgent did not start. In {config.ROOT}: {unreadable}. Nothing was written to it."
     ) from unreadable
-# Madde 448: projects in the layout before 447 move in, once. Goes once 448 is confirmed (BACKLOG).
-move_old_projects(store, projects)
 # One transport per model since Madde 146, built from the table rather than written out three
 # times: a fourth model is then a row in config.py and nothing here.
 #

@@ -53,7 +53,9 @@ restates an answer already on disk wants deleting.
 A service does one job, lives in its own folder, and knows no feature:
 
 - `store/` — read / write / list / move under one root. Knows nothing about projects, chats or files.
-  Rejects any path that escapes the root.
+  Rejects any path that escapes the root. Stats the root before every operation and stops on
+  `RootUnreachable` — an `OSError`, never a `FileNotFoundError` — when it cannot be reached or has
+  moved to another device; makes folders inside the root, never the root itself (Madde 490).
 - `model/` — HTTP transport to an OpenAI-compatible chat API: a request, an SSE stream, a resolved
   tool call. Knows no prompt, no filename, and nothing about what any tool does.
 
