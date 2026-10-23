@@ -43,16 +43,16 @@ The store follows the same rule:
 
 `projects.json` is the one place a list is read from (Madde 447): the project list, the sidebar's
 chats, the files panel and the agent's file names all come out of the server's memory of it, and a
-chat or a file is opened only once its entry names it. The two prompt guides are the exception: they
-come from the code (`prompt.GUIDES`, Madde 492), listed after every project's own files and never
-written to disk. To be that, it repeats on purpose what a list
+chat or a file is opened only once its entry names it. To be that, it repeats on purpose what a list
 shows of a chat — its title, birth and last activity — and of a file — its time. That is the one
 exception to "no file repeats another's answer" (Madde 346), and it holds because both copies are
 written by the same server at the same moment, contents first. Nothing else is repeated: the
 counts, a project's last use (its newest chat's, or its createdAt while it has none) and a file's
-chip are read off the entries and never written. Before adding a field, ask which question it
-answers — a field that answers a new question wants an artifact of its own, and a field that
-restates an answer already on disk wants deleting.
+chip are read off the entries and never written. The two prompt guides are listed with no entry of
+their own: they come from the repo, not the store — the feature's `skills/` folder, read once into
+`prompt.GUIDES` (Madde 492, 495) — after every project's own files, and are never written. Before
+adding a field, ask which question it answers — a field that answers a new question wants an
+artifact of its own, and a field that restates an answer already on disk wants deleting.
 
 ## Services (`backend/services/`)
 
@@ -72,7 +72,10 @@ A service never imports a feature and never imports another service.
 A user-facing capability, composed of three layers:
 
 - **domain/** — pure rules, port definitions (`Protocol`), use cases. Imports nothing external (no
-  `flask`, no `requests`, no file-path or schema knowledge).
+  `flask`, no `requests`, no file-path or schema knowledge). One exception, by name: `prompt.py` reads
+  six of the model's texts from the feature's `skills/` folder once, when it is imported (Madde 495).
+  They are the code's own text, kept as `.md` so the user can read them in the repo — not data and not
+  the store's — so no port stands between them, and a test reads them with no fake.
 - **data/** — implements the ports using services; the only place that knows file schemas.
 - **presentation/** — Flask routes; translates request/response, no business logic.
 

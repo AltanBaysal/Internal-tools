@@ -730,7 +730,8 @@ def test_the_checks_are_written_in_the_flow_itself():
     #
     # The editors' texts are left out: each is a skill of its own and joined into nothing, and since
     # Madde 393 every editor closes a change with the same plain line, build the prompts again. The
-    # Krea flow is a skill of its own as well (Madde 492).
+    # Krea flow is a skill of its own as well (Madde 492). The two guides are no constants since
+    # Madde 495, only GUIDES' values, so they are walked by their names.
     from backend.features.workspace.domain import prompt
 
     skills = ("START_A_SCENARIO", "EDIT_PROMPTS", "KREA_START_SCENARIO", "KREA_EDIT")
@@ -738,8 +739,9 @@ def test_the_checks_are_written_in_the_flow_itself():
         line for number in CHECKS for line in _step(number).splitlines() if line.startswith("- ")
     ]
     assert lines
-    for name, value in vars(prompt).items():
-        if isinstance(value, str) and name not in skills:
+    texts = [(name, value) for name, value in vars(prompt).items() if isinstance(value, str)]
+    for name, value in [*texts, *prompt.GUIDES.items()]:
+        if name not in skills:
             for line in lines:
                 assert line not in value, (name, line)
 

@@ -1,6 +1,7 @@
 """Which skill carries which instruction, and nothing about what the instruction says.
 
-The texts themselves are in prompt.py since Madde 189, beside everything else the model is told.
+The texts themselves are named in prompt.py since Madde 189, beside everything else the model is
+told, and written in ../skills/ as .md files since Madde 495.
 What is left here is the mapping: the picker's ids on one side, a text on the other. It is a
 product behaviour like the texts are, so it stays in the domain.
 

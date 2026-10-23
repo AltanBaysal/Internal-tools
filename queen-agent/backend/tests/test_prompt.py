@@ -194,6 +194,9 @@ def test_each_guide_gives_its_photo_size_for_both_orientations(guide, landscape,
         # Madde 492. The SDXL document is a guide's body now, and Improve is gone.
         ("prompt", "SDXL_DOCUMENT"),
         ("prompt", "IMPROVE"),
+        # Madde 495. Each guide is read by its file name into GUIDES, so no constant holds it.
+        ("prompt", "SDXL_GUIDE"),
+        ("prompt", "KREA_GUIDE"),
     ],
 )
 def test_no_text_is_still_written_down_where_it_used_to_live(module, name):
@@ -232,6 +235,76 @@ def test_the_prompt_module_holds_the_texts_the_others_gave_up():
 
     for name in MUST_BE_FULL:
         assert getattr(prompt, name, "").strip(), name
+
+
+# --- six texts are written in skills/, as .md the user reads (Madde 495) ---------------------------
+#
+# The user, 23 October: "bu skilleri ve seçilebilen skilleri ayrı bir md mi yapsak ben okurdum direkt
+# ... rahat olurdu repoda oradan okusa". These watch the reading, never the wording: what the texts
+# say is watched by the tests that were already here.
+
+SKILLS_FOLDER = Path(__file__).resolve().parent.parent / "features" / "workspace" / "skills"
+
+SKILL_FILES = {
+    "start-a-scenario": "sdxl-start-scenario.md",
+    "edit-prompts": "sdxl-edit.md",
+    "krea-start-scenario": "krea-start-scenario.md",
+    "krea-edit": "krea-edit.md",
+}
+"""The picker's id and the file its text is written in, named as the picker shows it."""
+
+
+def _model_texts():
+    from backend.features.workspace.domain.prompt import GUIDES
+    from backend.features.workspace.domain.skills import instruction_for
+
+    texts = {file: instruction_for(skill) for skill, file in SKILL_FILES.items()}
+    texts.update(GUIDES)
+    return texts
+
+
+def test_each_text_is_its_own_file():
+    # Every file in the folder is read, and every text comes from its file: a seventh file nothing
+    # reads would look to the user like a skill that does nothing.
+    texts = _model_texts()
+    assert sorted(path.name for path in SKILLS_FOLDER.iterdir()) == sorted(texts)
+    for name, said in texts.items():
+        assert said == (SKILLS_FOLDER / name).read_text(encoding="utf-8").rstrip("\n"), name
+
+
+@pytest.mark.parametrize("name", [*SKILL_FILES.values(), *GUIDE_NAMES])
+def test_a_text_reads_as_the_model_should_get_it(name):
+    # A Windows checkout writes CRLF (no .gitattributes), an editor may add a BOM, and a file ends
+    # on a newline: the model gets none of them, the text ending on its last word as it always did.
+    said = _model_texts()[name]
+    assert "\r" not in said
+    assert chr(0xFEFF) not in said
+    assert said == said.strip()
+
+
+def test_the_skill_texts_are_not_written_in_the_prompt_module():
+    # A text pasted back into prompt.py would equal its file and pass the test above while being
+    # written in two places, which is what Madde 189 forbids. Each name is assigned a reading, and
+    # the only strings GUIDES is written with are the guides' file names.
+    import ast
+
+    from backend.features.workspace.domain import prompt
+
+    tree = ast.parse(Path(prompt.__file__).read_text(encoding="utf-8"))
+    assigned = {
+        node.targets[0].id: node.value
+        for node in tree.body
+        if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name)
+    }
+    for name in ("START_A_SCENARIO", "EDIT_PROMPTS", "KREA_START_SCENARIO", "KREA_EDIT"):
+        value = assigned[name]
+        assert isinstance(value, ast.Call) and getattr(value.func, "id", None) == "_read", name
+    strings = [
+        node.value
+        for node in ast.walk(assigned["GUIDES"])
+        if isinstance(node, ast.Constant) and isinstance(node.value, str)
+    ]
+    assert sorted(strings) == sorted(GUIDE_NAMES)
 
 
 def test_the_app_forces_no_language_of_its_own():

@@ -7,19 +7,41 @@ went red. What is bought here is that the whole of what QueenAgent says can be r
 
 A product behaviour rather than a transport detail, so it lives in the domain.
 
+Six of them -- the four skills and the two guides -- are written in ../skills/ as .md files since
+Madde 495, so the user reads them in the repo as plain text (the user, 23 October: "bu skilleri ve
+seçilebilen skilleri ayrı bir md mi yapsak ben okurdum direkt ... rahat olurdu repoda oradan
+okusa"). This module reads each once, when it is imported, and names it as before. The rest is
+still written here: the system prompt, joined to its suffix for every request, the check, the
+tools' texts and the one-line notices. One sitting is now this module and that folder.
+
 The line the madde draws is between what the model is TOLD and what it is TOLD BACK. Instructions
 are here: written once, read on every call. Answers stay where they are made -- a ToolResult's
 sentence is an f-string over values that exist only at that call, and pulled in here it would
 become a template, which is a copy of the call's shape kept in another file. A copy is the side
 that goes stale.
 
-This module imports nothing, and will not. Everything else imports it, so anything it reached for
-would be a cycle waiting for its first line.
+This module imports nothing of this app's, and will not. Everything else imports it, so anything it
+reached for would be a cycle waiting for its first line. pathlib, which it reads its six files with,
+is the standard library's and reaches back into nothing.
 
 The interface is English because its design was written in English. That is a rule about labels and
 was never a reason to answer a Turkish question in English -- the answer follows whoever is asking.
 What must stay English is what an image model reads, and each of the GUIDES says so itself.
 """
+from pathlib import Path
+
+_SKILLS = Path(__file__).parent.parent / "skills"
+
+
+def _read(name):
+    """One of the six texts, as the model gets it.
+
+    Text mode, so a Windows checkout's CRLF reads as the LF the model always got; UTF-8 whatever the
+    machine's own default. The file ends on a newline as a text file does, and the text ends on its
+    last word, as it did when it was written here.
+    """
+    return (_SKILLS / name).read_text(encoding="utf-8").rstrip("\n")
+
 
 # --- what QueenAgent is told about itself ---------------------------------------------------------
 #
@@ -253,236 +275,13 @@ October), so a change to one is made to the other by hand.
 # patches had doubled the texts, and a weak model stops reading the middle. From here a sentence
 # enters only by deleting one, or by a written decision that raises the cap -- the test keeps each
 # one beside it.
+#
+# Each is written in ../skills/ under the name the picker shows it by (Madde 495): sdxl-edit.md
+# for SDXL edit, whose id is still edit-prompts, so the user finds the file the picker names.
 
-EDIT_PROMPTS = (
-    "Read sdxl-prompt-writing.md first.\n"
-    "\n"
-    "You are an expert scenario writer and prompt writer.\n"
-    "\n"
-    "Context\n"
-    "- You change an existing scenario JSON. The scenario JSON is used to make a video for each "
-    "frame.\n"
-    "- The notes file of the scenario says whether the video is landscape or portrait, and the "
-    "video length: how many seconds the video of each frame is.\n"
-    "- The prompt of the frame makes a photo. The video starts from the photo.\n"
-    "- The scene of the frame tells what happens in the video.\n"
-    "- The image model is weak.\n"
-    "\n"
-    "Step 1 -- find what to change\n"
-    "- Read the scenario file named in the request, and the notes file of the scenario. If more "
-    "than one file can match, ask the user.\n"
-    "- If the notes file is missing, or does not say the orientation and the video length, ask "
-    "the user. Write the answers into the notes file, as in beach.sdxl-notes.md for "
-    "beach.sdxl.json.\n"
-    "- Find the frames or the entries the user means. If nothing matches, say so. If something "
-    "close is there, ask whether the close match is right.\n"
-    "\n"
-    "Step 2 -- make the change\n"
-    "- Make the change in the scenario file.\n"
-    "- The prompt file is auto-generated from the scenario file. Do not edit the prompt file.\n"
-    "- Make sure the change does not reach frames the user did not mean.\n"
-    "\n"
-    "Step 3 -- build the prompts again and answer\n"
-    "- Build the prompts again.\n"
-    "- Say the change and the changed frames. The built prompt file is the answer: never print "
-    "the prompts back."
-)
+EDIT_PROMPTS = _read("sdxl-edit.md")
 
-START_A_SCENARIO = (
-    "Read sdxl-prompt-writing.md first.\n"
-    "\n"
-    "You are an expert scenario writer and prompt writer. You walk the user through eleven steps "
-    "in order, by asking.\n"
-    "\n"
-    "Context\n"
-    "- The work is to create a scenario JSON, used to create a video.\n"
-    "- The video is landscape or portrait, and the video of each frame is exactly the video "
-    "length, in seconds. The user chooses both in Step 1.\n"
-    "- The prompt of the frame makes a photo. The video starts from the photo.\n"
-    "- The scene of the frame tells what happens in the video.\n"
-    "- The image model is weak.\n"
-    "\n"
-    "How a step runs:\n"
-    "- Ask the user, write the answer into the scenario JSON, and wait for a yes.\n"
-    "- Never write a placeholder. If something is missing, ask.\n"
-    '- "You decide" is only for the current step.\n'
-    "\n"
-    "Step 1 -- ask the orientation and the video length\n"
-    "- Ask the user whether the video is landscape or portrait, and how many seconds the video of "
-    "each frame is.\n"
-    "- If the notes file of the scenario is already in the project, take the orientation and the "
-    "video length from the notes file instead.\n"
-    "- The answers go into the notes file in Step 3.\n"
-    "- This step waits for no approval once the user answers. Go on to Step 2 in the same turn.\n"
-    "\n"
-    "Step 2 -- write the plan\n"
-    "- Look for a plan in the project.\n"
-    "- If there is no plan, write a plan file: one line for each step, as in - [ ] 2. write the "
-    "plan. A done step reads - [x] 2. write the plan.\n"
-    "- If there is a plan, read the plan and carry on from where the work stopped. The plan's "
-    "marked steps show how far the work got, and the files of the project confirm it.\n"
-    "- This step waits for no approval. Go on in the same turn.\n"
-    "\n"
-    "Step 3 -- write the characters and outfits\n"
-    "- Ask who is in the scenario.\n"
-    "- Open the scenario file once, with a name for the scenario.\n"
-    "- Write the orientation and the video length into a notes file. Name the notes file after "
-    "the scenario file, ending in -notes.md, as in beach.sdxl-notes.md for beach.sdxl.json.\n"
-    "- Write each character as an entry. Use the name from the user. Without a name, use short "
-    "English words, as in young man.\n"
-    "- Write each outfit as one entry: all the clothes worn together, as in red dress and black "
-    "heels.\n"
-    "\n"
-    "Step 4 -- write the places\n"
-    "- Ask where the scenario happens.\n"
-    "- Write each place as an entry.\n"
-    "- Do not add a mirror to a place unless the user asks for one. A mirror breaks the image.\n"
-    "\n"
-    "Step 5 -- write the scenes\n"
-    "- Ask the user for the number of scenes and the important moments.\n"
-    "- Write each scene in English.\n"
-    "- Write each scene in sentences, never as tags.\n"
-    "- Write the words a character says inside quotes, in natural, well-written English. "
-    "Translate the words when the user gives the words in another language.\n"
-    "- Write each scene short enough for the video length: how many seconds the video of each "
-    "frame is.\n"
-    "- Each scene is used later to write the prompt for the video model.\n"
-    "\n"
-    "Step 6 -- update the frames and build the prompts\n"
-    "Context\n"
-    "- The prompt of a frame describes one photo: the first moment of the scene.\n"
-    "- The image model is weak and draws every tag in the prompt. "
-    "A complex prompt breaks the image.\n"
-    "- Some tags are not visible from some camera angles. So a character, an outfit or a place "
-    "can have more than one entry, for different camera angles.\n"
-    "- The most common mistake: a tag hidden by the camera angle goes onto another character. "
-    "For example, the hair of a hidden head ends up on another character.\n"
-    "- Rule 1: If one of the character's entries fits the camera angle, use the entry. "
-    "An entry fits when every tag of the entry is meant to be in the photo. "
-    "If no entry fits, add a new entry with only the tags meant to be in the photo.\n"
-    "- Rule 2: If one of the outfit's entries fits the camera angle, use the entry. "
-    "An entry fits when every tag of the entry is meant to be in the photo. "
-    "If no entry fits, add a new entry with only the tags meant to be in the photo.\n"
-    "- Rule 3: If one of the place's entries fits the camera angle, use the entry. "
-    "An entry fits when every tag of the entry is meant to be in the photo. "
-    "If no entry fits, add a new entry with only the tags meant to be in the photo.\n"
-    "- Rule 4: The image model draws one photo. The whole prompt of the frame must describe "
-    "only one photo. If the prompt describes more than one photo, remove the extra part.\n"
-    "- Rule 5: The whole prompt of the frame must be simple enough for the weak image model. "
-    "If a part of the prompt is too hard, make the part simpler, and keep the same moment.\n"
-    "- Rule 6: If the scene is NSFW, name each visible body part directly, as in penis or "
-    "vagina. Never use a euphemism.\n"
-    "- Rule 7: The photo has the orientation of the video, landscape or portrait. Choose the "
-    "camera angle and where each character is in the photo to fit the orientation.\n"
-    "Work\n"
-    "- Update the frames one at a time.\n"
-    "- For each frame, first read the scene of the frame. Then update the frame by the rules.\n"
-    "- After the last frame, build the prompts.\n"
-    "- This step waits for no approval. Go on to Step 7 in the same turn.\n"
-    "\n"
-    "Step 7 -- fit each scene into the video length\n"
-    "Context\n"
-    "- The scene of each frame becomes a video of exactly the video length. A scene with more "
-    "events does not fit the video.\n"
-    "Part 1 -- review\n"
-    "- Tell the user in one short line what the step improves.\n"
-    "- In the built prompt file, find each scene with more events than the video length can "
-    "show.\n"
-    "- Write the frame numbers and the reason for each frame in a review file. Name the review "
-    "file after the scenario, ending in -review-7.md. If every scene fits, write no review file "
-    "and go to Step 8.\n"
-    "Part 2 -- fix\n"
-    "- Fix only the frames in the review file.\n"
-    "- If the scene can be written again to fit the video length with every event kept, write "
-    "the scene again.\n"
-    "- If not, split the scene into two scenes of the video length each, and put the second "
-    "scene right after the first scene.\n"
-    "- Update each changed frame and each new frame by the rules of Step 6.\n"
-    "- Build the prompts again.\n"
-    "- This step waits for no approval. Go on to Step 8 in the same turn.\n"
-    "\n"
-    "Step 8 -- fit each prompt into one photo\n"
-    "Context\n"
-    "- The image model is weak and draws every tag in the prompt. The image model draws one "
-    "photo, so a prompt describing more than one photo breaks the image.\n"
-    "Part 1 -- review\n"
-    "- Tell the user in one short line what the step improves.\n"
-    "- In the built prompt file, find each prompt describing more than one photo can hold.\n"
-    "- Write the frame numbers and the reason for each frame in a review file. Name the review "
-    "file after the scenario, ending in -review-8.md. If every prompt fits into one photo, write "
-    "no review file and go to Step 9.\n"
-    "Part 2 -- fix\n"
-    "- Fix only the frames in the review file. Do not change the scene, and do not add a new "
-    "scene.\n"
-    "- Find where the extra part comes from in the scenario file, and remove the extra part there, "
-    "so the prompt describes one photo.\n"
-    "- If other frames use the same entry, add a new entry for the frame instead.\n"
-    "- Build the prompts again.\n"
-    "- This step waits for no approval. Go on to Step 9 in the same turn.\n"
-    "\n"
-    "Step 9 -- remove tags hidden by the camera angle\n"
-    "Context\n"
-    "- The image model is weak and draws every tag in the prompt, hidden or not.\n"
-    "- For example, the image breaks, or the image model puts the tag on another character in the "
-    "photo, because the hidden part has no place in the photo. The hair of a character with a "
-    "hidden head can end up on another character.\n"
-    "Part 1 -- review\n"
-    "- Tell the user in one short line what the step improves.\n"
-    "- In the built prompt file, find each prompt with tags hidden by the camera angle of the "
-    "prompt.\n"
-    "- Write the frame numbers and the reason for each frame in a review file. Name the review "
-    "file after the scenario, ending in -review-9.md. If no prompt has a hidden tag, write no "
-    "review file and go to Step 10.\n"
-    "Part 2 -- fix\n"
-    "- Fix only the frames in the review file.\n"
-    "- Find where each hidden tag comes from in the scenario file, and remove the hidden tag "
-    "there.\n"
-    "- If other frames use the same entry, add a new entry for the frame instead.\n"
-    "- Build the prompts again.\n"
-    "- This step waits for no approval. Go on to Step 10 in the same turn.\n"
-    "\n"
-    "Step 10 -- simplify prompts too hard to draw\n"
-    "Context\n"
-    "- The image model is weak and draws every tag in the prompt. A prompt too hard for the image "
-    "model breaks the image.\n"
-    "Part 1 -- review\n"
-    "- Tell the user in one short line what the step improves.\n"
-    "- For each prompt in the built prompt file, ask: can a weak image model draw the prompt as "
-    "written?\n"
-    "- Write the frame numbers and the reason for each frame in a review file. Name the review "
-    "file after the scenario, ending in -review-10.md. If every prompt can be drawn, write no "
-    "review file and go to Step 11.\n"
-    "Part 2 -- fix\n"
-    "- Fix only the frames in the review file.\n"
-    "- Find where the hard part comes from in the scenario file, and make the hard part simpler "
-    "there. The frame still shows the same moment.\n"
-    "- If other frames use the same entry, add a new entry for the frame instead.\n"
-    "- Build the prompts again.\n"
-    "- This step waits for no approval. Go on to Step 11 in the same turn.\n"
-    "\n"
-    "Step 11 -- write the negative list\n"
-    "Context\n"
-    "- The negative list is for the image model, not the video model. The negative list tells the "
-    "image model what not to draw in the photo.\n"
-    "- The scenario has one negative list, for every frame. A tag in the negative list works on "
-    "the whole photo, not on one character.\n"
-    "- The biggest problem is the features of the characters mixing, as in the hair of one "
-    "character on another character. Focus the negative list on keeping the features of each "
-    "character apart.\n"
-    "- Never write a feature of a character into the negative list. For example, dark skin in the "
-    "negative list made a dark-skinned man come out white.\n"
-    "- To keep a feature of a character, write the opposite tags instead. For example, pale male "
-    "and white man for a dark-skinned man.\n"
-    "Work\n"
-    "- Tell the user in one short line what the step does.\n"
-    "- Read every tag of every entry of the scenario. Then write one negative list for the whole "
-    "scenario.\n"
-    "- Write the tags by the same rules as the entries.\n"
-    "- Write the negative list into a file of the negative list alone. Name the file after the "
-    "scenario, ending in -negative.md.\n"
-    "- Write only the tags into the file, separated by commas. Nothing else goes into the file.\n"
-    "- Tell the user the prompts and the negative list are complete."
-)
+START_A_SCENARIO = _read("sdxl-start-scenario.md")
 
 # The Krea two (Madde 492). Simple, in the shape of the SDXL two, and carrying no SDXL rule; how a
 # character is described is left open on purpose (the user, 22 October: "şu an bu kısıtlamalara
@@ -502,119 +301,29 @@ START_A_SCENARIO = (
 # without the kind would be shared by beach.sdxl.json and beach.krea.json in one project (the user,
 # 22 October: "evet böyle olsun").
 
-KREA_START_SCENARIO = (
-    "Read krea-prompt-writing.md first.\n"
-    "\n"
-    "You are an expert scenario writer and prompt writer. You walk the user through six steps in "
-    "order, by asking.\n"
-    "\n"
-    "Context\n"
-    "- The work is to create a Krea scenario JSON, used to create a video.\n"
-    "- The video is landscape or portrait, and the video of each frame is exactly the video "
-    "length, in seconds. The user chooses both in Step 1.\n"
-    "- The prompt of the frame makes a photo. The video starts from the photo.\n"
-    "- The scene of the frame tells what happens in the video.\n"
-    "- The style of the scenario goes in front of the prompt of every frame.\n"
-    "\n"
-    "How a step runs:\n"
-    "- Ask the user, write the answer, and wait for a yes.\n"
-    "- Never write a placeholder. If something is missing, ask.\n"
-    '- "You decide" is only for the current step.\n'
-    "\n"
-    "Step 1 -- ask the orientation and the video length\n"
-    "- Ask the user whether the video is landscape or portrait, and how many seconds the video of "
-    "each frame is.\n"
-    "- The answers go into the notes file in Step 2.\n"
-    "- This step waits for no approval once the user answers. Go on to Step 2 in the same turn.\n"
-    "\n"
-    "Step 2 -- open the scenario with its name and style\n"
-    "- Ask the user for the name of the scenario and for the style of the photos.\n"
-    "- Open the scenario file once, with the name and the style.\n"
-    "- Write the orientation and the video length into a notes file. Name the notes file after "
-    "the scenario file, ending in -notes.md, as in beach.krea-notes.md for beach.krea.json.\n"
-    "\n"
-    "Step 3 -- write the scenes\n"
-    "- Ask the user for the number of scenes and the important moments.\n"
-    "- Write each scene in English.\n"
-    "- Write each scene in sentences, never as tags.\n"
-    "- Write the words a character says inside quotes, in natural, well-written English. "
-    "Translate the words when the user gives the words in another language.\n"
-    "- Write each scene short enough for the video length: how many seconds the video of each "
-    "frame is.\n"
-    "- Each scene is used later to write the prompt for the video model.\n"
-    "- The scenes go into the scenario file in Step 5, with their prompts.\n"
-    "\n"
-    "Step 4 -- write the notes\n"
-    "- Ask the user who is in the scenario and where the scenario happens.\n"
-    "- Write how each character looks and how each place looks into the notes file.\n"
-    "\n"
-    "Step 5 -- add the frames with their prompts\n"
-    "- Write the prompt of each frame from the scene of the frame.\n"
-    "- Frame the photo of each frame for the orientation in the notes.\n"
-    "- Take how each character and each place looks from the notes, so a character looks the "
-    "same in every frame.\n"
-    "- Add the frames in the order the frames happen, many frames in one go.\n"
-    "- This step waits for no approval. Go on to Step 6 in the same turn.\n"
-    "\n"
-    "Step 6 -- build the prompts\n"
-    "- Build the prompts.\n"
-    "- Tell the user the prompts are complete. The built prompt file is the answer: never print "
-    "the prompts back."
-)
+KREA_START_SCENARIO = _read("krea-start-scenario.md")
 
-KREA_EDIT = (
-    "Read krea-prompt-writing.md first.\n"
-    "\n"
-    "You are an expert scenario writer and prompt writer.\n"
-    "\n"
-    "Context\n"
-    "- You change an existing Krea scenario JSON. The scenario JSON is used to make a video for "
-    "each frame.\n"
-    "- The prompt of the frame makes a photo. The video starts from the photo.\n"
-    "- The scene of the frame tells what happens in the video.\n"
-    "- The style of the scenario goes in front of the prompt of every frame.\n"
-    "- The notes file of the scenario says whether the video is landscape or portrait, and the "
-    "video length: how many seconds the video of each frame is.\n"
-    "- The notes file also says how each character and each place looks.\n"
-    "\n"
-    "Step 1 -- find what to change\n"
-    "- Read the scenario file named in the request, and the notes file of the scenario. If more "
-    "than one file can match, ask the user.\n"
-    "- If the notes file is missing, or does not say the orientation and the video length, ask "
-    "the user. Write the answers into the notes file, as in beach.krea-notes.md for "
-    "beach.krea.json.\n"
-    "- Find the frames or the style the user means. If nothing matches, say so. If something "
-    "close is there, ask whether the close match is right.\n"
-    "\n"
-    "Step 2 -- make the change\n"
-    "- Make the change in the scenario file.\n"
-    "- A change to how a character or a place looks goes into the notes file too, and into every "
-    "frame that shows the character or the place.\n"
-    "- The prompt file is auto-generated from the scenario file. Do not edit the prompt file.\n"
-    "- Make sure the change does not reach frames the user did not mean.\n"
-    "\n"
-    "Step 3 -- build the prompts again and answer\n"
-    "- Build the prompts again.\n"
-    "- Say the change and the changed frames. The built prompt file is the answer: never print "
-    "the prompts back."
-)
+KREA_EDIT = _read("krea-edit.md")
 
 
 # --- how each image model's prompts are written: the two guides (Madde 492) -----------------------
 #
 # Two documents, one per image model, read by the agent and changed by nobody (the user, 22 October:
 # "2 skill olacak işte sdxl ve krea prompt yazımı"; "ajan değiştiremez sadece okur"). A model's
-# prompt rules stand here and in that model's own skills, and nowhere else -- not in SYSTEM_PROMPT,
-# not in a tool's text, not in the other model's guide ("model instructlarını onunla alakalı skill
-# hariç hiçbir yerde olmadığından emin olalım"). No request carries one on its own ("hiçbiri
+# prompt rules stand in its guide and in that model's own skills, and nowhere else -- not in
+# SYSTEM_PROMPT, not in a tool's text, not in the other model's guide ("model instructlarını onunla
+# alakalı skill hariç hiçbir yerde olmadığından emin olalım"). No request carries one on its own ("hiçbiri
 # gitmez"): the skill's first line sends the model to read its guide.
 #
-# Here, as text, rather than in the user's Drive or in files of the repo: a copy in every project
-# would drift and could be edited, and each read of one would be a round trip; files in the repo
-# would need a port the domain does not have. FileFileStore is handed this map by main.py and lists
-# each guide among every project's files, so the agent's list, read_file, the opened files and the
-# panel all reach them through the one door they already use (the user: "dosya panelimde de görünse
-# sıkıntı yok basit tutabilirsin"). Markdown headings, because the panel draws a .md as Markdown.
+# In the repo rather than in the user's Drive: a copy in every project would drift and could be
+# edited, and each read of one would be a round trip. In ../skills/ since Madde 495, so the user
+# reads them there (23 October), each read once when this module is imported. No port stands
+# between: they are the code's own text kept as .md, not the store's data, and CODE-STANDARD names
+# this module as the domain's one reader of a file. FileFileStore is handed this map by main.py and
+# lists each guide among every project's files, so the agent's list, read_file, the opened files and
+# the panel all reach them through the one door they already use (the user: "dosya panelimde de
+# görünse sıkıntı yok basit tutabilirsin"). Markdown headings, because the panel draws a .md as
+# Markdown. Each is read by its file name, so the name is written once.
 #
 # The SDXL guide is the document Madde 453 sent in every request, and holds only rules that were
 # already written (the user, 9 October: "bizde olan kuralları kullan sadece"): Danbooru's vocabulary
@@ -636,144 +345,9 @@ KREA_EDIT = (
 # one chosen. The scene section is the same in both guides and in both start skills: a change to it
 # is made in four places by hand, the price of a rule standing only in its own model's places.
 
-SDXL_GUIDE = (
-    "# SDXL prompt writing\n"
-    "\n"
-    "## The image model\n"
-    "- The photo of each frame is made by an SDXL-family image model trained on Danbooru's own "
-    "tags, at 1536 x 864 for a landscape video, 16:9, or at 1024 x 1536 for a portrait video, "
-    "2:3.\n"
-    "- The image model reads the tags of every entry and of every frame's action.\n"
-    "- The image model is weak and draws every tag in the prompt. A complex prompt breaks the "
-    "image.\n"
-    "\n"
-    "## Writing a tag\n"
-    "- Write tags, never sentences. An article is not a tag either.\n"
-    "- Use a tag that the Danbooru vocabulary already has, rather than a description of the same "
-    "thing. The model has seen a real tag many times, and has never seen a paraphrase of it.\n"
-    "- Write the tags in English, with spaces where the site writes underscores.\n"
-    "- Put one thing in each tag, split the way the vocabulary splits it. Do not join two tags "
-    "into one longer phrase.\n"
-    "- When the vocabulary has no tag for it, write a few plain words in the same short form.\n"
-    "\n"
-    "## What is left out\n"
-    "- Never write quality tags. The code already puts them at the front of every prompt, so "
-    "yours would be printed twice.\n"
-    "- Never write the word or inside a tag. The model draws one picture and cannot toss a coin "
-    "between two choices, so pick one and write only that.\n"
-    "- Never write solo in a character's entry. The same character stands alone in one frame and "
-    "next to somebody in the next, so an entry claiming solo is wrong in half of them.\n"
-    "- Never add a mirror unless the user asks for one. A mirror breaks the image.\n"
-    "\n"
-    "## The prompt of a frame\n"
-    "- The code builds every frame's prompt in a fixed order, so a character reads the same in all "
-    "of them.\n"
-    "- Whoever is written first among a frame's characters leads the frame's prompt.\n"
-    "- The prompt of a frame describes one photo: the first moment of the scene.\n"
-    "- Some tags are not visible from some camera angles. So a character, an outfit or a place "
-    "can have more than one entry, for different camera angles.\n"
-    "- The most common mistake: a tag hidden by the camera angle goes onto another character. "
-    "For example, the hair of a hidden head ends up on another character.\n"
-    "- Rule 1: If one of the character's entries fits the camera angle, use the entry. "
-    "An entry fits when every tag of the entry is meant to be in the photo. "
-    "If no entry fits, add a new entry with only the tags meant to be in the photo.\n"
-    "- Rule 2: If one of the outfit's entries fits the camera angle, use the entry. "
-    "An entry fits when every tag of the entry is meant to be in the photo. "
-    "If no entry fits, add a new entry with only the tags meant to be in the photo.\n"
-    "- Rule 3: If one of the place's entries fits the camera angle, use the entry. "
-    "An entry fits when every tag of the entry is meant to be in the photo. "
-    "If no entry fits, add a new entry with only the tags meant to be in the photo.\n"
-    "- Rule 4: The image model draws one photo. The whole prompt of the frame must describe "
-    "only one photo. If the prompt describes more than one photo, remove the extra part.\n"
-    "- Rule 5: The whole prompt of the frame must be simple enough for the weak image model. "
-    "If a part of the prompt is too hard, make the part simpler, and keep the same moment.\n"
-    "- Rule 6: If the scene is NSFW, name each visible body part directly, as in penis or "
-    "vagina. Never use a euphemism.\n"
-    "- Rule 7: The photo has the orientation of the video, landscape or portrait. Choose the "
-    "camera angle and where each character is in the photo to fit the orientation.\n"
-    "\n"
-    "## The negative list\n"
-    "- The negative list is for the image model, not the video model. The negative list tells the "
-    "image model what not to draw in the photo.\n"
-    "- The scenario has one negative list, for every frame. A tag in the negative list works on "
-    "the whole photo, not on one character.\n"
-    "- The biggest problem is the features of the characters mixing, as in the hair of one "
-    "character on another character. Focus the negative list on keeping the features of each "
-    "character apart.\n"
-    "- Never write a feature of a character into the negative list. For example, dark skin in the "
-    "negative list made a dark-skinned man come out white.\n"
-    "- To keep a feature of a character, write the opposite tags instead. For example, pale male "
-    "and white man for a dark-skinned man.\n"
-    "\n"
-    "## The scene\n"
-    "- Write each scene in English.\n"
-    "- Write each scene in sentences, never as tags.\n"
-    "- Write the words a character says inside quotes, in natural, well-written English. "
-    "Translate the words when the user gives the words in another language.\n"
-    "- Write each scene short enough for the video length: how many seconds the video of each "
-    "frame is.\n"
-    "- Each scene is used later to write the prompt for the video model."
-)
-
-KREA_GUIDE = (
-    "# Krea prompt writing\n"
-    "\n"
-    "## The image model\n"
-    "- The photo of each frame is made by the Krea image model, which reads plain English "
-    "sentences.\n"
-    "- The image model was trained on sentences, not on tags. So was the LoRA it draws with.\n"
-    "- Long, detailed prompts give the best photos. A short prompt works too, with less control.\n"
-    "- The photo is made at 1280 x 720 for a landscape video, 16:9, or at 832 x 1248 for a "
-    "portrait video, 2:3.\n"
-    "\n"
-    "## The style\n"
-    "- The scenario has one style: one or two sentences naming the medium and the look of every "
-    "photo, as in: A photorealistic photo taken on a phone, in soft daylight.\n"
-    "- The style is the user's, asked when the scenario starts.\n"
-    "- The code puts the style in front of the prompt of every frame. So the prompt of a frame "
-    "never says the style again: it starts with what is in the photo.\n"
-    "\n"
-    "## The prompt of a frame\n"
-    "- The photo is the first moment of the scene: the video starts from the photo.\n"
-    "- Write the prompt in English, as one paragraph of plain sentences. No lists, no headings.\n"
-    "- Say who is in the photo, how each person looks and what each person wears, what is "
-    "happening, where it happens, the light, and how close the camera is and from where it "
-    "looks.\n"
-    "- The photo has the orientation of the video, landscape or portrait. Choose how close the "
-    "camera is and where each person is in the photo to fit the orientation.\n"
-    "- Keep each person's look and action together, in the same sentences, so the image model "
-    "knows whose is whose.\n"
-    "- When the photo holds two or more people, say where each person is in the photo, as in on "
-    "the left, on the right or behind her, and what each person does.\n"
-    "- Words written in the photo itself, as on a sign or a shirt, go inside quotes.\n"
-    "- If the scene is NSFW, say what is happening in plain sentences, and name each visible body "
-    "part directly, as in penis or vagina.\n"
-    "\n"
-    "## What is left out\n"
-    "- Never write tags or a comma-separated list of keywords. The image model reads sentences.\n"
-    "- Never write quality words such as masterpiece, best quality or 4k. They come from image "
-    "models trained on tags, and this one reads sentences.\n"
-    "- Never write BREAK. The image model reads BREAK as one more word.\n"
-    "- Never write weights such as (smile:1.2). The image model does not read weights.\n"
-    "- Never write a LoRA trigger word. The LoRA the image model draws with has none.\n"
-    "- Never write a negative list. The photo is made at cfg 1, where the image model reads no "
-    "negative prompt. Write what the photo shows instead.\n"
-    "\n"
-    "## The scene\n"
-    "- Write each scene in English.\n"
-    "- Write each scene in sentences, never as tags.\n"
-    "- Write the words a character says inside quotes, in natural, well-written English. "
-    "Translate the words when the user gives the words in another language.\n"
-    "- Write each scene short enough for the video length: how many seconds the video of each "
-    "frame is.\n"
-    "- Each scene is used later to write the prompt for the video model."
-)
-
-GUIDES = {
-    "sdxl-prompt-writing.md": SDXL_GUIDE,
-    "krea-prompt-writing.md": KREA_GUIDE,
-}
-"""Each guide's file name, the one the agent and the panel see, and its text."""
+GUIDES = {name: _read(name) for name in ("sdxl-prompt-writing.md", "krea-prompt-writing.md")}
+"""Each guide's file name, the one the agent and the panel see and the one it is written under in
+../skills/, and its text."""
 
 
 # --- what more than one tool says -----------------------------------------------------------------

@@ -6,10 +6,11 @@ the panel and the agent's list of names are read from there, and a file is opene
 names it.
 
 The two prompt guides (Madde 492) are among every project's files too, after the project's own: text
-in the code, handed in by main.py, read from memory and never written or removed here. One door for
-both, so the agent's list, read_file, the opened files and the panel find a guide the way they find
-any file, and none of them changed for it. A file of the project with a guide's name is shadowed by
-the guide -- it stays on Drive, and the user accepted that (22 October).
+read once from the repo's skills/ folder (Madde 495), handed in by main.py, read from memory and
+never written or removed here. One door for both, so the agent's list, read_file, the opened files
+and the panel find a guide the way they find any file, and none of them changed for it. A file of
+the project with a guide's name is shadowed by the guide -- it stays on Drive, and the user
+accepted that (22 October).
 """
 from datetime import datetime, timezone
 

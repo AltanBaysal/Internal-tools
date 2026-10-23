@@ -71,9 +71,10 @@ def test_a_root_that_cannot_be_reached_stops_the_start(tmp_path):
 
 
 def test_the_file_store_is_handed_the_guides_and_the_moment_once():
-    """Madde 492. The two prompt guides are text in the code, listed among every project's files by
-    the one class that knows those files; their time is the moment the server opened, taken once
-    here rather than on every listing, so a guide's row does not move under the panel."""
+    """Madde 492. The two prompt guides are text read from the repo's skills/ folder (Madde 495),
+    listed among every project's files by the one class that knows those files; their time is the
+    moment the server opened, taken once here rather than on every listing, so a guide's row does
+    not move under the panel."""
     said = _main()
     assert "FileFileStore(store, projects, GUIDES, opened_at)" in said, "Belgeler bağlanmıyor"
     assert said.count("datetime.now(") == 1, "Açılış anı birden çok kez alınıyor"

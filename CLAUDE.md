@@ -20,7 +20,9 @@ npm run build --prefix queen-editor/frontend
 ```
 
 Tests cover code. Documents are for people, and a test that reads a `.md` file breaks each time one is
-reworded, so none does (item 431).
+reworded, so none does (item 431). The exception is the `.md` files in
+`queen-agent/backend/features/workspace/skills/`: they are the model's input, read by the code, and tests
+read them as they read any constant (item 495).
 
 ## Roadmaps
 

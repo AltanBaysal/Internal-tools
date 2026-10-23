@@ -17,8 +17,10 @@ RETIRED = re.compile(r"grok|xai|x\.ai", re.IGNORECASE)
 _SKIPPED_DIRS = {"dist", "node_modules", "__pycache__"}
 # An integrity hash, where the letters meet by chance.
 _SKIPPED_FILES = {"package-lock.json"}
-# Documents: tests test only code (madde 431).
+# Documents: tests test only code (madde 431). Except the .md in skills/, which are the model's input
+# rather than documents, and are read as any constant is (madde 495).
 _SKIPPED_SUFFIX = ".md"
+_SKILLS = os.path.join(_QUEEN_AGENT, "backend", "features", "workspace", "skills")
 
 
 def _written():
@@ -26,14 +28,19 @@ def _written():
         dirs[:] = [name for name in dirs if name not in _SKIPPED_DIRS and not name.startswith(".")]
         for name in files:
             path = os.path.join(folder, name)
-            if (name not in _SKIPPED_FILES and not name.endswith(_SKIPPED_SUFFIX)
-                    and os.path.abspath(path) != _THIS):
+            document = name.endswith(_SKIPPED_SUFFIX) and folder != _SKILLS
+            if name not in _SKIPPED_FILES and not document and os.path.abspath(path) != _THIS:
                 yield path
 
 
 def test_the_sweep_reads_the_tool():
     # Asked so the two below cannot pass by walking nothing.
     assert any(path.endswith("config.py") for path in _written())
+
+
+def test_the_sweep_reads_the_models_texts():
+    # The same floor for the exception: without it, a wrong folder would skip all six unseen.
+    assert any(path.endswith("sdxl-edit.md") for path in _written())
 
 
 def test_no_path_names_the_retired_provider():
