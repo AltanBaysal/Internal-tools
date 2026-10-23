@@ -93,14 +93,11 @@ def test_the_drive_folder_is_named_once():
 # exception is a run being tried out: the trials of this run happen in Colab, Colab clones from
 # GitHub, and a branch that is not named here cannot be reached at all.
 #
-# The old rule was "no feature branch ever reaches a commit", and its reason still stands -- a
-# branch left here keeps working until the day it is deleted, so nothing says it is wrong until
-# long after it was done. What replaces it is not a weaker rule but a louder one: the name is
-# written down in exactly two places, this constant and the notebook, and the test below fails the
-# moment they part.
-#
-# BEFORE MERGING: this goes back to "main", and so does the notebook. A trial changes this line and
-# the notebook's together and never one of them, and the change comes back the way it went in.
+# A branch left in the notebook keeps working until the day it is deleted, so nothing says it is
+# wrong until long after it was done. So this constant always says main, and a trial changes only
+# the notebook's line (the user, 23 October -- "testi asla değişmesin, böylece unutmayız, kırmızı
+# kalsın"). On the trial's branch the two tests below are then red, and that is expected: the red
+# is what stops a merge until the notebook says main again. Queen Editor's guard works the same way.
 BRANCH = "main"
 
 
