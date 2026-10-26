@@ -2,7 +2,7 @@
 
 **Tasarım:** [2026-09-10-queenagent-m203-adim-araci-testler-design.md](../specs/2026-09-10-queenagent-m203-adim-araci-testler-design.md)
 **Kaynak:** [yol haritasının Madde 203'ü](../roadmaps/2026-09-06-queen-agent-v8-roadmap.md), ve
-[düzeltme log'unun 11 numarası](../2026-09-09-queenagent-metin-duzeltmeleri.md).
+düzeltme log'unun 11 numarası.
 
 **Bu turda kod yazılmaz.** Altı test kırmızıya döner; yedi test ile iki yardımcı silinir.
 

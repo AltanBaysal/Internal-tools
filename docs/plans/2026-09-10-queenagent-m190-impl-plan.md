@@ -1,8 +1,8 @@
 # Madde 190 · Tur 2 (uygulama) — Plan
 
 **Tasarım:** [2026-09-10-queenagent-m190-kod-gecisi-uygulama-design.md](../specs/2026-09-10-queenagent-m190-kod-gecisi-uygulama-design.md)
-**Hedef metinler:** [okuma kopyası](../2026-09-09-queenagent-modele-giden-metinler.md) — §1, §3, §4, §5, §6.
-**Gerekçeler:** [düzeltme log'u](../2026-09-09-queenagent-metin-duzeltmeleri.md), 35 kayıt.
+**Hedef metinler:** okuma kopyası — §1, §3, §4, §5, §6.
+**Gerekçeler:** düzeltme log'u, 35 kayıt.
 **Test turu:** `1a4cbf3`.
 
 **Amaç:** `prompt.py` okuma kopyasının söylediğini desin, ve test turunun 34 kırmızısı kapansın.

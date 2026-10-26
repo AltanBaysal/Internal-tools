@@ -51,7 +51,7 @@ Python dizgileri dosyanın üslubuyla satırlara bölünür; modele giden metind
 
 2. ve 5. değişiklik, Eylül'de çekilen bir kuralı açıkça geri getiriyor.
 
-- **Düzeltme 11** *(9 Eylül, [metin düzeltmeleri](../2026-09-09-queenagent-metin-duzeltmeleri.md))*
+- **Düzeltme 11** *(9 Eylül, metin düzeltmeleri)*
   nerede kalındığını kutulardan dosyalara taşımıştı. Gerekçe: işaretlemek modelin atlayabileceği bir
   işti, ve atlandığında "ilk boş kutu" hep 1. adımı gösterip akışı baştan başlatıyordu.
 - **Madde 203** *(10 Eylül,

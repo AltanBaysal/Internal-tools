@@ -569,7 +569,7 @@ Bu görevde commit yok.
 **Çıktı:** belgenin 3. bölümünü besleyecek liste.
 
 **Arayüz:**
-- Tüketir: `yol-1-brif-celiskisi.md`; [arayüz brifi](../2026-08-20-queen-editor-arayuz-brifi.md);
+- Tüketir: `yol-1-brif-celiskisi.md`; arayüz brifi;
   [istek listesi](2026-08-20-queen-editor-istekler.md).
 - Üretir: `brifin kararı · tasarımın yerine koyduğu · tasarımın gerekçesi` üçlüsünden oluşan liste.
 

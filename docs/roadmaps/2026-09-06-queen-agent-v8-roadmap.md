@@ -93,7 +93,7 @@ kendi başına duruyor.
 
 **Koşunun kendi sayıları:** yirmi beş madde, araç sayısı **23 → 18**, ve giden beşinin tarifi her
 istekte ödeniyordu. Modele giden metinlerin tamamı bir oturumda okundu, 36 düzeltme aldı, ve
-[okuma kopyası](../2026-09-09-queenagent-modele-giden-metinler.md) ile kod **eşit** — belge
+okuma kopyası ile kod **eşit** — belge
 bundan sonra kodun aynası olarak tutulur. Süit **923 arka uç + 652 ön uç**.
 
 > **194'ün hash'i düzeltildi:** tablo `deb0a9e` diyordu, ama 7 Eylül'ün şerit sırası düzeltmesi o
@@ -671,9 +671,9 @@ Koşunun son işi, ve **kullanıcının kendi işi.**
   metni: bu okumanın konusu deponun yazdığı metinler, o değil. Yine de önce koşuyor, ki okuma
   yapılırken mekanizma yerinde olsun.
 - **Nasıl koşuyor** *(kullanıcı kararı, 9 Eylül)*: okuma sürerken **yalnız belge** değişiyor —
-  düzeltilen cümle [okuma kopyasında](../2026-09-09-queenagent-modele-giden-metinler.md) yeni
+  düzeltilen cümle okuma kopyasında yeni
   hâliyle duruyor, eskisi ve gerekçesi
-  [düzeltme log'unda](../2026-09-09-queenagent-metin-duzeltmeleri.md). **Kod ve testler okumanın
+  düzeltme log'unda. **Kod ve testler okumanın
   sonunda, tek geçişte** güncelleniyor: cümle cümle koda inmek okumayı bölüyor. O geçişte
   `test_prompt.py`'nin cümle tutan testleri **kuralı tutacak** şekilde gevşetilecek — silinmeyecek,
   çünkü her biri bir denemenin dersi.
@@ -682,7 +682,7 @@ Koşunun son işi, ve **kullanıcının kendi işi.**
   hiçbir metin kararı bu geçişte verilmedi. Testler gerçekten gevşetildi, hiçbiri silinmedi.
   Geçişin kendi iki bulgusu: test turunun kaçırdığı üç test *(altı indeks testi çevrilmişti,
   yedincisi eski başlığı elle tutuyordu)*, ve akış metninin **480/450** ile tavanı aşması — kararı
-  9 numaralı düzeltme önceden vermişti, ve kesim [36 numarada](../2026-09-09-queenagent-metin-duzeltmeleri.md)
+  9 numaralı düzeltme önceden vermişti, ve kesim 36 numarada
   yazılı.
 
 ## Madde 203 — Adımı işaretleyen araç kalkar
@@ -872,7 +872,7 @@ Koşunun son işi, ve **kullanıcının kendi işi.**
 - **Madde 204 — ortak SDXL metninin bölünmesi.** Ayrı madde olarak yazıldı ve aynı gün geri
   çekildi *(kullanıcı kararı, 10 Eylül)*: iş **190'ın kendi içinde** yapılıyor, çünkü bölme bir
   metin kararı ve 190 zaten metinleri okuyor. Numarası boş kalıyor — 188'in sebebiyle. Kararın
-  kendisi [düzeltme log'unun 34 numaralı kaydında](../2026-09-09-queenagent-metin-duzeltmeleri.md):
+  kendisi düzeltme log'unun 34 numaralı kaydında:
   hangi cümlenin nereye gittiği de, nasıl yazıldığı da orada. Kod tarafı 190'ın kod geçişinde,
   ötekilerle aynı geçişte iniyor.
 - **Madde 188 — promptların etiketleşmesi.** Taslak okunurken geri çekildi *(kullanıcı kararı,

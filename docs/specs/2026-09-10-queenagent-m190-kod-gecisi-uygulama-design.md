@@ -1,8 +1,8 @@
 # Madde 190 — okumanın kod geçişi · uygulama turu
 
 **Kaynak:** [test turunun tasarımı](2026-09-10-queenagent-m190-kod-gecisi-testler-design.md),
-[okuma kopyası](../2026-09-09-queenagent-modele-giden-metinler.md) *(§1, §3, §4, §5, §6 — hedef
-metinler)* ve [düzeltme log'u](../2026-09-09-queenagent-metin-duzeltmeleri.md) *(35 kayıt)*.
+okuma kopyası *(§1, §3, §4, §5, §6 — hedef
+metinler)* ve düzeltme log'u *(35 kayıt)*.
 
 **Test turu:** `1a4cbf3` — 34 kırmızı, iki bekçi yeşil.
 
