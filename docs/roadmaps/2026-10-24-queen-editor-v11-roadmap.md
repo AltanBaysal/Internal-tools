@@ -1,16 +1,55 @@
 # Queen Editor — Yol Haritası v11
 
-**Tarih:** 2026-10-24 · **Koşu dalı:** `feat/queen-editor-v11` (koşu başlarken açılır) · **Durum:** 0/3 · hazırlanıyor; v11-1, v11-2 ve v11-3 hizalanmadı
-**Öncesi:** [v10](2026-10-20-queen-editor-v10-roadmap.md) — 19/19 kapandı, 24 Ekim'de QueenAgent v11'le birlikte main'e birleşti.
-**Kaynak:** v11-1, v11-2 ve v11-3 kullanıcının 24 Ekim'deki sözlerinden.
+**Durum:** Hazırlanıyor · 0/4 bitti
 
-**Numaralar:** maddeler v11-1, v11-2, … diye yazılır, ve koşu başlarken ortak sayaçtan koşu sırasıyla
-numara alır; specler bu numaraları anar.
+**Önceki sürüm:** [v10](2026-10-20-queen-editor-v10-roadmap.md) — bitti.
 
 ---
 
-| # | İş | Bitti sayılır |
+| # | İş | Durum |
 |---|---|---|
-| v11-1 | `UNALIGNED` · **Translucent Penetration'ın Krea sürümü Krea fotoğraflarında kullanılır; Qwen sürümü de not edilir.** *(Kullanıcı, 24 Ekim — "krea verisyonu çıkmı qwen versiyonuda bakalım", "roadmape ekle bunu", "queen editorun sonraki versioynu için".)* **Bugün** Translucent Penetration yalnız Nova ve DaSiWa'da: `translucent_penetration_v5.safetensors`, Civitai sürümü `3077575` (*v5+Illustrious*), strength 0.9, tetik kelimesi `translucent penetration` *([catalog.py](../../queen-editor/backend/features/photo_generation/domain/catalog.py))*. Krea'nın workflow'unda tek LoRA var, SNOFS v1.5, strength 0.8 *([workflow_photo_krea2_api.json](../../queen-editor/assets/workflow_photo_krea2_api.json))*. **Civitai'de** *(model 2322841, yazarı DustyDrab, 24 Ekim'de bakıldı)* iki yeni sürüm var: **v5+Krea2** — sürüm `3117012`, 10 Temmuz, `translucent_penetration_v5+krea2.safetensors` (~229 MB), tetik kelimesi `translucent penetration`, yazara göre strength 1.0, ve bazı pozisyonlar Illustrious'takinden zayıf; **v5+Qwen-Image-2.1** — sürüm `3370853`, 30 Eylül, `translucent_penetration-V5+Qwen-Image-2.1.safetensors` (~152 MB), tetik kelimesi yok, cfg ~3 ve strength 1.0. **Qwen** uygulamada bir seçenek değil: 484'ün denemesinde Qwen 2.1'in LoRA'ları ve checkpoint'leri kötü çıktı *(kullanıcı, 21 Ekim — "bu loralar ve checkpointler baya kötü")*, ve Qwen'in LoRA eğitimi backlog'da. Bu yüzden Qwen sürümü şimdilik yalnız not; Qwen yeniden denenirse bu LoRA da denenir. **Hizalanırken konuşulacak:** Krea sürümü SNOFS'un yanına mı girer yoksa yerine mi, ve hep mi açık durur yoksa seçilerek mi; SNOFS'la birlikte denenir *(kullanıcı, 24 Ekim — "test ederiz snofs vs ama şimdi karar vermeyleim align olurken konuşulur")*. | Hizalanınca yazılır. |
-| v11-2 | `UNALIGNED` · **Sırada iş yokken Queen Editor kullanıcıya orada mı diye sorar; cevap gelmezse Colab'ı kapatır.** *(Kullanıcı, 24 Ekim — "queen editor sırada işlem yoksa kullanıcı orada mı diye sorsun değilse collabı kaapatsın boşa para yemesin".)* **Bugün** sıra boşalınca hiçbir şey olmuyor: notebook'un son hücresi Flask'ın log'unu izleyerek açık kalıyor *([queeneditor.ipynb](../../queen-editor/queeneditor.ipynb), `follow(FLASK_LOG)`)*, ve runtime kullanıcı kapatana ya da Colab kendisi kesene kadar çalışıyor. A100 açık kaldığı her saat para yiyor *(487'den beri varsayılan A100)*. **İstenen:** sırada fotoğraf ya da video yokken ekranda "orada mısın?" sorusu çıkar; kullanıcı cevap verirse Colab açık kalır, cevap vermezse Colab'ın runtime'ı kapanır ve para yemez. **Hizalanırken konuşulacak:** sıra ne kadar boş kalınca sorulur; sorudan sonra ne kadar beklenir; sürmekte olan bir export ya da ajanla sohbet "iş" sayılır mı; ve ekran açık değilken — sekme kapalıyken — soru kime çıkar. | Hizalanınca yazılır. |
-| v11-3 | `UNALIGNED` · **Drive dolunca emek kaybolmaz.** *(Kullanıcı, 24 Ekim — "google drivemın doldurğu içim 2 saatlik emek çöpe gitti"; Colab'ı kapattıktan sonra — "kapattım colalbi", "roadmape yaz".)* **Olan:** Drive doldu, kullanıcının iki saatlik işi kayboldu, ve Colab kapatıldığı için makinenin diskinde kalanlar da gitti. Hangi araçta olduğu ve ekranda bir hata görülüp görülmediği daha sorulmadı. **Bugün, koddan:** ComfyUI her fotoğrafı ve videoyu önce makinenin kendi diskine, `/content/ComfyUI/output/`'a kaydediyor; uygulama dosyayı oradan alıp `Storage`'la Drive'a yazıyor. Drive yazmayı reddederse kayıt, render'ın üç denemesinin dışında olduğu için koşuyu hemen durduruyor, ve ekranda Drive'ın kendi cümlesi çıkıyor *([run_loop.py](../../queen-editor/backend/features/photo_generation/domain/run_loop.py) 444 – 455, [runner.py](../../queen-editor/backend/features/photo_generation/runner.py) 84 – 90)*. GPU'nun yaptığı o son iş bellekte kalıyor ve kayboluyor; kopyası yalnız `/content`'te, runtime'la birlikte ölüyor. Drive'ın ne kadar boş yeri kaldığına hiçbir yerde bakılmıyor. **Hizalanırken konuşulacak:** Drive dolmak üzereyken önceden uyarı mı; dolunca sıra durup yer açılınca Drive'a yazılmayanlar yeniden mi yazılır; yazılamayan dosyalar Colab'ın diskinde tutulup ekranda "Drive'a yazılamadı" diye mi gösterilir; ve kaybolan iki saatte ne olduğu — hata ekranda görünmüş müydü. | Hizalanınca yazılır. |
+| v11-1 | Translucent Penetration (Krea ve Qwen) | `UNALIGNED` |
+| v11-2 | Boşta Colab'ı kapat | `UNALIGNED` |
+| v11-3 | Drive dolunca iş kaybolmasın | `UNALIGNED` |
+| v11-4 | Femboy LoRA'sı | `UNALIGNED` |
+
+---
+
+### v11-1 — Translucent Penetration (Krea ve Qwen)
+
+**Kabul koşulu:** Krea fotoğrafı üretirken Translucent Penetration kullanılabiliyor. Qwen sürümünün test sonucu yazılı.
+
+Translucent Penetration LoRA'sı Krea fotoğraflarında da kullanılır; Qwen sürümü de denenir.
+
+**Karar verilecek:**
+- Krea sürümü SNOFS'un yanına mı girer, yerine mi?
+- Hep mi açık olur, seçilerek mi?
+
+### v11-2 — Boşta Colab'ı kapat
+
+**Kabul koşulu:** Sırada iş yokken ekranda "orada mısın?" çıkıyor. Cevap verilmezse Colab kapanıyor, verilirse açık kalıyor.
+
+Sırada iş yokken Queen Editor "orada mısın?" diye sorar; cevap gelmezse Colab'ı kapatır.
+
+**Neden:** Colab boşta açık kalınca A100 boşa para yiyor.
+
+**Karar verilecek:**
+- Sıra ne kadar boş kalınca sorulur?
+- Sorudan sonra ne kadar beklenir?
+- Süren export ya da ajan sohbeti iş sayılır mı?
+- Sekme kapalıyken ne olur?
+
+### v11-3 — Drive dolunca iş kaybolmasın
+
+**Kabul koşulu:** Drive dolduğunda üretilen fotoğraf ve videolar kaybolmuyor.
+
+Drive dolunca üretilen iş kaybolmaz.
+
+**Karar verilecek:**
+- Drive dolmadan önce uyarı mı, yer açılınca yeniden yazma mı, ikisi birden mi?
+
+### v11-4 — Femboy LoRA'sı
+
+**Kabul koşulu:** LoRA'nın test sonucu yazılı. İyi çıktıysa Queen Editor'de kullanılabiliyor.
+
+femboysXL ya da benzeri bir LoRA test edilir, iyi çıkarsa Queen Editor'e eklenir. Özel prompt istiyorsa QueenAgent'a bilgisi eklenir.
