@@ -288,50 +288,105 @@ describe("GeneratePanel — the lora field (madde 237, 238)", () => {
   });
 });
 
-// Madde 486: Krea is drawn with its own graph's lora and no negative, and its row says so -- the
-// panel reads the row, never the model's id.
-const KREA = { value: "krea2", label: "Krea 2 Turbo",
-               lora: { value: "snofs", label: "SNOFS" }, negative: false };
+// Madde 486, 499: Krea and Qwen are drawn with a lora box of their own and no negative, and their
+// rows say so -- the panel reads the row, never the model's id.
+const KREA = { value: "krea2", label: "Krea 2 Turbo", negative: false,
+               loras: [{ value: "snofs", label: "SNOFS" },
+                       { value: "snofs_slime", label: "SNOFS + Slime" },
+                       { value: "none", label: "Boş" }] };
+const QWEN = { value: "qwen21turbo", label: "Qwen Image 2.1 Turbo", negative: false,
+               loras: [{ value: "translucent_penetration", label: "Translucent Penetration" },
+                       { value: "none", label: "Boş" }] };
+const ALL = [...MODELS, KREA, QWEN];
+const rows = () => [...loraBox().options].map((o) => o.textContent);
+const queue = () => act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
-describe("GeneratePanel — Krea's own lora and no negative (madde 486)", () => {
-  it("shows Krea's lora alone, as no choice, and no negative box", () => {
-    renderPanel({ models: [...MODELS, KREA], settings: { ...SETTINGS, model: "krea2" } });
+describe("GeneratePanel — Krea's and Qwen's own lora boxes and no negative (madde 486, 499)", () => {
+  it("offers Krea's three, opens on SNOFS, and draws no negative box", () => {
+    renderPanel({ models: ALL, settings: { ...SETTINGS, model: "krea2" } });
 
-    expect([...loraBox().options].map((o) => o.textContent)).toEqual(["SNOFS"]);
+    expect(rows()).toEqual(["SNOFS", "SNOFS + Slime", "Boş"]);
     expect(loraBox().value).toBe("snofs");
-    expect(loraBox().disabled).toBe(true);
+    expect(loraBox().disabled).toBe(false);
     expect(screen.queryByText("Negatif prompt")).toBeNull();
     // The orientation is still there: it is Krea's too.
     expect(screen.getByText("Yön")).toBeTruthy();
   });
 
-  it("gives both boxes back on the way to Nova, with what the user had in them", () => {
-    renderPanel({ models: [...MODELS, KREA],
-                  settings: { ...SETTINGS, negative: "bulanık", lora: "slime" } });
+  it("sends the Krea pick", async () => {
+    const onGenerate = vi.fn().mockResolvedValue({ added: 4 });
+    renderPanel({ onGenerate, models: ALL, settings: { ...SETTINGS, model: "krea2" } });
+
+    fireEvent.change(loraBox(), { target: { value: "snofs_slime" } });
+    await queue();
+
+    expect(loraBox().value).toBe("snofs_slime");
+    expect(onGenerate).toHaveBeenCalledWith(expect.objectContaining({
+      model: "krea2", lora: "snofs_slime",
+    }));
+  });
+
+  it("sends SNOFS when Krea's box was left alone", async () => {
+    // What the box shows is what goes.
+    const onGenerate = vi.fn().mockResolvedValue({ added: 4 });
+    renderPanel({ onGenerate, models: ALL, settings: { ...SETTINGS, model: "krea2" } });
+
+    await queue();
+
+    expect(onGenerate).toHaveBeenCalledWith(expect.objectContaining({ lora: "snofs" }));
+  });
+
+  it("offers Qwen Translucent Penetration or Boş, and no negative box", async () => {
+    const onGenerate = vi.fn().mockResolvedValue({ added: 4 });
+    renderPanel({ onGenerate, models: ALL, settings: { ...SETTINGS, model: "qwen21turbo" } });
+
+    expect(rows()).toEqual(["Translucent Penetration", "Boş"]);
+    expect(loraBox().value).toBe("translucent_penetration");
+    expect(screen.queryByText("Negatif prompt")).toBeNull();
+    fireEvent.change(loraBox(), { target: { value: "none" } });
+    await queue();
+    expect(onGenerate).toHaveBeenCalledWith(expect.objectContaining({
+      model: "qwen21turbo", lora: "none",
+    }));
+  });
+
+  it("keeps each box's pick on the way between models", () => {
+    renderPanel({ models: ALL, settings: { ...SETTINGS, negative: "bulanık", lora: "slime" } });
 
     fireEvent.change(modelBox(), { target: { value: "krea2" } });
     expect(screen.queryByDisplayValue("bulanık")).toBeNull();
+    fireEvent.change(loraBox(), { target: { value: "snofs_slime" } });
 
     fireEvent.change(modelBox(), { target: { value: "nova3dcg" } });
     expect(screen.getByText("Negatif prompt")).toBeTruthy();
     expect(screen.getByDisplayValue("bulanık")).toBeTruthy();
-    expect([...loraBox().options].map((o) => o.textContent)).toEqual(["USNR", "Slime", "Boş"]);
+    expect(rows()).toEqual(["USNR", "Slime", "Boş"]);
     expect(loraBox().value).toBe("slime");
-    expect(loraBox().disabled).toBe(false);
+
+    // DaSiWa shares Nova's box, and so its pick.
+    fireEvent.change(modelBox(), { target: { value: "dasiwa" } });
+    expect(loraBox().value).toBe("slime");
+
+    fireEvent.change(modelBox(), { target: { value: "krea2" } });
+    expect(loraBox().value).toBe("snofs_slime");
   });
 
-  it("still sends the boxes' own values, so the project keeps them for Nova", async () => {
-    // What Krea is drawn with is the server's to record; the request carries what the user has in
-    // the boxes, and the project's settings keep it across a reload (spec, karar 3).
-    const onGenerate = vi.fn().mockResolvedValue({ added: 4 });
-    renderPanel({ onGenerate, models: [...MODELS, KREA],
-                  settings: { ...SETTINGS, model: "krea2", negative: "bulanık", lora: "slime" } });
+  it("opens an old Krea project's Nova lora on Nova's box and Krea on SNOFS", () => {
+    // Before 499 the panel sent Nova's lora with Krea, so the settings say {krea2, slime}: Slime is
+    // Nova's pick, and Krea's box opens on its own first row.
+    renderPanel({ models: ALL, settings: { ...SETTINGS, model: "krea2", lora: "slime" } });
 
-    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+    expect(loraBox().value).toBe("snofs");
+    fireEvent.change(modelBox(), { target: { value: "nova3dcg" } });
+    expect(loraBox().value).toBe("slime");
+  });
 
-    expect(onGenerate).toHaveBeenCalledWith(expect.objectContaining({
-      model: "krea2", negative: "bulanık", lora: "slime",
-    }));
+  it("opens on the Krea pick the project was last sent with", () => {
+    renderPanel({ models: ALL, settings: { ...SETTINGS, model: "krea2", lora: "snofs_slime" } });
+
+    expect(loraBox().value).toBe("snofs_slime");
+    fireEvent.change(modelBox(), { target: { value: "nova3dcg" } });
+    expect(loraBox().value).toBe("usnr");
   });
 });
 
@@ -595,6 +650,22 @@ describe("GeneratePanel — coming back to the form", () => {
     expect(loraBox().value).toBe("slime");
     expect(facing("Dikey").getAttribute("aria-pressed")).toBe("true");
     expect(variantBox().value).toBe("9");
+  });
+
+  it("keeps every lora box's pick, and the record's, across the step out", () => {
+    // Madde 499: a pick per box. The saved Slime was never touched and still has to come back.
+    const first = renderPanel({ models: ALL, settings: { ...SETTINGS, lora: "slime" } });
+
+    fireEvent.change(modelBox(), { target: { value: "krea2" } });
+    fireEvent.change(loraBox(), { target: { value: "none" } });
+    first.unmount();
+
+    renderPanel({ models: ALL, settings: { ...SETTINGS, lora: "slime" } });
+
+    expect(modelBox().value).toBe("krea2");
+    expect(loraBox().value).toBe("none");
+    fireEvent.change(modelBox(), { target: { value: "nova3dcg" } });
+    expect(loraBox().value).toBe("slime");
   });
 
   it("fills the boxes from the record when nothing has been typed yet", () => {

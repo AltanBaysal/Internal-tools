@@ -230,10 +230,13 @@ def test_a_krea_frame_reaches_krea_s_graph_and_any_other_the_photo_graph(import_
     photo = main._producers[layers.PHOTO]
 
     photo.generate("kraliçe tahtta", "", 1, "krea2", "usnr")
+    photo.generate("kraliçe tahtta", "", 1, "qwen21turbo", "none")
     photo.generate("kraliçe tahtta", "", 1, "nova3dcg", "usnr")
 
-    krea, nova = sent
+    krea, qwen, nova = sent
     assert krea["53:19"]["inputs"]["value"] == "kraliçe tahtta"
+    # Madde 499: Qwen's frames reach Qwen's graph.
+    assert qwen["452"]["inputs"]["prompt"] == "kraliçe tahtta"
     assert nova["45"]["inputs"]["ckpt_name"] == "nova3DCGXL_ilV90.safetensors"
 
 

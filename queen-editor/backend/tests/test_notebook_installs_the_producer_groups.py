@@ -451,9 +451,9 @@ def test_every_file_the_app_renders_with_is_one_the_notebook_can_fetch():
     checkpoints = _cell("PHOTO_CHECKPOINTS = [")
     source = _source()
 
-    # Krea has no checkpoint: its graph's files are held to the notebook through the photo group
-    # (test_every_file_the_panel_counts_is_fetched_by_the_notebook), and the group to the graph in
-    # test_workflow_asset.
+    # Krea and Qwen have no checkpoint: their graphs' and boxes' files are held to the notebook
+    # through the photo group (test_every_file_the_panel_counts_is_fetched_by_the_notebook), and the
+    # group to the graphs in test_workflow_asset.
     for model in [model for model in models if "checkpoint" in model]:
         assert model["checkpoint"] in checkpoints, \
             f"{model['id']}: modelin checkpoint'i defterde yok — {model['checkpoint']}"
@@ -587,6 +587,16 @@ def test_the_notebook_fetches_snofs_by_its_version_through_the_mirror():
     assert "snofs_krea_v1_5.safetensors" not in MIRRORLESS
 
 
+def test_the_notebook_fetches_translucent_penetration_s_krea_version_through_the_mirror():
+    """Madde 499: v5+Krea2, Civitai version 3117012, under a name of ours -- Civitai's has a "+" --
+    with Krea's other files, through the mirror like every Civitai file the app keeps."""
+    from colab.downloads import MIRRORLESS
+
+    assert re.search(r'\(\s*3117012,\s*LORA,\s*"translucent_penetration_v5_krea2\.safetensors",',
+                     _listing("CIVITAI_KREA2")), "CIVITAI_KREA2'de Slime'ın Krea satırı yok"
+    assert "translucent_penetration_v5_krea2.safetensors" not in MIRRORLESS
+
+
 def test_krea_s_files_come_only_with_its_box():
     """Reached through the photo lists, so photo's box and Krea's both have to be ticked."""
     cell = _cell("# === Target folders ===")
@@ -599,22 +609,70 @@ def test_krea_s_files_come_only_with_its_box():
 
 
 def test_the_disk_estimate_counts_krea_when_it_is_ticked():
-    """Its four files are 20,551,370,926 bytes, about 19.1 GiB."""
+    """Its five files are 20,786,074,662 bytes, about 19.4 GiB."""
     assert "+ (20 if PHOTO_KREA2 else 0)" in _cell("PHOTO_GIB ="), "Disk hesabı Krea'yı saymıyor"
 
 
-def test_the_models_cell_shows_krea_s_folders():
+def test_the_models_cell_shows_the_folders_krea_and_qwen_fill():
     cell = _cell("# === Target folders ===")
 
     for folder in ("diffusion_models", "vae", "text_encoders"):
-        assert re.search(rf'\(INSTALL_VIDEO or INSTALL_KREA2, "{folder}"', cell), \
-            f"{folder} Krea için gösterilmiyor"
+        assert re.search(rf'\(INSTALL_VIDEO or INSTALL_KREA2 or INSTALL_QWEN, "{folder}"', cell), \
+            f"{folder} Krea ve Qwen için gösterilmiyor"
     assert "INSTALL_KREA2 = INSTALL_PHOTO and PHOTO_KREA2" in cell
+    assert "INSTALL_QWEN = INSTALL_PHOTO and PHOTO_QWEN21TURBO" in cell
 
 
-def test_the_clone_checks_for_the_krea_graph():
-    assert "workflow_photo_krea2_api.json" in _cell("# === Clone ==="), \
-        "Klon Krea'nın grafiğini aramıyor"
+def test_the_clone_checks_for_the_krea_and_qwen_graphs():
+    clone = _cell("# === Clone ===")
+
+    for name in ("workflow_photo_krea2_api.json", "workflow_photo_qwen_api.json"):
+        assert name in clone, f"Klon {name} dosyasını aramıyor"
+
+
+# Qwen Image 2.1 Turbo (madde 499): the official template's files, and Translucent Penetration's
+# Qwen version.
+
+
+def test_the_notebook_fetches_qwen_s_three_files_from_comfy_org():
+    """The files the official Turbo template's loaders name, from the open repo they point at:
+    hf_fetch takes them straight and uploads nothing, as Krea's."""
+    listing = _listing("HF_QWEN")
+
+    for path, folder, name in (
+            ("diffusion_models/", "DIFF", "qwen_image_2.1_turbo_int8_convrot.safetensors"),
+            ("text_encoders/", "TENC", "qwen3vl_8b_int8_convrot.safetensors"),
+            ("vae/", "VAE", "qwen_image_2.1_vae_bf16.safetensors")):
+        assert re.search(rf'\(\s*"Comfy-Org/Qwen-Image-2\.1",\s*"{path}{re.escape(name)}",'
+                         rf'\s*{folder},\s*"{re.escape(name)}",', listing), \
+            f"HF_QWEN'de {name} satırı yok:\n{listing}"
+
+
+def test_the_notebook_fetches_translucent_penetration_s_qwen_version_through_the_mirror():
+    """v5+Qwen-Image-2.1, Civitai version 3370853, under a name of ours."""
+    from colab.downloads import MIRRORLESS
+
+    assert re.search(r'\(\s*3370853,\s*LORA,\s*'
+                     r'"translucent_penetration_v5_qwen_image_2_1\.safetensors",',
+                     _listing("CIVITAI_QWEN")), "CIVITAI_QWEN'de Translucent Penetration satırı yok"
+    assert "translucent_penetration_v5_qwen_image_2_1.safetensors" not in MIRRORLESS
+
+
+def test_qwen_s_files_come_only_with_its_box():
+    """The user's call: Qwen enters the notebook as Krea did, with a box of its own, and comes down
+    only when it is ticked (madde 499)."""
+    cell = _cell("# === Target folders ===")
+
+    for name in ("HF_QWEN", "CIVITAI_QWEN"):
+        assert f"+ ({name} if PHOTO_QWEN21TURBO else [])" in cell, \
+            f"{name} Qwen'in kutusunun arkasında değil"
+    assert '(PHOTO_QWEN21TURBO, "qwen21turbo", None)' in _cell("PHOTO_MODELS = [")
+
+
+def test_the_disk_estimate_counts_qwen_when_it_is_ticked():
+    """Its four files are about 17,442,532,000 bytes, 16.2 GiB."""
+    assert "+ (17 if PHOTO_QWEN21TURBO else 0)" in _cell("PHOTO_GIB ="), \
+        "Disk hesabı Qwen'i saymıyor"
 
 
 def test_the_models_cell_lists_the_detailer_s_folders():

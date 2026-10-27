@@ -616,28 +616,38 @@ def test_a_lora_the_app_does_not_know_is_refused_before_anything_is_planned():
     assert plan_store.frames == [] and generator.calls == []
 
 
-def test_a_krea_batch_records_the_lora_and_the_negative_it_is_drawn_with():
-    """Krea's graph has its own lora and no negative (madde 486): its lines say so, rather than the
-    boxes' values, so a Krea frame's page never names a lora or a negative that was not used. The
-    request still carries the boxes' values -- the project's settings keep them for Nova."""
+@pytest.mark.parametrize("model, lora", [("krea2", "slime"), ("krea2", "gitmiş"),
+                                          ("qwen21turbo", "snofs"), ("nova3dcg", "snofs_slime")])
+def test_a_lora_the_model_s_box_does_not_offer_is_refused(model, lora):
+    """Madde 238's rule for every box (madde 499): Krea and Qwen are asked against their own box,
+    which is what they draw with, so Nova's Slime on Krea -- or Krea's pick on Nova -- is refused
+    at the button rather than drawn with something nobody picked."""
+    from backend.features.photo_generation.domain.usecases.start_batch import InvalidLora
+
+    plan_store = FakePlanStore()
+    with pytest.raises(InvalidLora) as exc:
+        run_batch(sync_runner(), FakeStore(), FakeGenerator(), plan_store=plan_store,
+                  text='["a"]', variants=1, model=model, lora=lora)
+
+    assert lora in str(exc.value)
+    assert plan_store.frames == []
+
+
+@pytest.mark.parametrize("model, lora, recorded", [
+    ("krea2", "snofs", "snofs"), ("krea2", "snofs_slime", "snofs_slime"), ("krea2", "none", "none"),
+    ("krea2", "", "snofs"),
+    ("qwen21turbo", "translucent_penetration", "translucent_penetration"),
+    ("qwen21turbo", "none", "none"), ("qwen21turbo", "", "translucent_penetration"),
+])
+def test_a_model_with_a_box_of_its_own_records_the_pick(model, lora, recorded):
+    """Krea's box is SNOFS, SNOFS + Slime and Boş, Qwen's Translucent Penetration and Boş (madde
+    499): what is picked is what is drawn, and the line says it. No pick is the list's first row."""
     plan_store, generator = FakePlanStore(), FakeGenerator()
     run_batch(sync_runner(), FakeStore(), generator, plan_store=plan_store, text='["a"]',
-              variants=2, model="krea2", negative="bulanık", lora="slime")
+              variants=1, model=model, negative="bulanık", lora=lora)
 
-    assert [(line["lora"], line["negative"]) for line in plan_store.frames] == \
-        [("snofs", ""), ("snofs", "")]
-    assert generator.loras == ["snofs", "snofs"]
-    assert [call[1] for call in generator.calls] == ["", ""]
-
-
-def test_a_krea_batch_is_not_stopped_by_a_lora_its_box_no_longer_offers():
-    """The box's lora is not what Krea draws with, so a stale pick hidden behind it is no reason to
-    refuse the batch."""
-    plan_store = FakePlanStore()
-    run_batch(sync_runner(), FakeStore(), FakeGenerator(), plan_store=plan_store, text='["a"]',
-              variants=1, model="krea2", lora="gitmiş")
-
-    assert plan_store.frames[0]["lora"] == "snofs"
+    assert (plan_store.frames[0]["lora"], plan_store.frames[0]["negative"]) == (recorded, "")
+    assert generator.loras == [recorded]
 
 
 @pytest.mark.parametrize("lora", ["", "usnr", "slime", "none"])
@@ -3063,6 +3073,19 @@ def test_an_old_krea_frame_made_again_records_snofs_rather_than_its_old_lora():
     assert (job["lora"], job["negative"]) == ("snofs", "")
 
 
+def test_a_krea_slime_photo_made_again_keeps_its_pick():
+    """The pick is the frame's own (madde 499): made again, it is drawn with what it was."""
+    store, record, plan_store = video_project((0, "a"))
+    plan_store.frames[0].update(model="krea2", lora="snofs_slime")
+
+    regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
+               {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
+               "düğün", "0_a", layers.PHOTO, "p", negative="bulanık")
+
+    job = plan_store.appended[-1][0]
+    assert (job["lora"], job["negative"]) == ("snofs_slime", "")
+
+
 def test_a_layer_over_the_photo_carries_no_negative_whatever_it_is_given():
     # Only a photo is made from a prompt and a negative of its own; the layers over it are made from
     # what is under them. The editable box is the photo tab's alone and this is the rule behind it.
@@ -4360,22 +4383,33 @@ def test_nothing_is_written_when_nobody_asked_for_timings():
     assert runner.status()["status"] == "done"
 
 
-def test_the_model_list_is_nova_3dcg_dasiwa_and_krea_2_turbo():
+def test_the_model_list_is_nova_3dcg_dasiwa_krea_2_turbo_and_qwen_image_2_1_turbo():
     """A row in the Model box is a model and nothing else: the lora is its own box (madde 237).
-    Krea 2 Turbo is the one with a graph of its own rather than a checkpoint (madde 482)."""
-    from backend.features.photo_generation.domain.catalog import KREA2, MODELS
+    Krea 2 Turbo (madde 482) and Qwen Image 2.1 Turbo (madde 499) are drawn with graphs of their
+    own rather than a checkpoint."""
+    from backend.features.photo_generation.domain.catalog import KREA2, MODELS, QWEN
 
-    assert [model["id"] for model in MODELS] == ["nova3dcg", "dasiwa", KREA2]
-    assert [model.get("checkpoint") is None for model in MODELS] == [False, False, True]
+    assert [model["id"] for model in MODELS] == ["nova3dcg", "dasiwa", KREA2, QWEN]
+    assert [model.get("checkpoint") is None for model in MODELS] == [False, False, True, True]
 
 
-def test_krea_is_listed_by_its_name_with_its_own_lora_and_no_negative():
-    """The panel's LoRA box shows the one lora Krea's graph draws with, and its negative box goes:
-    the row says so, so the screen never has to know a model by its id (madde 486). SNOFS is not
-    in the lora list, which is Nova's and DaSiWa's box."""
-    assert list_models(["krea2"]) == [{"value": "krea2", "label": "Krea 2 Turbo",
-                                       "lora": {"value": "snofs", "label": "SNOFS"},
-                                       "negative": False}]
+def test_krea_is_listed_with_its_own_lora_box_and_no_negative():
+    """Krea's box is its own list, Boş last, and its negative box goes: the row says so, so the
+    screen never has to know a model by its id (madde 486, 499). None of these is in the lora list,
+    which is Nova's and DaSiWa's box."""
+    assert list_models(["krea2"]) == [{
+        "value": "krea2", "label": "Krea 2 Turbo", "negative": False,
+        "loras": [{"value": "snofs", "label": "SNOFS"},
+                  {"value": "snofs_slime", "label": "SNOFS + Slime"},
+                  {"value": "none", "label": "Boş"}]}]
+
+
+def test_qwen_is_listed_with_translucent_penetration_or_nothing_and_no_negative():
+    """The user's words: "tek lora translucent penetration olsun", and Boş (madde 499)."""
+    assert list_models(["qwen21turbo"]) == [{
+        "value": "qwen21turbo", "label": "Qwen Image 2.1 Turbo", "negative": False,
+        "loras": [{"value": "translucent_penetration", "label": "Translucent Penetration"},
+                  {"value": "none", "label": "Boş"}]}]
 
 
 def test_a_model_this_checkout_does_not_know_records_the_boxes_lora_and_negative():

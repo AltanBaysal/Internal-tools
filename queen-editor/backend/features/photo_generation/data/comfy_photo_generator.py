@@ -99,11 +99,7 @@ class ComfyPhotoGenerator:
         model, lora = catalog.LEGACY.get(model, (model, lora))
         chosen = self._model(model)
         extra = self._lora(lora)
-        if extra and extra["trigger"]:
-            # A lora that is loaded but never named in the prompt renders an ordinary photo and
-            # raises nothing anywhere -- so its word goes in front of the user's own.
-            prompt = f"{extra['trigger']}, {prompt}"
-        self._set_text(workflow, PROMPT_NODE, prompt)
+        self._set_text(workflow, PROMPT_NODE, catalog.with_trigger(prompt, extra))
         # An empty negative is written through as empty: leaving the export's own text in place
         # would mean "no negative" silently kept a negative.
         self._set_text(workflow, NEGATIVE_NODE, negative or "")

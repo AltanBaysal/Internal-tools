@@ -97,15 +97,16 @@ def test_a_row_says_nothing_about_installing_because_the_app_does_not():
 
 
 def test_the_photo_group_carries_everything_the_graph_reads():
-    """The first row is the model, and either kind will do (madde 482): any checkpoint, the user's
-    pick since Madde 140, or all four of Krea 2 Turbo's files, which its graph loads by name. The
-    other five are named by the file itself. The face detector and SAM came back with the detailer
-    (madde 469): FaceDetailer loads them at startup, so a photo render needs them on the disk. They
-    come down with a Krea-only run too, as the group always has."""
+    """The first row is the model, and any of three kinds will do: any checkpoint, the user's pick
+    since Madde 140, or every file of Krea 2 Turbo (madde 482) or of Qwen Image 2.1 Turbo (madde
+    499), which their graphs and lora boxes load by name. The other five are named by the file
+    itself. The face detector and SAM came back with the detailer (madde 469): FaceDetailer loads
+    them at startup, so a photo render needs them on the disk. They come down with a Krea-only or a
+    Qwen-only run too, as the group always has."""
     rows = model_groups.GROUPS["photo"]
 
     assert rows[0] == {"any": [[{"folder": "checkpoints", "suffix": ".safetensors"}],
-                               model_groups.KREA2_FILES]}
+                               model_groups.KREA2_FILES, model_groups.QWEN_FILES]}
     assert [(row["folder"], row["name"]) for row in rows[1:]] == [
         ("loras", "USNR_STYLE_ILL_V1_lokr3-000024.safetensors"),
         # Both loras come with the group whichever models were installed: the lora box is a pick
@@ -173,6 +174,16 @@ def test_half_of_krea_is_no_model():
                                ("loras", "style.safetensors")])
 
     assert list_producers(EITHER, files)[0]["installed"] is False
+
+
+def test_a_machine_with_only_qwen_has_a_photo_producer():
+    """The shipped group, on a machine where only Qwen's box was ticked (madde 499)."""
+    rest = [(row["folder"], row["name"]) for row in model_groups.GROUPS["photo"][1:]]
+    qwen = [(row["folder"], row["name"]) for row in model_groups.QWEN_FILES]
+    groups = {"photo": model_groups.GROUPS["photo"]}
+
+    assert list_producers(groups, FakeFiles(present=qwen + rest))[0]["installed"] is True
+    assert list_producers(groups, FakeFiles(present=qwen[1:] + rest))[0]["installed"] is False
 
 
 def test_a_model_without_the_rest_of_the_group_is_not_installed():

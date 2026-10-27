@@ -27,9 +27,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 # path here would go on being right about the old place (madde 251).
 PHOTO_GRAPH = config.WORKFLOW_PATH
 
-# Every graph config knows the way to -- the four it names, in one place.
-GRAPHS = (config.WORKFLOW_PATH, config.KREA2_WORKFLOW_PATH, config.H3_VIDEO_WORKFLOW_PATH,
-          config.H3_VIDEO_FIRST_LAST_WORKFLOW_PATH)
+# Every graph config knows the way to -- the five it names, in one place.
+GRAPHS = (config.WORKFLOW_PATH, config.KREA2_WORKFLOW_PATH, config.QWEN_WORKFLOW_PATH,
+          config.H3_VIDEO_WORKFLOW_PATH, config.H3_VIDEO_FIRST_LAST_WORKFLOW_PATH)
 
 
 def test_no_graph_is_left_in_the_tool_root():
@@ -352,6 +352,41 @@ def test_a_krea_prompt_goes_through_the_real_photo_producers_on_its_own_graph(tm
     assert {graph["53:19"]["inputs"]["value"] for graph in krea.graphs} == {"kraliçe tahtta"}
     assert store.files["P1_0.png"] == png(1280, 720)
     assert len(sdxl.graphs) == 1 and sdxl.graphs[0]["23"]["inputs"]["value"] == 2
+
+
+class QwenComfy(BatchComfy):
+    """Qwen's graph's server: answers with a picture of the size its latent was handed."""
+
+    def fetch_output(self, history):
+        latent = self.graphs[-1]["456"]["inputs"]
+        return png(latent["width"], latent["height"])
+
+
+def test_a_qwen_prompt_goes_through_the_real_photo_producers_on_its_own_graph(tmp_path):
+    """Madde 499: a Qwen prompt's two variants are two jobs on the shipped Qwen graph, each with its
+    own seed, portrait at 1024 x 1536, with the lora its line names."""
+    from backend.features.photo_generation.data.comfy_qwen_photo_generator import (
+        ComfyQwenPhotoGenerator,
+    )
+    from backend.features.photo_generation.data.photo_by_model import PhotoByModel
+
+    qwen_jobs = [{**job, "id": f"P1_{job['variant']}", "number": 1, "model": "qwen21turbo",
+                  "lora": "translucent_penetration", "seed": 5 + job["variant"],
+                  "orientation": "dikey"} for job in VARIANTS]
+    store, sdxl, qwen = Store(), BatchComfy(), QwenComfy()
+    photo = PhotoByModel(ComfyPhotoGenerator(sdxl, PHOTO_GRAPH, timeout=60),
+                         {"qwen21turbo": ComfyQwenPhotoGenerator(qwen, config.QWEN_WORKFLOW_PATH,
+                                                                 timeout=60)})
+
+    state = make_job(Runner(), store, Record(), Plan(qwen_jobs), {layers.PHOTO: photo},
+                     lambda: "2026-10-27T00:00:00+00:00", "düğün")()
+
+    assert state["status"] == "done"
+    assert [graph["488"]["inputs"]["noise_seed"] for graph in qwen.graphs] == [5, 6]
+    assert {graph["lora:1"]["inputs"]["lora_name"] for graph in qwen.graphs} == \
+        {"translucent_penetration_v5_qwen_image_2_1.safetensors"}
+    assert store.files["P1_0.png"] == png(1024, 1536)
+    assert sdxl.graphs == []
 
 
 # --- Madde 423: a video's row says how long the video that was made runs ---------------------------

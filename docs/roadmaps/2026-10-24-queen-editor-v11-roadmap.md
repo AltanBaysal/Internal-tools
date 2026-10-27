@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v11
 
-**Durum:** Koşuyor · 3/6 bitti · dal `feat/queen-editor-v11`
+**Durum:** Koşuyor · 4/6 bitti · dal `feat/queen-editor-v11`
 
 **Önceki sürüm:** [v10](2026-10-20-queen-editor-v10-roadmap.md) — bitti.
 
@@ -21,7 +21,7 @@ ana klasörde koşunun dalında yürür.
 
 | Numara | İş | Durum |
 |---|---|---|
-| 499 · [v11-1](#v11-1) | Translucent Penetration: Krea'da, ve Qwen yeni model olarak | `ALIGNED` |
+| 499 · [v11-1](#v11-1) | Translucent Penetration: Krea'da, ve Qwen yeni model olarak | ✅ *(gerçek Krea + Slime ve Qwen fotoğrafları, Qwen graph'ının ComfyUI'de çalışması ve A100'de bellek kullanıcının sondaki Colab denemesinde; ilk çalıştırma iki yeni LoRA için `CIVITAI_COOKIE` ister)* · `ALIGNED` |
 | 498 · [v11-2](#v11-2) | Sıra boşken bildirim | ✅ *(gerçek 10 dk, tünelden geçen açık istek ve işletim sisteminin bildirimi kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
 | 497 · [v11-3](#v11-3) | Drive'a kayıt olmayınca hata verip dursun | ✅ *(Colab'da dolu Drive ve kopan bağlantı kullanıcının sondaki denemesinde)* · `ALIGNED` |
 | 501 · [v11-4](#v11-4) | Femboy LoRA'sı | `ALIGNED` |

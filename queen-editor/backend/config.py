@@ -43,6 +43,8 @@ _ASSETS_DIR = os.path.join(os.path.dirname(_BACKEND_DIR), "assets")
 WORKFLOW_PATH = os.path.join(_ASSETS_DIR, "workflow_api.json")
 # Krea 2 Turbo's graph: the user's own ComfyUI export, shipped as it was given (madde 482).
 KREA2_WORKFLOW_PATH = os.path.join(_ASSETS_DIR, "workflow_photo_krea2_api.json")
+# Qwen Image 2.1 Turbo's graph: Comfy-Org's official Turbo template, in API format (madde 499).
+QWEN_WORKFLOW_PATH = os.path.join(_ASSETS_DIR, "workflow_photo_qwen_api.json")
 # MiniMax H3's two graphs, exported in madde 213's trial and made sterile in 242: I2VA for a video
 # that hangs on a photo, FL2VA for one that arrives at another. H3 is the one video model (madde
 # 435), so every session renders its videos with these.

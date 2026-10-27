@@ -17,12 +17,23 @@ the graphs load by, so a rename here has to follow the graph rather than the sou
 HF_MMAUDIO_NSFW = "mmaudio_large_44k_nsfw_gold_8.5k_final_fp16.safetensors"
 
 # What Krea 2 Turbo's graph loads (madde 482), every one by name: the int8 DiT, its Qwen3-VL encoder,
-# Qwen Image's VAE and SNOFS, which the graph switches on.
+# Qwen Image's VAE and SNOFS, which the graph switches on -- and Translucent Penetration's Krea
+# version, which its lora box lays over SNOFS (madde 499).
 KREA2_FILES = [
     {"folder": "diffusion_models", "name": "krea2_turbo_int8_convrot.safetensors"},
     {"folder": "text_encoders", "name": "qwen3vl_4b_fp8_scaled.safetensors"},
     {"folder": "vae", "name": "qwen_image_vae.safetensors"},
     {"folder": "loras", "name": "snofs_krea_v1_5.safetensors"},
+    {"folder": "loras", "name": "translucent_penetration_v5_krea2.safetensors"},
+]
+
+# What Qwen Image 2.1 Turbo's graph loads (madde 499): the official template's int8 Turbo DiT, its
+# Qwen3-VL 8B encoder and its VAE -- and Translucent Penetration's Qwen version, its lora box's one.
+QWEN_FILES = [
+    {"folder": "diffusion_models", "name": "qwen_image_2.1_turbo_int8_convrot.safetensors"},
+    {"folder": "text_encoders", "name": "qwen3vl_8b_int8_convrot.safetensors"},
+    {"folder": "vae", "name": "qwen_image_2.1_vae_bf16.safetensors"},
+    {"folder": "loras", "name": "translucent_penetration_v5_qwen_image_2_1.safetensors"},
 ]
 
 GROUPS = {
@@ -35,12 +46,13 @@ GROUPS = {
         # model and every one of them is empty by default. A checkpoint is a kind rather than a
         # file: the graph renders with whichever it was handed, and the panel asks whether there is
         # anything to hand it. Naming one made the panel call the producer uninstalled for anyone
-        # who picked a different model. Krea is the other kind (madde 482): a graph of its own,
-        # whose files all have to be here.
-        {"any": [[{"folder": "checkpoints", "suffix": ".safetensors"}], KREA2_FILES]},
+        # who picked a different model. Krea (madde 482) and Qwen (madde 499) are the other kinds:
+        # each a graph of its own, whose files all have to be here.
+        {"any": [[{"folder": "checkpoints", "suffix": ".safetensors"}], KREA2_FILES, QWEN_FILES]},
         # Both loras come down whichever models were ticked: either can go over any checkpoint, and
         # hanging the panel's count on the choice would make "installed" mean a different set of
-        # files on every machine. A Krea-only run takes them too (~2 GiB with the three below).
+        # files on every machine. A Krea-only or Qwen-only run takes them too (~2 GiB with the
+        # three below).
         {"folder": "loras", "name": "USNR_STYLE_ILL_V1_lokr3-000024.safetensors"},
         {"folder": "loras", "name": "translucent_penetration_v5.safetensors"},
         {"folder": "upscale_models", "name": "4x_foolhardy_Remacri.pth"},

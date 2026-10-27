@@ -1,11 +1,12 @@
 """What the two boxes of the photo panel mean -- a model, and a lora laid over it.
 
-A model is a checkpoint and nothing more, but for Krea 2 Turbo, which is a graph of its own (madde
-482). A lora is one file with a strength, and the word the prompt has to carry for it to show. Which
-lora a checkpoint renders with is the lora box's answer alone: a model has no arrangement of its own
-(madde 238). Krea takes none of the box's loras -- they are Illustrious ones -- and draws with its
-graph's own, and it takes no negative; its row says both, so the panel shows that lora and no
-negative box, and its frames record what they are drawn with (madde 486).
+A model is a checkpoint and nothing more, but for Krea 2 Turbo and Qwen Image 2.1 Turbo, which are
+graphs of their own (madde 482, 499). A lora is one file with a strength, and the word the prompt
+has to carry for it to show. Which lora a checkpoint renders with is the lora box's answer alone: a
+model has no arrangement of its own (madde 238). Krea and Qwen take none of the box's loras -- they
+are Illustrious ones -- so each row carries a box of its own, and says it takes no negative; the
+panel then shows that box and no negative box, and their frames record what they are drawn with
+(madde 486, 499).
 
 Written down in two halves: the names and the files here, because this is the side that patches the
 graph, and the version ids and the sizes in the notebook, because addresses live there
@@ -13,17 +14,40 @@ graph, and the version ids and the sizes in the notebook, because addresses live
 same ids.
 
 Which models a machine has is not this file's answer -- the notebook installed them and says so
-through QE_PHOTO_MODELS. The loras need no such list: both files come down with the photo group
-whatever was ticked.
+through QE_PHOTO_MODELS. The loras need no such list: the box's files come down with the photo group
+whatever was ticked, and Krea's and Qwen's with that model's box.
 """
 
-# Krea 2 Turbo: rendered with its own graph, so main.py hands its frames to its own producer.
+# Krea 2 Turbo and Qwen Image 2.1 Turbo: each rendered with its own graph, so main.py hands their
+# frames to their own producers.
 KREA2 = "krea2"
+QWEN = "qwen21turbo"
 
-# The lora Krea's graph loads (node 53:15, at the graph's own 0.8): SNOFS, in the user's workflow. Not
-# in LORAS -- that is the box Nova and DaSiWa are drawn with, and SNOFS cannot load on them. The file
-# is here for test_workflow_asset to hold the row to the graph; the strength stays the graph's.
-KREA2_LORA = {"id": "snofs", "label": "SNOFS", "lora": "snofs_krea_v1_5.safetensors"}
+# What makes Translucent Penetration show, on every model it is drawn on. The Qwen version's page
+# lists no trained word -- its captions were rewritten in prose -- and the model page says these two
+# words are all it takes; the user's call is that Queen Editor puts them in (madde 499).
+SLIME_TRIGGER = "translucent penetration"
+
+# The files the two own boxes lay over their models, one LoraLoaderModelOnly each. SNOFS is the lora
+# of the user's Krea workflow, at its 0.8 (the user's call); test_workflow_asset holds the graph's
+# node 53:15 to this row. The two Translucent Penetration versions are from the same Civitai page as
+# Nova's Slime, at the 1.0 each version's page recommends.
+SNOFS_KREA = {"lora": "snofs_krea_v1_5.safetensors", "strength": 0.8}
+SLIME_KREA = {"lora": "translucent_penetration_v5_krea2.safetensors", "strength": 1.0}
+SLIME_QWEN = {"lora": "translucent_penetration_v5_qwen_image_2_1.safetensors", "strength": 1.0}
+
+# A pick of an own box is files laid one over another, and a trigger: SNOFS + Slime is two files,
+# and Slime keeps SNOFS's effect under it (the user's words). The first row is what an empty pick
+# draws.
+KREA2_LORAS = [
+    {"id": "snofs", "label": "SNOFS", "files": [SNOFS_KREA], "trigger": ""},
+    {"id": "snofs_slime", "label": "SNOFS + Slime", "files": [SNOFS_KREA, SLIME_KREA],
+     "trigger": SLIME_TRIGGER},
+]
+QWEN_LORAS = [
+    {"id": "translucent_penetration", "label": "Translucent Penetration", "files": [SLIME_QWEN],
+     "trigger": SLIME_TRIGGER},
+]
 
 MODELS = [
     {"id": "nova3dcg", "label": "Nova 3DCG XL", "checkpoint": "nova3DCGXL_ilV90.safetensors"},
@@ -32,9 +56,12 @@ MODELS = [
     {"id": "dasiwa", "label": "DaSiWa Illustrious | Anime",
      "checkpoint": "DasiwaIllustriousAnime_epitaphecstasy.safetensors"},
     # Picked in madde 485's trial; no checkpoint, because the graph loads a DiT, its encoder and its
-    # VAE by name (assets/workflow_photo_krea2_api.json). Its lora is the graph's, and it has no
-    # negative: the graph's is the prompt zeroed, and at cfg 1 ComfyUI does not compute it.
-    {"id": KREA2, "label": "Krea 2 Turbo", "lora": KREA2_LORA, "negative": False},
+    # VAE by name (assets/workflow_photo_krea2_api.json). No negative: the graph's is the prompt
+    # zeroed, and at cfg 1 ComfyUI does not compute it.
+    {"id": KREA2, "label": "Krea 2 Turbo", "loras": KREA2_LORAS, "negative": False},
+    # The official Turbo template, 8 steps at cfg 1 (the user's call, madde 499), in
+    # assets/workflow_photo_qwen_api.json. cfg 1 computes no negative here either.
+    {"id": QWEN, "label": "Qwen Image 2.1 Turbo", "loras": QWEN_LORAS, "negative": False},
 ]
 
 LORAS = [
@@ -48,7 +75,7 @@ LORAS = [
     # the prompt renders an ordinary photo and raises nothing.
     {"id": "slime", "label": "Slime",
      "lora": "translucent_penetration_v5.safetensors", "strength": 0.9,
-     "trigger": "translucent penetration"},
+     "trigger": SLIME_TRIGGER},
 ]
 
 # What a frame that names no lora renders with, and what the panel fills an empty box with: the
@@ -78,24 +105,46 @@ def find_model(model_id):
     return next((model for model in MODELS if model["id"] == model_id), None)
 
 
+def own_loras(model_id):
+    """The box this model's own graph is drawn with, or None when the shared lora box's pick is what
+    renders -- every checkpoint, and any value a line carried from before models had rows."""
+    return (find_model(model_id) or {}).get("loras")
+
+
 def find_lora(lora_id):
-    """The lora with this id, or None."""
+    """The shared box's lora with this id, or None."""
     return next((lora for lora in LORAS if lora["id"] == lora_id), None)
 
 
-def own_lora(model_id):
-    """The lora this model's own graph draws with, or None when the lora box's pick is what renders
-    -- every checkpoint, and any value a line carried from before models had rows."""
-    return (find_model(model_id) or {}).get("lora")
+def find_own_lora(model_id, lora_id):
+    """The row with this id in this model's own box, or None -- for a model with no box of its own
+    too. A row of another shape than find_lora's: files laid one over another (KREA2_LORAS)."""
+    return next((row for row in own_loras(model_id) or [] if row["id"] == lora_id), None)
 
 
 def drawn_with(model_id, lora, negative):
     """(lora, negative) a photo of this model is drawn with -- what its plan line records, whoever
-    writes the line (madde 486). The ones it was given, but for a model whose row says otherwise:
-    Krea is drawn with its graph's own lora and no negative, so its line names those, and its page
-    never names a lora or a negative that was not used. An id this checkout does not know keeps the
-    user's own."""
+    writes the line (madde 486). The ones it was given, but for a model whose row says otherwise: a
+    model with a box of its own draws a pick that box does not hold -- an empty one, or Nova's lora
+    on a Krea line planned before 486 -- with the box's first row, and one that takes no negative
+    is drawn with none. Boş stays Boş. An id this checkout does not know keeps the user's own."""
     model = find_model(model_id) or {}
-    own = model.get("lora")
-    return (own["id"] if own else lora,
-            negative if model.get("negative", True) else "")
+    own = model.get("loras")
+    if own and lora != NO_LORA and find_own_lora(model_id, lora) is None:
+        lora = own[0]["id"]
+    return lora, negative if model.get("negative", True) else ""
+
+
+def own_pick(model_id, lora):
+    """The row of this model's own box a frame is drawn with, or None for Boş -- through drawn_with,
+    so a producer draws exactly what the line records."""
+    lora, _negative = drawn_with(model_id, lora, "")
+    return None if lora == NO_LORA else find_own_lora(model_id, lora)
+
+
+def with_trigger(prompt, lora):
+    """The prompt a frame drawn with this lora row (either box's, or None) is sent with: the lora's
+    word in front of the user's own. A lora loaded and never named in the prompt renders an
+    ordinary photo and raises nothing anywhere -- the rule Slime has had since it came in, and the
+    user's call for Krea's and Qwen's (madde 499)."""
+    return f"{lora['trigger']}, {prompt}" if lora and lora["trigger"] else prompt

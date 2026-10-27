@@ -1,6 +1,8 @@
 import json
 import os
 
+import pytest
+
 from backend import config
 from backend.features.producers.domain.model_groups import GROUPS
 
@@ -158,16 +160,17 @@ def _model_files(node):
     return set()
 
 
-def test_the_only_graphs_shipped_are_the_two_photo_ones_and_h3_s():
+def test_the_only_graphs_shipped_are_the_three_photo_ones_and_h3_s():
     """Madde 435, the user's words: "wan modelini kaldıralım queen editorden direkt kullanımıyor
     zaten". Queen Editor makes H3 videos alone, so WAN's two graphs no longer ship -- a graph left
     behind would be one nobody renders and somebody edits. Krea 2 Turbo's is the second photo graph
-    (madde 482)."""
+    (madde 482), Qwen Image 2.1 Turbo's the third (madde 499)."""
     shipped = sorted(name for name in os.listdir(os.path.dirname(config.WORKFLOW_PATH))
                      if name.endswith(".json"))
 
     assert shipped == ["workflow_api.json", "workflow_photo_krea2_api.json",
-                       "workflow_video_h3_api.json", "workflow_video_h3_first_last_api.json"], \
+                       "workflow_photo_qwen_api.json", "workflow_video_h3_api.json",
+                       "workflow_video_h3_first_last_api.json"], \
         f"Gönderilen grafikler: {shipped}"
 
 
@@ -369,32 +372,43 @@ def test_the_krea_graph_has_no_negative_to_write():
 
 
 def test_the_krea_graph_renders_with_snofs_switched_on():
-    """The user's workflow draws with SNOFS at 0.8, and the lora box's Illustrious loras cannot load
-    on Krea -- so this is the lora every Krea picture has."""
+    """The user's workflow draws with SNOFS at 0.8, behind the switch Boş turns off (madde 499)."""
     krea = _krea()
 
     assert (krea["53:15"]["inputs"]["lora_name"], krea["53:15"]["inputs"]["strength_model"]) == \
         ("snofs_krea_v1_5.safetensors", 0.8)
-    assert krea["53:22"]["inputs"]["switch"] == ["53:23", 0]
+    assert krea["53:15"]["inputs"]["model"] == ["53:10", 0]
+    assert krea["53:22"]["inputs"] == {"switch": ["53:23", 0], "on_false": ["53:10", 0],
+                                       "on_true": ["53:15", 0]}
     assert krea["53:23"]["inputs"]["value"] is True
 
 
-def test_the_lora_the_panel_names_for_krea_is_the_one_its_graph_loads():
-    """The LoRA box shows Krea's lora by the catalog's row (madde 486). Swapping the lora in the
-    user's workflow without the row would have the panel name a lora no Krea picture is drawn
-    with."""
+def test_krea_s_snofs_is_the_one_its_graph_loads():
+    """The producer writes SNOFS from the catalog into 53:15 (madde 499): a lora swapped in the
+    user's workflow without the row, or the row without the workflow, would draw a SNOFS the user
+    never chose."""
     from backend.features.photo_generation.domain import catalog
 
-    assert _krea()["53:15"]["inputs"]["lora_name"] == catalog.KREA2_LORA["lora"]
+    loader = _krea()["53:15"]["inputs"]
+    assert (loader["lora_name"], loader["strength_model"]) == \
+        (catalog.SNOFS_KREA["lora"], catalog.SNOFS_KREA["strength"])
+    assert catalog.KREA2_LORAS[0]["files"] == [catalog.SNOFS_KREA]
+
+
+def _box_files(loras):
+    """Every lora file an own lora box lays over its graph."""
+    return {file["lora"] for row in loras for file in row["files"]}
 
 
 def test_every_model_the_krea_graph_loads_is_krea_s_row_in_the_photo_group():
-    """The panel counts Krea as a photo model by these files, so a file the graph loads and the row
-    does not name is a panel that says ready over a render that cannot start -- and one the row names
-    and the graph does not is a download nobody uses."""
+    """The panel counts Krea as a photo model by these files, so a file the graph or its lora box
+    loads and the row does not name is a panel that says ready over a render that cannot start --
+    and one the row names and neither loads is a download nobody uses."""
+    from backend.features.photo_generation.domain import catalog
     from backend.features.producers.domain.model_groups import KREA2_FILES
 
-    assert _model_files(_krea()) == {row["name"] for row in KREA2_FILES}
+    assert _model_files(_krea()) | _box_files(catalog.KREA2_LORAS) == \
+        {row["name"] for row in KREA2_FILES}
 
 
 def test_krea_s_sizes_keep_the_video_s_shape():
@@ -410,3 +424,125 @@ def test_krea_s_sizes_keep_the_video_s_shape():
         assert pw * vh == ph * vw, f"{name}: Krea {pw}x{ph}, video {vw}x{vh} aynı oranda değil"
         assert pw % 16 == 0 and ph % 16 == 0, f"{name}: {pw}x{ph} 16'nın katı değil"
         assert (pw > ph) == (vw > vh), f"{name}: Krea'nın şekli videonunkine ters"
+
+
+# Qwen Image 2.1 Turbo (madde 499): Comfy-Org's official Turbo template, flattened into API format by
+# hand. These hold it to the template's own settings -- the user's words: "resmi şablon, 8 adım,
+# cfg 1".
+
+
+def _qwen():
+    """Qwen's graph, read fresh."""
+    with open(config.QWEN_WORKFLOW_PATH, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _class(graph, link):
+    """The class of the node a link [id, output] comes from."""
+    return graph[link[0]]["class_type"]
+
+
+def test_the_qwen_graph_is_api_format_with_the_nodes_we_patch():
+    qwen = _qwen()
+
+    assert "nodes" not in qwen, "UI formatında — API biçiminde olmalı"
+    assert qwen["452"]["class_type"] == "TextEncodeQwenImage21"
+    assert {"prompt", "negative_prompt"} <= set(qwen["452"]["inputs"])
+    assert qwen["488"]["class_type"] == "RandomNoise"
+    assert "noise_seed" in qwen["488"]["inputs"]
+    assert qwen["456"]["class_type"] == "EmptyLatentImage"
+    assert qwen["456"]["inputs"]["batch_size"] == 1
+    assert qwen["451"]["class_type"] == "UNETLoader"
+    assert qwen["490"]["class_type"] == "QwenImage21Cache"
+    assert qwen["490"]["inputs"]["model"] == ["451", 0]
+
+
+def test_the_qwen_graph_runs_the_turbo_template_s_eight_steps_at_cfg_1():
+    """The schedule is what makes 8 steps enough (the template's own note); cfg 1 is why no
+    negative is written."""
+    qwen = _qwen()
+    sampler = qwen["486"]["inputs"]
+
+    assert qwen["486"]["class_type"] == "SamplerCustomAdvanced"
+    assert qwen[sampler["sigmas"][0]]["inputs"]["sigmas"] == \
+        "1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, 0.704534, 0.414568, 0"
+    assert qwen[sampler["sampler"][0]]["inputs"]["sampler_name"] == "euler"
+    guider = qwen[sampler["guider"][0]]["inputs"]
+    assert guider["cfg"] == 1
+    assert guider["model"] == ["490", 0]
+    assert (guider["positive"], guider["negative"]) == (["452", 0], ["452", 1])
+    assert sampler["noise"] == ["488", 0] and sampler["latent_image"] == ["456", 0]
+    assert qwen["452"]["inputs"]["negative_prompt"] == ""
+
+
+def test_the_qwen_graph_saves_one_picture_where_the_client_reads_it():
+    """fetch_output reads /history's images, which SaveImage writes; the template's
+    SaveImageAdvanced is not used."""
+    qwen = _qwen()
+    savers = [node for node in qwen.values() if node["class_type"].startswith("Save")]
+
+    assert [node["class_type"] for node in savers] == ["SaveImage"]
+    assert _class(qwen, savers[0]["inputs"]["images"]) == "VAEDecode"
+
+
+def test_the_qwen_graph_has_no_prompt_enhancer():
+    """Off in the template, and its loader's 9.47 GB file would still be asked for: ComfyUI checks
+    every loader it is sent (484's trial)."""
+    classes = {node["class_type"] for node in _qwen().values()}
+
+    assert not classes & {"TextGenerate", "ComfySwitchNode", "PreviewAny"}, classes
+    assert "qwen3.5_9b_qwen_image_2.1_pe_t2i.int8_convrot.safetensors" not in _model_files(_qwen())
+
+
+def _links(node):
+    """The [node id, output] links among a node's inputs."""
+    return [value for value in node["inputs"].values()
+            if isinstance(value, list) and len(value) == 2 and isinstance(value[0], str)]
+
+
+def _hanging(graph, outputs):
+    """The nodes no output reads, walking back from the nodes of the `outputs` classes."""
+    waiting = [node_id for node_id, node in graph.items() if node["class_type"] in outputs]
+    reached = set()
+    while waiting:
+        node_id = waiting.pop()
+        if node_id not in reached:
+            reached.add(node_id)
+            waiting += [link[0] for link in _links(graph[node_id])]
+    return sorted(set(graph) - reached)
+
+
+@pytest.mark.parametrize("read, outputs", [(_qwen, {"SaveImage"}),
+                                           (_krea, {"SaveImage", "PreviewAny"})])
+def test_the_hand_written_graphs_hang_together(read, outputs):
+    """Qwen's graph was flattened by hand (madde 499), and a link naming no node, or a node no output
+    reads, is what that goes wrong as -- ComfyUI says so only on the machine. Krea's too, whose
+    switches the producer now writes."""
+    graph = read()
+
+    dangling = [(node_id, link) for node_id, node in graph.items() for link in _links(node)
+                if link[0] not in graph]
+    assert dangling == [], f"Var olmayan düğüme bağlantı: {dangling}"
+    assert _hanging(graph, outputs) == [], "Hiçbir çıkışa ulaşmayan düğüm var"
+
+
+def test_every_model_the_qwen_graph_loads_is_qwen_s_row_in_the_photo_group():
+    from backend.features.photo_generation.domain import catalog
+    from backend.features.producers.domain.model_groups import QWEN_FILES
+
+    assert _model_files(_qwen()) | _box_files(catalog.QWEN_LORAS) == \
+        {row["name"] for row in QWEN_FILES}
+
+
+def test_qwen_s_sizes_keep_the_video_s_shape_on_multiples_of_32():
+    """Madde 475's rule; 32 is what the template's note asks for. Inside the 1.0 - 2.5 MP the Qwen
+    version of Translucent Penetration was trained for."""
+    from backend.features.photo_generation.data import comfy_h3_video_generator as video
+    from backend.features.photo_generation.data import comfy_qwen_photo_generator as qwen
+
+    assert qwen.SIZES == {"yatay": (1536, 864), "dikey": (1024, 1536)}
+    for name, (pw, ph) in qwen.SIZES.items():
+        vw, vh, _preset = video.SIZES[name]
+        assert pw * vh == ph * vw, f"{name}: Qwen {pw}x{ph}, video {vw}x{vh} aynı oranda değil"
+        assert pw % 32 == 0 and ph % 32 == 0, f"{name}: {pw}x{ph} 32'nin katı değil"
+        assert 1.0 <= pw * ph / 1e6 <= 2.5, f"{name}: {pw}x{ph} LoRA'nın aralığında değil"
