@@ -1,6 +1,6 @@
 # QueenAgent — Yol Haritası v12
 
-**Durum:** Koşuyor · 0/5 bitti · dal `feat/queenagent-v12`
+**Durum:** Koşuyor · 1/5 bitti · dal `feat/queenagent-v12`
 
 **Önceki sürüm:** [v11](../arsiv/roadmaps/2026-10-20-queen-agent-v11-roadmap.md) — bitti.
 
@@ -23,7 +23,7 @@ bitir")*; deneme sonucu gelince 501 araya alınır. Bir madde birleşince sırad
 | 505 · [v12-2](#v12-2) | Mesaj yazma kutusu büyüsün | `ALIGNED` |
 | 503 · [v12-3](#v12-3) | SDXL start seçiliyken model sormasın | `ALIGNED` |
 | 506 · [v12-4](#v12-4) | Projeleri toplu arşivle/sil | `ALIGNED` |
-| 502 · [v12-5](#v12-5) | Sürüm V12 | `ALIGNED` |
+| 502 · [v12-5](#v12-5) | Sürüm V12 | ✅ · `ALIGNED` |
 
 ---
 
