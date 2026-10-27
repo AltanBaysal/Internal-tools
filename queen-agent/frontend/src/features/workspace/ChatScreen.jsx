@@ -127,6 +127,21 @@ export default function ChatScreen({
     error,
   ]);
 
+  // The list shares the column with the box, which grows as a reply gets longer (Madde 505): the
+  // list then gets shorter from below with its scroll unchanged, and a reader at the foot would lose
+  // its last lines. Its own size is watched, not what it holds, so an edit box growing inside it does
+  // not count. With no observer the list simply does not follow, as useShellWidth does not measure.
+  // Again when `missing` changes: that screen has no list.
+  useEffect(() => {
+    const list = scroll.current;
+    if (!list || typeof ResizeObserver === "undefined") return undefined;
+    const observer = new ResizeObserver(() => {
+      if (following.current) toBottom();
+    });
+    observer.observe(list);
+    return () => observer.disconnect();
+  }, [missing]);
+
   // A chat the server says is not there: the way back, over the line saying so. A chat still being
   // read draws its own frame below instead (design item 194).
   if (missing) {

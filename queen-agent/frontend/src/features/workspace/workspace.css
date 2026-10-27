@@ -1215,11 +1215,8 @@
 }
 
 /* The bubble's shape with a border where its fill was: still that message, now open for writing.
-   As tall as the sentence (useGrowingField) up to 40% of the screen, the user's limit of 27 October;
-   past it the sentence scrolls inside. Here rather than in the hook, so it holds as the window
-   changes. */
+   Its 40% cap is in the rule it shares with the composer's field. */
 .msg__editing-input {
-  max-height: 40vh;
   border: 1px solid var(--line);
   border-radius: 14px 14px 4px 14px;
   background: var(--surface);
@@ -2016,6 +2013,14 @@
   content: "";
   flex: 1 1 16px;
   border-top: 1px solid var(--line);
+}
+
+/* The two fields grow with their text (useGrowingField) up to 40% of the screen, the user's one
+   limit for both (27 October, Madde 504 and 505); past it the text scrolls inside. Here rather than
+   in the hook, so it holds as the window changes, and once, so the two cannot drift apart. */
+.msg__editing-input,
+.composer__input {
+  max-height: 40vh;
 }
 
 /* No outline of its own, not even to take one away: the focus ring is app.css's to draw, and this

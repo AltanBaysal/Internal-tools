@@ -1,5 +1,7 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 
+import { useGrowingField } from "../../shared/useGrowingField.js";
+
 // The two marks the one button wears. Written here rather than inline: the running state picks
 // between them, and a reader should see both at once to know they are a pair.
 const SEND = "↑";
@@ -26,6 +28,11 @@ export default forwardRef(function Composer(
   // that correction into the message's own place, and the box went back to holding one thing.
   const [draft, setDraft] = useState("");
   const field = useRef(null);
+  // As tall as the reply, from its rows up to 40% of the screen, as the edit box is (Madde 505).
+  // Sending empties the draft, and that alone takes the box back to its rows. Hidden while the chat
+  // is full, it is measured again as it comes back, its draft perhaps changed: it comes back to a
+  // width, and the hook measures every change of width.
+  useGrowingField(field, draft);
   const ready = draft.trim().length > 0;
   // An empty draft is what blocks sending; blocking a stop with it would kill the control in the
   // very case it exists for. The accent follows: while an answer runs, stopping is the only action

@@ -82,10 +82,10 @@ dosya ve kutu başına bir satır.
 
 ## Sınırlar
 
-- Kutu açıkken sohbetin genişliği değişirse (pencere daralır, dosya rayı açılır), satırlar yeniden
-  kırılır ama yükseklik bir sonraki tuşta yeniden ölçülür. Arada yazı kaybolmaz: kutu ya bir satır uzun
-  kalır ya da içinde kayar. Genişliği izlemek için bir `ResizeObserver` eklenmedi; kabul koşulu açılışı
-  ve yazmayı soruyor.
+- Kutu açıkken sohbetin genişliği değişirse (pencere daralır, dosya rayı açılır) hook onu 505'ten beri
+  yeniden ölçüyor: QA dar pencerede ilk yüklemede yazma kutusunu 202 px buldu, ve hook kutunun
+  genişliğini bir `ResizeObserver` ile izlemeye başladı
+  ([505](2026-10-27-queen-agent-m505-yazma-kutusu-design.md#genişlik-değişince-yeniden-ölç)).
 - Ölçmek için kutu bir an `rows` boyuna iniyor; sohbet dibe kaydırılmışsa bu, kaydırma konumunu
   kırpabilir. Reviewer Chrome ve Edge'de ölçtü: yükseklik yazılınca tarayıcı konumu kendisi geri
   koyuyor, sohbet zıplamıyor. Bu yüzden hook ataların `scrollTop`'unu saklayıp geri yazmıyor. Firefox

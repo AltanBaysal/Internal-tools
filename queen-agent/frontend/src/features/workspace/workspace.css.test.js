@@ -828,10 +828,11 @@ test("the field that corrects a message is the chat's width", () => {
   expect(editing).not.toContain("max-width");
 });
 
-test("the field stops growing at 40% of the screen", () => {
-  // The user, 27 October: "Ekranın %40'ı, yaklaşık 11 satır." Past it, the sentence scrolls inside.
-  // In the stylesheet rather than in useGrowingField, so it stays true when the window changes.
-  expect(rule(".msg__editing-input")).toContain("max-height: 40vh");
+test("both fields stop growing at 40% of the screen, by one rule", () => {
+  // The user, 27 October: "Ekranın %40'ı, yaklaşık 11 satır."; "İkisi de %40 olsun." Past it, the
+  // text scrolls inside. In the stylesheet rather than in useGrowingField, so it stays true when the
+  // window changes; written once, so the two boxes cannot drift apart (Madde 505).
+  expect(CSS).toMatch(/\n\.msg__editing-input,\r?\n\.composer__input \{\r?\n {2}max-height: 40vh;\r?\n\}/);
 });
 
 test("the tick and the cross sit under the field, in the message's own direction", () => {
