@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v11
 
-**Durum:** Koşuyor · 1/6 bitti · dal `feat/queen-editor-v11`
+**Durum:** Koşuyor · 2/6 bitti · dal `feat/queen-editor-v11`
 
 **Önceki sürüm:** [v10](2026-10-20-queen-editor-v10-roadmap.md) — bitti.
 
@@ -23,7 +23,7 @@ ana klasörde koşunun dalında yürür.
 |---|---|---|
 | 499 · [v11-1](#v11-1) | Translucent Penetration: Krea'da, ve Qwen yeni model olarak | `ALIGNED` |
 | 498 · [v11-2](#v11-2) | Sıra boşken bildirim | `ALIGNED` |
-| 497 · [v11-3](#v11-3) | Drive'a kayıt olmayınca hata verip dursun | `ALIGNED` |
+| 497 · [v11-3](#v11-3) | Drive'a kayıt olmayınca hata verip dursun | ✅ *(Colab'da dolu Drive ve kopan bağlantı kullanıcının sondaki denemesinde)* · `ALIGNED` |
 | 501 · [v11-4](#v11-4) | Femboy LoRA'sı | `ALIGNED` |
 | 500 · [v11-5](#v11-5) | Eski belgeler ve roadmap'ler arşive | `ALIGNED` |
 | 496 · [v11-6](#v11-6) | Sürüm V11 | ✅ · `ALIGNED` |
@@ -57,6 +57,10 @@ hiç girmedi.
 - **Qwen'in prompt'ları** *(cevap: "3")*: şimdilik Krea senaryosu Qwen'le de çizilir, QueenAgent'ta bir
   şey değişmez. LoRA'nın tetik kelimesini, Nova'daki Slime'da olduğu gibi Queen Editor ekler. İlk
   fotoğraflar Qwen'in ayrı kural istediğini gösterirse QueenAgent'a ayrı bir madde açılır.
+- **Claude'un kararları** *(kullanıcı, 27 Ekim — "sen karar ver")*: Translucent Penetration'ın Krea ve
+  Qwen sürümlerini coder Civitai'de bulur ve hangisini seçtiğini spec'e yazar; kullanıcı sondaki Colab
+  denemesinde görür. Güçler LoRA sayfasının önerdiği; SNOFS bugünkü gibi 0.8. Qwen notebook'a Krea
+  gibi kendi kutucuğuyla girer: yalnız işaretlenirse iner.
 
 <a id="v11-2"></a>
 ### 498 · v11-2 — Sıra boşken bildirim
@@ -75,14 +79,21 @@ sürerken ikisi de gelmiyor.
   Kapatma [BACKLOG.md](../../queen-editor/BACKLOG.md)'de, *"Boşta Colab kapansın"*.
 - **Tekrar** *(cevap: "2")*: bildirime cevap gelmezse sıra boş kaldıkça her 10 dk'da bir yeniden gelir.
 - **Ekranda da sorulur** *(cevap: "yes")*: bildirimle birlikte ekranda "orada mısın?" çıkar.
+- **Claude'un kararları** *(kullanıcı, 27 Ekim — "sen karar ver")*: kutuda tek bir **"Buradayım"**
+  düğmesi olur; basınca kutu kapanır ve 10 dk yeniden başlar. Tarayıcının bildirim izni ilk kez
+  Kuyruğa ekle'ye basılınca istenir, çünkü tarayıcı izni ancak bir tıklamadan sonra sorabiliyor; izin
+  verilmezse yalnız ekrandaki kutu çıkar. 10 dk sıra bittiği andan sayar; uygulama boş bir sırayla
+  açılırsa açıldığı andan.
 
 <a id="v11-3"></a>
 ### 497 · v11-3 — Drive'a kayıt olmayınca hata verip dursun
 
-**Kabul koşulu:**
-- Drive'a kayıt hangi sebeple olmazsa olsun, fotoğrafta, videoda ve export'ta ekranda bir hata çıkıyor
-  ve o sırada süren iş duruyor.
-- Ekranda bitmiş görünen her iş, Colab kapatılıp açıldıktan sonra da Drive'da duruyor.
+**Kabul koşulu:** Fotoğraf, video ya da export Drive'a kaydedilirken Drive bağlı değilse ya da Drive
+doluysa, ekranda bir hata çıkıyor ve o sırada süren iş duruyor. Hata, sistemin kendi sözünü taşıyor.
+Kaydı yapılamayan iş ekranda bitmiş görünmüyor.
+
+*(İlk yazılan ikinci koşul — "ekranda bitmiş görünen her iş, Colab kapatılıp açıldıktan sonra da
+Drive'da duruyor" — 27 Ekim'de kullanıcının kararıyla çıktı; aşağıda.)*
 
 **Ne oldu** *(kullanıcı, 27 Ekim)*: fotoğraflar üretildi ve ekranda hepsi bitmiş göründü; *"ai bazen
 düzgün fotoğraf üretmiyor bozukları siliyoruz"*. Sonra videolar üretildi, bozukları silindi, ve Colab
@@ -96,10 +107,31 @@ arada çalışmıyor video içindeo lmuyor"*.
 - Durduktan sonrası *"normal hata davranışı neyse o"*: bugün üretimi durduran bir hatada iş sıradan
   düşmüyor, yeniden başlatınca o kare yeniden çiziliyor.
 
-**Spec'in ilk işi sebebi görmek.** Kodda Drive'a yazma hatası üretimi durduruyor, ama kullanıcı hiç
-hata görmedi. İki tahmin var: Colab'ın Drive bağlantısı dosyayı önce kendi diskine yazıp Drive'a sonra
-ve sessizce gönderiyor olabilir; ya da bozuk bir karenin silinmesi, dosyasını paylaşan başka bir karenin
-fotoğrafını götürüyor olabilir.
+**Sebep** *(497'nin coder'ı, 27 Ekim)*: Colab'ın Drive bağlantısı dosyayı önce kendi diskine alıp
+"kaydedildi" diyor, Drive'a sonra arka planda gönderiyor. Drive dolu olduğunda bu gönderim sessizce
+düştü; Queen Editor hiçbir hata görmedi. Google'ın kendi Colab kodu da bunu söylüyor:
+`drive.flush_and_unmount` "bekleyen yazmaları gönderir". Silme sebep değil: aynı dosyayı paylaşan
+kareyi koruyan kural var ve testi var, ve silme kaybı aynı oturumda gösterirdi. Kullanıcının
+gördükleri de buna uyuyor *(27 Ekim — "collabte uyarı görnemdeimdrive doludu"; "bazıları krıık
+dutuyordu açınca fotoğraf bulunamıyor diyordu muhtemeln jsona metadası gitmiş")*: kayıt satırı
+Drive'a ulaştı, fotoğraf dosyası ulaşmadı.
+
+**Drive API'ye geçilmiyor** *(kullanıcı, 27 Ekim — "şimdilik apiye geçmeyelim boşverelim onu sadece
+drive mounted mı diye bakalım bir de drive dolu mu diye baklaım daha önce bunlardan patladık sadece")*.
+Her kayıttan sonra dosyanın Google'a ulaştığını sormak için API gerekiyordu; v10'da (472) da
+reddedilmişti. Bu yüzden Drive'ın kendi arka plan gönderiminin düşmesi bu maddede yakalanmıyor; madde
+bilinen iki sebebi, bağlantının kopmasını ve Drive'ın dolmasını, kayıttan önce yakalıyor. Yukarıdaki
+*"drive dolduğuan özel değil"* kararının yerini bu karar alıyor: dolu Drive için de ayrıca bakılır.
+
+**Ne zaman bakılır:** her kayıttan önce *(kullanıcı, 27 Ekim — "1 den devam edleim o zaman")*.
+Kullanıcı önce arka planda paralel bir bakış istedi *("parelel baksın sıralı bakya gerek yok")*; bakışın
+tek bir sistem çağrısı olduğu, kaydı fark edilir biçimde bekletmediği, ve arka plandaki bir bakışın
+iki bakış arasındaki kayıtları kaçıracağı söylenince kayıttan önce bakmayı seçti. "Drive bağlı mı"
+bakışı v10'dan (472) beri her Drive işleminden önce var; bu madde yalnız yer bakışını ekliyor.
+
+**Hata nerede görünür:** sıra durunca hata sıra panelinde görünür, başka bir yerde değil *(kullanıcı,
+27 Ekim — "sıra panelinde görünüyorsa yeter hata")*. Ekrandan yapılan bir kayıt reddedilince — örneğin
+Kuyruğa ekle — ekran sunucunun cümlesini gösterir, sabit bir metin değil.
 
 <a id="v11-4"></a>
 ### 501 · v11-4 — Femboy LoRA'sı
@@ -141,6 +173,9 @@ da olsa, o belgeyi arar ve bulamaz.
   (`notlar/`'a); ve bitmiş işlere ait `research/` ile `design-needs/` belgeleri.
 - Taşınan her belgeye giden linkler yeni yere göre düzeltilir, düz yazıya çevrilmiş linkler de yeniden
   link olur. Spec'lerin çoğu kendi roadmap'ine link veriyor, bu yüzden bu iş yüzlerce linke dokunur.
+- **"Biten" ne demek** *(Claude'un kararı; kullanıcı, 27 Ekim — "sen karar ver")*: açık iki roadmap,
+  Queen Editor v11 ve QueenAgent v12, dışındaki her roadmap biten sayılır; onlara ait spec, plan,
+  research ve design-needs belgeleri de arşive girer.
 
 <a id="v11-6"></a>
 ### 496 · v11-6 — Sürüm V11

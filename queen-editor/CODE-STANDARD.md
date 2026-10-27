@@ -86,6 +86,14 @@ fails ([madde 472](../docs/specs/2026-10-20-queen-editor-m472-storage-design.md)
 - **The mount is checked before every operation:** the root is stat'ed once and its device compared
   with the one it had on first use (not at construction, which touches no disk). A failed stat, a
   missing root or another device stops the operation with the OS's own words.
+- **Every write asks for room first** — a save and an appended line alike: the root's free space
+  against the bytes about to be written. Too little stops the write before anything is written,
+  with the door's own sentence carrying the two numbers the mount reported. Google's own
+  `flush_and_unmount` shows a write can still be waiting to reach Google after it returned, and on a
+  full Drive files the screen showed as saved were lost
+  ([madde 497](../docs/specs/2026-10-27-queen-editor-m497-drive-kayit-kontrolu-design.md)). That
+  DriveFS reports the account's quota as the mount's free space is unverified until the user's
+  Colab trial; a push that fails after the write returned is not seen.
 - **A save is whole or absent:** a temporary file with a recognisable prefix in the target's own
   folder, `fsync`, then `os.replace`. Listings skip the prefix. A save returning is what "saved"
   means. The two records that grow line by line, `photos.jsonl` and `chats.jsonl`, are appended to,

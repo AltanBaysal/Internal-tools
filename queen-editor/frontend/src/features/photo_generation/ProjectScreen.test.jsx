@@ -599,6 +599,23 @@ describe("ProjectScreen — the lora is kept with the project (madde 238)", () =
 
     expect(onSaveSettings).toHaveBeenCalledWith(expect.objectContaining({ lora: "slime" }));
   });
+
+  it("shows the server's sentence when Drive refuses the settings, and sends nothing (madde 497)",
+     async () => {
+       const said = "Drive'da yer yok: /drive/lora/settings.json için 107 bayt gerekiyor, "
+         + "Drive'ın bildirdiği boş yer 10 bayt";
+       const onSaveSettings = vi.fn().mockRejectedValue(new Error(said));
+       generateBatch.mockClear();
+       render(<ProjectScreen project="lora" onSaveSettings={onSaveSettings}
+                             settings={{ ...SETTINGS, prompts: '["a"]' }} />);
+       await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+
+       await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+       expect(screen.getByText("Kuyruğa eklenemedi")).toBeTruthy();
+       expect(screen.getByText(said)).toBeTruthy();
+       expect(generateBatch).not.toHaveBeenCalled();
+     });
 });
 
 describe("ProjectScreen — the orientation is kept with the project (madde 477)", () => {

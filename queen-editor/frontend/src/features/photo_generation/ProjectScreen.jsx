@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { failureText } from "../../shared/failure_text.js";
 import { exportPath, navigate } from "../../shared/router.js";
 import { VERSION } from "../../shared/version.js";
 import { Btn, Hand, Note } from "../../vendor/kit.jsx";
@@ -83,7 +84,8 @@ export default function ProjectScreen({ project, settings, settingsError, onRetr
       });
     } catch (err) {
       setSaveError(err.message);
-      return null;
+      // The refusal brings its own words, the shape generate's refusal has (madde 497).
+      return { error: failureText(err) };
     }
     return generate(form);
   }

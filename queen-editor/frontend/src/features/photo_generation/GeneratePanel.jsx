@@ -10,6 +10,12 @@ const LABEL = { color: "var(--ink-2)", letterSpacing: ".08em", textTransform: "u
 
 const PLACEHOLDER = '["ilk prompt", "ikinci prompt"]';
 
+// How small the prompt block may get: its label and about three lines of the box. The box gives way
+// to whatever stands under it, and a refusal card with the server's words under it (madde 497) once
+// squeezed it to 22 px at 1280×720, clipping the one line it held. Past this floor the panel
+// scrolls instead, which it already does (SidePanel's PANEL).
+const PROMPT_FLOOR = 96;
+
 const MAX_VARIANTS = 26;
 // What the box starts at in a project that has never saved a count. Two rather than four (İstek 8):
 // four was the number the app was born with, and fewer variants of one prompt is what the work
@@ -96,7 +102,9 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
   const [submitting, setSubmitting] = useState(false);
   // How many frames the last submission added, straight from the server; null once it has faded.
   const [added, setAdded] = useState(null);
-  const [refused, setRefused] = useState(false);
+  // The server's words for the last press's refusal, or null. Kept here rather than read off
+  // `error`, which the next good status poll clears while the refusal still stands (madde 497).
+  const [refused, setRefused] = useState(null);
   const fade = useRef(null);
 
   useEffect(() => () => clearTimeout(fade.current), []);
@@ -157,7 +165,7 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
   // belong to the try that just ended, and leaving either behind would put a stale answer under a
   // button that is about to be pressed again.
   function clearAnswers() {
-    setRefused(false);
+    setRefused(null);
     if (errorField) onClearError();
   }
 
@@ -183,7 +191,7 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
   function handleAdd() {
     setSubmitting(true);
     setAdded(null);
-    setRefused(false);
+    setRefused(null);
     clearTimeout(fade.current);
     onGenerate({
       prompts,
@@ -198,7 +206,7 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
           setAdded(result.added);
           fade.current = setTimeout(() => setAdded(null), CONFIRM_MS);
         } else {
-          setRefused(true);
+          setRefused(result?.error ?? null);
         }
       })
       // The list is deliberately not cleared: what the user typed must not disappear beyond
@@ -260,7 +268,8 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
         </select>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minHeight: 0 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1,
+                    minHeight: PROMPT_FLOOR }}>
         <Mono size={11} style={LABEL}>Prompt listesi</Mono>
         <textarea
           className="wf-input"
@@ -334,9 +343,10 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
             {fieldError}
           </Note>
         ) : refused ? (
-          <Note size={12} style={{ color: "var(--danger)", textAlign: "center" }}>
-            Kuyruğa eklenemedi — tekrar dene
-          </Note>
+          // What was attempted as the heading, the server's own words under it -- a full Drive
+          // refusing the settings write, or the queue refusing the batch (madde 497). A fixed
+          // "tekrar dene" said nothing about why, and trying again changes nothing on a full Drive.
+          <StatusErrorCard text="Kuyruğa eklenemedi" raw={refused} />
         ) : busyElsewhere ? (
           <Note size={12} style={{ color: "var(--ink-3)" }}>
             Üretim sürüyor: {job.project} — bitmesini bekle.

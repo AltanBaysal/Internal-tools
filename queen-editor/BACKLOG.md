@@ -82,6 +82,28 @@ mısın?" diye sorar; *"sorudan sonra 5 dk da cevapp kalmazsa kapansın"*. Süre
 sayılır. v11-2 bugün yalnız bildirim gönderiyor; sekme kapalıyken bildirim de gitmez, A100'ü o
 durumda ancak kapatma kurtarır. Açık soru: sekme kapalıyken kim sayar — bunu Colab tarafı yapmalı.
 
+### Silinmiş fotoğraftan video, ve kopya karenin fotoğrafının üstüne yazılması
+
+*(497'nin coder'ı buldu, 27 Ekim; denenmedi.)* `run_loop._source_for` ve `_end_for` karenin fotoğraf
+hücresini durumuna bakmadan alıyor, bu yüzden silinmiş bir hücre de dosyasını veriyor. Yol: kopya kare
+`C1_F`, `F.png`'yi paylaşıyor. `F`'in videosu sıradayken fotoğraf katmanı siliniyor; `remove_layer`
+videoyu düşürmüyor, ve `F.png` kopya kare tuttuğu için diskte kalıyor. Video silinmiş fotoğraftan
+yapılıyor, `F`'in fotoğraf yeri boş olduğu için videonun ilk karesi `F.png` olarak kaydediliyor, ve
+`os.replace` kopya karenin resminin üstüne yazıyor.
+
+### Galeriden yapılan bir işlemin hatası fotoğraf sekmesinde görünmüyor
+
+*(497'nin coder'ı buldu, 27 Ekim.)* Galeriden yapılan bir yazma — sıralama, silme, kopyalama —
+reddedilince hata `ProjectScreen`'in `error`'una gidiyor. GeneratePanel onu yalnız kendi Kuyruğa ekle'si
+reddedilince gösteriyor, bu yüzden fotoğraf sekmesi açıkken bu hata ancak video, ses ya da sıra
+sekmesine geçince görünüyor. Hata sunucunun cümlesini taşıyor; eksik olan yeri.
+
+### Windows'ta sıranın süre satırı yazılamıyor
+
+*(497'nin QA'sı buldu, 27 Ekim; yalnız yerelde.)* Windows'ta stdout cp1252 iken sıranın `⏱ …` satırı
+yazılamıyor ve sıra 'charmap' hatasıyla duruyor; `PYTHONIOENCODING=utf-8` ile geçiyor. Colab UTF-8
+olduğu için orada olmaz.
+
 ### Civitai yoklaması iyi bir dosyayı reddedebiliyor
 
 *(484'ün reviewer'ı buldu, 21 Ekim.)* `colab/downloads.py`'nin `civitai_probe`'u ve `check_binary`'si

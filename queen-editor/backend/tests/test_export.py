@@ -1,6 +1,7 @@
 import inspect
 import json
 import os
+from types import SimpleNamespace
 
 import pytest
 
@@ -20,6 +21,7 @@ from backend.features.photo_generation.data.photo_store import DrivePhotoStore
 from backend.features.photo_generation.domain.orientation import LANDSCAPE, PORTRAIT
 from backend.features.photo_generation.domain.usecases.run_export import run_export
 from backend.features.photo_generation.export_runner import ExportRunner
+from backend.services.storage import storage as storage_module
 from backend.services.storage.storage import Storage
 from backend.tests.test_photo_usecases import (
     FakeOrderStore,
@@ -760,6 +762,23 @@ def test_a_failed_export_alone_leaves_nothing_but_the_exports_root(tmp_path):
     with pytest.raises(RuntimeError):
         export_to(store, sync_runner(), "düğün", "separate", CuttingExporter(fails_on="02.mp4"))
 
+    assert list(exports.iterdir()) == []
+
+
+@pytest.mark.parametrize("mode", ["separate", "merged"])
+def test_an_export_drive_has_no_room_for_stops_with_drives_words(tmp_path, monkeypatch, mode):
+    """Madde 497: the export's first save to Drive is refused, the screen shows the export failed
+    with the numbers, and the half export is taken back."""
+    exports, store = on_drive(tmp_path, "düğün")
+    monkeypatch.setattr(storage_module.shutil, "disk_usage",
+                        lambda path: SimpleNamespace(total=100, used=100, free=0))
+    runner = sync_runner()
+
+    runner.start(mode, lambda: export_to(store, runner, "düğün", mode, CuttingExporter()))
+
+    state = runner.state()[mode]
+    assert state["state"] == "error"
+    assert "Drive'da yer yok" in state["error"]
     assert list(exports.iterdir()) == []
 
 

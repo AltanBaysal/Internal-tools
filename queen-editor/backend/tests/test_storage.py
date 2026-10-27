@@ -1,5 +1,6 @@
 import errno
 import os
+from types import SimpleNamespace
 
 import pytest
 
@@ -369,6 +370,105 @@ def test_a_file_at_the_root_is_written_and_read(tmp_path):
     storage.write_text((), "arsiv.json", "{}")
 
     assert storage.read_text((), "arsiv.json") == "{}"
+
+
+# --- the room check ---------------------------------------------------------------------------
+
+def drive_has(monkeypatch, free):
+    """The mount says `free` bytes are left -- on Colab, what DriveFS reports of the account's
+    quota (madde 497). Returns the paths it was asked about."""
+    asked = []
+
+    def disk_usage(path):
+        asked.append(os.fspath(path))
+        return SimpleNamespace(total=10_000, used=10_000 - free, free=free)
+
+    monkeypatch.setattr(storage_module.shutil, "disk_usage", disk_usage)
+    return asked
+
+
+SAVES = {
+    "write_bytes": lambda storage, source: storage.write_bytes("düğün", "a.png", b"YENI-PNG"),
+    "write_text": lambda storage, source: storage.write_text("düğün", "a.png", "YENI-PNG"),
+    "save_file": lambda storage, source: storage.save_file("düğün", "a.png", source),
+}
+
+
+@pytest.mark.parametrize("save", sorted(SAVES))
+def test_a_save_drive_has_no_room_for_stops_with_both_numbers_and_writes_nothing(
+        tmp_path, monkeypatch, save):
+    """Drive was full and nothing said so: the file never reached Drive while the screen showed it
+    finished (madde 497). The refusal comes before the temporary file, so nothing is left behind."""
+    drive = tmp_path / "drive"
+    storage = with_project(drive)
+    (drive / "düğün" / "a.png").write_bytes(b"ESKI")
+    source = tmp_path / "parça.png"
+    source.write_bytes(b"YENI-PNG")             # 8 bytes, like the other two saves
+    drive_has(monkeypatch, 7)
+
+    with pytest.raises(StorageError) as caught:
+        SAVES[save](storage, str(source))
+
+    said = str(caught.value)
+    assert "Drive'da yer yok" in said
+    assert "8 bayt" in said and "7 bayt" in said
+    assert str(drive / "düğün" / "a.png") in said
+    assert [path.name for path in (drive / "düğün").iterdir()] == ["a.png"]
+    assert (drive / "düğün" / "a.png").read_bytes() == b"ESKI"
+
+
+@pytest.mark.parametrize("save", sorted(SAVES))
+def test_a_save_that_just_fits_is_written(tmp_path, monkeypatch, save):
+    drive = tmp_path / "drive"
+    storage = with_project(drive)
+    source = tmp_path / "parça.png"
+    source.write_bytes(b"YENI-PNG")
+    asked = drive_has(monkeypatch, 8)
+
+    SAVES[save](storage, str(source))
+
+    assert (drive / "düğün" / "a.png").read_bytes() == b"YENI-PNG"
+    # The root is asked: every folder under it sits on the same mount, the device check says so.
+    assert asked == [str(drive)]
+
+
+def test_a_line_drive_has_no_room_for_is_refused_and_the_record_stays_as_it_was(tmp_path,
+                                                                                 monkeypatch):
+    """An appended line is a write too: a failed render's line, a written prompt, a chat line --
+    many follow no file save at all (madde 497)."""
+    storage = with_project(tmp_path)
+    (tmp_path / "düğün" / "photos.jsonl").write_text("ilk\n", encoding="utf-8")
+    drive_has(monkeypatch, 2)                   # "{}" and its newline are 3 bytes
+
+    with pytest.raises(StorageError) as caught:
+        storage.append_line("düğün", "photos.jsonl", "{}")
+
+    assert "3 bayt" in str(caught.value) and "2 bayt" in str(caught.value)
+    assert (tmp_path / "düğün" / "photos.jsonl").read_text(encoding="utf-8") == "ilk\n"
+
+
+def test_a_line_that_just_fits_is_appended(tmp_path, monkeypatch):
+    storage = with_project(tmp_path)
+    drive_has(monkeypatch, 3)
+
+    storage.append_line("düğün", "photos.jsonl", "{}")
+
+    assert storage.read_lines("düğün", "photos.jsonl") == ["{}"]
+
+
+def test_a_room_check_that_fails_is_not_read_as_room(tmp_path, monkeypatch):
+    storage = with_project(tmp_path)
+
+    def broken(path):
+        raise OSError(errno.EIO, "Input/output error")
+
+    monkeypatch.setattr(storage_module.shutil, "disk_usage", broken)
+
+    with pytest.raises(OSError) as caught:
+        storage.write_bytes("düğün", "a.png", b"PNG")
+
+    assert "Input/output error" in str(caught.value)
+    assert list((tmp_path / "düğün").iterdir()) == []
 
 
 # --- only FileNotFoundError is missing --------------------------------------------------------

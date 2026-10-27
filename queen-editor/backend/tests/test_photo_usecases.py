@@ -56,6 +56,7 @@ from backend.features.photo_generation.domain.usecases.halt_project import halt_
 from backend.features.photo_generation.domain.usecases.save_order import InvalidOrder, save_order
 from backend.features.photo_generation.domain.usecases.stop_generation import stop_generation
 from backend.features.photo_generation.runner import PhotoRunner
+from backend.services.storage.storage import StorageError
 
 
 class FakeStore:
@@ -4613,3 +4614,45 @@ def test_the_writer_is_told_which_mode_the_job_is_in():
              lambda: "t", "düğün", writers={layers.VIDEO: writer})()
 
     assert writer.modes == ["loop"]
+
+
+REFUSED = "kayıt reddedildi"
+
+
+class DriveFull(FakeStore):
+    """A store whose saves the storage door refuses (madde 497) -- no room left, or the mount gone.
+    The door's sentence itself is test_storage.py's; here it only has to reach the screen as is."""
+
+    def save(self, project, filename, data):
+        raise StorageError(REFUSED)
+
+
+def test_a_photo_drive_refuses_stops_the_queue_with_its_sentence_and_is_not_done():
+    """Madde 497: the screen shows the halted queue with the door's sentence as it is, and the frame
+    whose file never landed has no done line -- it stays owed and is drawn again on resume."""
+    record, runner, generator = FakeRecord(), sync_runner(), FakeGenerator()
+
+    run_batch(runner, DriveFull(), generator, text='["ilk", "ikinci"]', variants=1,
+              record=record)
+
+    state = runner.status()
+    assert state["status"] == "error"
+    assert state["error"] == REFUSED
+    assert record.statuses("düğün") == {}
+    # The work stopped at the first frame: the second was never drawn.
+    assert [call[0] for call in generator.calls] == ["ilk"]
+
+
+def test_a_video_drive_refuses_stops_the_queue_with_its_sentence_and_is_not_done():
+    _, record, plan_store = video_job_project(job_prompt="kadın dönüyor")
+    store = DriveFull()
+    store.files["0_a.png"] = b"PNG"
+    runner = sync_runner()
+
+    resume_batch(runner, store, record, plan_store, {layers.VIDEO: FakeGenerator()},
+                 lambda: "t", "düğün")
+
+    state = runner.status()
+    assert state["status"] == "error"
+    assert state["error"] == REFUSED
+    assert "video" not in record.slots("düğün")["0_a"]

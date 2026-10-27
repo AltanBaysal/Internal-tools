@@ -410,23 +410,59 @@ describe("GeneratePanel — the confirmation", () => {
   });
 
   it("takes the refusal back the moment the user starts a new attempt", async () => {
-    renderPanel({ onGenerate: () => Promise.resolve(null) });
+    renderPanel({ onGenerate: () => Promise.resolve({ error: "Kuyruk dolu" }) });
 
     fireEvent.click(screen.getByText("Kuyruğa ekle"));
-    await waitFor(() => expect(screen.getByText("Kuyruğa eklenemedi — tekrar dene")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Kuyruğa eklenemedi")).toBeTruthy());
 
     fireEvent.change(promptBox(), { target: { value: '["yeni"]' } });
 
-    expect(screen.queryByText("Kuyruğa eklenemedi — tekrar dene")).toBeNull();
+    expect(screen.queryByText("Kuyruğa eklenemedi")).toBeNull();
   });
 
-  it("says one line when the queue would not take the frames", async () => {
-    renderPanel({ onGenerate: () => Promise.resolve(null) });
+  it("draws a refusal card, and no green line, when the queue would not take the frames", async () => {
+    renderPanel({ onGenerate: () => Promise.resolve({ error: "Kuyruk dolu" }) });
 
     fireEvent.click(screen.getByText("Kuyruğa ekle"));
 
-    await waitFor(() => expect(screen.getByText("Kuyruğa eklenemedi — tekrar dene")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Kuyruğa eklenemedi")).toBeTruthy());
     expect(screen.queryByText(/kuyruğa eklendi/)).toBeNull();
+  });
+
+  it("shows the server's own sentence under a refusal, not a fixed one (madde 497)", async () => {
+    // QA's case: the settings write before the batch is refused by a full Drive, and the panel
+    // used to say only "tekrar dene". The refusal brings its words with it (ProjectScreen).
+    const said = "Drive'da yer yok: /drive/düğün/settings.json için 107 bayt gerekiyor, "
+      + "Drive'ın bildirdiği boş yer 10 bayt";
+    renderPanel({ onGenerate: () => Promise.resolve({ error: said }) });
+
+    fireEvent.click(screen.getByText("Kuyruğa ekle"));
+
+    await waitFor(() => expect(screen.getByText("Kuyruğa eklenemedi")).toBeTruthy());
+    expect(screen.getByText(said)).toBeTruthy();
+    expect(screen.queryByText(/tekrar dene/)).toBeNull();
+  });
+
+  it("keeps a refused batch's own words after the poll clears the shared error", async () => {
+    // The batch itself refused -- a full Drive refusing the plan's write -- while a run of this
+    // project is going: the next good status poll clears the hook's error, and the card must not
+    // lose the sentence with it.
+    const said = "Drive'da yer yok: /drive/düğün/plan.json için 900 bayt gerekiyor";
+    const { rerender } = renderPanel({
+      error: said, onGenerate: () => Promise.resolve({ error: said }) });
+
+    fireEvent.click(screen.getByText("Kuyruğa ekle"));
+    await waitFor(() => expect(screen.getByText(said)).toBeTruthy());
+
+    rerender(
+      <GeneratePanel job={{ status: "idle" }} error={null} busyElsewhere={false}
+                     settings={SETTINGS} project="düğün" models={MODELS} loras={LORAS}
+                     modelsError={null} onGenerate={() => Promise.resolve({ error: said })}
+                     onClearError={() => {}} />,
+    );
+
+    expect(screen.getByText("Kuyruğa eklenemedi")).toBeTruthy();
+    expect(screen.getByText(said)).toBeTruthy();
   });
 });
 
