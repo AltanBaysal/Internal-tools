@@ -1,6 +1,6 @@
 # QueenAgent — Yol Haritası v12
 
-**Durum:** Hazırlanıyor · 0/4 bitti
+**Durum:** Hazırlanıyor · 0/5 bitti
 
 **Önceki sürüm:** [v11](2026-10-20-queen-agent-v11-roadmap.md) — bitti.
 
@@ -9,10 +9,11 @@ haber vericeksin queen anget tasklarına geçiçez"; "sıryaal paralel yapmicaz"
 Editor v11 bitip kullanıcıya haber verildikten sonra başlar. Bir madde birleşince sıradaki başlar;
 worktree açılmaz.
 
-1. **v12-3** — dört skill'e birer cümle.
-2. **v12-1** — düzenleme kutusu.
-3. **v12-2** — yazma kutusu; v12-1'in büyüme parçasını kullanır.
-4. **v12-4** — toplu arşiv ve silme.
+1. **v12-5** — sürüm V12, koşunun ilk işi.
+2. **v12-3** — dört skill'e birer cümle.
+3. **v12-1** — düzenleme kutusu.
+4. **v12-2** — yazma kutusu; v12-1'in büyüme parçasını kullanır.
+5. **v12-4** — toplu arşiv ve silme.
 
 ---
 
@@ -22,6 +23,7 @@ worktree açılmaz.
 | [v12-2](#v12-2) | Mesaj yazma kutusu büyüsün | `ALIGNED` |
 | [v12-3](#v12-3) | SDXL start seçiliyken model sormasın | `ALIGNED` |
 | [v12-4](#v12-4) | Projeleri toplu arşivle/sil | `ALIGNED` |
+| [v12-5](#v12-5) | Sürüm V12 | `ALIGNED` |
 
 ---
 
@@ -108,3 +110,11 @@ bölüm, Archived tek liste. Archive onaysız, Delete onaylı.
 **Maliyet:** bugün tek bir Archive bir istek atıyor ve ardından bütün proje listesini yeniden okuyor.
 Toplu işlem bunu proje başına tekrarlamamalı: 20 proje 20 istek ve 20 liste okuması olur, 446'da
 bulunan sorunun aynısı.
+
+<a id="v12-5"></a>
+### v12-5 — Sürüm V12
+
+*(Kullanıcı, 27 Ekim — "bir de her roadmapin başında şun uyapmanı istiyorum ui daki sürümü arttıralım
+olur mu"; "ilk görev o olsun ynai".)*
+
+**Kabul koşulu:** QueenAgent'ın ekranında "QueenAgent V12" yazıyor; bugün "V11".

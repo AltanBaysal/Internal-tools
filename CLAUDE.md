@@ -41,6 +41,9 @@ ones there. It records what the user asked for and decided, and specs are writte
 - The header's waves say which items run at the same time. Items in one wave touch different places,
   and no two of them the same tool's frontend: each rebuilds the whole `dist`, and two builds collide
   on merge.
+- A roadmap's first item raises the version its tool's screen shows to the roadmap's own, so the user
+  can tell which run a screen comes from (the user, 27 Ekim — "her roadmapin başında şun uyapmanı
+  istiyorum ui daki sürümü arttıralım"; "ilk görev o olsun").
 - The user's approval starts the run and covers it to the end, and the user tests the roadmap once it
   is finished. So the run goes from item to item, and asks when a question comes up that nothing it
   has can settle: one question, numbered options, a recommendation.

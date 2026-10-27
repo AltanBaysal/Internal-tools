@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v11
 
-**Durum:** Hazırlanıyor · 0/5 bitti
+**Durum:** Hazırlanıyor · 0/6 bitti
 
 **Önceki sürüm:** [v10](2026-10-20-queen-editor-v10-roadmap.md) — bitti.
 
@@ -9,11 +9,12 @@ haber vericeksin queen anget tasklarına geçiçez"; "sıryaal paralel yapmicaz"
 başlar, QueenAgent v12 bundan sonra gelir. Bir madde birleşince sıradaki başlar; worktree açılmaz, iş
 ana klasörde koşunun dalında yürür.
 
-1. **v11-3** — Drive'a kayıt olmayınca hata. Fotoğraf kaybettirdiği için ilk.
-2. **v11-2** — sıra boşken bildirim.
-3. **v11-1** — Krea'da SNOFS + Slime, ve Qwen.
-4. **v11-5** — arşiv; koşunun belgeleri yazıldıktan sonra, linkler bir seferde düzelsin diye.
-5. **v11-4** — femboy LoRA'sı, kullanıcıyla, en sonda *("bir femboy taskını son al çünkü ban ihtiaçın
+1. **v11-6** — sürüm V11, koşunun ilk işi.
+2. **v11-3** — Drive'a kayıt olmayınca hata. Fotoğraf kaybettirdiği için öteki işlerden önce.
+3. **v11-2** — sıra boşken bildirim.
+4. **v11-1** — Krea'da SNOFS + Slime, ve Qwen.
+5. **v11-5** — arşiv; koşunun belgeleri yazıldıktan sonra, linkler bir seferde düzelsin diye.
+6. **v11-4** — femboy LoRA'sı, kullanıcıyla, en sonda *("bir femboy taskını son al çünkü ban ihtiaçın
    olcak")*. Bitince kullanıcıya haber verilir, sonra QueenAgent v12'ye geçilir.
 
 ---
@@ -25,6 +26,7 @@ ana klasörde koşunun dalında yürür.
 | [v11-3](#v11-3) | Drive'a kayıt olmayınca hata verip dursun | `ALIGNED` |
 | [v11-4](#v11-4) | Femboy LoRA'sı | `ALIGNED` |
 | [v11-5](#v11-5) | Eski belgeler ve roadmap'ler arşive | `ALIGNED` |
+| [v11-6](#v11-6) | Sürüm V11 | `ALIGNED` |
 
 ---
 
@@ -139,3 +141,11 @@ da olsa, o belgeyi arar ve bulamaz.
   (`notlar/`'a); ve bitmiş işlere ait `research/` ile `design-needs/` belgeleri.
 - Taşınan her belgeye giden linkler yeni yere göre düzeltilir, düz yazıya çevrilmiş linkler de yeniden
   link olur. Spec'lerin çoğu kendi roadmap'ine link veriyor, bu yüzden bu iş yüzlerce linke dokunur.
+
+<a id="v11-6"></a>
+### v11-6 — Sürüm V11
+
+*(Kullanıcı, 27 Ekim — "bir de her roadmapin başında şun uyapmanı istiyorum ui daki sürümü arttıralım
+olur mu"; "ilk görev o olsun ynai".)*
+
+**Kabul koşulu:** Queen Editor'ün ekranında "Queen Editor V11" yazıyor; bugün "V10".
