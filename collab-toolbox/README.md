@@ -34,4 +34,5 @@ Usage: [Colab](https://colab.research.google.com/) → **File → Upload noteboo
 
 [photo_experiments/](photo_experiments/) — the same for photo models: `qwen-image-21/` tries Qwen Image
 2.1, a notebook each for the normal model and Turbo, on the official ComfyUI templates; `krea-2/` tries
-Krea 2 the same way, a notebook each for Turbo and RAW.
+Krea 2 the same way, a notebook each for Turbo and RAW; `femboy-futa-lora/` tries three femboy and three
+futa LoRAs on Queen Editor's own photo graph, with Nova 3DCG and DaSiWa.

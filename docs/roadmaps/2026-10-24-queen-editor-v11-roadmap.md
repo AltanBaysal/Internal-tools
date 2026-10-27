@@ -14,7 +14,7 @@ ana klasörde koşunun dalında yürür.
 3. **498 · v11-2** — sıra boşken bildirim.
 4. **499 · v11-1** — Krea'da SNOFS + Slime, ve Qwen.
 5. **500 · v11-5** — arşiv; koşunun belgeleri yazıldıktan sonra, linkler bir seferde düzelsin diye.
-6. **501 · v11-4** — femboy LoRA'sı, kullanıcıyla, en sonda *("bir femboy taskını son al çünkü ban ihtiaçın
+6. **501 · v11-4** — femboy ve futa LoRA'ları, kullanıcıyla, en sonda *("bir femboy taskını son al çünkü ban ihtiaçın
    olcak")*. Bitince kullanıcıya haber verilir, sonra QueenAgent v12'ye geçilir.
 
 ---
@@ -24,7 +24,7 @@ ana klasörde koşunun dalında yürür.
 | 499 · [v11-1](#v11-1) | Translucent Penetration: Krea'da, ve Qwen yeni model olarak | ✅ *(gerçek Krea + Slime ve Qwen fotoğrafları, Qwen graph'ının ComfyUI'de çalışması ve A100'de bellek kullanıcının sondaki Colab denemesinde; ilk çalıştırma iki yeni LoRA için `CIVITAI_COOKIE` ister)* · `ALIGNED` |
 | 498 · [v11-2](#v11-2) | Sıra boşken bildirim | ✅ *(gerçek 10 dk, tünelden geçen açık istek ve işletim sisteminin bildirimi kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
 | 497 · [v11-3](#v11-3) | Drive'a kayıt olmayınca hata verip dursun | ✅ *(Colab'da dolu Drive ve kopan bağlantı kullanıcının sondaki denemesinde)* · `ALIGNED` |
-| 501 · [v11-4](#v11-4) | Femboy LoRA'sı | `ALIGNED` |
+| 501 · [v11-4](#v11-4) | Femboy ve futa LoRA'ları | 🔄 *(deneme notebook'u hazır — `collab-toolbox/photo_experiments/femboy-futa-lora/`; kullanıcının Colab denemesini bekliyor)* · `ALIGNED` |
 | 500 · [v11-5](#v11-5) | Eski belgeler ve roadmap'ler arşive | ✅ · `ALIGNED` |
 | 496 · [v11-6](#v11-6) | Sürüm V11 | ✅ · `ALIGNED` |
 
@@ -147,10 +147,10 @@ bakışı v10'dan (472) beri her Drive işleminden önce var; bu madde yalnız y
 Kuyruğa ekle — ekran sunucunun cümlesini gösterir, sabit bir metin değil.
 
 <a id="v11-4"></a>
-### 501 · v11-4 — Femboy LoRA'sı
+### 501 · v11-4 — Femboy ve futa LoRA'ları
 
-**Kabul koşulu:** Adayların deneme sonucu yazılı. Kullanıcının seçtiği LoRA Queen Editor'de Nova ve
-DaSiWa'nın LoRA kutusunda seçilebiliyor.
+**Kabul koşulu:** Femboy ve futa adaylarının deneme sonucu yazılı. Kullanıcının her biri için seçtiği
+LoRA Queen Editor'de Nova ve DaSiWa'nın LoRA kutusunda seçilebiliyor.
 
 **Kullanıcının kararları** *(27 Ekim)*: *"Seninle birlikte, deneme notebook'unda. femboysXL ve
 Civitai'den 1–2 aday daha ComfyUI'de denenir, hangisinin kalacağına sen karar verirsin."*; *"bunu
@@ -162,6 +162,9 @@ yapalım sonra karar veridğimizi queen editore koyarız"*. Deneme notebook'u
   madde açılır; istemiyorsa açılmaz.
 - **Sıra:** *"bir femboy taskını son al çünkü ban ihtiaçın olcak"*. Deneme kullanıcıyla birlikte
   yapıldığı için bu madde koşunun en sonunda yürür.
+- **Futa da girer, aynı denemeye** *(kullanıcı, 27 Ekim — "futa içinde 3 model indirir msiin"; "bu
+  taskı femboyla berabe yap zaten nerdeyse aynı şeyler 3 model yer,ne 6 tane denerim")*: femboy'un 3
+  adayının yanına Civitai'den 3 futa LoRA'sı eklenir; tek notebook, tek Colab oturumu, 6 aday.
 
 <a id="v11-5"></a>
 ### 500 · v11-5 — Eski belgeler ve roadmap'ler arşive
