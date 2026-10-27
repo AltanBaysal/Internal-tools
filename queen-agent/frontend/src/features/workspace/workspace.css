@@ -1761,6 +1761,32 @@
   margin: 0 0 24px;
 }
 
+/* The head's right side: the bar for the picked projects while any is picked (Madde 506), then
+   + New project. */
+.all-projects__actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.all-projects__bulk {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.all-projects__bulk-count {
+  margin-right: 4px;
+  font-size: 13px;
+  color: #6b6259;
+}
+
+/* Named twice to stand above .ghost's colour, which comes later in this file. */
+.all-projects__bulk .all-projects__bulk-delete {
+  color: var(--destructive);
+}
+
 /* The search's row, the two tabs on its right. */
 .all-projects__tools {
   display: flex;
@@ -1914,6 +1940,30 @@
 .all-projects__row-more:hover {
   color: var(--ink);
   background: #e5dfd5;
+}
+
+/* The box that picks the project (Madde 506) waits for the row as the ⋯ does (the user: "⋯ menüsü
+   gibi"), and stands on every row once any is picked, so the next pick has nothing to look for.
+   Waiting, it can still be pressed, as the ⋯ can. */
+.all-projects__row-pick {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  margin: 0 0 0 2px;
+  /* Not --accent, which marks the primary action alone: the row's own grey-brown. */
+  accent-color: #6b6259;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.all-projects__row:hover .all-projects__row-pick,
+.all-projects__row.is-picking .all-projects__row-pick,
+.all-projects__row-pick:focus-visible {
+  opacity: 1;
+}
+
+.all-projects__row.is-picked {
+  background: #f2ede5;
 }
 
 .all-projects__row .menu {

@@ -1005,6 +1005,19 @@ test("the row's ⋯ is a small square that waits for the row", () => {
   expect(CSS).toContain(".all-projects__row:hover .all-projects__row-more");
 });
 
+// Madde 506: the box waits for the row as the ⋯ does, and stands on every row once one is picked.
+test("the row's box waits for the row, and stands while any row is picked", () => {
+  expect(rule(".all-projects__row-pick")).toContain("opacity: 0");
+  expect(CSS).toContain(".all-projects__row:hover .all-projects__row-pick");
+  expect(CSS).toContain(".all-projects__row.is-picking .all-projects__row-pick");
+  expect(CSS).toContain(".all-projects__row-pick:focus-visible");
+});
+
+test("the bar's Delete is in the colour of what cannot be undone", () => {
+  // Above .ghost's own colour, which comes later in the file.
+  expect(rule(".all-projects__bulk .all-projects__bulk-delete")).toContain("color: var(--destructive)");
+});
+
 test("the rename field fills the row", () => {
   const field = rule(".all-projects__rename");
   expect(field).toContain("flex: 1");

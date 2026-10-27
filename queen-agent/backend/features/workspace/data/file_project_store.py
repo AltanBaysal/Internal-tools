@@ -89,25 +89,50 @@ class FileProjectStore:
 
         return self._change(changed)
 
-    def delete(self, project_id):
+    def delete_many(self, project_ids):
         with self._lock:
-            entry = self._projects.get(project_id)
-            kept = None if entry is None else _text(entry)
-        if kept is None:
-            return None
-        # The folder moves whole -- the chats and the files go with it rather than one by one -- and
-        # a second project of the same id is numbered rather than written over. The entry follows it
-        # into the trash before it leaves the list.
-        trashed = unique_name(self._store.list_dir(TRASH_DIR), project_id)
+            # An id named twice is one project; an id no project carries is passed over.
+            kept = {
+                project_id: _text(self._projects[project_id])
+                for project_id in dict.fromkeys(project_ids)
+                if project_id in self._projects
+            }
+        if not kept:
+            return {}
+        # The trash is listed once for the whole request (Madde 506): each name taken here is added
+        # to what it holds, so two projects of one call cannot be given the same place.
+        taken = set(self._store.list_dir(TRASH_DIR))
+        trashed = {}
         try:
-            self._store.move(project_id, f"{TRASH_DIR}/{trashed}")
-        except FileNotFoundError:
-            # No folder to move: the project was never written into, or a delete already moved it
-            # and a sudden death lost the row's removal. The row goes all the same -- left, it would
-            # name something nothing could ever remove.
-            pass
-        self._store.write_text(f"{TRASH_DIR}/{trashed}/{TRASHED_ENTRY}", kept)
-        self._change(lambda projects: projects.pop(project_id, None))
+            for project_id, entry in kept.items():
+                # The folder moves whole -- the chats and the files go with it rather than one by
+                # one -- and a second project of the same id is numbered rather than written over.
+                # The entry follows it into the trash before it leaves the list.
+                name = unique_name(taken, project_id)
+                try:
+                    self._store.move(project_id, f"{TRASH_DIR}/{name}")
+                except FileNotFoundError:
+                    # No folder to move: the project was never written into, or a delete already
+                    # moved it and a sudden death lost the row's removal. The row goes all the
+                    # same -- left, it would name something nothing could ever remove.
+                    pass
+                taken.add(name)
+                self._store.write_text(f"{TRASH_DIR}/{name}/{TRASHED_ENTRY}", entry)
+                trashed[project_id] = name
+        finally:
+            # One change for every row, after the loop rather than one per row: the writer finishes
+            # between two moves, so a change per row wrote projects.json once a project -- 20 writes
+            # for 20 projects, where this is one (measured by 506's reviewer). What it costs: a
+            # project already moved is still listed until the loop ends, about 2N round trips.
+            # Only rows whose entry is in the trash go: a disk that fails half way leaves the rest
+            # listed, as they still are on disk.
+            if trashed:
+
+                def gone(projects):
+                    for done in trashed:
+                        projects.pop(done, None)
+
+                self._change(gone)
         return trashed
 
     # ---- The chat and file stores' entries. A put into a project that is not there does nothing ----

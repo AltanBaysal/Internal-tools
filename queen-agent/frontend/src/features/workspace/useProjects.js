@@ -98,6 +98,35 @@ export function useProjects() {
     [queued],
   );
 
+  // Several projects at once (Madde 506): one request, whose answer is the list as the server now
+  // has it -- so a bulk action is one round trip, not a write and a read for each project, the cost
+  // 446 found. In the queue, as every write is, the read after a refusal included.
+  const changeMany = useCallback(
+    (send) =>
+      queued(async () => {
+        setWriteError(null);
+        try {
+          setProjects(await send());
+          return true;
+        } catch (failure) {
+          setWriteError(failure.message);
+          // A refusal may come half way -- some projects moved before the disk failed -- so the
+          // list is read as the server now has it. One read, and only when something failed.
+          await reload();
+          return false;
+        }
+      }),
+    [queued, reload],
+  );
+  const archiveProjects = useCallback(
+    (ids, archived) => changeMany(() => patchJson("/api/projects", { ids, archived })),
+    [changeMany],
+  );
+  const removeProjects = useCallback(
+    (ids) => changeMany(() => postJson("/api/projects/delete", { ids })),
+    [changeMany],
+  );
+
   return {
     projects,
     error,
@@ -106,6 +135,8 @@ export function useProjects() {
     createProject,
     editProject,
     removeProject,
+    archiveProjects,
+    removeProjects,
     reloadProjects: reloadInTurn,
     retryProjects: retry,
   };

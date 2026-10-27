@@ -11,6 +11,9 @@ import { countOf } from "./countOf.js";
 //
 // An archived row (the design's 190, 191, 218) opens its project as any row does: the only
 // difference is the list it stands in (Madde 443), and its ⋯, which holds the way back.
+//
+// The box at its start picks the project for the bar's actions on several at once (Madde 506).
+// What is picked is All projects' to hold; the row only says how it was pressed.
 
 // The name corrected in the row's own place rather than in the browser's box (the design's 170).
 // The draft is the field's, as a message edit's is (EditMessage): only the finished name leaves.
@@ -54,9 +57,26 @@ function RenameField({ name, onSave, onClose }) {
   );
 }
 
+// A press with Ctrl (Cmd on a Mac) or Shift picks rather than opens (Madde 506), as a file list does
+// in Windows: Ctrl one row, Shift a range in place of the picks, Ctrl+Shift a range added to them. A
+// plain press on the row opens, as it always has.
+function pickedBy(event) {
+  const ctrl = event.ctrlKey || event.metaKey;
+  if (event.shiftKey) return ctrl ? "add-range" : "range";
+  return ctrl ? "one" : null;
+}
+
+// Shift on a press would otherwise stretch the page's text selection to it.
+function keepTextSelection(event) {
+  if (event.shiftKey) event.preventDefault();
+}
+
 export default function ProjectRow({
   project,
   menuOpen,
+  picked,
+  picking,
+  onPick,
   onOpen,
   onOpenMenu,
   onCloseMenu,
@@ -86,8 +106,19 @@ export default function ProjectRow({
         remove,
       ];
 
+  // While any row is picked every box stands; until then each waits for its row, as the ⋯ does.
+  const state = `${picking ? " is-picking" : ""}${picked ? " is-picked" : ""}`;
   return (
-    <div className="all-projects__row">
+    <div className={`all-projects__row${state}`}>
+      <input
+        type="checkbox"
+        className="all-projects__row-pick"
+        aria-label={`Select ${project.name}`}
+        checked={Boolean(picked)}
+        onMouseDown={keepTextSelection}
+        // The box's own change is a click, and carries the click's keys; alone it picks one row.
+        onChange={(event) => onPick?.(project.id, pickedBy(event.nativeEvent) ?? "one")}
+      />
       {renaming ? (
         <RenameField
           name={project.name}
@@ -99,7 +130,12 @@ export default function ProjectRow({
           type="button"
           className="all-projects__row-open"
           title={project.name}
-          onClick={() => onOpen?.(project.id)}
+          onMouseDown={keepTextSelection}
+          onClick={(event) => {
+            const how = pickedBy(event);
+            if (how) onPick?.(project.id, how);
+            else onOpen?.(project.id);
+          }}
         >
           <span className="all-projects__row-name">{project.name}</span>
           <span className="all-projects__row-meta">

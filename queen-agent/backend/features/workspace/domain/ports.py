@@ -26,8 +26,12 @@ class ProjectStore(Protocol):
         the last use are not the project's to set -- they come from its chats and files.
         """
 
-    def delete(self, project_id: str) -> str | None:
-        """Move the whole project to the trash and answer with the name it took, or None."""
+    def delete_many(self, project_ids: list[str]) -> dict[str, str]:
+        """Move each project to the trash whole and answer with the name each took there, by id.
+
+        An id no project carries is passed over and is not in the answer. The trash is read once
+        for all of them (Madde 506).
+        """
 
 
 class ChatStore(Protocol):

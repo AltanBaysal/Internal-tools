@@ -308,7 +308,7 @@ def test_a_deleted_project_goes_to_the_trash_whole_with_its_entry(tmp_path):
     store.add(_project())
     store.put_chat("pabc", _chat("c1"))
     raw.write_text("pabc/chats/c1.json", "{}")
-    assert store.delete("pabc") == "pabc"
+    assert store.delete_many(["pabc"]) == {"pabc": "pabc"}
     store.flush()
     assert store.list_all() == [] and store.get("pabc") is None
     assert _stored(tmp_path) == {}
@@ -322,14 +322,85 @@ def test_the_same_id_deleted_twice_does_not_lose_the_first(tmp_path):
     raw = Store(str(tmp_path))
     store = FileProjectStore(raw)
     store.add(_project())
-    store.delete("pabc")
+    store.delete_many(["pabc"])
     store.add(_project())
-    assert store.delete("pabc") == "pabc-2"
+    assert store.delete_many(["pabc"]) == {"pabc": "pabc-2"}
     assert raw.list_dir("trash") == ["pabc", "pabc-2"]
 
 
-def test_deleting_what_is_not_there_is_none(tmp_path):
-    assert _store(tmp_path).delete("nope") is None
+def test_deleting_what_is_not_there_is_nothing(tmp_path):
+    counted = CountingStore(Store(str(tmp_path)))
+    store = FileProjectStore(counted)
+    counted.calls.clear()
+    assert store.delete_many(["nope"]) == {}
+    store.flush()
+    assert counted.calls == [], "Olmayan projeyi silmek diske gitti"
+
+
+# Madde 506: several projects in one request.
+
+
+def test_several_projects_go_with_the_trash_listed_once(tmp_path):
+    # The trash is read once for the whole request, not once a project; each folder moves and each
+    # entry is written, and the rows leave together.
+    raw = Store(str(tmp_path))
+    counted = CountingStore(raw)
+    store = FileProjectStore(counted)
+    for pid in ("pa", "pb", "pc"):
+        store.add(_project(pid))
+        raw.write_text(f"{pid}/chats/c1.json", "{}")
+    store.flush()
+    counted.calls.clear()
+    assert store.delete_many(["pa", "pc"]) == {"pa": "pa", "pc": "pc"}
+    store.flush()
+    assert counted.calls.count("list_dir") == 1, "Çöp her proje için yeniden listelendi"
+    assert counted.calls.count("move") == 2
+    assert [project.id for project in store.list_all()] == ["pb"]
+    assert list(_stored(tmp_path)) == ["pb"], "Silinen projeler projects.json'da kaldı"
+    assert raw.list_dir("trash") == ["pa", "pc"]
+    assert raw.list_dir("trash/pa") == ["chats", "project.json"]
+
+
+def test_an_unknown_id_among_several_is_passed_over(tmp_path):
+    store = _store(tmp_path)
+    store.add(_project("pa"))
+    assert store.delete_many(["nope", "pa", "pa"]) == {"pa": "pa"}, (
+        "Bilinmeyen ya da iki kez verilen kimlik silmeyi bozdu"
+    )
+    assert store.list_all() == []
+
+
+def test_two_of_one_call_are_never_given_one_place_in_the_trash(tmp_path):
+    # The trash already holds a pa: the next pa is numbered against what this call took too.
+    raw = Store(str(tmp_path))
+    raw.write_text("trash/pa/project.json", "{}")
+    raw.write_text("trash/pa-2/project.json", "{}")
+    store = FileProjectStore(raw)
+    store.add(_project("pa"))
+    assert store.delete_many(["pa"]) == {"pa": "pa-3"}
+
+
+def test_a_disk_that_fails_half_way_takes_only_the_rows_already_in_the_trash(tmp_path):
+    raw = Store(str(tmp_path))
+    store = FileProjectStore(raw)
+    for pid in ("pa", "pb"):
+        store.add(_project(pid))
+        raw.write_text(f"{pid}/chats/c1.json", "{}")
+    real_move = raw.move
+
+    def move(source, destination):
+        if source == "pb":
+            raise OSError("Drive went away")
+        real_move(source, destination)
+
+    raw.move = move
+    with pytest.raises(OSError):
+        store.delete_many(["pa", "pb"])
+    store.flush()
+    assert [project.id for project in store.list_all()] == ["pb"], (
+        "Çöpe gitmeyen proje listeden düştü ya da çöpe giden listede kaldı"
+    )
+    assert raw.list_dir("pb/chats") == ["c1.json"]
 
 
 @pytest.mark.parametrize("why", ["never written into", "already in the trash"])
@@ -343,7 +414,7 @@ def test_a_project_whose_folder_is_not_there_still_deletes(tmp_path, why):
     if why == "already in the trash":
         raw.write_text("pabc/chats/c1.json", "{}")
         raw.move("pabc", "trash/pabc")
-    trashed = store.delete("pabc")
+    trashed = store.delete_many(["pabc"])["pabc"]
     store.flush()
     assert store.get("pabc") is None and _stored(tmp_path) == {}, "Klasörü olmayan proje silinmedi"
     assert json.loads(raw.read_text(f"trash/{trashed}/project.json"))["name"] == "Thesis", (

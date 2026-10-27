@@ -117,13 +117,15 @@ test("no surface writes the ring, or writes it away", () => {
   // to see.
   // Matched as a declaration rather than a word: prose about the rule is not a breach of it.
   expect(WORKSPACE).not.toMatch(/^\s*outline\s*:/m);
-  // Two focus rules outside app.css, and both decide visibility rather than appearance: a control
+  // Three focus rules outside app.css, and all decide visibility rather than appearance: a control
   // that is faint until it is wanted would otherwise be a stop on the tab route with nothing to
-  // see. The All projects row's ⋯ is one (Madde 360; the sidebar's went with it); Madde 195's
-  // edit, dim on a message until it is reached for, is the other. Counted rather than merely named,
-  // so a third one -- or one that writes appearance -- has to come through here.
-  expect(WORKSPACE.match(/:focus-visible/g).length).toBe(2);
+  // see. The All projects row's ⋯ is one (Madde 360; the sidebar's went with it), and its box
+  // that picks the project another (Madde 506); Madde 195's edit, dim on a message until it is
+  // reached for, is the third. Counted rather than merely named, so a fourth one -- or one that
+  // writes appearance -- has to come through here.
+  expect(WORKSPACE.match(/:focus-visible/g).length).toBe(3);
   expect(WORKSPACE).toContain(".all-projects__row-more:focus-visible");
+  expect(WORKSPACE).toContain(".all-projects__row-pick:focus-visible");
   expect(WORKSPACE).not.toContain(".sidebar__row-more");
   expect(WORKSPACE).toContain(".msg__edit:focus-visible");
 });

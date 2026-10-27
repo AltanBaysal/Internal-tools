@@ -10,8 +10,8 @@ import { matches } from "./matches.js";
 // (list_projects.py) -- pinned first, then the most recently used -- and this screen only splits it:
 // where the pins end, and between the Projects tab and the Archived one (the design's 190, 191).
 //
-// The search and the tab are this screen's own state: what is shown while typing is the UI's
-// (FOUNDATION, Decision 4), so they reach neither the server nor the address.
+// The search, the tab and the picked rows are this screen's own state: what is shown while typing
+// is the UI's (FOUNDATION, Decision 4), so they reach neither the server nor the address.
 
 function Section({ label, projects, row }) {
   // A heading over nothing would be a promise of rows that are not there.
@@ -61,9 +61,17 @@ export default function AllProjectsScreen({
   onPinProject,
   onArchiveProject,
   onDeleteProject,
+  onArchiveProjects,
+  onDeleteProjects,
 }) {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("projects");
+  // The projects picked for the bar's actions on several at once (Madde 506), and the one a Shift
+  // press counts from: the last one picked or let go by its box or by Ctrl, as Windows keeps it. A
+  // Shift or Ctrl+Shift press leaves it where it was. Both are this screen's own: what is picked is shown, never
+  // sent until an action is pressed.
+  const [picked, setPicked] = useState(() => new Set());
+  const anchor = useRef(null);
   // The last Archive or Unarchive pressed on each project, while the server is still asked: the
   // row moves at once (the design's 217), since the server takes its time (Madde 446). It is drawn
   // as that press asked until the press's own answer, the list read again, says where it stands --
@@ -81,7 +89,8 @@ export default function AllProjectsScreen({
   );
   const archived = listed.filter((project) => project.archived);
   const open = listed.filter((project) => !project.archived);
-  const shown = tab === "archived" ? archived : open;
+  const archivedTab = tab === "archived";
+  const shown = archivedTab ? archived : open;
   // What the list draws, and what the search's Enter opens the first of (the design's 218): one
   // reckoning, so the two cannot part. The server lists the pinned first, so the first found is the
   // first row drawn on either tab.
@@ -108,20 +117,68 @@ export default function AllProjectsScreen({
     if (next) next.focus({ preventScroll: true });
     else search.current.focus();
   };
-  // A refusal brings the row back and leaves the keyboard where the press handed it: the answer may
-  // come once the user is elsewhere.
-  const archive = async (id, toArchive) => {
-    handOverFrom(id);
-    // The press is its own token: the answer clears the entry only while it is still this one.
+  // The rows a press archives or unarchives, drawn where it asked until `sent`, its request, has
+  // been answered. The press is its own token: the answer clears a row's entry only while it is
+  // still this one. One press for one row's ⋯, or for every row the bar acts on (Madde 506).
+  const asking = async (ids, toArchive, sent) => {
     const press = { archived: toArchive };
-    setAsked((now) => new Map(now).set(id, press));
-    await onArchiveProject?.(id, toArchive);
     setAsked((now) => {
-      if (now.get(id) !== press) return now;
+      const next = new Map(now);
+      for (const id of ids) next.set(id, press);
+      return next;
+    });
+    await sent();
+    setAsked((now) => {
       const rest = new Map(now);
-      rest.delete(id);
+      for (const id of ids) if (rest.get(id) === press) rest.delete(id);
       return rest;
     });
+  };
+  // A refusal brings the row back and leaves the keyboard where the press handed it: the answer may
+  // come once the user is elsewhere.
+  const archive = (id, toArchive) => {
+    handOverFrom(id);
+    return asking([id], toArchive, () => onArchiveProject?.(id, toArchive));
+  };
+
+  // Picked and drawn: what the bar counts and acts on. A pick the search hides is kept, but neither
+  // counted nor acted on until it is drawn again; a row that left the tab leaves with it.
+  const chosen = found.filter((project) => picked.has(project.id)).map((project) => project.id);
+  // `how` is the row's: "one" (the box, or Ctrl) picks or lets go of one row; "range" (Shift) puts
+  // the range in place of the picks; "add-range" (Ctrl+Shift) adds it to them -- as Windows does.
+  const pick = (id, how) => {
+    if (how === "one") {
+      anchor.current = id;
+      setPicked((now) => {
+        const next = new Set(now);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+      return;
+    }
+    // From the last pick to this row, as drawn: `found` is in the order the rows stand, Pinned then
+    // Recent on Projects, so a range runs on across where the pins end. With no pick drawn to count
+    // from, the range is the row alone, and it is counted from next.
+    const from = found.findIndex((project) => project.id === anchor.current);
+    const to = found.findIndex((project) => project.id === id);
+    if (from === -1) anchor.current = id;
+    const [low, high] = from === -1 ? [to, to] : [Math.min(from, to), Math.max(from, to)];
+    const range = found.slice(low, high + 1).map((project) => project.id);
+    setPicked((now) => new Set(how === "add-range" ? [...now, ...range] : range));
+  };
+  // The bar leaves with the rows it acts on, so the keyboard goes to the search before it does.
+  const archiveChosen = (toArchive) => {
+    search.current.focus();
+    return asking(chosen, toArchive, () => onArchiveProjects?.(chosen, toArchive));
+  };
+  // Each tab's bar has its own actions, so a pick does not cross into the other: the selection is
+  // cleared when the tab changes (Madde 506).
+  const changeTab = (name) => {
+    if (name === tab) return;
+    setTab(name);
+    setPicked(new Set());
+    anchor.current = null;
   };
 
   // Built once here rather than handed down as eight props through the list and its sections.
@@ -130,6 +187,9 @@ export default function AllProjectsScreen({
       key={project.id}
       project={project}
       menuOpen={menuFor === project.id}
+      picked={picked.has(project.id)}
+      picking={chosen.length > 0}
+      onPick={pick}
       onOpen={onOpenProject}
       onOpenMenu={onOpenMenu}
       onCloseMenu={onCloseMenu}
@@ -153,9 +213,29 @@ export default function AllProjectsScreen({
       <div className="screen__column" ref={column}>
         <div className="all-projects__head">
           <h1 className="screen__title">All projects</h1>
-          <button type="button" className="empty__action" onClick={onNewProject}>
-            + New project
-          </button>
+          <div className="all-projects__actions">
+            {/* In the head rather than over the list (Madde 506): the list does not move down as
+                the first box is ticked, under the pointer about to tick the next. */}
+            {chosen.length ? (
+              <div className="all-projects__bulk" role="group" aria-label="Selected projects">
+                <span className="all-projects__bulk-count">{`${chosen.length} selected`}</span>
+                <button type="button" className="ghost" onClick={() => archiveChosen(!archivedTab)}>
+                  {archivedTab ? "Unarchive" : "Archive"}
+                </button>
+                {/* Asked about first, by App, which holds the question (as a row's Delete is). */}
+                <button
+                  type="button"
+                  className="ghost all-projects__bulk-delete"
+                  onClick={() => onDeleteProjects?.(chosen)}
+                >
+                  Delete
+                </button>
+              </div>
+            ) : null}
+            <button type="button" className="empty__action" onClick={onNewProject}>
+              + New project
+            </button>
+          </div>
         </div>
         <div className="all-projects__tools">
           {/* Focused as the screen opens (the design's 142), even while the list is on its way:
@@ -177,7 +257,7 @@ export default function AllProjectsScreen({
                 key={name}
                 type="button"
                 className={`all-projects__tab${tab === name ? " is-on" : ""}`}
-                onClick={() => setTab(name)}
+                onClick={() => changeTab(name)}
               >
                 {/* Until the list has come, a count would be a guess and not a fact. */}
                 {label} <span className="all-projects__count">{loading ? "" : count}</span>
@@ -198,7 +278,7 @@ export default function AllProjectsScreen({
           <ProjectList
             any={projects.length > 0}
             found={found}
-            archivedTab={tab === "archived"}
+            archivedTab={archivedTab}
             query={query}
             row={row}
           />

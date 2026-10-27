@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 
 import AllProjectsScreen from "./AllProjectsScreen.jsx";
@@ -665,4 +665,221 @@ test("a write the server refused leaves the list standing, with the server's wor
   expect(line.previousElementSibling.className).toBe("all-projects__tools");
   expect(names(container)).toEqual(["Harbour at dusk", "Night market"]);
   expect(screen.queryByText("Couldn't load projects.")).toBeNull();
+});
+
+// --- Madde 506: several projects at once --------------------------------------------------------
+
+const FOURTH = { id: "p4", name: "Dock lights", chats: 2, files: 5, pinned: false, lastActivity: ago(40) };
+const SHELVED_2 = { ...SHELVED, id: "p6", name: "Spare reel", lastActivity: ago(9) };
+const box = (name) => screen.getByRole("checkbox", { name: `Select ${name}` });
+const opener = (name) => screen.getByRole("button", { name: new RegExp(`^${name}`) });
+const picked = (container) =>
+  [...container.querySelectorAll(".all-projects__row.is-picked .all-projects__row-name")].map(
+    (name) => name.textContent,
+  );
+const bar = (container) => container.querySelector(".all-projects__bulk");
+
+test("every row carries a box that waits for the row, as its ⋯ does, and nothing is picked", () => {
+  const { container } = render(<AllProjectsScreen projects={[PINNED, RECENT]} />);
+  expect(box("Harbour at dusk").className).toBe("all-projects__row-pick");
+  expect(box("Night market").checked).toBe(false);
+  expect(container.querySelector(".all-projects__row.is-picking")).toBeNull();
+  expect(bar(container)).toBeNull();
+});
+
+test("ticking a box picks the project, and every row then shows its box", () => {
+  const { container } = render(<AllProjectsScreen projects={[PINNED, RECENT, OLDER]} />);
+  fireEvent.click(box("Night market"));
+  expect(box("Night market").checked).toBe(true);
+  expect(picked(container)).toEqual(["Night market"]);
+  const rows = container.querySelectorAll(".all-projects__row");
+  expect([...rows].every((row) => row.classList.contains("is-picking"))).toBe(true);
+  expect(bar(container).textContent).toContain("1 selected");
+});
+
+test("ticking it again lets it go, and with nothing picked the boxes wait again", () => {
+  const { container } = render(<AllProjectsScreen projects={[PINNED, RECENT]} />);
+  fireEvent.click(box("Night market"));
+  fireEvent.click(box("Night market"));
+  expect(picked(container)).toEqual([]);
+  expect(container.querySelector(".all-projects__row.is-picking")).toBeNull();
+  expect(bar(container)).toBeNull();
+});
+
+test("Ctrl on a row picks it or lets it go, and does not open it", () => {
+  const onOpenProject = vi.fn();
+  const { container } = render(
+    <AllProjectsScreen projects={[PINNED, RECENT]} onOpenProject={onOpenProject} />,
+  );
+  fireEvent.click(opener("Night market"), { ctrlKey: true });
+  expect(picked(container)).toEqual(["Night market"]);
+  // Cmd stands where Ctrl does on a Mac.
+  fireEvent.click(opener("Harbour at dusk"), { metaKey: true });
+  fireEvent.click(opener("Night market"), { ctrlKey: true });
+  expect(picked(container)).toEqual(["Harbour at dusk"]);
+  expect(onOpenProject).not.toHaveBeenCalled();
+});
+
+test("a plain press on a row still opens it while others are picked", () => {
+  const onOpenProject = vi.fn();
+  render(<AllProjectsScreen projects={[PINNED, RECENT]} onOpenProject={onOpenProject} />);
+  fireEvent.click(box("Harbour at dusk"));
+  fireEvent.click(opener("Night market"));
+  expect(onOpenProject).toHaveBeenCalledWith("p2");
+});
+
+test("Shift picks every row from the last one picked to the pressed one, across Pinned into Recent", () => {
+  const { container } = render(<AllProjectsScreen projects={[PINNED, RECENT, OLDER, FOURTH]} />);
+  fireEvent.click(box("Harbour at dusk"));
+  fireEvent.click(opener("Old pier"), { shiftKey: true });
+  expect(picked(container)).toEqual(["Harbour at dusk", "Night market", "Old pier"]);
+});
+
+test("Shift puts the range in place of the picks, on a box as on a row, either way down the list", () => {
+  // As Windows does (the user: "windows gibi").
+  const { container } = render(<AllProjectsScreen projects={[PINNED, RECENT, OLDER, FOURTH]} />);
+  fireEvent.click(box("Harbour at dusk"));
+  fireEvent.click(box("Dock lights"));
+  fireEvent.click(box("Night market"), { shiftKey: true });
+  expect(picked(container)).toEqual(["Night market", "Old pier", "Dock lights"]);
+});
+
+test("Ctrl+Shift adds the range to the picks", () => {
+  const { container } = render(<AllProjectsScreen projects={[PINNED, RECENT, OLDER, FOURTH]} />);
+  fireEvent.click(box("Dock lights"));
+  fireEvent.click(box("Night market"));
+  fireEvent.click(opener("Harbour at dusk"), { shiftKey: true, ctrlKey: true });
+  expect(picked(container)).toEqual(["Harbour at dusk", "Night market", "Dock lights"]);
+  fireEvent.click(box("Old pier"), { shiftKey: true, metaKey: true });
+  expect(picked(container)).toEqual(["Harbour at dusk", "Night market", "Old pier", "Dock lights"]);
+});
+
+test("a Shift press does not move the row a range counts from", () => {
+  const { container } = render(<AllProjectsScreen projects={[PINNED, RECENT, OLDER, FOURTH]} />);
+  fireEvent.click(box("Night market"));
+  fireEvent.click(opener("Dock lights"), { shiftKey: true });
+  expect(picked(container)).toEqual(["Night market", "Old pier", "Dock lights"]);
+  // Still from Night market, not from Dock lights.
+  fireEvent.click(opener("Harbour at dusk"), { shiftKey: true });
+  expect(picked(container)).toEqual(["Harbour at dusk", "Night market"]);
+});
+
+test("Shift with nothing picked yet picks the pressed row alone", () => {
+  const { container } = render(<AllProjectsScreen projects={[PINNED, RECENT, OLDER]} />);
+  fireEvent.click(opener("Night market"), { shiftKey: true });
+  expect(picked(container)).toEqual(["Night market"]);
+  fireEvent.click(opener("Harbour at dusk"), { shiftKey: true });
+  expect(picked(container)).toEqual(["Harbour at dusk", "Night market"]);
+});
+
+test("a Shift press, on a row or on its box, does not start a text selection", () => {
+  render(<AllProjectsScreen projects={[PINNED, RECENT]} />);
+  expect(fireEvent.mouseDown(opener("Night market"), { shiftKey: true })).toBe(false);
+  expect(fireEvent.mouseDown(opener("Night market"))).toBe(true);
+  expect(fireEvent.mouseDown(box("Night market"), { shiftKey: true })).toBe(false);
+  expect(fireEvent.mouseDown(box("Night market"))).toBe(true);
+});
+
+test("the bar on Projects archives or deletes; on Archived it unarchives or deletes", () => {
+  const { container } = render(<AllProjectsScreen projects={[PINNED, SHELVED, RECENT]} />);
+  fireEvent.click(box("Night market"));
+  const buttons = () => [...bar(container).querySelectorAll("button")].map((b) => b.textContent);
+  expect(buttons()).toEqual(["Archive", "Delete"]);
+  // It stands in the head, beside + New project, so the list does not move when it comes.
+  expect(bar(container).closest(".all-projects__head")).toBeTruthy();
+  fireEvent.click(tab("Archived"));
+  fireEvent.click(box("Shelved reel"));
+  expect(buttons()).toEqual(["Unarchive", "Delete"]);
+});
+
+test("changing the tab lets every pick go", () => {
+  const { container } = render(<AllProjectsScreen projects={[PINNED, SHELVED, RECENT]} />);
+  fireEvent.click(box("Night market"));
+  fireEvent.click(tab("Archived"));
+  expect(bar(container)).toBeNull();
+  fireEvent.click(tab("Projects"));
+  expect(picked(container)).toEqual([]);
+});
+
+test("a press on the tab already open keeps the picks", () => {
+  const { container } = render(<AllProjectsScreen projects={[PINNED, RECENT]} />);
+  fireEvent.click(box("Night market"));
+  fireEvent.click(tab("Projects"));
+  expect(picked(container)).toEqual(["Night market"]);
+});
+
+// The bar's actions as App answers them: an archive waits for `answer`, the list read again.
+function bulkOnScreen(projects) {
+  const answers = [];
+  const onArchiveProjects = vi.fn(() => new Promise((resolve) => answers.push(resolve)));
+  const onDeleteProjects = vi.fn();
+  const props = { onArchiveProjects, onDeleteProjects };
+  let listed = projects;
+  const view = render(<AllProjectsScreen projects={listed} {...props} />);
+  const answer = async (next) => {
+    listed = next;
+    view.rerender(<AllProjectsScreen projects={listed} {...props} />);
+    await act(async () => answers.shift()());
+  };
+  const press = (label) =>
+    fireEvent.click(within(bar(view.container)).getByRole("button", { name: label }));
+  return { ...view, props, answer, press };
+}
+
+test("Archive asks nothing and takes every picked row to Archived at once, in one press", () => {
+  const { container, props, press } = bulkOnScreen([PINNED, RECENT, OLDER, FOURTH]);
+  fireEvent.click(box("Dock lights"));
+  fireEvent.click(box("Harbour at dusk"));
+  press("Archive");
+  // In the order they are drawn, whatever order they were picked in.
+  expect(props.onArchiveProjects.mock.calls).toEqual([[["p1", "p4"], true]]);
+  expect(container.querySelector(".dialog")).toBeNull();
+  expect(names(container)).toEqual(["Night market", "Old pier"]);
+  expect(counts(container)).toEqual(["2", "2"]);
+  // The bar went with them, and the keyboard did not go with it.
+  expect(bar(container)).toBeNull();
+  expect(document.activeElement).toBe(search());
+});
+
+test("an archive of several the server refused brings them all back", async () => {
+  const { container, press, answer } = bulkOnScreen([PINNED, RECENT, OLDER]);
+  fireEvent.click(box("Night market"));
+  fireEvent.click(box("Old pier"));
+  press("Archive");
+  await answer([PINNED, RECENT, OLDER]);
+  expect(names(container)).toEqual(["Harbour at dusk", "Night market", "Old pier"]);
+  expect(counts(container)).toEqual(["3", "0"]);
+});
+
+test("once the server has answered an unarchive, the list it sends stands", async () => {
+  const { container, press, answer } = bulkOnScreen([PINNED, SHELVED, RECENT]);
+  fireEvent.click(tab("Archived"));
+  fireEvent.click(box("Shelved reel"));
+  press("Unarchive");
+  expect(names(container)).toEqual([]);
+  await answer([PINNED, { ...SHELVED, archived: false }, RECENT]);
+  fireEvent.click(tab("Projects"));
+  expect(names(container)).toEqual(["Harbour at dusk", "Shelved reel", "Night market"]);
+});
+
+test("Delete hands the picked projects on, to be asked about", () => {
+  const { props, press } = bulkOnScreen([PINNED, SHELVED, SHELVED_2]);
+  fireEvent.click(tab("Archived"));
+  fireEvent.click(box("Spare reel"));
+  fireEvent.click(box("Shelved reel"));
+  press("Delete");
+  expect(props.onDeleteProjects).toHaveBeenCalledWith(["p5", "p6"]);
+});
+
+test("a picked row the search hides is neither counted nor acted on", () => {
+  const { container, props, press } = bulkOnScreen([PINNED, RECENT, OLDER]);
+  fireEvent.click(box("Night market"));
+  fireEvent.click(box("Old pier"));
+  type("pier");
+  expect(bar(container).textContent).toContain("1 selected");
+  press("Delete");
+  expect(props.onDeleteProjects).toHaveBeenCalledWith(["p3"]);
+  // Still picked: emptying the search shows it so.
+  type("");
+  expect(picked(container)).toEqual(["Night market", "Old pier"]);
 });

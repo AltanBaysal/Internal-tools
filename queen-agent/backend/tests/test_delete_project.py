@@ -8,7 +8,10 @@ from backend.features.workspace.data.file_project_store import PROJECTS_FILE, Fi
 from backend.features.workspace.data.live_turns import LiveTurns
 from backend.features.workspace.domain.errors import ProjectAnswering, ProjectNotFound
 from backend.features.workspace.domain.usecases.create_project import create_project
-from backend.features.workspace.domain.usecases.delete_project import delete_project
+from backend.features.workspace.domain.usecases.delete_project import (
+    delete_project,
+    delete_projects,
+)
 from backend.features.workspace.domain.usecases.append_message import append_message
 from backend.services.store.store import Store
 
@@ -93,6 +96,32 @@ def test_deleting_a_project_that_is_not_there_is_reported(tmp_path):
     projects, _ = _wired(tmp_path)
     with pytest.raises(ProjectNotFound):
         delete_project(projects, IDLE, "nope")
+
+
+def test_several_projects_are_deleted_at_once(tmp_path):
+    # Madde 506. An id no project carries is passed over: what was asked of it already stands.
+    projects, store = _wired(tmp_path)
+    for pid in ("p1", "p2", "p3"):
+        _with_contents(projects, store, pid)
+    assert delete_projects(projects, IDLE, ["p1", "nope", "p3"]) == {"p1": "p1", "p3": "p3"}
+    assert [project.id for project in projects.list_all()] == ["p2"]
+    assert sorted(store.list_dir("trash")) == ["p1", "p3"]
+
+
+def test_one_project_answering_keeps_every_project_of_the_request(tmp_path):
+    # All or none: the refusal comes before anything moves, so the user is never left with half of
+    # what they confirmed.
+    projects, store = _wired(tmp_path)
+    for pid in ("p1", "p2"):
+        _with_contents(projects, store, pid)
+    turns = LiveTurns()
+    turns.reserve("p2", "c1")
+    with pytest.raises(ProjectAnswering):
+        delete_projects(projects, turns, ["p1", "p2"])
+    assert sorted(project.id for project in projects.list_all()) == ["p1", "p2"], (
+        "Çalışan sohbeti olan bir proje yüzünden diğerleri yine silindi"
+    )
+    assert store.list_dir("trash") == []
 
 
 def test_the_other_projects_are_untouched(tmp_path):

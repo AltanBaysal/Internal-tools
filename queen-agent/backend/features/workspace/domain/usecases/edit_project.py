@@ -30,3 +30,14 @@ def edit_project(store, project_id, now, name=None, pinned=None, archived=None) 
     if edited is None:
         raise ProjectNotFound(project_id)
     return edited
+
+
+def archive_projects(store, project_ids, archived, now):
+    """Archive or unarchive several at once (Madde 506), each by the single press's rule. An id no
+    project carries is passed over -- what was asked of it already stands -- rather than refusing
+    the rest. Each change is made in memory; the one writer puts them on disk together."""
+    for project_id in project_ids:
+        try:
+            edit_project(store, project_id, now, archived=archived)
+        except ProjectNotFound:
+            pass
