@@ -3,10 +3,10 @@
 **Tarih:** 27 Ekim 2026 · **Madde:** [v11 yol haritası](../roadmaps/2026-10-24-queen-editor-v11-roadmap.md#v11-1),
 499 · v11-1 · **Dal:** `feat/queen-editor-v11` · **Kurallar:** queen-editor
 [FOUNDATION](../../queen-editor/FOUNDATION.md) · [CODE-STANDARD](../../queen-editor/CODE-STANDARD.md)
-· **Önce:** [482](2026-10-21-queen-editor-m482-krea2-photo-option-design.md) (Krea kendi grafiğiyle),
-[486](2026-10-21-queen-editor-m486-krea-panel-boxes-design.md) (Krea'nın LoRA kutusu) · **Kaynaklar:**
+· **Önce:** [482](../arsiv/specs/2026-10-21-queen-editor-m482-krea2-photo-option-design.md) (Krea kendi grafiğiyle),
+[486](../arsiv/specs/2026-10-21-queen-editor-m486-krea-panel-boxes-design.md) (Krea'nın LoRA kutusu) · **Kaynaklar:**
 484'ün denemesi `collab-toolbox/photo_experiments/qwen-image-21/`,
-[482'nin Qwen araştırması](../research/2026-10-20-queen-editor-m482-qwen-image.md)
+[482'nin Qwen araştırması](../arsiv/research/2026-10-20-queen-editor-m482-qwen-image.md)
 
 ## Kullanıcıdan gereken
 

@@ -50,7 +50,7 @@ node'un üstünde. Turbo'da cfg 1 kalır; Turbo t2i'de cfg girişi yok.
 ## Prompt'lar
 
 Deponun örnek senaryosundan dört kare
-([docs/research/2026-08-18-ornek-yapi.json](../../../docs/research/2026-08-18-ornek-yapi.json)),
+([docs/arsiv/research/2026-08-18-ornek-yapi.json](../../../docs/arsiv/research/2026-08-18-ornek-yapi.json)),
 her biri iki hâliyle.
 
 - **Etiket:** QueenAgent'ın `build_prompts`'unun bu kare için yazdığı prompt, `BREAK` dahil birebir

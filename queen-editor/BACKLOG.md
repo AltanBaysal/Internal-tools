@@ -204,7 +204,7 @@ kartın kodladığı doğrulandı. **Kalan aday, kodlamanın etrafındaki CPU zi
 **Kararlaşmadı:** zincirin karta taşınıp taşınmayacağı. Taşımanın iki bilinen bedeli var —
 `overlay_cuda` saydam PNG'de bozabiliyor *(girdinin `yuva420p`'ye çevrilip `hwupload` ile
 yüklenmesi gerekiyor)*, ve yarım taşımak tam CPU'dan kötü. Kaldıraçların tamamı
-[2026-09-21 export hızı araştırmasında](../docs/research/2026-09-21-queen-editor-export-hizi.md).
+[2026-09-21 export hızı araştırmasında](../docs/arsiv/research/2026-09-21-queen-editor-export-hizi.md).
 
 ### Loop'larda sona doğru tempo düşmesi — asıl çözüm
 
@@ -404,5 +404,5 @@ bölünerek yapılacak. Buraya yazılmasının sebebi bu.
 parçalanmanın nereden başlayacağı. Üçü de sırası gelince detaylandırılacak, ve buraya bir tahmin
 yazılmıyor.
 
-**İlk parça:** [v9-4](../docs/roadmaps/2026-10-05-queen-editor-v9-roadmap.md) — salt
+**İlk parça:** [v9-4](../docs/arsiv/roadmaps/2026-10-05-queen-editor-v9-roadmap.md) — salt
 okunur sohbet *(kullanıcı, 5 Ekim)*.

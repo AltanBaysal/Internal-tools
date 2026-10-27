@@ -15,7 +15,7 @@ oluruz hem".)* **Ayrıntılar kullanıcıyla konuşulacak.**
 *(Kullanıcı, 20 Ekim — "grep ve read_file gibi araçları geliştir"; 28 Eylül — "büyük dosyalarının
 hepsini de okumak zorunda kalmasın gerekli kısımlarını okusun".)* **v11'de v11-3 olarak hizalandı,
 koşulmadan backlog'a döndü** *(kullanıcı, 22 Ekim — "backloga al")*; hizalanan hâli
-[v11'in](../docs/roadmaps/2026-10-20-queen-agent-v11-roadmap.md) geçmişinde, 22 Ekim'den önceki
+[v11'in](../docs/arsiv/roadmaps/2026-10-20-queen-agent-v11-roadmap.md) geçmişinde, 22 Ekim'den önceki
 commit'lerde.
 
 **Kararlaşanlar:** önce bir agent Claude Code'un araçlarını ve nasıl çalıştıklarını Türkçe bir belgede
@@ -37,7 +37,7 @@ dosyaya taşınır; ortak araçlar (`remove_frame`, `build_prompts`, dosya araç
 
 *(Kullanıcı, 29 Eylül — "queen agentta token kullanımını optimize et", "bunu en son al beraber
 yaoarız"; 30 Eylül — "bunu backloga at şimdilik".)* v9'da 376 olarak hizalandı ve koşulmadı;
-konuşulanlar [v9'un](../docs/roadmaps/2026-09-25-queen-agent-v9-roadmap.md) v9-10 bölümünde.
+konuşulanlar [v9'un](../docs/arsiv/roadmaps/2026-09-25-queen-agent-v9-roadmap.md) v9-10 bölümünde.
 **Ayrıntılar kullanıcıyla konuşulacak.**
 
 ## Suffix system prompt'u güçlendirilecek
@@ -205,7 +205,7 @@ kullanıcıya gösterilerek. **Ayrıntılar kullanıcıyla konuşulacak.**
 agente bunu sıfırdan tasarlattıralım basit olmalı solid olmalı drive istek sayısnı minimzie etmeli";
 "doylarda agnetın güncellendiği an güncellenmelş"; sonra — "yada abi bu kadar büyük bir işe
 girmeyelin şuanlık".)* Şimdilik yalnız küçük düzeltme yapıldı:
-490, [v11-1](../docs/roadmaps/2026-10-20-queen-agent-v11-roadmap.md) — bağlantı kontrolü ve 448'in silinmesi.
+490, [v11-1](../docs/arsiv/roadmaps/2026-10-20-queen-agent-v11-roadmap.md) — bağlantı kontrolü ve 448'in silinmesi.
 **490'dan kalanlar** *(coder'ı ve reviewer'ı buldu, 22 Ekim)*: kök okunur ama `projects.json`
 yanlışlıkla "bulunamadı" derse açılış hâlâ boş başlar; notebook'un CONFIG'i kökün gerçekten Drive'da
 olduğuna bakmıyor; `/api/health` bağlantıya bakmıyor; proje oluşturma, ad değiştirme, sabitleme ve

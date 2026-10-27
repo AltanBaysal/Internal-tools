@@ -1,8 +1,8 @@
 # Queen Editor — Yol Haritası v11
 
-**Durum:** Koşuyor · 4/6 bitti · dal `feat/queen-editor-v11`
+**Durum:** Koşuyor · 5/6 bitti · dal `feat/queen-editor-v11`
 
-**Önceki sürüm:** [v10](2026-10-20-queen-editor-v10-roadmap.md) — bitti.
+**Önceki sürüm:** [v10](../arsiv/roadmaps/2026-10-20-queen-editor-v10-roadmap.md) — bitti.
 
 **Sıra: tek tek, dalga yok** *(kullanıcı, 27 Ekim — "ilk queen ediytor tasklarını yapıcaz bitincebana
 haber vericeksin queen anget tasklarına geçiçez"; "sıryaal paralel yapmicaz")*. Koşu bu roadmap'le
@@ -25,7 +25,7 @@ ana klasörde koşunun dalında yürür.
 | 498 · [v11-2](#v11-2) | Sıra boşken bildirim | ✅ *(gerçek 10 dk, tünelden geçen açık istek ve işletim sisteminin bildirimi kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
 | 497 · [v11-3](#v11-3) | Drive'a kayıt olmayınca hata verip dursun | ✅ *(Colab'da dolu Drive ve kopan bağlantı kullanıcının sondaki denemesinde)* · `ALIGNED` |
 | 501 · [v11-4](#v11-4) | Femboy LoRA'sı | `ALIGNED` |
-| 500 · [v11-5](#v11-5) | Eski belgeler ve roadmap'ler arşive | `ALIGNED` |
+| 500 · [v11-5](#v11-5) | Eski belgeler ve roadmap'ler arşive | ✅ · `ALIGNED` |
 | 496 · [v11-6](#v11-6) | Sürüm V11 | ✅ · `ALIGNED` |
 
 ---

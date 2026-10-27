@@ -2,7 +2,7 @@
 
 **Durum:** Hazırlanıyor · 0/5 bitti
 
-**Önceki sürüm:** [v11](2026-10-20-queen-agent-v11-roadmap.md) — bitti.
+**Önceki sürüm:** [v11](../arsiv/roadmaps/2026-10-20-queen-agent-v11-roadmap.md) — bitti.
 
 **Sıra: tek tek, dalga yok** *(kullanıcı, 27 Ekim — "ilk queen ediytor tasklarını yapıcaz bitincebana
 haber vericeksin queen anget tasklarına geçiçez"; "sıryaal paralel yapmicaz")*. Bu roadmap, Queen
