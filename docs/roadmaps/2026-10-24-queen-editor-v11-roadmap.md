@@ -4,6 +4,18 @@
 
 **Önceki sürüm:** [v10](2026-10-20-queen-editor-v10-roadmap.md) — bitti.
 
+**Sıra: tek tek, dalga yok** *(kullanıcı, 27 Ekim — "ilk queen ediytor tasklarını yapıcaz bitincebana
+haber vericeksin queen anget tasklarına geçiçez"; "sıryaal paralel yapmicaz")*. Koşu bu roadmap'le
+başlar, QueenAgent v12 bundan sonra gelir. Bir madde birleşince sıradaki başlar; worktree açılmaz, iş
+ana klasörde koşunun dalında yürür.
+
+1. **v11-3** — Drive'a kayıt olmayınca hata. Fotoğraf kaybettirdiği için ilk.
+2. **v11-2** — sıra boşken bildirim.
+3. **v11-1** — Krea'da SNOFS + Slime, ve Qwen.
+4. **v11-5** — arşiv; koşunun belgeleri yazıldıktan sonra, linkler bir seferde düzelsin diye.
+5. **v11-4** — femboy LoRA'sı, kullanıcıyla, en sonda *("bir femboy taskını son al çünkü ban ihtiaçın
+   olcak")*. Bitince kullanıcıya haber verilir, sonra QueenAgent v12'ye geçilir.
+
 ---
 
 | Numara | İş | Durum |
