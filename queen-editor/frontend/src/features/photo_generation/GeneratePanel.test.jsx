@@ -82,6 +82,17 @@ describe("GeneratePanel — the button", () => {
     expect(screen.getByText("Kuyruğa ekle").closest("button").disabled).toBe(true);
   });
 
+  it("asks the browser for notifications on the press, inside the click (madde 498)", async () => {
+    // The browser asks only inside a click, and only while it has no answer yet.
+    const requestPermission = vi.fn(() => Promise.resolve("granted"));
+    vi.stubGlobal("Notification", { permission: "default", requestPermission });
+    renderPanel();
+
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    expect(requestPermission).toHaveBeenCalledTimes(1);
+  });
+
   it("lets go of it once the group has landed", () => {
     renderPanel({ producer: { id: "photo", name: "Fotoğraf üreticisi", installed: true } });
 

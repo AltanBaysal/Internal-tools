@@ -404,6 +404,27 @@ describe("LayerPanel — sending", () => {
     expect(onQueue).toHaveBeenCalledWith(null, 2, "loop");
   });
 
+  it("asks the browser for notifications on a press that sends (madde 498)", async () => {
+    // The browser asks only inside a click, and only while it has no answer yet.
+    const requestPermission = vi.fn(() => Promise.resolve("granted"));
+    vi.stubGlobal("Notification", { permission: "default", requestPermission });
+    renderPanel();
+
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    expect(requestPermission).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks nothing on a press the panel refused itself", () => {
+    const requestPermission = vi.fn(() => Promise.resolve("granted"));
+    vi.stubGlobal("Notification", { permission: "default", requestPermission });
+    renderPanel({ frames: [done("1_a.png", { video: "1_a_V1_0.mp4" })] });
+
+    fireEvent.click(screen.getByText("Kuyruğa ekle"));
+
+    expect(requestPermission).not.toHaveBeenCalled();
+  });
+
   it("does not explain who writes the prompt -- the frame's own page does", () => {
     // The sentence was read once and then took up room at the foot of the panel on every open.
     // Where a prompt is actually read -- the frame's page -- an empty one still says that the

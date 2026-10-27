@@ -297,6 +297,22 @@ export async function getStatus() {
   return request("/api/status");
 }
 
+// "Orada mısın?" as the server's idle watch has it (madde 498): { version, asking }. Asked from a
+// version, the server holds the answer until the question moves or 50 seconds pass -- long polling,
+// since the Quick Tunnel holds a streaming body until it ends -- so the wait outlasts the server's
+// hold and stays under the tunnel's cut of about 100 quiet seconds. With no version, at once.
+const IDLE_ASK_TIMEOUT_MS = 80_000;
+
+export async function waitForIdle(after) {
+  const since = after === null ? "" : `?after=${after}`;
+  return request(`/api/idle${since}`, { timeout: IDLE_ASK_TIMEOUT_MS });
+}
+
+// Buradayım: the question closes and the ten minutes start again. Answers like waitForIdle.
+export async function sayHere() {
+  return request("/api/idle/here", { method: "POST" });
+}
+
 // Plain URL, not a fetch: the browser loads it into an <img>, a <video> or an <audio>. Any file
 // the project folder holds is reachable this way; the route is still called /photos because that is
 // the server's own name for the project's file area.

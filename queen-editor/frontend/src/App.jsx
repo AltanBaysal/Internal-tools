@@ -1,6 +1,7 @@
 import ProjectScreen from "./features/photo_generation/ProjectScreen.jsx";
 import ProjectsScreen from "./features/projects/ProjectsScreen.jsx";
 import { useProjectSettings } from "./features/projects/useProjectSettings.js";
+import IdleWatch from "./features/idle/IdleWatch.jsx";
 import ExportScreen from "./features/photo_generation/ExportScreen.jsx";
 import PhotoDetail from "./features/photo_generation/PhotoDetail.jsx";
 import { routeFromPath, useRoute } from "./shared/router.js";
@@ -20,7 +21,7 @@ function ProjectRoute({ project }) {
   );
 }
 
-export default function App() {
+function Screen() {
   // The photo segment carries the frame's identity: one picture can stand under two frames.
   const { project, photo, exporting } = routeFromPath(useRoute());
   if (!project) return <ProjectsScreen />;
@@ -29,4 +30,15 @@ export default function App() {
   // So does the export screen: it asks the server what an export would write.
   if (exporting) return <ExportScreen project={project} />;
   return <ProjectRoute project={project} />;
+}
+
+// "Orada mısın?" stands beside the screen rather than inside each one (madde 498): one watch for
+// all four, and moving between them does not take it down, so its one held ask goes on.
+export default function App() {
+  return (
+    <>
+      <Screen />
+      <IdleWatch />
+    </>
+  );
 }

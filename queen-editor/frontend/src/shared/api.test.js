@@ -35,6 +35,37 @@ describe("api.request", () => {
     expect(url).not.toContain("düğün");
   });
 
+  it("asks the idle watch from a version, or at once with none (madde 498)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse({ version: 2, asking: true }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(await api.waitForIdle(1)).toEqual({ version: 2, asking: true });
+    await api.waitForIdle(null);
+    await api.sayHere();
+
+    expect(fetchMock.mock.calls.map(([url, options]) => [options.method || "GET", url])).toEqual([
+      ["GET", "/api/idle?after=1"], ["GET", "/api/idle"], ["POST", "/api/idle/here"]]);
+  });
+
+  it("holds the idle ask longer than the server does, and cuts it before the tunnel would", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("fetch", vi.fn((url, { signal }) => new Promise((resolve, reject) => {
+      signal.addEventListener("abort", () => reject(Object.assign(new Error("aborted"),
+                                                                   { name: "AbortError" })));
+    })));
+
+    const asked = api.waitForIdle(0).catch((err) => err);
+    // The server holds an ask 50 seconds: a client cut at the usual ten would never hear it.
+    await vi.advanceTimersByTimeAsync(60_000);
+    let settled = false;
+    asked.then(() => { settled = true; });
+    await Promise.resolve();
+    expect(settled).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(40_000);
+    expect((await asked).evidence).toBe("GET /api/idle?after=0\nZaman aşımı (80 sn)");
+  });
+
   it("throws the server's own text when the server rejects a request", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
       errorResponse(404, "NOT FOUND", JSON.stringify({ error: "Proje bulunamadı: düğün" }))));

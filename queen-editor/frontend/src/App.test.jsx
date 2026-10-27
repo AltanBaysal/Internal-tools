@@ -1,7 +1,8 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getSettings, listFrames } from "./shared/api.js";
+import { navigate } from "./shared/router.js";
 import App from "./App.jsx";
 
 // Every export the tree imports has to be here: imports are hoisted, so App pulling in the
@@ -41,7 +42,12 @@ vi.mock("./shared/api.js", () => ({
   saveSettings: vi.fn(),
   startExport: vi.fn(),
   stopGeneration: vi.fn(),
+  sayHere: vi.fn().mockResolvedValue({ version: 0, asking: false }),
+  waitForIdle: vi.fn(() => new Promise((resolve) => { heldAsks.push(resolve); })),
 }));
+
+// The idle watch's held asks, answered by the test that wants the question asked.
+const heldAsks = [];
 
 const FRAME = { id: "1_a", file: "1_a.png", status: "done" };
 
@@ -93,5 +99,40 @@ describe("App — the project screen while its record is on its way", () => {
     // is not the screen's answer.
     expect(screen.getByText("1_a.png")).toBeTruthy();
     expect(screen.getByText("Export")).toBeTruthy();
+  });
+});
+
+describe("App — orada mısın? on every screen (madde 498)", () => {
+  const ASKED = { version: 1, asking: true };
+
+  beforeEach(() => {
+    heldAsks.length = 0;
+    // The photo panel's record is no business of the box's.
+    getSettings.mockImplementation(() => new Promise(() => {}));
+  });
+
+  it("asks over the projects list", async () => {
+    window.history.pushState({}, "", "/");
+    render(<App />);
+    await act(async () => {});
+
+    await act(async () => { heldAsks.at(-1)(ASKED); });
+
+    expect(screen.getByText("Orada mısın?")).toBeTruthy();
+  });
+
+  it("asks over a project, and moving between screens keeps the one ask it holds", async () => {
+    window.history.pushState({}, "", "/");
+    render(<App />);
+    await act(async () => {});
+
+    act(() => navigate(`/projects/${encodeURIComponent("sayan")}`));
+    await act(async () => {});
+    expect(heldAsks).toHaveLength(1);
+
+    await act(async () => { heldAsks.at(-1)(ASKED); });
+
+    expect(screen.getByText("Orada mısın?")).toBeTruthy();
+    expect(screen.getByText("sayan")).toBeTruthy();
   });
 });

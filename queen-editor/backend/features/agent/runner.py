@@ -27,6 +27,7 @@ start from the clock, so a page left open across a restart cannot name a new cha
 import itertools
 import threading
 import time
+from contextlib import nullcontext
 
 
 def _thread_spawn(fn):
@@ -34,9 +35,12 @@ def _thread_spawn(fn):
 
 
 class AgentRunner:
-    def __init__(self, record, spawn=None):
+    def __init__(self, record, spawn=None, waiting=None):
         self._record = record
         self._spawn = spawn or _thread_spawn
+        # What a run waits on the user inside: the idle watch's, in production (madde 498), for
+        # whom an agent waiting on İzin ver / Reddet is not work.
+        self._waiting = waiting or nullcontext
         self._lock = threading.Lock()
         # What a run waiting for the user sleeps on; an answer and a stop wake it.
         self._answered = threading.Condition(self._lock)
@@ -101,8 +105,9 @@ class AgentRunner:
             run.allowed = False
             run.asking = {"id": next(self._numbers), "change": change}
             # The wait lets go of the lock while it sleeps: the answer and the stop take it.
-            while run.asking is not None and not run.over:
-                self._answered.wait()
+            with self._waiting():
+                while run.asking is not None and not run.over:
+                    self._answered.wait()
             # A stop that lands after İzin ver, before this wakes, wins: the run is over.
             return run.allowed and not run.over
 

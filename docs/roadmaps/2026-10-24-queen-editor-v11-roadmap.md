@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v11
 
-**Durum:** Koşuyor · 2/6 bitti · dal `feat/queen-editor-v11`
+**Durum:** Koşuyor · 3/6 bitti · dal `feat/queen-editor-v11`
 
 **Önceki sürüm:** [v10](2026-10-20-queen-editor-v10-roadmap.md) — bitti.
 
@@ -22,7 +22,7 @@ ana klasörde koşunun dalında yürür.
 | Numara | İş | Durum |
 |---|---|---|
 | 499 · [v11-1](#v11-1) | Translucent Penetration: Krea'da, ve Qwen yeni model olarak | `ALIGNED` |
-| 498 · [v11-2](#v11-2) | Sıra boşken bildirim | `ALIGNED` |
+| 498 · [v11-2](#v11-2) | Sıra boşken bildirim | ✅ *(gerçek 10 dk, tünelden geçen açık istek ve işletim sisteminin bildirimi kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
 | 497 · [v11-3](#v11-3) | Drive'a kayıt olmayınca hata verip dursun | ✅ *(Colab'da dolu Drive ve kopan bağlantı kullanıcının sondaki denemesinde)* · `ALIGNED` |
 | 501 · [v11-4](#v11-4) | Femboy LoRA'sı | `ALIGNED` |
 | 500 · [v11-5](#v11-5) | Eski belgeler ve roadmap'ler arşive | `ALIGNED` |
@@ -84,6 +84,19 @@ sürerken ikisi de gelmiyor.
   Kuyruğa ekle'ye basılınca istenir, çünkü tarayıcı izni ancak bir tıklamadan sonra sorabiliyor; izin
   verilmezse yalnız ekrandaki kutu çıkar. 10 dk sıra bittiği andan sayar; uygulama boş bir sırayla
   açılırsa açıldığı andan.
+- **Yapılırken kararlaşan** *(Claude, 27 Ekim; 498'in coder'ının sorusu üzerine)*: ekranın bugünkü
+  sorguları işin bittiğini her ekranda göremiyor — proje listesi hiçbir şey sormuyor, ajanın
+  çalıştığı yalnız paneli açıkken biliniyor. Bu yüzden sunucu tek bir soruya cevap verir: sıra, export
+  ya da herhangi bir projede ajan çalışıyor mu. Bunu sunucuda merkezi bir bekçi bilir.
+- **Olayla, sorarak değil** *(kullanıcı, 27 Ekim — "make it eent dirven dont check it again againü";
+  "hayır abi ortka kontrol eden bir yap ı olsun ve hepsi biterse direkt evetn driven 10 dakika geri
+  sayı başlasın bir şey gelemze bir şey gelilr tünel içinde queenagentta çözmüştük ordan
+  bakabilrisn")*: sıra, export ve ajan işe başlayınca ve bitince bekçiye söyler. Hepsi bitince bekçi
+  10 dk'lık geri sayımı kendisi başlatır; arada bir iş başlarsa geri sayım iptal olur. 10 dk dolunca
+  "orada mısın?" olayı doğar, ve ekran onu QueenAgent'ın 491'deki long polling'iyle öğrenir: açık bir
+  istek, olay olunca hemen cevaplanır. Buradayım geri sayımı yeniden başlatır. Önce yazılan "dakikada
+  bir sorulur" yolu bununla değişti. **İzin bekleyen ajan iş sayılmaz:** İzin ver / Reddet'i
+  bekleyen ajan kullanıcıyı bekliyor, ve onu iş saymak kutuyu hiç çıkarmazdı.
 
 <a id="v11-3"></a>
 ### 497 · v11-3 — Drive'a kayıt olmayınca hata verip dursun
