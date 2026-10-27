@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v11
 
-**Durum:** Hazırlanıyor · 0/6 bitti
+**Durum:** Koşuyor · 0/6 bitti · dal `feat/queen-editor-v11`
 
 **Önceki sürüm:** [v10](2026-10-20-queen-editor-v10-roadmap.md) — bitti.
 
@@ -9,29 +9,29 @@ haber vericeksin queen anget tasklarına geçiçez"; "sıryaal paralel yapmicaz"
 başlar, QueenAgent v12 bundan sonra gelir. Bir madde birleşince sıradaki başlar; worktree açılmaz, iş
 ana klasörde koşunun dalında yürür.
 
-1. **v11-6** — sürüm V11, koşunun ilk işi.
-2. **v11-3** — Drive'a kayıt olmayınca hata. Fotoğraf kaybettirdiği için öteki işlerden önce.
-3. **v11-2** — sıra boşken bildirim.
-4. **v11-1** — Krea'da SNOFS + Slime, ve Qwen.
-5. **v11-5** — arşiv; koşunun belgeleri yazıldıktan sonra, linkler bir seferde düzelsin diye.
-6. **v11-4** — femboy LoRA'sı, kullanıcıyla, en sonda *("bir femboy taskını son al çünkü ban ihtiaçın
+1. **496 · v11-6** — sürüm V11, koşunun ilk işi.
+2. **497 · v11-3** — Drive'a kayıt olmayınca hata. Fotoğraf kaybettirdiği için öteki işlerden önce.
+3. **498 · v11-2** — sıra boşken bildirim.
+4. **499 · v11-1** — Krea'da SNOFS + Slime, ve Qwen.
+5. **500 · v11-5** — arşiv; koşunun belgeleri yazıldıktan sonra, linkler bir seferde düzelsin diye.
+6. **501 · v11-4** — femboy LoRA'sı, kullanıcıyla, en sonda *("bir femboy taskını son al çünkü ban ihtiaçın
    olcak")*. Bitince kullanıcıya haber verilir, sonra QueenAgent v12'ye geçilir.
 
 ---
 
 | Numara | İş | Durum |
 |---|---|---|
-| [v11-1](#v11-1) | Translucent Penetration: Krea'da, ve Qwen yeni model olarak | `ALIGNED` |
-| [v11-2](#v11-2) | Sıra boşken bildirim | `ALIGNED` |
-| [v11-3](#v11-3) | Drive'a kayıt olmayınca hata verip dursun | `ALIGNED` |
-| [v11-4](#v11-4) | Femboy LoRA'sı | `ALIGNED` |
-| [v11-5](#v11-5) | Eski belgeler ve roadmap'ler arşive | `ALIGNED` |
-| [v11-6](#v11-6) | Sürüm V11 | `ALIGNED` |
+| 499 · [v11-1](#v11-1) | Translucent Penetration: Krea'da, ve Qwen yeni model olarak | `ALIGNED` |
+| 498 · [v11-2](#v11-2) | Sıra boşken bildirim | `ALIGNED` |
+| 497 · [v11-3](#v11-3) | Drive'a kayıt olmayınca hata verip dursun | `ALIGNED` |
+| 501 · [v11-4](#v11-4) | Femboy LoRA'sı | `ALIGNED` |
+| 500 · [v11-5](#v11-5) | Eski belgeler ve roadmap'ler arşive | `ALIGNED` |
+| 496 · [v11-6](#v11-6) | Sürüm V11 | `ALIGNED` |
 
 ---
 
 <a id="v11-1"></a>
-### v11-1 — Translucent Penetration: Krea'da, ve Qwen yeni model olarak
+### 499 · v11-1 — Translucent Penetration: Krea'da, ve Qwen yeni model olarak
 
 **Kabul koşulu:**
 - Krea seçiliyken LoRA kutusunda üç seçenek var: **SNOFS** (bugünkü gibi, varsayılan), **SNOFS + Slime**
@@ -59,7 +59,7 @@ hiç girmedi.
   fotoğraflar Qwen'in ayrı kural istediğini gösterirse QueenAgent'a ayrı bir madde açılır.
 
 <a id="v11-2"></a>
-### v11-2 — Sıra boşken bildirim
+### 498 · v11-2 — Sıra boşken bildirim
 
 **Kabul koşulu:** Sıra 10 dk boş kalınca ekranda "orada mısın?" çıkıyor ve tarayıcı bildirimi
 geliyor. Sıra boş kaldıkça ikisi her 10 dk'da bir yeniden geliyor. Bir export ya da ajanın cevabı
@@ -77,7 +77,7 @@ sürerken ikisi de gelmiyor.
 - **Ekranda da sorulur** *(cevap: "yes")*: bildirimle birlikte ekranda "orada mısın?" çıkar.
 
 <a id="v11-3"></a>
-### v11-3 — Drive'a kayıt olmayınca hata verip dursun
+### 497 · v11-3 — Drive'a kayıt olmayınca hata verip dursun
 
 **Kabul koşulu:**
 - Drive'a kayıt hangi sebeple olmazsa olsun, fotoğrafta, videoda ve export'ta ekranda bir hata çıkıyor
@@ -102,7 +102,7 @@ ve sessizce gönderiyor olabilir; ya da bozuk bir karenin silinmesi, dosyasını
 fotoğrafını götürüyor olabilir.
 
 <a id="v11-4"></a>
-### v11-4 — Femboy LoRA'sı
+### 501 · v11-4 — Femboy LoRA'sı
 
 **Kabul koşulu:** Adayların deneme sonucu yazılı. Kullanıcının seçtiği LoRA Queen Editor'de Nova ve
 DaSiWa'nın LoRA kutusunda seçilebiliyor.
@@ -119,7 +119,7 @@ yapalım sonra karar veridğimizi queen editore koyarız"*. Deneme notebook'u
   yapıldığı için bu madde koşunun en sonunda yürür.
 
 <a id="v11-5"></a>
-### v11-5 — Eski belgeler ve roadmap'ler arşive
+### 500 · v11-5 — Eski belgeler ve roadmap'ler arşive
 
 *(Kullanıcı, 26 Ekim — "ee bu belgeyi arayacak claude code böyle yaparsan queen editor roadmapine
 eklemeyi ve düzeltemeyi belgleri ve eski roadmpaleri arşive almayı".)*
@@ -143,7 +143,7 @@ da olsa, o belgeyi arar ve bulamaz.
   link olur. Spec'lerin çoğu kendi roadmap'ine link veriyor, bu yüzden bu iş yüzlerce linke dokunur.
 
 <a id="v11-6"></a>
-### v11-6 — Sürüm V11
+### 496 · v11-6 — Sürüm V11
 
 *(Kullanıcı, 27 Ekim — "bir de her roadmapin başında şun uyapmanı istiyorum ui daki sürümü arttıralım
 olur mu"; "ilk görev o olsun ynai".)*
