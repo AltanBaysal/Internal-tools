@@ -6,16 +6,36 @@ from backend.features.workspace.domain.skills import INSTRUCTIONS, instruction_f
 # cannot read it. If the two ever drift apart, a skill answers with no instruction at all -- so the
 # match is pinned here, in words.
 ALL_SKILLS = ["edit-prompts", "krea-edit", "krea-start-scenario", "start-a-scenario"]
-# Madde 492: two skills a model, and each opens by sending the model to its own guide (the user, 22
-# October: "bizim skillimizin başında söyleriz git ve şu skili oku önce").
+# Madde 492: two skills a model, and each sends the model to its own guide in its opening (the user,
+# 22 October: "bizim skillimizin başında söyleriz git ve şu skili oku önce").
 SDXL_SKILLS = ["start-a-scenario", "edit-prompts"]
 KREA_SKILLS = ["krea-start-scenario", "krea-edit"]
-FIRST_LINE = {
-    "start-a-scenario": "Read sdxl-prompt-writing.md first.\n\n",
-    "edit-prompts": "Read sdxl-prompt-writing.md first.\n\n",
-    "krea-start-scenario": "Read krea-prompt-writing.md first.\n\n",
-    "krea-edit": "Read krea-prompt-writing.md first.\n\n",
+# Madde 503: each skill's first line says which model the user chose, so the model reads it as decided
+# rather than asks (the user, 27 October: "prompt 1 cümleyele çözeriz başta neyin seçildiğini"). A
+# model's start and edit carry the same sentence; "an SDXL scenario" and "a Krea scenario" are the
+# words each model's tools open with.
+SDXL_CHOSEN = (
+    "The user has already chosen the image model, SDXL: the scenario is an SDXL scenario, "
+    "a .sdxl.json file, so never ask which model."
+)
+KREA_CHOSEN = (
+    "The user has already chosen the image model, Krea: the scenario is a Krea scenario, "
+    "a .krea.json file, so never ask which model."
+)
+MODEL_CHOSEN = {
+    "start-a-scenario": SDXL_CHOSEN,
+    "edit-prompts": SDXL_CHOSEN,
+    "krea-start-scenario": KREA_CHOSEN,
+    "krea-edit": KREA_CHOSEN,
 }
+GUIDE_LINE = {
+    "start-a-scenario": "Read sdxl-prompt-writing.md first.",
+    "edit-prompts": "Read sdxl-prompt-writing.md first.",
+    "krea-start-scenario": "Read krea-prompt-writing.md first.",
+    "krea-edit": "Read krea-prompt-writing.md first.",
+}
+OPENING = {skill: f"{MODEL_CHOSEN[skill]}\n{GUIDE_LINE[skill]}\n\n" for skill in MODEL_CHOSEN}
+"""The paragraph every skill opens with: the model chosen, then that model's guide."""
 
 # Madde 94's deletion. The names live here because the proof of a deletion is an absence, and only a
 # test that looks for it sees one -- putting any of them back has to come past this line.
@@ -67,10 +87,19 @@ def test_the_menu_and_the_instructions_carry_the_same_names():
 
 
 @pytest.mark.parametrize("skill", ALL_SKILLS)
+def test_every_skill_opens_by_saying_which_model_the_user_chose(skill):
+    # Madde 503: SDXL start said only "scenario JSON", every tool of both models is in every
+    # request, and the base text asks when only the user can decide -- so the agent asked "Krea or
+    # SDXL?" on the first message. The skill rides last in the request, and its first line answers.
+    assert instruction_for(skill).startswith(MODEL_CHOSEN[skill] + "\n")
+
+
+@pytest.mark.parametrize("skill", ALL_SKILLS)
 def test_every_skill_opens_by_sending_the_model_to_its_guide(skill):
     # The guides ride in no request on their own (the user, 22 October: "hiçbiri gitmez"), so the
-    # skill is what says to read one, and says it first.
-    assert instruction_for(skill).startswith(FIRST_LINE[skill])
+    # skill is what says to read one, and says it in its opening, right behind the model chosen.
+    behind = instruction_for(skill)[len(MODEL_CHOSEN[skill] + "\n") :]
+    assert behind.startswith(GUIDE_LINE[skill] + "\n\n")
 
 
 @pytest.mark.parametrize("skill", KREA_SKILLS)
@@ -918,7 +947,11 @@ def test_every_skill_says_what_the_prompts_are_for(skill):
     # Madde 393, the owner: what the work is for is a video now. Every text opens with a context
     # that says the prompt makes a photo and the video starts from the photo. The owner took the
     # model's name out -- the context says what the model is like instead.
-    said = instruction_for(skill)
+    #
+    # Madde 503 narrows that to the text behind the opening: since Madde 492 there are two models
+    # and the name is what tells them apart, so the opening says which one the user chose (the
+    # user, 27 October), and the rest still says what the model is like rather than its name.
+    said = _after_the_opening(skill)
     assert "The prompt of the frame makes a photo. The video starts from the photo." in said
     assert "SDXL" not in said
 
@@ -938,23 +971,24 @@ def test_the_plan_no_longer_opens_with_a_line_of_context():
     assert "inherits the work" not in said
 
 
-def _after_the_first_line(skill):
-    """The text behind the line that sends the model to its guide (Madde 492)."""
-    return instruction_for(skill)[len(FIRST_LINE[skill]) :]
+def _after_the_opening(skill):
+    """The text behind the model chosen and the line that sends the model to its guide."""
+    return instruction_for(skill)[len(OPENING[skill]) :]
 
 
 def test_the_flow_opens_as_a_persona():
     # Madde 123, the user's own framing: you are an expert scenario writer laying the ground,
     # and an expert prompt writer takes over. A role holds a weak model better than a rule list.
-    # Since Madde 492 behind the line that sends the model to its guide.
-    assert _after_the_first_line("start-a-scenario").startswith("You are an expert scenario writer")
+    # Since Madde 492 behind the line that sends the model to its guide, and since Madde 503 behind
+    # the model chosen too.
+    assert _after_the_opening("start-a-scenario").startswith("You are an expert scenario writer")
 
 
 @pytest.mark.parametrize("skill", ["edit-prompts", "krea-start-scenario", "krea-edit"])
 def test_the_other_skills_open_as_the_same_persona(skill):
     # Madde 393, the owner: the same writer as the flow -- only the context differs. The Krea two
     # are the same writer for another model.
-    assert _after_the_first_line(skill).startswith(
+    assert _after_the_opening(skill).startswith(
         "You are an expert scenario writer and prompt writer."
     )
 
@@ -1071,7 +1105,12 @@ def test_the_texts_stay_short_enough_to_be_read():
     # a line opening the notes file that keeps them; each edit reads the notes and asks when they are
     # missing; the SDXL flow's frame step gains Rule 7, framing the photo for the orientation. The
     # texts came to 2012, 263, 531 and 314 words; each cap is that and a few words of room.
-    assert len(_flow().split()) <= 2020
-    assert len(_edit().split()) <= 275
-    assert len(_krea_flow().split()) <= 540
-    assert len(_krea_edit().split()) <= 325
+    #
+    # Madde 503 raises all four, on the user's written decision of 27 October: one sentence at the
+    # start of each skill says which model the user chose ("bence hepsini ekelyelim krea ve sdxl
+    # editler start senayolar vs"). The sentence is 23 words; the texts came to 2035, 286, 554 and
+    # 337, and each cap is that and a few words of room.
+    assert len(_flow().split()) <= 2040
+    assert len(_edit().split()) <= 295
+    assert len(_krea_flow().split()) <= 560
+    assert len(_krea_edit().split()) <= 345

@@ -1,6 +1,6 @@
 # QueenAgent — Yol Haritası v12
 
-**Durum:** Koşuyor · 1/5 bitti · dal `feat/queenagent-v12`
+**Durum:** Koşuyor · 2/5 bitti · dal `feat/queenagent-v12`
 
 **Önceki sürüm:** [v11](../arsiv/roadmaps/2026-10-20-queen-agent-v11-roadmap.md) — bitti.
 
@@ -21,7 +21,7 @@ bitir")*; deneme sonucu gelince 501 araya alınır. Bir madde birleşince sırad
 |---|---|---|
 | 504 · [v12-1](#v12-1) | Düzenlenen mesajın kutusu büyüsün | `ALIGNED` |
 | 505 · [v12-2](#v12-2) | Mesaj yazma kutusu büyüsün | `ALIGNED` |
-| 503 · [v12-3](#v12-3) | SDXL start seçiliyken model sormasın | `ALIGNED` |
+| 503 · [v12-3](#v12-3) | SDXL start seçiliyken model sormasın | ✅ · `ALIGNED` |
 | 506 · [v12-4](#v12-4) | Projeleri toplu arşivle/sil | `ALIGNED` |
 | 502 · [v12-5](#v12-5) | Sürüm V12 | ✅ · `ALIGNED` |
 
@@ -74,6 +74,10 @@ prompt'ta *"emin değilsen sor"* kuralı var.
 - *"bence hepsini ekelyelim krea ve sdxl editler start senayolar vs"*: dört skill'e de; SDXL start
   scenario, SDXL edit, Krea start scenario, Krea edit.
 - Kabul koşulu aynı kalır: SDXL start scenario'yla başlatılan sohbette ajan model sormuyor.
+- **Yapılırken kararlaşan** *(ana ajan, 27 Ekim; 503'ün coder'ının sorusu üzerine)*: 393'ün skill
+  metinlerinde "SDXL" kelimesini yasaklayan kuralı *(30 Eylül)* artık yalnız metnin gövdesi için
+  geçerli; seçili modeli söyleyen açılış cümlesi "SDXL" diyebilir. 393'te tek model vardı; 492'den beri
+  iki model var ve onları ayıran şey adları.
 
 <a id="v12-4"></a>
 ### 506 · v12-4 — Projeleri toplu arşivle/sil
