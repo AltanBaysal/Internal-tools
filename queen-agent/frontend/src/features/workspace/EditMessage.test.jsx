@@ -21,6 +21,18 @@ test("Escape gives up", () => {
   expect(onCancel).toHaveBeenCalled();
 });
 
+test("the field opens as tall as the sentence it corrects", () => {
+  // Madde 504: it used to open at two lines whatever it held. jsdom lays nothing out, so the
+  // sentence's height is declared; the measuring itself is useGrowingField's own test.
+  vi.spyOn(Element.prototype, "scrollHeight", "get").mockReturnValue(400);
+  try {
+    render(<EditMessage text="Write the intro" onConfirm={vi.fn()} onCancel={vi.fn()} />);
+    expect(screen.getByRole("textbox").style.height).toBe("400px");
+  } finally {
+    vi.restoreAllMocks();
+  }
+});
+
 test("an empty draft cannot be confirmed", () => {
   render(<EditMessage text="Write the intro" onConfirm={vi.fn()} onCancel={vi.fn()} />);
   fireEvent.change(screen.getByRole("textbox"), { target: { value: "   " } });

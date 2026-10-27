@@ -819,10 +819,19 @@ test("nothing wraps the bubble in a row of its own", () => {
   expect(CSS).not.toContain(".msg__said");
 });
 
-test("the field that corrects a message is the width the message was", () => {
-  // Opening the edit must not make the message grow or shrink: what is being corrected is that
-  // sentence, in its place, at its size.
-  expect(rule(".msg__editing")).toContain("max-width: 78%");
+test("the field that corrects a message is the chat's width", () => {
+  // Madde 504, the user's decision of 27 October: as wide as the chat, as ChatGPT's is. Madde 197
+  // kept it at the bubble's measure, and a field with no width of its own shrank to the browser's
+  // twenty characters.
+  const editing = rule(".msg__editing");
+  expect(editing).toContain("width: 100%");
+  expect(editing).not.toContain("max-width");
+});
+
+test("the field stops growing at 40% of the screen", () => {
+  // The user, 27 October: "Ekranın %40'ı, yaklaşık 11 satır." Past it, the sentence scrolls inside.
+  // In the stylesheet rather than in useGrowingField, so it stays true when the window changes.
+  expect(rule(".msg__editing-input")).toContain("max-height: 40vh");
 });
 
 test("the tick and the cross sit under the field, in the message's own direction", () => {
