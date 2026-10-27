@@ -1,34 +1,34 @@
 # QueenAgent — Yol Haritası v12
 
-**Durum:** Hazırlanıyor · 0/5 bitti
+**Durum:** Koşuyor · 0/5 bitti · dal `feat/queenagent-v12`
 
 **Önceki sürüm:** [v11](../arsiv/roadmaps/2026-10-20-queen-agent-v11-roadmap.md) — bitti.
 
 **Sıra: tek tek, dalga yok** *(kullanıcı, 27 Ekim — "ilk queen ediytor tasklarını yapıcaz bitincebana
-haber vericeksin queen anget tasklarına geçiçez"; "sıryaal paralel yapmicaz")*. Bu roadmap, Queen
-Editor v11 bitip kullanıcıya haber verildikten sonra başlar. Bir madde birleşince sıradaki başlar;
-worktree açılmaz.
+haber vericeksin queen anget tasklarına geçiçez"; "sıryaal paralel yapmicaz")*. Queen Editor v11'in
+501'i kullanıcının Colab denemesini beklerken başladı *(kullanıcı, 27 Ekim — "olur başla queen agentıda
+bitir")*; deneme sonucu gelince 501 araya alınır. Bir madde birleşince sıradaki başlar; worktree açılmaz.
 
-1. **v12-5** — sürüm V12, koşunun ilk işi.
-2. **v12-3** — dört skill'e birer cümle.
-3. **v12-1** — düzenleme kutusu.
-4. **v12-2** — yazma kutusu; v12-1'in büyüme parçasını kullanır.
-5. **v12-4** — toplu arşiv ve silme.
+1. **502 · v12-5** — sürüm V12, koşunun ilk işi.
+2. **503 · v12-3** — dört skill'e birer cümle.
+3. **504 · v12-1** — düzenleme kutusu.
+4. **505 · v12-2** — yazma kutusu; v12-1'in büyüme parçasını kullanır.
+5. **506 · v12-4** — toplu arşiv ve silme.
 
 ---
 
 | Numara | İş | Durum |
 |---|---|---|
-| [v12-1](#v12-1) | Düzenlenen mesajın kutusu büyüsün | `ALIGNED` |
-| [v12-2](#v12-2) | Mesaj yazma kutusu büyüsün | `ALIGNED` |
-| [v12-3](#v12-3) | SDXL start seçiliyken model sormasın | `ALIGNED` |
-| [v12-4](#v12-4) | Projeleri toplu arşivle/sil | `ALIGNED` |
-| [v12-5](#v12-5) | Sürüm V12 | `ALIGNED` |
+| 504 · [v12-1](#v12-1) | Düzenlenen mesajın kutusu büyüsün | `ALIGNED` |
+| 505 · [v12-2](#v12-2) | Mesaj yazma kutusu büyüsün | `ALIGNED` |
+| 503 · [v12-3](#v12-3) | SDXL start seçiliyken model sormasın | `ALIGNED` |
+| 506 · [v12-4](#v12-4) | Projeleri toplu arşivle/sil | `ALIGNED` |
+| 502 · [v12-5](#v12-5) | Sürüm V12 | `ALIGNED` |
 
 ---
 
 <a id="v12-1"></a>
-### v12-1 — Düzenlenen mesajın kutusu büyüsün
+### 504 · v12-1 — Düzenlenen mesajın kutusu büyüsün
 
 **Kabul koşulu:** Bir mesaj düzenlenmeye açılınca kutu sohbetin genişliğinde açılıyor ve yazının
 tamamını gösteriyor. Yazdıkça kutu büyüyor. Ekranın %40'ına gelince büyümesi duruyor ve yazı kutunun
@@ -44,7 +44,7 @@ büyütmüyor.
 - **Üst sınır:** *"Ekranın %40'ı, yaklaşık 11 satır. ChatGPT'ye yakın."*; *"CHAT GPTYE YAKIN OLSUN"*.
 
 <a id="v12-2"></a>
-### v12-2 — Mesaj yazma kutusu büyüsün
+### 505 · v12-2 — Mesaj yazma kutusu büyüsün
 
 **Kabul koşulu:** Yazı uzadıkça kutu büyüyor. Ekranın %40'ına gelince büyümesi duruyor ve yazı kutunun
 içinde kayıyor. Mesaj gönderilince kutu bugünkü 2 satırlık boyuna dönüyor.
@@ -57,7 +57,7 @@ sonra yazı içinde kayıyor ve en üstte yarım kesilmiş bir satır görünüy
 **Kullanıcının kararı** *(27 Ekim)*: *"İkisi de %40 olsun."* Düzenleme kutusuyla (v12-1) aynı sınır.
 
 <a id="v12-3"></a>
-### v12-3 — SDXL start seçiliyken model sormasın
+### 503 · v12-3 — SDXL start seçiliyken model sormasın
 
 **Kabul koşulu:** SDXL start scenario seçilip başlatılınca ajan "Krea mı, SDXL mi?" diye sormuyor.
 
@@ -76,7 +76,7 @@ prompt'ta *"emin değilsen sor"* kuralı var.
 - Kabul koşulu aynı kalır: SDXL start scenario'yla başlatılan sohbette ajan model sormuyor.
 
 <a id="v12-4"></a>
-### v12-4 — Projeleri toplu arşivle/sil
+### 506 · v12-4 — Projeleri toplu arşivle/sil
 
 **Kabul koşulu:**
 - Projects sekmesinde seçilen projeler tek işlemle arşivleniyor ya da siliniyor. Archived sekmesinde
@@ -112,7 +112,7 @@ Toplu işlem bunu proje başına tekrarlamamalı: 20 proje 20 istek ve 20 liste 
 bulunan sorunun aynısı.
 
 <a id="v12-5"></a>
-### v12-5 — Sürüm V12
+### 502 · v12-5 — Sürüm V12
 
 *(Kullanıcı, 27 Ekim — "bir de her roadmapin başında şun uyapmanı istiyorum ui daki sürümü arttıralım
 olur mu"; "ilk görev o olsun ynai".)*
