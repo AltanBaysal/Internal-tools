@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v11
 
-**Durum:** Koşuyor · 0/6 bitti · dal `feat/queen-editor-v11`
+**Durum:** Koşuyor · 1/6 bitti · dal `feat/queen-editor-v11`
 
 **Önceki sürüm:** [v10](2026-10-20-queen-editor-v10-roadmap.md) — bitti.
 
@@ -26,7 +26,7 @@ ana klasörde koşunun dalında yürür.
 | 497 · [v11-3](#v11-3) | Drive'a kayıt olmayınca hata verip dursun | `ALIGNED` |
 | 501 · [v11-4](#v11-4) | Femboy LoRA'sı | `ALIGNED` |
 | 500 · [v11-5](#v11-5) | Eski belgeler ve roadmap'ler arşive | `ALIGNED` |
-| 496 · [v11-6](#v11-6) | Sürüm V11 | `ALIGNED` |
+| 496 · [v11-6](#v11-6) | Sürüm V11 | ✅ · `ALIGNED` |
 
 ---
 
