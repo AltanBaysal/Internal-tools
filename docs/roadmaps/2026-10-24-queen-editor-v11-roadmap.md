@@ -47,8 +47,9 @@ hiç girmedi.
 <a id="v11-2"></a>
 ### v11-2 — Sıra boşken bildirim
 
-**Kabul koşulu:** Sıra 10 dk boş kalınca tarayıcı bildirimi geliyor. Sıra boş kaldıkça her 10 dk'da bir
-yeniden geliyor. Bir export ya da ajanın cevabı sürerken bildirim gelmiyor.
+**Kabul koşulu:** Sıra 10 dk boş kalınca ekranda "orada mısın?" çıkıyor ve tarayıcı bildirimi
+geliyor. Sıra boş kaldıkça ikisi her 10 dk'da bir yeniden geliyor. Bir export ya da ajanın cevabı
+sürerken ikisi de gelmiyor.
 
 **Neden:** Colab boşta açık kalınca A100 boşa para yiyor, ve sekme arka planda kalmış olabilir.
 
@@ -59,6 +60,7 @@ yeniden geliyor. Bir export ya da ajanın cevabı sürerken bildirim gelmiyor.
   yerine bildirim yollasın sadece ve 1 sayılsın"*. "1": süren export ya da ajan cevabı iş sayılır.
   Kapatma [BACKLOG.md](../../queen-editor/BACKLOG.md)'de, *"Boşta Colab kapansın"*.
 - **Tekrar** *(cevap: "2")*: bildirime cevap gelmezse sıra boş kaldıkça her 10 dk'da bir yeniden gelir.
+- **Ekranda da sorulur** *(cevap: "yes")*: bildirimle birlikte ekranda "orada mısın?" çıkar.
 
 <a id="v11-3"></a>
 ### v11-3 — Drive'a kayıt olmayınca hata verip dursun
@@ -94,8 +96,13 @@ DaSiWa'nın LoRA kutusunda seçilebiliyor.
 **Kullanıcının kararları** *(27 Ekim)*: *"Seninle birlikte, deneme notebook'unda. femboysXL ve
 Civitai'den 1–2 aday daha ComfyUI'de denenir, hangisinin kalacağına sen karar verirsin."*; *"bunu
 yapalım sonra karar veridğimizi queen editore koyarız"*. Deneme notebook'u
-`collab-toolbox/photo_experiments/` altına girer. Seçilen LoRA tetik kelimesi ya da özel bir prompt
-istiyorsa, bu bilgi QueenAgent'ın SDXL rehberine eklenir.
+`collab-toolbox/photo_experiments/` altına girer.
+- **QueenAgent'a ne gider:** *"şöyle özel bir prompt gerkeilyors mesela bir tetik çümlesi bu roadmpai
+  koşarken queen agent yeni bir görev aç unaligned gerkiyorsa tabi"*. Seçilen LoRA bir tetik cümlesi
+  gibi özel bir prompt istiyorsa, koşu sırasında QueenAgent v12 roadmap'ine `UNALIGNED` yeni bir
+  madde açılır; istemiyorsa açılmaz.
+- **Sıra:** *"bir femboy taskını son al çünkü ban ihtiaçın olcak"*. Deneme kullanıcıyla birlikte
+  yapıldığı için bu madde koşunun en sonunda yürür.
 
 <a id="v11-5"></a>
 ### v11-5 — Eski belgeler ve roadmap'ler arşive
