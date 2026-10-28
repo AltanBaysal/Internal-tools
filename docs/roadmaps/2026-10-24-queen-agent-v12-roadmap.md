@@ -1,6 +1,6 @@
 # QueenAgent — Yol Haritası v12
 
-**Durum:** Bitti · 5/5 · dal `feat/queenagent-v12` · kullanıcının denemesini bekliyor
+**Durum:** Koşuyor · 5/6 · dal `feat/queenagent-v12`
 
 **Önceki sürüm:** [v11](../arsiv/roadmaps/2026-10-20-queen-agent-v11-roadmap.md) — bitti.
 
@@ -14,6 +14,8 @@ bitir")*; deneme sonucu gelince 501 araya alınır. Bir madde birleşince sırad
 3. **504 · v12-1** — düzenleme kutusu.
 4. **505 · v12-2** — yazma kutusu; v12-1'in büyüme parçasını kullanır.
 5. **506 · v12-4** — toplu arşiv ve silme.
+6. **507 · v12-6** — SDXL prompt'ları tag'lerle cümleler karışık; koşu sırasında, 501'in denemesinden
+   çıktı.
 
 ---
 
@@ -24,6 +26,7 @@ bitir")*; deneme sonucu gelince 501 araya alınır. Bir madde birleşince sırad
 | 503 · [v12-3](#v12-3) | SDXL start seçiliyken model sormasın | ✅ *(ajanın gerçekten sormadığı, canlı modelle, kullanıcının sondaki denemesinde)* · `ALIGNED` |
 | 506 · [v12-4](#v12-4) | Projeleri toplu arşivle/sil | ✅ *(açık nokta kullanıcının denemesinde: seçimi bırakmak için Clear düğmesi ya da Escape yok)* · `ALIGNED` |
 | 502 · [v12-5](#v12-5) | Sürüm V12 | ✅ · `ALIGNED` |
+| 507 · [v12-6](#v12-6) | SDXL prompt'ları tag'lerle cümleler karışık yazılsın | `ALIGNED` |
 
 ---
 
@@ -122,3 +125,24 @@ bulunan sorunun aynısı.
 olur mu"; "ilk görev o olsun ynai".)*
 
 **Kabul koşulu:** QueenAgent'ın ekranında "QueenAgent V12" yazıyor; bugün "V11".
+
+<a id="v12-6"></a>
+### 507 · v12-6 — SDXL prompt'ları tag'lerle cümleler karışık yazılsın
+
+**Kabul koşulu:** SDXL start scenario ve SDXL edit'le yazılan karelerin prompt'ları Danbooru tag'leriyle
+kısa İngilizce cümlelerin karışımı: karakter, kıyafet ve eylem cümleyle de anlatılabiliyor, bilinen
+tag'ler (`1girl`, `futanari`, `full nelson`, …) cümlelerin arasında kalıyor. Kullanıcı Nova'da deniyor;
+öncekinden iyi çizerse böyle kalır, değilse geri alınır.
+
+**Nereden** *(kullanıcı, 28 Ekim, 501'in denemesinde)*: Nova'da şu prompt'un *"oldukça iyi
+çalıştığını"* gördü — *"witchnight. 1girl, flaccid futa, flaccid penis, futanari, slime girl with blue
+skin getting fucked in the full nelson position, anal, she is grabbing his arms. she is wearing revealing
+nude style armor that barely covers her intimate areas, …"* — *"neden ? tag da değil"*. Sonra: *"queen
+agnetı buan göre güncellermisi nbir task oalrka test edeyim daha iyi çalışırsa böyle bırakırız"*.
+
+**Bugün:** `sdxl-prompt-writing.md` *"Write tags, never sentences"* diyor; SDXL prompt'ları yalnız tag.
+
+**Kullanıcının kararı** *(28 Ekim)*: iki yoldan *"2 yi yapalım"* — *"Her şey senin örneğindeki gibi
+karışık olur. Karakterler de cümleyle anlatılır, ör. "she is wearing revealing armor that barely
+covers…". Daha esnek olur, ama aynı karakter karelerde farklı anlatılabilir."* Yalnız SDXL; Krea'nın
+skill'leri değişmez.
