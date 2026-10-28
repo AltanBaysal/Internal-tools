@@ -409,24 +409,21 @@ describe("PhotoDetail — the layer tabs", () => {
       expect(screen.getByText("LoRA").parentElement.textContent).toContain(label);
     });
 
-  it.each([
-    ["krea2", "Krea 2 Turbo", "snofs_slime", "SNOFS + Slime"],
-    ["qwen21turbo", "Qwen Image 2.1 Turbo", "translucent_penetration", "Translucent Penetration"],
-  ])("names a %s frame's own lora and draws no negative box (madde 486, 499)",
-    async (model, name, lora, label) => {
-      // Krea and Qwen are drawn with their own box's pick and no negative, and their lines record
-      // exactly that. The model's row carries its box; none of it is in the shared lora list.
-      await open("P0_0", {
-        frames: [{ ...LAYERED, model, lora, negative: "" }],
-        models: [{ value: model, label: name, negative: false,
-                   loras: [{ value: lora, label }, { value: "none", label: "Boş" }] }],
-      });
-      fireEvent.click(details());
-
-      expect(screen.getByText("LoRA").parentElement.textContent).toContain(label);
-      expect(screen.queryByText("Foto negatif prompt'u")).toBeNull();
-      expect(screen.getByText("Foto prompt'u")).toBeTruthy();
+  it("names a Krea frame's own lora and draws no negative box (madde 486, 499)", async () => {
+    // Krea is drawn with its own box's pick and no negative, and its lines record exactly that.
+    // The model's row carries its box; none of it is in the shared lora list.
+    await open("P0_0", {
+      frames: [{ ...LAYERED, model: "krea2", lora: "snofs_slime", negative: "" }],
+      models: [{ value: "krea2", label: "Krea 2 Turbo", negative: false,
+                 loras: [{ value: "snofs_slime", label: "SNOFS + Slime" },
+                         { value: "none", label: "Boş" }] }],
     });
+    fireEvent.click(details());
+
+    expect(screen.getByText("LoRA").parentElement.textContent).toContain("SNOFS + Slime");
+    expect(screen.queryByText("Foto negatif prompt'u")).toBeNull();
+    expect(screen.getByText("Foto prompt'u")).toBeTruthy();
+  });
 
   it("draws no lora row for a frame that never named one", async () => {
     // A name there would be a guess: a recipe:slime frame names no lora and was made with Slime,

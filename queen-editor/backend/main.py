@@ -24,9 +24,6 @@ from backend.features.photo_generation.data.comfy_krea_photo_generator import (
     ComfyKreaPhotoGenerator,
 )
 from backend.features.photo_generation.data.comfy_photo_generator import ComfyPhotoGenerator
-from backend.features.photo_generation.data.comfy_qwen_photo_generator import (
-    ComfyQwenPhotoGenerator,
-)
 from backend.features.photo_generation.data.ffmpeg_audio import FfmpegAudio
 from backend.features.photo_generation.data.ffmpeg_clips import FfmpegClips
 from backend.features.photo_generation.data.ffmpeg_stills import FfmpegStills
@@ -144,14 +141,12 @@ _reference_settings_store = DriveReferenceSettingsStore(_storage)
 _photo_store = DrivePhotoStore(_storage, _exports)
 _comfy_client = ComfyClient(config.COMFY_URL, poll_interval=config.POLL_INTERVAL,
                             log_path=config.COMFY_LOG)
-# Each frame goes to its model's graph: Krea 2 Turbo (madde 482) and Qwen Image 2.1 Turbo (madde
-# 499) have their own, every other model renders on the photo graph as it always did.
+# Each frame goes to its model's graph: Krea 2 Turbo (madde 482) has its own, every other model
+# renders on the photo graph as it always did.
 _photo_generator = PhotoByModel(
     ComfyPhotoGenerator(_comfy_client, config.WORKFLOW_PATH, config.RENDER_TIMEOUT),
     {catalog.KREA2: ComfyKreaPhotoGenerator(_comfy_client, config.KREA2_WORKFLOW_PATH,
-                                            config.RENDER_TIMEOUT),
-     catalog.QWEN: ComfyQwenPhotoGenerator(_comfy_client, config.QWEN_WORKFLOW_PATH,
-                                           config.RENDER_TIMEOUT)})
+                                            config.RENDER_TIMEOUT)})
 # Queen AI writes every prompt nobody typed (madde 400, 404): a video's looking at the frame's
 # photo, a sound's from its video's prompt. Every ask goes through the box, which sends a failed
 # request again (madde 416).

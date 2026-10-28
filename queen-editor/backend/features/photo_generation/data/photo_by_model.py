@@ -1,9 +1,9 @@
 """The photo producer the queue is handed: each frame goes to the producer of its model's graph.
 
-A model with a graph of its own -- Krea 2 Turbo (madde 482), Qwen Image 2.1 Turbo (madde 499) -- is
-named in `own`. Every other value goes to `default`, the producer that has always made the photos: a
-checkpoint model, an empty model, an old `recipe:` value and a bare file name alike, so every frame
-planned before Krea renders where it always did.
+A model with a graph of its own -- Krea 2 Turbo (madde 482) -- is named in `own`. Every other value
+goes to `default`, the producer that has always made the photos: a checkpoint model, an empty model,
+an old `recipe:` value and a bare file name alike, so every frame planned before Krea renders where
+it always did.
 """
 
 

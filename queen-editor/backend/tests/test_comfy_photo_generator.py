@@ -166,7 +166,7 @@ def test_a_dasiwa_frame_that_names_no_lora_renders_with_usnr(tmp_path):
 
 def test_an_unknown_lora_on_a_dasiwa_line_draws_the_box_s_first_row(tmp_path):
     """A model whose row carries a box draws a pick the box does not hold with its first row, as Krea
-    and Qwen have since madde 499 -- not the stop madde 238 gives the shared box. Kuyruğa ekle refuses
+    has since madde 499 -- not the stop madde 238 gives the shared box. Kuyruğa ekle refuses
     such an id, so only an old line can carry one (BACKLOG: "Kendi kutusu olan modelde ...")."""
     client, generator = generator_at(tmp_path)
 
@@ -174,6 +174,22 @@ def test_an_unknown_lora_on_a_dasiwa_line_draws_the_box_s_first_row(tmp_path):
 
     assert lora_slots(client.submitted["27"]["inputs"]) == USNR
     assert client.submitted["3"]["inputs"]["populated_text"] == "kraliçe"
+
+
+def test_a_qwen_line_from_before_madde_508_stops_rather_than_draw_on_another_model(tmp_path):
+    """Qwen Image 2.1 Turbo left the app in madde 508, and a line queued before that still names it.
+    Its lora box was Translucent Penetration and Boş. Translucent Penetration is no row of the shared
+    box, so it stops the render as any unknown lora does; with Boş the id reaches the checkpoint
+    loader as a file name, which ComfyUI refuses in its own words. Neither draws the frame with a
+    model nobody picked."""
+    client, generator = generator_at(tmp_path)
+
+    with pytest.raises(RuntimeError, match="Tanınmayan LoRA: translucent_penetration"):
+        generator.generate("kraliçe", "", 1, "qwen21turbo", "translucent_penetration")
+    assert client.submitted is None
+
+    generator.generate("kraliçe", "", 1, "qwen21turbo", "none")
+    assert client.submitted["45"]["inputs"]["ckpt_name"] == "qwen21turbo"
 
 
 @pytest.mark.parametrize("model", ["nova3dcg", "dasiwa"])

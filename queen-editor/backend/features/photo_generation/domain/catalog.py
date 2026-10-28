@@ -1,13 +1,12 @@
 """What the two boxes of the photo panel mean -- a model, and a lora laid over it.
 
-A model is a checkpoint and nothing more, but for Krea 2 Turbo and Qwen Image 2.1 Turbo, which are
-graphs of their own (madde 482, 499). A pick of the lora box is files laid over the model, each with
-a strength, and the word the prompt has to carry for them to show. Which picks a model offers is
-the lora box's answer alone (madde 238): the shared box, or the box a model's row carries when the
-shared one does not fit it -- Illustrious loras on a graph of its own, or picks that draw well on
-one checkpoint only (madde 486, 499, 501). A row says too when its model takes no negative; the
-panel then shows that row's box and no negative box, and its frames record what they are drawn
-with.
+A model is a checkpoint and nothing more, but for Krea 2 Turbo, which is a graph of its own (madde
+482). A pick of the lora box is files laid over the model, each with a strength, and the word the
+prompt has to carry for them to show. Which picks a model offers is the lora box's answer alone
+(madde 238): the shared box, or the box a model's row carries when the shared one does not fit it --
+Illustrious loras on a graph of its own, or picks that draw well on one checkpoint only (madde 486,
+499, 501). A row says too when its model takes no negative; the panel then shows that row's box and
+no negative box, and its frames record what they are drawn with.
 
 Written down in two halves: the names and the files here, because this is the side that patches the
 graph, and the version ids and the sizes in the notebook, because addresses live there
@@ -19,23 +18,19 @@ through QE_PHOTO_MODELS. The loras need no such list: the shared box's files com
 photo group whatever was ticked, and the files of a box a row carries with that model's tick.
 """
 
-# Krea 2 Turbo and Qwen Image 2.1 Turbo: each rendered with its own graph, so main.py hands their
-# frames to their own producers.
+# Krea 2 Turbo: rendered with its own graph, so main.py hands its frames to its own producer.
 KREA2 = "krea2"
-QWEN = "qwen21turbo"
 
-# What makes Translucent Penetration show, on every model it is drawn on. The Qwen version's page
-# lists no trained word -- its captions were rewritten in prose -- and the model page says these two
-# words are all it takes; the user's call is that Queen Editor puts them in (madde 499).
+# What makes Translucent Penetration show, on every model it is drawn on: the model page says these
+# two words are all it takes, and the user's call is that Queen Editor puts them in (madde 499).
 SLIME_TRIGGER = "translucent penetration"
 
-# The files the two own boxes lay over their models, one LoraLoaderModelOnly each. SNOFS is the lora
-# of the user's Krea workflow, at its 0.8 (the user's call); test_workflow_asset holds the graph's
-# node 53:15 to this row. The two Translucent Penetration versions are from the same Civitai page as
-# Nova's Slime, at the 1.0 each version's page recommends.
+# The files Krea's box lays over its model, one LoraLoaderModelOnly each. SNOFS is the lora of the
+# user's Krea workflow, at its 0.8 (the user's call); test_workflow_asset holds the graph's node 53:15
+# to this row. Translucent Penetration's Krea version is from the same Civitai page as Nova's Slime,
+# at the 1.0 its page recommends.
 SNOFS_KREA = {"lora": "snofs_krea_v1_5.safetensors", "strength": 0.8}
 SLIME_KREA = {"lora": "translucent_penetration_v5_krea2.safetensors", "strength": 1.0}
-SLIME_QWEN = {"lora": "translucent_penetration_v5_qwen_image_2_1.safetensors", "strength": 1.0}
 
 # A pick of an own box is files laid one over another, and a trigger: SNOFS + Slime is two files,
 # and Slime keeps SNOFS's effect under it (the user's words). The first row is what an empty pick
@@ -43,10 +38,6 @@ SLIME_QWEN = {"lora": "translucent_penetration_v5_qwen_image_2_1.safetensors", "
 KREA2_LORAS = [
     {"id": "snofs", "label": "SNOFS", "files": [SNOFS_KREA], "trigger": ""},
     {"id": "snofs_slime", "label": "SNOFS + Slime", "files": [SNOFS_KREA, SLIME_KREA],
-     "trigger": SLIME_TRIGGER},
-]
-QWEN_LORAS = [
-    {"id": "translucent_penetration", "label": "Translucent Penetration", "files": [SLIME_QWEN],
      "trigger": SLIME_TRIGGER},
 ]
 
@@ -102,9 +93,6 @@ MODELS = [
     # VAE by name (assets/workflow_photo_krea2_api.json). No negative: the graph's is the prompt
     # zeroed, and at cfg 1 ComfyUI does not compute it.
     {"id": KREA2, "label": "Krea 2 Turbo", "loras": KREA2_LORAS, "negative": False},
-    # The official Turbo template, 8 steps at cfg 1 (the user's call, madde 499), in
-    # assets/workflow_photo_qwen_api.json. cfg 1 computes no negative here either.
-    {"id": QWEN, "label": "Qwen Image 2.1 Turbo", "loras": QWEN_LORAS, "negative": False},
 ]
 
 # Boş -- no lora at all. A value of its own rather than an empty one: empty is a frame that never
@@ -191,5 +179,5 @@ def with_trigger(prompt, lora):
     """The prompt a frame is sent with when it is drawn with this row -- box_row's or pick's, or None
     for no lora at all: the row's word in front of the user's own. A lora loaded and never named in
     the prompt renders an ordinary photo and raises nothing anywhere -- the rule Slime has had since
-    it came in, and the user's call for Krea's, Qwen's and DaSiWa's (madde 499, 501)."""
+    it came in, and the user's call for Krea's and DaSiWa's (madde 499, 501)."""
     return f"{lora['trigger']}, {prompt}" if lora and lora["trigger"] else prompt

@@ -1,9 +1,8 @@
-"""Laying loras over a model in a ComfyUI graph -- the one way Krea's and Qwen's producers put their
-lora box's files in (madde 499). Which model output the chain starts from, and what reads its end,
-stays with each producer: that is the part of the graph only it knows."""
+"""Laying loras over a model in a ComfyUI graph -- the way Krea's producer puts its lora box's files
+in (madde 499). Which model output the chain starts from, and what reads its end, stays with the
+producer: that is the part of the graph only it knows."""
 
-# The ids the added loaders take. Neither graph uses this prefix: Krea's ids are "53:<n>", Qwen's
-# plain numbers.
+# The ids the added loaders take. Krea's graph does not use this prefix: its ids are "53:<n>".
 PREFIX = "lora:"
 
 

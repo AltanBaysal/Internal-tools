@@ -617,11 +617,11 @@ def test_a_lora_the_app_does_not_know_is_refused_before_anything_is_planned():
 
 
 @pytest.mark.parametrize("model, lora", [("krea2", "slime"), ("krea2", "gitmiş"),
-                                          ("qwen21turbo", "snofs"), ("nova3dcg", "snofs_slime"),
+                                          ("nova3dcg", "snofs_slime"),
                                           ("nova3dcg", "futa"), ("nova3dcg", "futa_on_male"),
                                           ("dasiwa", "snofs")])
 def test_a_lora_the_model_s_box_does_not_offer_is_refused(model, lora):
-    """Madde 238's rule for every box (madde 499): Krea, Qwen and DaSiWa are asked against their own
+    """Madde 238's rule for every box (madde 499): Krea and DaSiWa are asked against their own
     box, which is what they draw with, so Nova's Slime on Krea -- or Krea's pick on Nova, or
     DaSiWa's futa on Nova (madde 501) -- is refused at the button rather than drawn with something
     nobody picked."""
@@ -639,12 +639,10 @@ def test_a_lora_the_model_s_box_does_not_offer_is_refused(model, lora):
 @pytest.mark.parametrize("model, lora, recorded", [
     ("krea2", "snofs", "snofs"), ("krea2", "snofs_slime", "snofs_slime"), ("krea2", "none", "none"),
     ("krea2", "", "snofs"),
-    ("qwen21turbo", "translucent_penetration", "translucent_penetration"),
-    ("qwen21turbo", "none", "none"), ("qwen21turbo", "", "translucent_penetration"),
 ])
 def test_a_model_with_a_box_of_its_own_records_the_pick(model, lora, recorded):
-    """Krea's box is SNOFS, SNOFS + Slime and Boş, Qwen's Translucent Penetration and Boş (madde
-    499): what is picked is what is drawn, and the line says it. No pick is the list's first row."""
+    """Krea's box is SNOFS, SNOFS + Slime and Boş (madde 499): what is picked is what is drawn, and
+    the line says it. No pick is the list's first row."""
     plan_store, generator = FakePlanStore(), FakeGenerator()
     run_batch(sync_runner(), FakeStore(), generator, plan_store=plan_store, text='["a"]',
               variants=1, model=model, negative="bulanık", lora=lora)
@@ -4402,14 +4400,13 @@ def test_nothing_is_written_when_nobody_asked_for_timings():
     assert runner.status()["status"] == "done"
 
 
-def test_the_model_list_is_nova_3dcg_dasiwa_krea_2_turbo_and_qwen_image_2_1_turbo():
+def test_the_model_list_is_nova_3dcg_dasiwa_and_krea_2_turbo():
     """A row in the Model box is a model and nothing else: the lora is its own box (madde 237).
-    Krea 2 Turbo (madde 482) and Qwen Image 2.1 Turbo (madde 499) are drawn with graphs of their
-    own rather than a checkpoint."""
-    from backend.features.photo_generation.domain.catalog import KREA2, MODELS, QWEN
+    Krea 2 Turbo (madde 482) is drawn with a graph of its own rather than a checkpoint."""
+    from backend.features.photo_generation.domain.catalog import KREA2, MODELS
 
-    assert [model["id"] for model in MODELS] == ["nova3dcg", "dasiwa", KREA2, QWEN]
-    assert [model.get("checkpoint") is None for model in MODELS] == [False, False, True, True]
+    assert [model["id"] for model in MODELS] == ["nova3dcg", "dasiwa", KREA2]
+    assert [model.get("checkpoint") is None for model in MODELS] == [False, False, True]
 
 
 def test_krea_is_listed_with_its_own_lora_box_and_no_negative():
@@ -4423,12 +4420,10 @@ def test_krea_is_listed_with_its_own_lora_box_and_no_negative():
                   {"value": "none", "label": "Boş"}]}]
 
 
-def test_qwen_is_listed_with_translucent_penetration_or_nothing_and_no_negative():
-    """The user's words: "tek lora translucent penetration olsun", and Boş (madde 499)."""
-    assert list_models(["qwen21turbo"]) == [{
-        "value": "qwen21turbo", "label": "Qwen Image 2.1 Turbo", "negative": False,
-        "loras": [{"value": "translucent_penetration", "label": "Translucent Penetration"},
-                  {"value": "none", "label": "Boş"}]}]
+def test_qwen_is_no_row_of_the_model_box_any_more():
+    """Madde 508: an older notebook that still names Qwen gets the rest of its models, and no row
+    for the one this checkout no longer knows."""
+    assert list_models(["krea2", "qwen21turbo"]) == list_models(["krea2"])
 
 
 def test_dasiwa_is_listed_with_the_shared_box_and_its_two_futa_picks():

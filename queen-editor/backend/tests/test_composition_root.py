@@ -235,8 +235,9 @@ def test_a_krea_frame_reaches_krea_s_graph_and_any_other_the_photo_graph(import_
 
     krea, qwen, nova = sent
     assert krea["53:19"]["inputs"]["value"] == "kraliçe tahtta"
-    # Madde 499: Qwen's frames reach Qwen's graph.
-    assert qwen["452"]["inputs"]["prompt"] == "kraliçe tahtta"
+    # Madde 508: Qwen has no graph any more. A line queued before it left is a value the catalog
+    # does not know, so it reaches the photo graph as a file name, which ComfyUI refuses.
+    assert qwen["45"]["inputs"]["ckpt_name"] == "qwen21turbo"
     assert nova["45"]["inputs"]["ckpt_name"] == "nova3DCGXL_ilV90.safetensors"
 
 

@@ -110,7 +110,7 @@ def regenerate(runner, store, record, plan_store, order_store, producers, new_se
 
     # The lora goes with the model: dropping it would hand back a plain Nova where the user had
     # Slime, with nothing on the page saying it changed (madde 237). Both are what the model is
-    # drawn with -- a Krea or Qwen photo's are its own box's pick and no negative (madde 486, 499).
+    # drawn with -- a Krea photo's are its own box's pick and no negative (madde 486, 499).
     lora, negative = catalog.drawn_with(source.get("model", ""), source.get("lora", ""), negative)
     carry_layers(record, project, born, source, kind, now)
     plan_store.append(project, [{

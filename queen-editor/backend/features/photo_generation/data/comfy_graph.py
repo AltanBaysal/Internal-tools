@@ -1,5 +1,5 @@
-"""Reading a ComfyUI graph off disk -- the one way the photo, Krea, Qwen and H3 producers load
-theirs (madde 488). Which nodes a graph must hold, and what is written into them, stays with each
+"""Reading a ComfyUI graph off disk -- the one way the photo, Krea and H3 producers load theirs
+(madde 488). Which nodes a graph must hold, and what is written into them, stays with each
 producer."""
 import json
 import os

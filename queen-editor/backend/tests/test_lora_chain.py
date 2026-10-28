@@ -1,5 +1,5 @@
-"""Laying loras over a model in a ComfyUI graph (madde 499): the one way Krea's and Qwen's producers
-put their box's files in."""
+"""Laying loras over a model in a ComfyUI graph (madde 499): the way Krea's producer puts its box's
+files in."""
 from backend.features.photo_generation.data.lora_chain import chain_loras
 
 FILES = [{"lora": "a.safetensors", "strength": 0.8}, {"lora": "b.safetensors", "strength": 1.0}]

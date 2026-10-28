@@ -27,15 +27,6 @@ KREA2_FILES = [
     {"folder": "loras", "name": "translucent_penetration_v5_krea2.safetensors"},
 ]
 
-# What Qwen Image 2.1 Turbo's graph loads (madde 499): the official template's int8 Turbo DiT, its
-# Qwen3-VL 8B encoder and its VAE -- and Translucent Penetration's Qwen version, its lora box's one.
-QWEN_FILES = [
-    {"folder": "diffusion_models", "name": "qwen_image_2.1_turbo_int8_convrot.safetensors"},
-    {"folder": "text_encoders", "name": "qwen3vl_8b_int8_convrot.safetensors"},
-    {"folder": "vae", "name": "qwen_image_2.1_vae_bf16.safetensors"},
-    {"folder": "loras", "name": "translucent_penetration_v5_qwen_image_2_1.safetensors"},
-]
-
 GROUPS = {
     # What the photo graphs read. The model and the loras are the render itself; the other three
     # are branches of the checkpoints' graph -- the default-on FaceDetailer loads the detector and
@@ -46,15 +37,15 @@ GROUPS = {
         # model and every one of them is empty by default. A checkpoint is a kind rather than a
         # file: the graph renders with whichever it was handed, and the panel asks whether there is
         # anything to hand it. Naming one made the panel call the producer uninstalled for anyone
-        # who picked a different model. Krea (madde 482) and Qwen (madde 499) are the other kinds:
-        # each a graph of its own, whose files all have to be here.
-        {"any": [[{"folder": "checkpoints", "suffix": ".safetensors"}], KREA2_FILES, QWEN_FILES]},
+        # who picked a different model. Krea (madde 482) is the other kind: a graph of its own, whose
+        # files all have to be here.
+        {"any": [[{"folder": "checkpoints", "suffix": ".safetensors"}], KREA2_FILES]},
         # Both loras come down whichever models were ticked: either can go over any checkpoint, and
         # hanging the panel's count on the choice would make "installed" mean a different set of
-        # files on every machine. A Krea-only or Qwen-only run takes them too (~2 GiB with the
-        # three below). DaSiWa's two futa loras (madde 501) come down with DaSiWa's box alone, so
-        # they are not counted here, as no one checkpoint is; a run that ticked DaSiWa and did not
-        # get them stopped in the notebook's download cell.
+        # files on every machine. A Krea-only run takes them too (~2 GiB with the three below).
+        # DaSiWa's two futa loras (madde 501) come down with DaSiWa's box alone, so they are not
+        # counted here, as no one checkpoint is; a run that ticked DaSiWa and did not get them
+        # stopped in the notebook's download cell.
         {"folder": "loras", "name": "USNR_STYLE_ILL_V1_lokr3-000024.safetensors"},
         {"folder": "loras", "name": "translucent_penetration_v5.safetensors"},
         {"folder": "upscale_models", "name": "4x_foolhardy_Remacri.pth"},

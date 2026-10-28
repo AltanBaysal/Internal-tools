@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v11
 
-**Durum:** Koşuyor · 6/7 · dal `feat/queen-editor-v11`
+**Durum:** Bitti · 7/7 · dal `feat/queen-editor-v11`
 
 **Önceki sürüm:** [v10](../arsiv/roadmaps/2026-10-20-queen-editor-v10-roadmap.md) — bitti.
 
@@ -28,7 +28,7 @@ ana klasörde koşunun dalında yürür.
 | 501 · [v11-4](#v11-4) | Femboy ve futa LoRA'ları | ✅ *(DaSiWa'nın kutusunda Futa ve Futa on male; gerçek kareler ve iki dosyanın inişi kullanıcının sondaki Colab denemesinde; ilk çalıştırma iki yeni LoRA için `CIVITAI_COOKIE` ister)* · `ALIGNED` |
 | 500 · [v11-5](#v11-5) | Eski belgeler ve roadmap'ler arşive | ✅ · `ALIGNED` |
 | 496 · [v11-6](#v11-6) | Sürüm V11 | ✅ · `ALIGNED` |
-| 508 · [v11-7](#v11-7) | Qwen kalkar | `ALIGNED` |
+| 508 · [v11-7](#v11-7) | Qwen kalkar | ✅ · `ALIGNED` |
 
 ---
 

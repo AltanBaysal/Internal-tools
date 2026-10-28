@@ -78,7 +78,7 @@ saçma şeyler ortaya çıkıyor".)* **v7'nin ilk maddesi olarak yazıldı, koş
 
 *(501'in reviewer'ı buldu, 28 Ekim.)* Madde 238'in kuralı: kutunun bilmediği bir LoRA çizimi durdurur,
 çünkü yerine başka bir şeyle çizilen kare istenen kare değildir ve bunu söyleyen bir yer yoktur. Satırı
-kendi kutusunu taşıyan modellerde — Krea ve Qwen 499'dan beri, DaSiWa 501'den beri — eski bir plan
+kendi kutusunu taşıyan modellerde — Krea 499'dan beri, DaSiWa 501'den beri — eski bir plan
 satırındaki bilinmeyen LoRA ise sessizce kutunun ilk satırıyla çiziliyor (`catalog.drawn_with`).
 Kuyruğa ekle böyle bir LoRA'yı zaten reddediyor; yalnız bir checkout'un bilmediği bir kimliği taşıyan
 eski satırlarda olur. Düzeltme kararı kullanıcının: ya bu modellerde de çizim durur, ya kural 238'e
@@ -156,18 +156,6 @@ bağlantılar doğru belgeye çevrilir ya kaldırılır. Kullanıcının görece
 "gerek yok, MMAudio silmeyi backloga ekle".)* H3 videoyu sesiyle birlikte üretiyor; MMAudio ayrı bir
 ses üreticisi, ve ses talimatı `data/prompt_writer.py`'nin `AUDIO_INSTRUCTION`'ında. **Ayrıntılar
 kullanıcıyla konuşulacak:** notebook'taki kurulumu, paneldeki yeri ve eski projelerdeki ses işleri.
-
-### Qwen Image 2.1 için LoRA eğitimi
-
-*(Kullanıcı, 21 Ekim — "ilk küçük lora eğitiriz olmazsa büyük yaparız"; "lorayı şuan sadece qwen için
-düşünüyoruz".)* **v11'in tek maddesi olarak (v11-1) yol haritasındaydı, koşulmadan backlog'a döndü**
-*(kullanıcı, 21 Ekim — "qweni fine etmeyi sonraya bırakalım backloga koyalım"; Krea 2 Turbo denemesi
-işe yaradı ve tarz prompt'a yazılarak belirlenebiliyor: "bu ayar güzel stylei yazarak
-belirleyebiliyoruz zaten")*.
-
-**Kararlaşanlar:** önce küçük bir LoRA, yetmezse büyük; ana modelde eğitilir, Turbo'da kullanılır ve
-Turbo'da çalışıp çalışmadığı ilk denemede ölçülür. Geri kalan ayrıntıları iş yapılırken kullanıcı
-belirler.
 
 ### Karakter LoRA'sı eklenecek
 

@@ -451,7 +451,7 @@ def test_every_file_the_app_renders_with_is_one_the_notebook_can_fetch():
     checkpoints = _cell("PHOTO_CHECKPOINTS = [")
     source = _source()
 
-    # Krea and Qwen have no checkpoint: their graphs' and boxes' files are held to the notebook
+    # Krea has no checkpoint: its graph's and box's files are held to the notebook
     # through the photo group (test_every_file_the_panel_counts_is_fetched_by_the_notebook), and the
     # group to the graphs in test_workflow_asset.
     for model in [model for model in models if "checkpoint" in model]:
@@ -613,66 +613,35 @@ def test_the_disk_estimate_counts_krea_when_it_is_ticked():
     assert "+ (20 if PHOTO_KREA2 else 0)" in _cell("PHOTO_GIB ="), "Disk hesabı Krea'yı saymıyor"
 
 
-def test_the_models_cell_shows_the_folders_krea_and_qwen_fill():
+def test_the_models_cell_shows_the_folders_krea_fills():
     cell = _cell("# === Target folders ===")
 
     for folder in ("diffusion_models", "vae", "text_encoders"):
-        assert re.search(rf'\(INSTALL_VIDEO or INSTALL_KREA2 or INSTALL_QWEN, "{folder}"', cell), \
-            f"{folder} Krea ve Qwen için gösterilmiyor"
+        assert re.search(rf'\(INSTALL_VIDEO or INSTALL_KREA2, "{folder}"', cell), \
+            f"{folder} Krea için gösterilmiyor"
     assert "INSTALL_KREA2 = INSTALL_PHOTO and PHOTO_KREA2" in cell
-    assert "INSTALL_QWEN = INSTALL_PHOTO and PHOTO_QWEN21TURBO" in cell
 
 
-def test_the_clone_checks_for_the_krea_and_qwen_graphs():
+def test_the_clone_checks_for_every_graph_that_ships_and_no_other():
+    """A graph the clone does not look for is one a run can miss; one it looks for that no longer
+    ships stops every run."""
     clone = _cell("# === Clone ===")
+    listed = set(re.findall(r'"(workflow_[^"]+\.json)"', clone))
+    shipped = {name for name in os.listdir(os.path.join(TOOL, "assets")) if name.endswith(".json")}
 
-    for name in ("workflow_photo_krea2_api.json", "workflow_photo_qwen_api.json"):
-        assert name in clone, f"Klon {name} dosyasını aramıyor"
-
-
-# Qwen Image 2.1 Turbo (madde 499): the official template's files, and Translucent Penetration's
-# Qwen version.
+    assert listed == shipped, f"Klonun aradığı: {sorted(listed)}, assets'te: {sorted(shipped)}"
 
 
-def test_the_notebook_fetches_qwen_s_three_files_from_comfy_org():
-    """The files the official Turbo template's loaders name, from the open repo they point at:
-    hf_fetch takes them straight and uploads nothing, as Krea's."""
-    listing = _listing("HF_QWEN")
+def test_qwen_is_gone_from_the_notebook():
+    """Madde 508, the user's words: "qweni kaldıralım iyi bir şey üretmiyor gereksiz kalabalık". A
+    box left behind would still bring ~17 GiB down for a model the app no longer offers. Krea's and
+    H3's Qwen3-VL encoders and Krea's Qwen Image VAE are theirs, and stay."""
+    source = _source()
 
-    for path, folder, name in (
-            ("diffusion_models/", "DIFF", "qwen_image_2.1_turbo_int8_convrot.safetensors"),
-            ("text_encoders/", "TENC", "qwen3vl_8b_int8_convrot.safetensors"),
-            ("vae/", "VAE", "qwen_image_2.1_vae_bf16.safetensors")):
-        assert re.search(rf'\(\s*"Comfy-Org/Qwen-Image-2\.1",\s*"{path}{re.escape(name)}",'
-                         rf'\s*{folder},\s*"{re.escape(name)}",', listing), \
-            f"HF_QWEN'de {name} satırı yok:\n{listing}"
-
-
-def test_the_notebook_fetches_translucent_penetration_s_qwen_version_through_the_mirror():
-    """v5+Qwen-Image-2.1, Civitai version 3370853, under a name of ours."""
-    from colab.downloads import MIRRORLESS
-
-    assert re.search(r'\(\s*3370853,\s*LORA,\s*'
-                     r'"translucent_penetration_v5_qwen_image_2_1\.safetensors",',
-                     _listing("CIVITAI_QWEN")), "CIVITAI_QWEN'de Translucent Penetration satırı yok"
-    assert "translucent_penetration_v5_qwen_image_2_1.safetensors" not in MIRRORLESS
-
-
-def test_qwen_s_files_come_only_with_its_box():
-    """The user's call: Qwen enters the notebook as Krea did, with a box of its own, and comes down
-    only when it is ticked (madde 499)."""
-    cell = _cell("# === Target folders ===")
-
-    for name in ("HF_QWEN", "CIVITAI_QWEN"):
-        assert f"+ ({name} if PHOTO_QWEN21TURBO else [])" in cell, \
-            f"{name} Qwen'in kutusunun arkasında değil"
-    assert '(PHOTO_QWEN21TURBO, "qwen21turbo", None)' in _cell("PHOTO_MODELS = [")
-
-
-def test_the_disk_estimate_counts_qwen_when_it_is_ticked():
-    """Its four files are about 17,442,532,000 bytes, 16.2 GiB."""
-    assert "+ (17 if PHOTO_QWEN21TURBO else 0)" in _cell("PHOTO_GIB ="), \
-        "Disk hesabı Qwen'i saymıyor"
+    for leftover in ("PHOTO_QWEN21TURBO", "qwen21turbo", "HF_QWEN", "CIVITAI_QWEN", "INSTALL_QWEN",
+                     "Comfy-Org/Qwen-Image-2.1", "qwen_image_2.1", "qwen3vl_8b",
+                     "translucent_penetration_v5_qwen_image_2_1", "3370853"):
+        assert leftover not in source, f"Defterde kaldırılan Qwen'den iz kaldı: {leftover}"
 
 
 # DaSiWa's two futa loras (madde 501): the user's picks from the trial, for DaSiWa alone.
@@ -698,14 +667,14 @@ def test_dasiwa_s_loras_come_only_with_its_box():
 
 
 def test_the_disk_estimate_counts_dasiwa_s_loras_when_it_is_ticked():
-    """228,460,108 and 228,482,300 bytes, about 0.43 GiB, rounded up as Krea's and Qwen's are."""
+    """228,460,108 and 228,482,300 bytes, about 0.43 GiB, rounded up as Krea's are."""
     assert "+ (1 if PHOTO_DASIWA else 0)" in _cell("PHOTO_GIB ="), \
         "Disk hesabı DaSiWa'nın LoRA'larını saymıyor"
 
 
 def test_every_file_a_checkpoint_s_own_box_lays_is_one_the_notebook_can_fetch():
     """DaSiWa's box draws on the photo graph, whose files the photo group does not name one by one
-    (Krea's and Qwen's are held through it), so its files are held to the notebook here."""
+    (Krea's are held through it), so its files are held to the notebook here."""
     models, _loras = _catalog()
     source = _source()
 

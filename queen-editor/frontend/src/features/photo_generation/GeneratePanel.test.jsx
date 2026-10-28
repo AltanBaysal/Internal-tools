@@ -288,14 +288,11 @@ describe("GeneratePanel — the lora field (madde 237, 238)", () => {
   });
 });
 
-// Madde 486, 499: Krea and Qwen are drawn with a lora box of their own and no negative, and their
-// rows say so -- the panel reads the row, never the model's id.
+// Madde 486, 499: Krea is drawn with a lora box of its own and no negative, and its row says so --
+// the panel reads the row, never the model's id.
 const KREA = { value: "krea2", label: "Krea 2 Turbo", negative: false,
                loras: [{ value: "snofs", label: "SNOFS" },
                        { value: "snofs_slime", label: "SNOFS + Slime" },
-                       { value: "none", label: "Boş" }] };
-const QWEN = { value: "qwen21turbo", label: "Qwen Image 2.1 Turbo", negative: false,
-               loras: [{ value: "translucent_penetration", label: "Translucent Penetration" },
                        { value: "none", label: "Boş" }] };
 // Madde 501: DaSiWa's box is the shared one and two futa picks, and DaSiWa takes a negative, so its
 // row carries a box and nothing about the negative -- as the server lists it.
@@ -304,11 +301,11 @@ const DASIWA = { value: "dasiwa", label: "DaSiWa Illustrious | Anime",
                          { value: "futa", label: "Futa" },
                          { value: "futa_on_male", label: "Futa on male" },
                          { value: "none", label: "Boş" }] };
-const ALL = [MODELS[0], DASIWA, KREA, QWEN];
+const ALL = [MODELS[0], DASIWA, KREA];
 const rows = () => [...loraBox().options].map((o) => o.textContent);
 const queue = () => act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
-describe("GeneratePanel — Krea's and Qwen's own lora boxes and no negative (madde 486, 499)", () => {
+describe("GeneratePanel — Krea's own lora box and no negative (madde 486, 499)", () => {
   it("offers Krea's three, opens on SNOFS, and draws no negative box", () => {
     renderPanel({ models: ALL, settings: { ...SETTINGS, model: "krea2" } });
 
@@ -341,20 +338,6 @@ describe("GeneratePanel — Krea's and Qwen's own lora boxes and no negative (ma
     await queue();
 
     expect(onGenerate).toHaveBeenCalledWith(expect.objectContaining({ lora: "snofs" }));
-  });
-
-  it("offers Qwen Translucent Penetration or Boş, and no negative box", async () => {
-    const onGenerate = vi.fn().mockResolvedValue({ added: 4 });
-    renderPanel({ onGenerate, models: ALL, settings: { ...SETTINGS, model: "qwen21turbo" } });
-
-    expect(rows()).toEqual(["Translucent Penetration", "Boş"]);
-    expect(loraBox().value).toBe("translucent_penetration");
-    expect(screen.queryByText("Negatif prompt")).toBeNull();
-    fireEvent.change(loraBox(), { target: { value: "none" } });
-    await queue();
-    expect(onGenerate).toHaveBeenCalledWith(expect.objectContaining({
-      model: "qwen21turbo", lora: "none",
-    }));
   });
 
   it("keeps each box's pick on the way between models", () => {

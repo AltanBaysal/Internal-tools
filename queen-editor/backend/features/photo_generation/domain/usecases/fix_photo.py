@@ -87,8 +87,8 @@ def fix_photo(runner, store, record, plan_store, order_store, producers, now, pr
 
     line = made_by(plan, frame)
     born = _born(store, record, plan_store, project, frame, prompt)
-    # What the model is drawn with: a Krea or Qwen photo's are its own box's pick and no negative
-    # (madde 486, 499).
+    # What the model is drawn with: a Krea photo's are its own box's pick and no negative (madde
+    # 486, 499).
     lora, negative = catalog.drawn_with(line.get("model", ""), line.get("lora", ""), negative)
     plan_store.append(project, [{
         "id": born, "type": layers.PHOTO, "number": number_of(born), "variant": variant_of(born),
