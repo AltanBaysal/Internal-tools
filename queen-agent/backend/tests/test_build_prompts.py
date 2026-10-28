@@ -228,6 +228,16 @@ def test_loose_commas_and_spaces_are_tidied_away():
     ]
 
 
+def test_a_sentence_reaches_the_prompt_as_written():
+    # Madde 507: entries and actions mix tags with short sentences. The join splits on commas and
+    # puts the same comma back, so a sentence -- a full stop inside it too -- arrives whole.
+    entry = "1girl, futanari, she is wearing armor that barely covers her breasts, her skin is blue"
+    action = "full nelson, anal, she is grabbing his arms. she is smiling"
+    structure = _structure(frames=[_frame(action=action, camera="", location="")])
+    structure["characters"]["aylin"] = entry
+    assert _photos(structure) == [f"{DEFAULT_QUALITY}, {entry}{BREAK}{action}"]
+
+
 def test_a_repeated_solo_tag_is_left_exactly_as_written():
     structure = _structure(frames=[_frame(characters={"aylin": [], "deniz": []})])
     structure["characters"] = {"aylin": "1girl, solo", "deniz": "1boy, solo"}

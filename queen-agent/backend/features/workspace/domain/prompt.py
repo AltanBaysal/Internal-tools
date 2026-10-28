@@ -266,15 +266,18 @@ October), so a change to one is made to the other by hand.
 # holds whatever is selected. The picker still has an empty state -- having no skill selected is
 # ordinary.
 #
-# Each opens by sending the model to its own model's guide (the user: "bizim skillimizin başında
-# söyleriz git ve şu skili oku önce"): the guides ride in no request on their own, so this line is
-# what puts the rules in front of the model. A model's rules stand in its guide and its own skills,
-# never in the other model's.
+# Each opens by saying which model the user chose (Madde 503, the user, 27 October: "prompt 1
+# cümleyele çözeriz başta neyin seçildiğini"): every request carries both models' tools and the base
+# text asks what only the user can decide, so a skill that did not say it drew "Krea or SDXL?". Then
+# it sends the model to its own model's guide (the user: "bizim skillimizin başında söyleriz git ve
+# şu skili oku önce"): the guides ride in no request on their own, so this line is what puts the
+# rules in front of the model. A model's rules stand in its guide and its own skills, never in the
+# other model's.
 #
-# Since Madde 123 each opens as a persona and a word cap in the tests keeps it short: five runs of
-# patches had doubled the texts, and a weak model stops reading the middle. From here a sentence
-# enters only by deleting one, or by a written decision that raises the cap -- the test keeps each
-# one beside it.
+# Since Madde 123 each is written as a persona, behind that opening, and a word cap in the tests
+# keeps it short: five runs of patches had doubled the texts, and a weak model stops reading the
+# middle. From here a sentence enters only by deleting one, or by a written decision that raises
+# the cap -- the test keeps each one beside it.
 #
 # Each is written in ../skills/ under the name the picker shows it by (Madde 495): sdxl-edit.md
 # for SDXL edit, whose id is still edit-prompts, so the user finds the file the picker names.
@@ -313,7 +316,8 @@ KREA_EDIT = _read("krea-edit.md")
 # prompt rules stand in its guide and in that model's own skills, and nowhere else -- not in
 # SYSTEM_PROMPT, not in a tool's text, not in the other model's guide ("model instructlarını onunla
 # alakalı skill hariç hiçbir yerde olmadığından emin olalım"). No request carries one on its own ("hiçbiri
-# gitmez"): the skill's first line sends the model to read its guide.
+# gitmez"): the line behind the model chosen, at the top of each skill, sends the model to read its
+# guide.
 #
 # In the repo rather than in the user's Drive: a copy in every project would drift and could be
 # edited, and each read of one would be a round trip. In ../skills/ since Madde 495, so the user
@@ -332,7 +336,10 @@ KREA_EDIT = _read("krea-edit.md")
 # October: "Model adı olmasın"); the image-model rules of Start a scenario's Step 6 and Step 11,
 # which that skill keeps a copy of because the model is weak ("Evet, kopyası belgeye de girsin");
 # and, since Madde 492, what left the tools' texts -- solo, who leads a frame, the fixed order -- and
-# the scene's rules. A rule about one field's contents stays on that field (correction 34).
+# the scene's rules. A rule about one field's contents stays on that field (correction 34). Since
+# Madde 507 the entries and the actions mix those tags with short English sentences, characters too,
+# and the negative list stays tags: a trial on Nova, kept only if it draws better (the user, 28
+# October: "Her şey senin örneğindeki gibi karışık olur. Karakterler de cümleyle anlatılır").
 #
 # The Krea guide is from the research of 22 October (the spec of Madde 492 cites it): Krea reads
 # sentences, the style leads, each person's look and action go together, and the SDXL habits --

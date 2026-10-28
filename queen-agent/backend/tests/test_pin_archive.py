@@ -14,7 +14,10 @@ from backend.features.workspace.data.live_turns import LiveTurns
 from backend.features.workspace.domain.errors import ProjectNotFound
 from backend.features.workspace.domain.project import Project
 from backend.features.workspace.domain.prompt import APPROVED
-from backend.features.workspace.domain.usecases.edit_project import edit_project
+from backend.features.workspace.domain.usecases.edit_project import (
+    archive_projects,
+    edit_project,
+)
 from backend.features.workspace.domain.usecases.list_projects import list_projects
 from backend.features.workspace.presentation.routes import make_workspace_bp
 from backend.services.store.store import Store
@@ -175,6 +178,39 @@ def test_pin_archive_and_name_are_one_change():
     edit_project(store, "pabc", NOW, name="Renamed", pinned=True)
     assert store.changes == 1, "Bir istek depoya birden çok değişiklik gönderdi"
     assert (store.project.name, store.project.pinned_at) == ("Renamed", NOW)
+
+
+class FakeManyStore:
+    """The port with several projects, counting the changes it is handed."""
+
+    def __init__(self, *projects):
+        self.projects = {project.id: project for project in projects}
+        self.changes = 0
+
+    def update(self, project_id, change):
+        if project_id not in self.projects:
+            return None
+        self.changes += 1
+        self.projects[project_id] = change(self.projects[project_id])
+        return self.projects[project_id]
+
+
+def test_several_projects_are_archived_with_their_pins_and_unknown_ids_passed_over():
+    # Madde 506: the single press's rule on each -- the archive takes the pin (Madde 384) -- and an
+    # id no project carries is passed over rather than refusing the others.
+    store = FakeManyStore(
+        Project(id="pa", name="a", created_at=_day(1), pinned_at=_day(5)),
+        Project(id="pb", name="b", created_at=_day(2)),
+        Project(id="pc", name="c", created_at=_day(3)),
+    )
+    archive_projects(store, ["pa", "nope", "pb"], True, NOW)
+    assert {pid: (p.archived, p.pinned_at) for pid, p in store.projects.items()} == {
+        "pa": (True, ""),
+        "pb": (True, ""),
+        "pc": (False, ""),
+    }, "Toplu arşiv seçilenleri arşive almadı ya da sabitlemeyi bırakmadı"
+    archive_projects(store, ["pa"], False, NOW)
+    assert not store.projects["pa"].archived, "Toplu arşivden çıkarma çalışmadı"
 
 
 class FakeListStore:

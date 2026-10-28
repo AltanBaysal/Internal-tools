@@ -35,8 +35,14 @@ from backend.features.workspace.domain.usecases.advance_chat import (
 )
 from backend.features.workspace.domain.usecases.create_project import create_project
 from backend.features.workspace.domain.usecases.delete_file import delete_file
-from backend.features.workspace.domain.usecases.delete_project import delete_project
-from backend.features.workspace.domain.usecases.edit_project import edit_project
+from backend.features.workspace.domain.usecases.delete_project import (
+    delete_project,
+    delete_projects,
+)
+from backend.features.workspace.domain.usecases.edit_project import (
+    archive_projects,
+    edit_project,
+)
 from backend.features.workspace.domain.usecases.list_chats import list_chats
 from backend.features.workspace.domain.usecases.list_files import list_files
 from backend.features.workspace.domain.usecases.list_projects import list_projects
@@ -50,6 +56,14 @@ from backend.features.workspace.domain.usecases.trim_chat import trim_chat
 BUSY = "this chat is still answering -- try again once it has finished"
 # And deleting its project: the folder would move from under the turn writing into it.
 PROJECT_BUSY = "a chat in this project is still answering -- try again once it has finished"
+# The same for several projects at once (Madde 506): none of them is deleted.
+PROJECTS_BUSY = (
+    "a chat in one of these projects is still answering -- try again once it has finished"
+)
+# What a request about several projects hears when it does not name them, or does not say which way
+# the archive goes (Madde 506).
+NOT_IDS = "ids must be a list of project ids"
+NOT_ARCHIVED = "archived must be true or false"
 # What a mode that is none of the three hears (Madde 467), on every door that starts a turn.
 NOT_A_MODE = "mode must be plan, ask or edit"
 
@@ -66,9 +80,39 @@ on trycloudflare). A browser that went away stops asking, and the turn runs on.
 def make_workspace_bp(project_store, chat_store, file_store, engine, turns):
     workspace_bp = Blueprint("workspace", __name__)
 
+    def listed():
+        # From memory (Madde 447): answering a write with it costs no disk.
+        return jsonify([_project_json(project) for project in list_projects(project_store)])
+
     @workspace_bp.get("/api/projects")
     def get_projects():
-        return jsonify([_project_json(project) for project in list_projects(project_store)])
+        return listed()
+
+    # Several projects at once (Madde 506): one request for a bulk action, answered with the list as
+    # GET gives it, so the browser draws the result without asking for it again.
+    @workspace_bp.patch("/api/projects")
+    def patch_projects():
+        payload = request.get_json(silent=True) or {}
+        ids = _ids(payload)
+        if ids is None:
+            return jsonify({"error": NOT_IDS}), 400
+        archived = payload.get("archived")
+        if not isinstance(archived, bool):
+            return jsonify({"error": NOT_ARCHIVED}), 400
+        archive_projects(project_store, ids, archived, _now())
+        return listed()
+
+    # A POST rather than a DELETE: the ids travel in the body, which a DELETE is not sure to keep.
+    @workspace_bp.post("/api/projects/delete")
+    def delete_projects_route():
+        ids = _ids(request.get_json(silent=True) or {})
+        if ids is None:
+            return jsonify({"error": NOT_IDS}), 400
+        try:
+            delete_projects(project_store, turns, ids)
+        except ProjectAnswering:
+            return jsonify({"error": PROJECTS_BUSY}), 409
+        return listed()
 
     @workspace_bp.post("/api/projects")
     def post_project():
@@ -369,6 +413,18 @@ def _over(error):
     # The last answer says no turn runs; the browser then reads the record the turn wrote. A turn
     # whose own code broke wrote nothing, and its words travel here: no record will say them.
     return {"turn": None, "error": error} if error else {"turn": None}
+
+
+def _ids(payload):
+    """The projects a bulk request names: a list of ids, at least one, or None. An id is looked up
+    in the list in memory, and only one the list carries reaches the disk, so it is not checked
+    further."""
+    if not isinstance(payload, dict):
+        return None
+    ids = payload.get("ids")
+    if not isinstance(ids, list) or not ids or not all(isinstance(each, str) for each in ids):
+        return None
+    return ids
 
 
 def _new_id(prefix):

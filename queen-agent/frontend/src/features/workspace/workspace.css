@@ -1205,17 +1205,17 @@
   opacity: 1;
 }
 
-/* The message while it is being corrected. The bubble's own measure, so opening the field neither
-   widens the message nor narrows it: what is being corrected is that sentence, in its place, at its
-   size. */
+/* The message while it is being corrected, as wide as the chat, as ChatGPT's is (Madde 504, the
+   user's decision of 27 October). */
 .msg__editing {
-  max-width: 78%;
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-/* The bubble's shape with a border where its fill was: still that message, now open for writing. */
+/* The bubble's shape with a border where its fill was: still that message, now open for writing.
+   Its 40% cap is in the rule it shares with the composer's field. */
 .msg__editing-input {
   border: 1px solid var(--line);
   border-radius: 14px 14px 4px 14px;
@@ -1761,6 +1761,32 @@
   margin: 0 0 24px;
 }
 
+/* The head's right side: the bar for the picked projects while any is picked (Madde 506), then
+   + New project. */
+.all-projects__actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.all-projects__bulk {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.all-projects__bulk-count {
+  margin-right: 4px;
+  font-size: 13px;
+  color: #6b6259;
+}
+
+/* Named twice to stand above .ghost's colour, which comes later in this file. */
+.all-projects__bulk .all-projects__bulk-delete {
+  color: var(--destructive);
+}
+
 /* The search's row, the two tabs on its right. */
 .all-projects__tools {
   display: flex;
@@ -1916,6 +1942,30 @@
   background: #e5dfd5;
 }
 
+/* The box that picks the project (Madde 506) waits for the row as the ⋯ does (the user: "⋯ menüsü
+   gibi"), and stands on every row once any is picked, so the next pick has nothing to look for.
+   Waiting, it can still be pressed, as the ⋯ can. */
+.all-projects__row-pick {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  margin: 0 0 0 2px;
+  /* Not --accent, which marks the primary action alone: the row's own grey-brown. */
+  accent-color: #6b6259;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.all-projects__row:hover .all-projects__row-pick,
+.all-projects__row.is-picking .all-projects__row-pick,
+.all-projects__row-pick:focus-visible {
+  opacity: 1;
+}
+
+.all-projects__row.is-picked {
+  background: #f2ede5;
+}
+
 .all-projects__row .menu {
   width: 176px;
 }
@@ -2013,6 +2063,14 @@
   content: "";
   flex: 1 1 16px;
   border-top: 1px solid var(--line);
+}
+
+/* The two fields grow with their text (useGrowingField) up to 40% of the screen, the user's one
+   limit for both (27 October, Madde 504 and 505); past it the text scrolls inside. Here rather than
+   in the hook, so it holds as the window changes, and once, so the two cannot drift apart. */
+.msg__editing-input,
+.composer__input {
+  max-height: 40vh;
 }
 
 /* No outline of its own, not even to take one away: the focus ring is app.css's to draw, and this

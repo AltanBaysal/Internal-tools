@@ -41,6 +41,8 @@ export default function App() {
     createProject,
     editProject,
     removeProject,
+    archiveProjects,
+    removeProjects,
     reloadProjects,
     retryProjects,
   } = useProjects();
@@ -233,6 +235,27 @@ export default function App() {
     });
   };
 
+  // Several at once, from All projects' bar (Madde 506). The counts are the list's own, summed: the
+  // server sends every project's with the list, so the question costs no request.
+  const askToDeleteMany = (ids) => {
+    const doomed = projects.filter((candidate) => ids.includes(candidate.id));
+    if (!doomed.length) return;
+    const chats = doomed.reduce((sum, project) => sum + (project.chats ?? 0), 0);
+    const files = doomed.reduce((sum, project) => sum + (project.files ?? 0), 0);
+    const them = doomed.length === 1 ? "it" : "them";
+    setConfirming({
+      title: `Delete ${countOf(doomed.length, "project")}?`,
+      body:
+        `The ${countOf(chats, "chat")} and ${countOf(files, "file")} in ${them} are deleted ` +
+        `with ${them}. This can't be undone.`,
+      confirmLabel: "Delete",
+      onConfirm: () => {
+        setConfirming(null);
+        removeProjects(doomed.map((project) => project.id));
+      },
+    });
+  };
+
   // One rule, one place: opening something must never be a way of hiding it. Madde 22 adds a second
   // caller -- the card in the transcript -- and will not write the rule again.
   const openFile = (name) => {
@@ -308,6 +331,8 @@ export default function App() {
               onPinProject={(id, pinned) => editProject(id, { pinned })}
               onArchiveProject={(id, archived) => editProject(id, { archived })}
               onDeleteProject={askToDelete}
+              onArchiveProjects={archiveProjects}
+              onDeleteProjects={askToDeleteMany}
             />
           ) : null}
 

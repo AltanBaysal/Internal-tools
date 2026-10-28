@@ -122,7 +122,7 @@ def test_the_sdxl_guide_says_nothing_about_krea():
     from backend.features.workspace.domain.prompt import GUIDES
 
     said = GUIDES["sdxl-prompt-writing.md"]
-    assert "Write tags, never sentences." in said
+    assert "Danbooru tags mixed with short English sentences" in said
     assert "krea" not in said.lower()
 
 

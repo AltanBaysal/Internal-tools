@@ -12,7 +12,17 @@ from backend.features.workspace.domain.errors import ProjectAnswering, ProjectNo
 def delete_project(project_store, turns, project_id):
     if turns.any_in(project_id):
         raise ProjectAnswering(project_id)
-    trashed = project_store.delete(project_id)
+    trashed = project_store.delete_many([project_id]).get(project_id)
     if trashed is None:
         raise ProjectNotFound(project_id)
     return trashed
+
+
+def delete_projects(project_store, turns, project_ids):
+    """Several at once (Madde 506), and all or none of them: a project with a turn running refuses
+    the whole request before anything moves. An id no project carries is passed over -- what was
+    asked of it already stands -- so the answer names only the projects that went."""
+    for project_id in project_ids:
+        if turns.any_in(project_id):
+            raise ProjectAnswering(project_id)
+    return project_store.delete_many(project_ids)

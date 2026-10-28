@@ -2,19 +2,23 @@
 
 ## The image model
 - The photo of each frame is made by an SDXL-family image model trained on Danbooru's own tags, at 1536 x 864 for a landscape video, 16:9, or at 1024 x 1536 for a portrait video, 2:3.
-- The image model reads the tags of every entry and of every frame's action.
+- The image model reads every entry and every frame's action.
 - The image model is weak and draws every tag in the prompt. A complex prompt breaks the image.
 
-## Writing a tag
-- Write tags, never sentences. An article is not a tag either.
-- Use a tag that the Danbooru vocabulary already has, rather than a description of the same thing. The model has seen a real tag many times, and has never seen a paraphrase of it.
+## Writing tags and sentences
+- Write each entry and each frame's action as Danbooru tags mixed with short English sentences, with commas between them. A character, an outfit and a place are written this way too.
+- Where the Danbooru vocabulary has a tag for a thing, use the tag rather than a description of the same thing. The model has seen a real tag many times, and has never seen a paraphrase of it.
 - Write the tags in English, with spaces where the site writes underscores.
-- Put one thing in each tag, split the way the vocabulary splits it. Do not join two tags into one longer phrase.
-- When the vocabulary has no tag for it, write a few plain words in the same short form.
+- Put one thing in each tag, split the way the vocabulary splits it. Do not join two tags into one longer tag.
+- Write a short sentence for what a tag cannot say: who does what to whom, and how a body or a piece of clothing looks. Write a short sentence too when the vocabulary has no tag for it.
+- Keep each sentence short and plain, about one thing, as in she is grabbing his arms.
+- Name a character in a sentence by what tells the character apart, as in the slime girl or the man, whenever she or he could point at more than one person in the frame. A pronoun can carry an action onto the wrong person.
+- End a sentence without a full stop: commas separate the parts, and the code joins the parts with commas.
+- Every rule about tags holds for the sentences too: the image model draws every sentence, as it draws every tag.
 
 ## What is left out
 - Never write quality tags. The code already puts them at the front of every prompt, so yours would be printed twice.
-- Never write the word or inside a tag. The model draws one picture and cannot toss a coin between two choices, so pick one and write only that.
+- Never write the word or inside a tag or a sentence. The model draws one picture and cannot toss a coin between two choices, so pick one and write only that.
 - Never write solo in a character's entry. The same character stands alone in one frame and next to somebody in the next, so an entry claiming solo is wrong in half of them.
 - Never add a mirror unless the user asks for one. A mirror breaks the image.
 
@@ -38,6 +42,7 @@
 - The biggest problem is the features of the characters mixing, as in the hair of one character on another character. Focus the negative list on keeping the features of each character apart.
 - Never write a feature of a character into the negative list. For example, dark skin in the negative list made a dark-skinned man come out white.
 - To keep a feature of a character, write the opposite tags instead. For example, pale male and white man for a dark-skinned man.
+- Write the negative list in tags alone, never sentences.
 
 ## The scene
 - Write each scene in English.

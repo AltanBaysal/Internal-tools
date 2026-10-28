@@ -120,6 +120,27 @@ dosyasıyla yeniden açabiliyor. Listede görünmüyor, çöpteki proje bütün 
 bir klasör. **Önerilen çözüm** (reviewer): silme projeye bir "kapanıyor" işareti koysun, `reserve` o
 işaretli projede sohbet tutmasın — bakmak ve işaretlemek tek kilit altında.
 
+## Toplu silme sürerken başka sekmeden başlayan tur, taşınan projeye sahipsiz klasör açabiliyor
+
+*(Claude, 27 Ekim — v12'nin 506'sının reviewer'ı.)* Yukarıdaki yarışın toplu hâli: toplu silme
+(`POST /api/projects/delete`) önce bütün projelerin turuna bakıyor, sonra klasörleri tek tek taşıyor.
+Bu döngü yaklaşık 2N gidiş-dönüş sürüyor; arada başka bir sekmeden taşınmış bir projeye mesaj gelirse
+tur o projenin eski yerine yazar ve kökte sahipsiz bir klasör açar. **Önerilen çözüm:**
+`LiveTurns.reserve`, silinmekte olan bir projede sohbet tutmayı kendi kilidi altında reddeder — silme
+projeleri o kilit altında "kapanıyor" diye işaretler.
+
+## Tek ⋯ Archive hâlâ iki istek
+
+*(Claude, 27 Ekim — v12'nin 506'sının reviewer'ı.)* Bir satırın ⋯'sindeki Archive ve Unarchive
+`PATCH /api/projects/<id>` atıp ardından listeyi `GET` ile yeniden okuyor *(`useProjects.editProject`)*.
+506'nın toplu kapısı (`PATCH /api/projects`, cevabı liste) tek kimlikle aynı işi tek istekte yapar.
+
+## Var olan kapılar JSON dizisi gövdeye 500 veriyor
+
+*(Claude, 27 Ekim — v12'nin 506'sının coder'ı buldu.)* `routes.py`'deki kapılar
+`request.get_json(silent=True) or {}` sonra `.get(...)` yapıyor; gövde nesne değil de bir JSON dizisiyse
+(`[...]`) `.get` patlıyor ve istek 500 alıyor. 506'nın iki yeni kapısı böyle bir gövdeye 400 veriyor.
+
 ## Stop, model daha ilk sözünü söylemeden de hemen kessin
 
 *(Claude, 10 Ekim — v10'un 460'ının reviewer'ı buldu; v10'da 464 olarak yazıldı, kullanıcı backlog'a aldı —
@@ -177,15 +198,6 @@ yinede usera sorulsun gerçekçiye yakın mı yoksa daha çim gibi ister msiiniz
 başka bir stil çıkıyor. Varsayılan: yedisi de negatif listede. Yine de kullanıcıya sorulur: gerçekçiye
 yakın mı, yoksa daha çizim gibi mi. Negatif listeyi bugün SDXL start scenario'nun Step 11'i yazıyor
 (Improve 492'de kalktı). **Ayrıntılar kullanıcıyla konuşulacak.**
-
-## Birden çok proje tek seferde arşivlenecek
-
-*(Kullanıcı, 13 Ekim — "arşivleme için tek tek seçtiriyor bunuda düzeltelim".)* Bugün bir proje,
-All projects'te kendi satırının `⋯`'sindeki `Archive`'la arşivleniyor *(v9'un 363'ü)*; birkaç proje
-için bu birkaç ayrı basış. **Claude'un anlayışı, henüz onaylanmadı:** All projects'te birden çok proje
-seçilir ve tek basışla birlikte arşivlenir. **Ayrıntılar kullanıcıyla konuşulacak:** seçimin ekranda
-nasıl göründüğü — tasarımcının mı, Claude'un mu çizeceği —, Unarchive'ın ve Delete'in de toplu olup
-olmayacağı, ve `<ad> archived · Undo` satırının birden çok projede ne diyeceği.
 
 ## Uygulamanın mimari çizimi, ve yapıyı değiştiren işte önce çizim
 

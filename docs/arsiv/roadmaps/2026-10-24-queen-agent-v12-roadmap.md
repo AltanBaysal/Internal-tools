@@ -1,34 +1,37 @@
 # QueenAgent — Yol Haritası v12
 
-**Durum:** Hazırlanıyor · 0/5 bitti
+**Tarih:** 2026-10-24 · **Koşu dalı:** `feat/queenagent-v12` · **Durum:** 6/6 · bitti; kullanıcı 28 Ekim'de denedi *(kullanıcı, 28 Ekim — "ve gerisi düzgün queen agnetı ve editoru maine mergelyebilrisn")*
 
-**Önceki sürüm:** [v11](../arsiv/roadmaps/2026-10-20-queen-agent-v11-roadmap.md) — bitti.
+**Önceki sürüm:** [v11](2026-10-20-queen-agent-v11-roadmap.md) — bitti.
 
 **Sıra: tek tek, dalga yok** *(kullanıcı, 27 Ekim — "ilk queen ediytor tasklarını yapıcaz bitincebana
-haber vericeksin queen anget tasklarına geçiçez"; "sıryaal paralel yapmicaz")*. Bu roadmap, Queen
-Editor v11 bitip kullanıcıya haber verildikten sonra başlar. Bir madde birleşince sıradaki başlar;
-worktree açılmaz.
+haber vericeksin queen anget tasklarına geçiçez"; "sıryaal paralel yapmicaz")*. Queen Editor v11'in
+501'i kullanıcının Colab denemesini beklerken başladı *(kullanıcı, 27 Ekim — "olur başla queen agentıda
+bitir")*; deneme sonucu gelince 501 araya alınır. Bir madde birleşince sıradaki başlar; worktree açılmaz.
 
-1. **v12-5** — sürüm V12, koşunun ilk işi.
-2. **v12-3** — dört skill'e birer cümle.
-3. **v12-1** — düzenleme kutusu.
-4. **v12-2** — yazma kutusu; v12-1'in büyüme parçasını kullanır.
-5. **v12-4** — toplu arşiv ve silme.
+1. **502 · v12-5** — sürüm V12, koşunun ilk işi.
+2. **503 · v12-3** — dört skill'e birer cümle.
+3. **504 · v12-1** — düzenleme kutusu.
+4. **505 · v12-2** — yazma kutusu; v12-1'in büyüme parçasını kullanır.
+5. **506 · v12-4** — toplu arşiv ve silme.
+6. **507 · v12-6** — SDXL prompt'ları tag'lerle cümleler karışık; koşu sırasında, 501'in denemesinden
+   çıktı.
 
 ---
 
 | Numara | İş | Durum |
 |---|---|---|
-| [v12-1](#v12-1) | Düzenlenen mesajın kutusu büyüsün | `ALIGNED` |
-| [v12-2](#v12-2) | Mesaj yazma kutusu büyüsün | `ALIGNED` |
-| [v12-3](#v12-3) | SDXL start seçiliyken model sormasın | `ALIGNED` |
-| [v12-4](#v12-4) | Projeleri toplu arşivle/sil | `ALIGNED` |
-| [v12-5](#v12-5) | Sürüm V12 | `ALIGNED` |
+| 504 · [v12-1](#v12-1) | Düzenlenen mesajın kutusu büyüsün | ✅ · `ALIGNED` |
+| 505 · [v12-2](#v12-2) | Mesaj yazma kutusu büyüsün | ✅ · `ALIGNED` |
+| 503 · [v12-3](#v12-3) | SDXL start seçiliyken model sormasın | ✅ *(ajanın gerçekten sormadığı, canlı modelle, kullanıcının sondaki denemesinde)* · `ALIGNED` |
+| 506 · [v12-4](#v12-4) | Projeleri toplu arşivle/sil | ✅ *(açık nokta kullanıcının denemesinde: seçimi bırakmak için Clear düğmesi ya da Escape yok)* · `ALIGNED` |
+| 502 · [v12-5](#v12-5) | Sürüm V12 | ✅ · `ALIGNED` |
+| 507 · [v12-6](#v12-6) | SDXL prompt'ları tag'lerle cümleler karışık yazılsın | ✅ *(kullanıcının Nova'daki denemesinde: daha iyi çizerse kalır)* · `ALIGNED` |
 
 ---
 
 <a id="v12-1"></a>
-### v12-1 — Düzenlenen mesajın kutusu büyüsün
+### 504 · v12-1 — Düzenlenen mesajın kutusu büyüsün
 
 **Kabul koşulu:** Bir mesaj düzenlenmeye açılınca kutu sohbetin genişliğinde açılıyor ve yazının
 tamamını gösteriyor. Yazdıkça kutu büyüyor. Ekranın %40'ına gelince büyümesi duruyor ve yazı kutunun
@@ -44,7 +47,7 @@ büyütmüyor.
 - **Üst sınır:** *"Ekranın %40'ı, yaklaşık 11 satır. ChatGPT'ye yakın."*; *"CHAT GPTYE YAKIN OLSUN"*.
 
 <a id="v12-2"></a>
-### v12-2 — Mesaj yazma kutusu büyüsün
+### 505 · v12-2 — Mesaj yazma kutusu büyüsün
 
 **Kabul koşulu:** Yazı uzadıkça kutu büyüyor. Ekranın %40'ına gelince büyümesi duruyor ve yazı kutunun
 içinde kayıyor. Mesaj gönderilince kutu bugünkü 2 satırlık boyuna dönüyor.
@@ -57,7 +60,7 @@ sonra yazı içinde kayıyor ve en üstte yarım kesilmiş bir satır görünüy
 **Kullanıcının kararı** *(27 Ekim)*: *"İkisi de %40 olsun."* Düzenleme kutusuyla (v12-1) aynı sınır.
 
 <a id="v12-3"></a>
-### v12-3 — SDXL start seçiliyken model sormasın
+### 503 · v12-3 — SDXL start seçiliyken model sormasın
 
 **Kabul koşulu:** SDXL start scenario seçilip başlatılınca ajan "Krea mı, SDXL mi?" diye sormuyor.
 
@@ -74,9 +77,13 @@ prompt'ta *"emin değilsen sor"* kuralı var.
 - *"bence hepsini ekelyelim krea ve sdxl editler start senayolar vs"*: dört skill'e de; SDXL start
   scenario, SDXL edit, Krea start scenario, Krea edit.
 - Kabul koşulu aynı kalır: SDXL start scenario'yla başlatılan sohbette ajan model sormuyor.
+- **Yapılırken kararlaşan** *(ana ajan, 27 Ekim; 503'ün coder'ının sorusu üzerine)*: 393'ün skill
+  metinlerinde "SDXL" kelimesini yasaklayan kuralı *(30 Eylül)* artık yalnız metnin gövdesi için
+  geçerli; seçili modeli söyleyen açılış cümlesi "SDXL" diyebilir. 393'te tek model vardı; 492'den beri
+  iki model var ve onları ayıran şey adları.
 
 <a id="v12-4"></a>
-### v12-4 — Projeleri toplu arşivle/sil
+### 506 · v12-4 — Projeleri toplu arşivle/sil
 
 **Kabul koşulu:**
 - Projects sekmesinde seçilen projeler tek işlemle arşivleniyor ya da siliniyor. Archived sekmesinde
@@ -112,9 +119,30 @@ Toplu işlem bunu proje başına tekrarlamamalı: 20 proje 20 istek ve 20 liste 
 bulunan sorunun aynısı.
 
 <a id="v12-5"></a>
-### v12-5 — Sürüm V12
+### 502 · v12-5 — Sürüm V12
 
 *(Kullanıcı, 27 Ekim — "bir de her roadmapin başında şun uyapmanı istiyorum ui daki sürümü arttıralım
 olur mu"; "ilk görev o olsun ynai".)*
 
 **Kabul koşulu:** QueenAgent'ın ekranında "QueenAgent V12" yazıyor; bugün "V11".
+
+<a id="v12-6"></a>
+### 507 · v12-6 — SDXL prompt'ları tag'lerle cümleler karışık yazılsın
+
+**Kabul koşulu:** SDXL start scenario ve SDXL edit'le yazılan karelerin prompt'ları Danbooru tag'leriyle
+kısa İngilizce cümlelerin karışımı: karakter, kıyafet ve eylem cümleyle de anlatılabiliyor, bilinen
+tag'ler (`1girl`, `futanari`, `full nelson`, …) cümlelerin arasında kalıyor. Kullanıcı Nova'da deniyor;
+öncekinden iyi çizerse böyle kalır, değilse geri alınır.
+
+**Nereden** *(kullanıcı, 28 Ekim, 501'in denemesinde)*: Nova'da şu prompt'un *"oldukça iyi
+çalıştığını"* gördü — *"witchnight. 1girl, flaccid futa, flaccid penis, futanari, slime girl with blue
+skin getting fucked in the full nelson position, anal, she is grabbing his arms. she is wearing revealing
+nude style armor that barely covers her intimate areas, …"* — *"neden ? tag da değil"*. Sonra: *"queen
+agnetı buan göre güncellermisi nbir task oalrka test edeyim daha iyi çalışırsa böyle bırakırız"*.
+
+**Bugün:** `sdxl-prompt-writing.md` *"Write tags, never sentences"* diyor; SDXL prompt'ları yalnız tag.
+
+**Kullanıcının kararı** *(28 Ekim)*: iki yoldan *"2 yi yapalım"* — *"Her şey senin örneğindeki gibi
+karışık olur. Karakterler de cümleyle anlatılır, ör. "she is wearing revealing armor that barely
+covers…". Daha esnek olur, ama aynı karakter karelerde farklı anlatılabilir."* Yalnız SDXL; Krea'nın
+skill'leri değişmez.

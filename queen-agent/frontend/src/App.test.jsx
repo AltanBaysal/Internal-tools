@@ -615,6 +615,19 @@ function serverForRows(projects) {
       });
       return ok(row(live.find((project) => project.id === one[1])));
     }
+    // Several at once (Madde 506), each answered with the list.
+    if (path === "/api/projects" && options?.method === "PATCH") {
+      const { ids, archived } = JSON.parse(options.body);
+      live = live.map((project) =>
+        ids.includes(project.id) ? { ...project, archived, pinned: false } : project,
+      );
+      return ok(listed());
+    }
+    if (path === "/api/projects/delete") {
+      const { ids } = JSON.parse(options.body);
+      live = live.filter((project) => !ids.includes(project.id));
+      return ok(listed());
+    }
     if (path === "/api/projects") return ok(listed());
     return ok([]);
   });
@@ -695,6 +708,115 @@ test("deleting the last project leaves No projects yet.", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Delete" }));
   fireEvent.click(screen.getByRole("button", { name: "Delete" }));
   expect(await screen.findByText("No projects yet.")).toBeTruthy();
+});
+
+// --- Madde 506: several projects at once, one request each, answered with the list ---------------
+
+const pickRow = (name) => fireEvent.click(screen.getByRole("checkbox", { name: `Select ${name}` }));
+const inBar = (container, label) =>
+  fireEvent.click(
+    within(container.querySelector(".all-projects__bulk")).getByRole("button", { name: label }),
+  );
+const THIRD = { id: "p3", name: "Drafts", chats: 0, files: 1, pinned: false, lastActivity: hoursAgo(9) };
+
+test("archiving several sends one request and reads no list after it", async () => {
+  const fetch = serverForRows([...ROWS, THIRD]);
+  const { container } = render(<App />);
+  await onAllProjects();
+  fetch.mockClear();
+  pickRow("Thesis");
+  pickRow("Drafts");
+  inBar(container, "Archive");
+  await waitFor(() => expect(fetch).toHaveBeenCalled());
+  await act(async () => {});
+  expect(fetch.mock.calls.map(([path, options]) => [path, options?.method])).toEqual([
+    ["/api/projects", "PATCH"],
+  ]);
+  expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ ids: ["p1", "p3"], archived: true });
+  fireEvent.click(tab("Archived"));
+  expect(
+    [...container.querySelectorAll(".all-projects__row-name")].map((name) => name.textContent),
+  ).toEqual(["Thesis", "Drafts"]);
+});
+
+test("deleting several asks once, counting every chat and file that goes with them", async () => {
+  const fetch = serverForRows([...ROWS, THIRD]);
+  const { container } = render(<App />);
+  await onAllProjects();
+  pickRow("Thesis");
+  pickRow("Notes");
+  pickRow("Drafts");
+  inBar(container, "Delete");
+  expect(screen.getByText("Delete 3 projects?")).toBeTruthy();
+  expect(
+    screen.getByText("The 4 chats and 3 files in them are deleted with them. This can't be undone."),
+  ).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(fetch.mock.calls.filter(([path]) => path === "/api/projects/delete")).toEqual([]);
+  // Cancelled, the picks stand.
+  expect(container.querySelector(".all-projects__bulk").textContent).toContain("3 selected");
+});
+
+test("one project picked is asked about in the singular", async () => {
+  serverForRows(ROWS);
+  const { container } = render(<App />);
+  await onAllProjects();
+  pickRow("Notes");
+  inBar(container, "Delete");
+  expect(screen.getByText("Delete 1 project?")).toBeTruthy();
+  expect(
+    screen.getByText("The 1 chat and 0 files in it are deleted with it. This can't be undone."),
+  ).toBeTruthy();
+});
+
+test("confirming deletes them all in one request, and reads no list after it", async () => {
+  const fetch = serverForRows([...ROWS, THIRD]);
+  const { container } = render(<App />);
+  await onAllProjects();
+  pickRow("Notes");
+  pickRow("Drafts");
+  inBar(container, "Delete");
+  fetch.mockClear();
+  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Delete" }));
+  await waitFor(() => expect(screen.queryByText("Notes")).toBeNull());
+  expect(fetch.mock.calls.map(([path, options]) => [path, options?.method])).toEqual([
+    ["/api/projects/delete", "POST"],
+  ]);
+  expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ ids: ["p2", "p3"] });
+  expect(screen.queryByText("Drafts")).toBeNull();
+  expect(screen.getByText("Thesis", { selector: ".all-projects__row-name" })).toBeTruthy();
+  expect(container.querySelector(".all-projects__bulk")).toBeNull();
+});
+
+test("a bulk delete the server refused says so over the list, and every row stays", async () => {
+  const fetch = serverForRows([...ROWS, THIRD]);
+  const keep = fetch.getMockImplementation();
+  fetch.mockImplementation((path, options) =>
+    path === "/api/projects/delete"
+      ? Promise.resolve({
+          ok: false,
+          status: 409,
+          text: async () => JSON.stringify({ error: "a chat in one of these projects is still answering" }),
+        })
+      : keep(path, options),
+  );
+  const { container } = render(<App />);
+  await onAllProjects();
+  pickRow("Notes");
+  inBar(container, "Delete");
+  fetch.mockClear();
+  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Delete" }));
+  expect(await screen.findByText(/still answering/)).toBeTruthy();
+  // A refusal may come half way, so the list is read once as the server now has it.
+  await waitFor(() =>
+    expect(fetch.mock.calls.map(([path, options]) => [path, options?.method])).toEqual([
+      ["/api/projects/delete", "POST"],
+      ["/api/projects", undefined],
+    ]),
+  );
+  expect(
+    [...container.querySelectorAll(".all-projects__row-name")].map((name) => name.textContent),
+  ).toEqual(["Thesis", "Notes", "Drafts"]);
 });
 
 test("Escape closes the menu first, then the question", async () => {

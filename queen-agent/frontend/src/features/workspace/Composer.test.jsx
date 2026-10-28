@@ -206,3 +206,25 @@ test("while an answer runs the arrow becomes a stop", () => {
   expect(button.textContent).toBe("⏹");
   expect(button.getAttribute("title")).toBe("Stop");
 });
+
+// --- a box as tall as the reply (Madde 505) ------------------------------------------------------
+//
+// jsdom lays nothing out: a written box is declared 300 tall and an empty one its rows' 54. What is
+// under test is the box asking useGrowingField with its draft; the measuring, and measuring again
+// when the width changes -- a narrow window's first load, the box coming back from behind the full
+// chat's notice -- are the hook's own tests.
+
+test("the box grows as the reply gets longer, and goes back to its rows once it is sent", () => {
+  vi.spyOn(Element.prototype, "scrollHeight", "get").mockImplementation(function scrollHeight() {
+    return this.value ? 300 : 54;
+  });
+  try {
+    const { box } = draw({ onSubmit: vi.fn() });
+    fireEvent.change(box, { target: { value: "a long reply\nover many lines" } });
+    expect(box.style.height).toBe("300px");
+    fireEvent.keyDown(box, { key: "Enter" });
+    expect(box.style.height).toBe("54px");
+  } finally {
+    vi.restoreAllMocks();
+  }
+});

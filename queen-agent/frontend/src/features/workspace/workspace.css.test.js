@@ -819,10 +819,20 @@ test("nothing wraps the bubble in a row of its own", () => {
   expect(CSS).not.toContain(".msg__said");
 });
 
-test("the field that corrects a message is the width the message was", () => {
-  // Opening the edit must not make the message grow or shrink: what is being corrected is that
-  // sentence, in its place, at its size.
-  expect(rule(".msg__editing")).toContain("max-width: 78%");
+test("the field that corrects a message is the chat's width", () => {
+  // Madde 504, the user's decision of 27 October: as wide as the chat, as ChatGPT's is. Madde 197
+  // kept it at the bubble's measure, and a field with no width of its own shrank to the browser's
+  // twenty characters.
+  const editing = rule(".msg__editing");
+  expect(editing).toContain("width: 100%");
+  expect(editing).not.toContain("max-width");
+});
+
+test("both fields stop growing at 40% of the screen, by one rule", () => {
+  // The user, 27 October: "Ekranın %40'ı, yaklaşık 11 satır."; "İkisi de %40 olsun." Past it, the
+  // text scrolls inside. In the stylesheet rather than in useGrowingField, so it stays true when the
+  // window changes; written once, so the two boxes cannot drift apart (Madde 505).
+  expect(CSS).toMatch(/\n\.msg__editing-input,\r?\n\.composer__input \{\r?\n {2}max-height: 40vh;\r?\n\}/);
 });
 
 test("the tick and the cross sit under the field, in the message's own direction", () => {
@@ -993,6 +1003,19 @@ test("the row's ⋯ is a small square that waits for the row", () => {
   expect(more).toContain("height: 26px");
   expect(more).toContain("opacity: 0");
   expect(CSS).toContain(".all-projects__row:hover .all-projects__row-more");
+});
+
+// Madde 506: the box waits for the row as the ⋯ does, and stands on every row once one is picked.
+test("the row's box waits for the row, and stands while any row is picked", () => {
+  expect(rule(".all-projects__row-pick")).toContain("opacity: 0");
+  expect(CSS).toContain(".all-projects__row:hover .all-projects__row-pick");
+  expect(CSS).toContain(".all-projects__row.is-picking .all-projects__row-pick");
+  expect(CSS).toContain(".all-projects__row-pick:focus-visible");
+});
+
+test("the bar's Delete is in the colour of what cannot be undone", () => {
+  // Above .ghost's own colour, which comes later in the file.
+  expect(rule(".all-projects__bulk .all-projects__bulk-delete")).toContain("color: var(--destructive)");
 });
 
 test("the rename field fills the row", () => {

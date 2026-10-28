@@ -1005,6 +1005,56 @@ test("a reader up the page stays where they are when cards arrive at the foot", 
   expect(scroll.scrollTop).toBe(0);
 });
 
+// --- the box grows beside the list (Madde 505) ---------------------------------------------------
+// The list and the box share the chat's column, so a box growing with the reply takes its room from
+// the list, from below: with its scroll unchanged, a reader at the foot would lose the last lines.
+
+function observedList() {
+  const callbacks = [];
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      constructor(callback) {
+        callbacks.push(callback);
+      }
+      observe() {}
+      disconnect() {}
+    },
+  );
+  // The list as the box grows: shorter, and the observers told so -- the box's own among them, which
+  // reads the width it is given.
+  return (scroll) => {
+    Object.defineProperty(scroll, "clientHeight", { configurable: true, value: 150 });
+    act(() =>
+      callbacks.forEach((callback) => callback([{ contentRect: { width: 600, height: 150 } }])),
+    );
+  };
+}
+
+test("a reader at the foot keeps the last lines in view as the box grows", () => {
+  const shrink = observedList();
+  try {
+    const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} />);
+    const scroll = scrollable(container, { at: 700 });
+    shrink(scroll);
+    expect(scroll.scrollTop).toBe(1000);
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
+test("a reader up the page stays where they are as the box grows", () => {
+  const shrink = observedList();
+  try {
+    const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} />);
+    const scroll = scrollable(container, { at: 0 });
+    shrink(scroll);
+    expect(scroll.scrollTop).toBe(0);
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
 test("the rail lists the project's files beside the conversation", () => {
   const files = [{ name: "outline.md", ext: "md", modifiedAt: new Date().toISOString() }];
   render(<ChatScreen project={PROJECT} chat={CHAT} files={files} />);
