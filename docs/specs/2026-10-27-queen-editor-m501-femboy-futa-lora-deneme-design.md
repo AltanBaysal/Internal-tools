@@ -3,8 +3,8 @@
 **Tarih:** 27 Ekim 2026 · **Madde:** [v11 yol haritası](../roadmaps/2026-10-24-queen-editor-v11-roadmap.md#v11-4),
 501 · v11-4 · **Dal:** `feat/queen-editor-v11` · **Kurallar:**
 [NOTEBOOK-STANDARD](../../collab-toolbox/NOTEBOOK-STANDARD.md) · **Defter:**
-[collab-toolbox/photo_experiments/femboy-futa-lora/](../../collab-toolbox/photo_experiments/femboy-futa-lora/)
-· **Plan:** [2026-10-27-queen-editor-m501-femboy-futa-lora-deneme-plan.md](../plans/2026-10-27-queen-editor-m501-femboy-futa-lora-deneme-plan.md)
+[collab-toolbox/photo_generator/nova-3dcg/manual.ipynb](../../collab-toolbox/photo_generator/nova-3dcg/manual.ipynb)
+*(28 Ekim'den beri; aşağıda, "Yapılırken değişti")* · **Plan:** [2026-10-27-queen-editor-m501-femboy-futa-lora-deneme-plan.md](../plans/2026-10-27-queen-editor-m501-femboy-futa-lora-deneme-plan.md)
 
 ## Ne, neden
 
@@ -16,6 +16,39 @@ queen editore koyarız"*. Sonra futa da girdi, aynı denemeye: *"futa içinde 3 
 Bu adım yalnız denemeyi hazırlar: bir Colab defteri, tek oturumda altı aday — üç femboy, üç futa —
 kullanıcının ComfyUI'de koşacağı. Queen Editor'ün koduna dokunulmaz. Kullanıcı her gruptan birini
 seçince madde ikinci adımıyla sürer (aşağıda, "Seçimden sonra").
+
+## Yapılırken değişti *(28 Ekim)*
+
+**Deneme Nova'nın kendi defterine taşındı, ayrı deneme defteri silindi.** Kullanıcı Colab'da altı
+workflow'u bozuk gördü; `photo_generator/nova-3dcg/workflow_manual.json`'u aynı ComfyUI'ye elle
+sürükleyince de *"Loading aborted due to error reloading workflow data TypeError: t.findInputSlot is not
+a function"* çıktı, kaynağı `/extensions/ComfyUI-Impact-Pack/impact-pack.js`. Kararı *(kullanıcı, 28 Ekim
+— "photo generator novaya gerekli loraları indirttir ordan direkt kullanıp test edeyim foto
+experimentide silelim")*: altı aday [nova-3dcg/manual.ipynb](../../collab-toolbox/photo_generator/nova-3dcg/manual.ipynb)'nin
+`CIVITAI_MODELS`'ına girdi (sürümler ve dosya adları aynı), denemenin tabloları, F, G, H, 1 ve 3
+kareleri, ne karşılaştırılacağı ve kullanıcının ne getireceği "Nova preset" hücresine; Queen Editor'ün
+grafiğinden workflow kuran 5. bölüm ve onun karşılaştırması gitti. Workflow'u kullanıcı sürükler, adayı
+Power Lora Loader'a kendisi ekler. Bu grafikte `CLIPTextEncodeBREAK` yok, bu yüzden karelerde `BREAK`
+yerine virgül var.
+
+**Hatanın sebebi, koddan:** Impact-Pack'in `js/impact-pack.js`'i (Main, son commit 2026-04-20), satır 639:
+ImpactSwitch'in `onConnectionsChange`'i grafik yüklenirken `node.connect(link_info.origin_slot, node.id,
+'input1')` çağırıyor — hedef olarak node'un kendisini değil numarasını veriyor. Arayüzün `LGraphNode.connect`'i
+bir numarayı yalnız `typeof target_node === 'number'` ise node'a çeviriyor. ComfyUI_frontend'in
+`b4ae6344` commit'i ("Brand local node IDs", 1.47.6'dan beri) node numaralarını yazıya çevirdi
+(`toNodeId = String`); yazı olan numara çevrilmeden geçiyor ve `t.findInputSlot` bir yazının üstünde
+çağrılıyor. ComfyUI 1.47.10'u 2026-07-23'te istemeye başladı, bugün 1.57.6'yı istiyor; Impact-Pack'te
+bunu düzelten bir commit yok. **Sabitleme:** `manual.ipynb`'nin 3. bölümü ComfyUI'nin gereksinimlerinden
+sonra `comfyui-frontend-package==1.46.15`'i kurar — o değişiklikten önceki son sürüm. ComfyUI yalnız
+uyarır. Grafik zaten 1.45.20'yle kaydedilmiş (`extra.frontendVersion`).
+
+**Yerelde denendi** (CPU, `tmp/` altında, sonra silindi): ComfyUI `79cf64c` ve 3. bölümün sekiz paketi;
+`workflow_manual.json` arayüze sürüklemenin yaptığı gibi (`app.handleFile`) yüklendi. 1.57.6'da
+kullanıcının gördüğü pencere birebir çıktı, yığın `impact-pack.js:639` → `ComfyNode.connect`, node
+numaraları `string`. 1.46.15'te hata yok, 75 node'un hepsi kayıtlı bir türde (eksik node yok), 140 bağ,
+`graphToPrompt` 32 node veriyor; arayüzün işaretlediği tek şey inmemiş üç model (`fabricatedXL_v70`, yüz
+dedektörü, SAM) — Colab'da yüz dedektörü ve SAM iner, checkpoint elle seçilir.
+Üretim yerelde koşulmadı.
 
 ## Adaylar
 
@@ -142,6 +175,9 @@ Hepsi defterin bir koşusunda, kullanıcının makinesinde; Queen Editor'ün ça
 - Her gruptan seçilen LoRA, Queen Editor'de Nova ve DaSiWa'nın **ortak LoRA kutusuna** girer:
   `catalog.LORAS`'a birer satır — dosya, güç, tetik — ve notebook'ta `CIVITAI_PHOTO`'ya sürümü. Bu,
   maddenin ikinci adımı; ayrı bir spec ve planla, kullanıcının seçimiyle yazılır.
+- Aynı adımda, seçilenler Queen Editor'e girerken, altı adayın satırı `nova-3dcg/manual.ipynb`'nin
+  `CIVITAI_MODELS`'ından çıkar, deneme bölümü de "Nova preset" hücresinden: defter her oturumda
+  ~1,5 GiB'ı boşuna indirmez.
 - Seçilen bir LoRA bir tetik cümlesi gibi **özel bir prompt** istiyorsa — tetik dışında, karakter
   tarifinde ya da karenin kimi adlandırdığında bir şey — ana ajan QueenAgent v12 yol haritasına
   `UNALIGNED` yeni bir madde açar *(kullanıcı, 27 Ekim — "şöyle özel bir prompt gerkeilyors mesela bir
@@ -159,3 +195,7 @@ Hepsi defterin bir koşusunda, kullanıcının makinesinde; Queen Editor'ün ça
   beklenen değerlerde — femboy'larda Kare F, futa'larda Kare G. GitHub'ın API adresi `Accept:
   application/vnd.github.raw` ile ham dosyayı veriyor; özetin hata yolu bozuk bir header'la denendi.
 - Kullanıcı defteri Colab'da koşup her gruptaki üç adayı karşılaştırabiliyor.
+- *(28 Ekim'den beri, yukarıdaki ilk iki maddenin — `femboy-futa-lora/` klasörü ve 5. bölümün workflow'ları —
+  yerine)* Altı aday `nova-3dcg/manual.ipynb`'den iniyor, deneme
+  onun "Nova preset" hücresinde yazılı, `workflow_manual.json` arayüz 1.46.15'le yerelde hatasız
+  yükleniyor ve `femboy-futa-lora/` silindi.

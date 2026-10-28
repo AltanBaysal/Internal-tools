@@ -24,7 +24,7 @@ ana klasörde koşunun dalında yürür.
 | 499 · [v11-1](#v11-1) | Translucent Penetration: Krea'da, ve Qwen yeni model olarak | ✅ *(gerçek Krea + Slime ve Qwen fotoğrafları, Qwen graph'ının ComfyUI'de çalışması ve A100'de bellek kullanıcının sondaki Colab denemesinde; ilk çalıştırma iki yeni LoRA için `CIVITAI_COOKIE` ister)* · `ALIGNED` |
 | 498 · [v11-2](#v11-2) | Sıra boşken bildirim | ✅ *(gerçek 10 dk, tünelden geçen açık istek ve işletim sisteminin bildirimi kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
 | 497 · [v11-3](#v11-3) | Drive'a kayıt olmayınca hata verip dursun | ✅ *(Colab'da dolu Drive ve kopan bağlantı kullanıcının sondaki denemesinde)* · `ALIGNED` |
-| 501 · [v11-4](#v11-4) | Femboy ve futa LoRA'ları | 🔄 *(deneme notebook'u hazır — `collab-toolbox/photo_experiments/femboy-futa-lora/`; kullanıcının Colab denemesini bekliyor)* · `ALIGNED` |
+| 501 · [v11-4](#v11-4) | Femboy ve futa LoRA'ları | 🔄 *(deneme Nova'nın defterinde — `collab-toolbox/photo_generator/nova-3dcg/manual.ipynb`; kullanıcının Colab denemesini bekliyor)* · `ALIGNED` |
 | 500 · [v11-5](#v11-5) | Eski belgeler ve roadmap'ler arşive | ✅ · `ALIGNED` |
 | 496 · [v11-6](#v11-6) | Sürüm V11 | ✅ · `ALIGNED` |
 
@@ -165,6 +165,15 @@ yapalım sonra karar veridğimizi queen editore koyarız"*. Deneme notebook'u
 - **Futa da girer, aynı denemeye** *(kullanıcı, 27 Ekim — "futa içinde 3 model indirir msiin"; "bu
   taskı femboyla berabe yap zaten nerdeyse aynı şeyler 3 model yer,ne 6 tane denerim")*: femboy'un 3
   adayının yanına Civitai'den 3 futa LoRA'sı eklenir; tek notebook, tek Colab oturumu, 6 aday.
+- **Yapılırken kararlaşan: deneme Nova'nın defterinde** *(kullanıcı, 28 Ekim — "photo generator novaya
+  gerekli loraları indirttir ordan direkt kullanıp test edeyim foto experimentide silelim")*. Ayrı
+  deneme defterinin workflow'ları Colab'da bozuk açıldı, ve Nova'nın `workflow_manual.json`'u elle
+  sürüklenince de *"t.findInputSlot is not a function"* hatası çıktı (`impact-pack.js`). Altı aday
+  `photo_generator/nova-3dcg/manual.ipynb`'den iner, deneme onun "Nova preset" hücresinde yazılı;
+  `photo_experiments/femboy-futa-lora/` silindi. Hatanın sebebi Impact-Pack'le ComfyUI'nin yeni arayüzü
+  arasında: arayüz 1.47'den beri node numaralarını yazı olarak tutuyor, Impact-Pack'in ImpactSwitch'i
+  ise yüklenirken numarayı node yerine veriyor. Defter arayüzü 1.46.15'te sabitler; yerelde 1.57.6'da
+  aynı hata çıktı, 1.46.15'te grafik hatasız ve eksik node'suz açıldı.
 
 <a id="v11-5"></a>
 ### 500 · v11-5 — Eski belgeler ve roadmap'ler arşive

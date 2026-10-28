@@ -151,6 +151,30 @@ Krea'nın `turbo.ipynb`'sinin biçiminde, 13 hücre.
   baytları bir safetensors header'ıyla başlamıyor ve başı basıldı, o yüzden silinir.
 - [x] **8.** Spec `…-m501-femboy-futa-lora-deneme-design.md` oldu; ona giden başka link yoktu.
 
+### 2.7 Yapılırken değişti: deneme Nova'nın defterine *(28 Ekim)*
+
+Kullanıcı Colab'da workflow'ları bozuk gördü ve `workflow_manual.json` elle de *"t.findInputSlot is not a
+function"* ile yüklenmedi; kararı *"photo generator novaya gerekli loraları indirttir ordan direkt
+kullanıp test edeyim foto experimentide silelim"*. Gerekçe ve kanıt spec'te, "Yapılırken değişti".
+
+- [x] **Sebep, koddan ✅:** Impact-Pack `js/impact-pack.js:639` `node.connect(…, node.id, 'input1')`;
+  ComfyUI_frontend `b4ae6344` (1.47.6+) node numaralarını yazı yaptı, `connect` yalnız sayıyı node'a
+  çeviriyor. 1.45.20, 1.49.6, 1.53.6, 1.55.18, 1.57.4 ve 1.57.6'nın `LGraphNode`'u okundu.
+- [x] **`photo_generator/nova-3dcg/manual.ipynb`, 3. bölüm:** `requirements.txt`'ten sonra
+  `comfyui-frontend-package==1.46.15`, `run()` ile (fail-loud), nedenini yazan yorumla; markdown'da bir
+  paragraf. *(Review'dan sonra)* rgthree, Queen Editor'ün `BRANCHES`'ı gibi `main` dalından (madde 470).
+- [x] **4. bölüm:** `CIVITAI_MODELS`'a altı aday, deneme defterindeki sürüm ve adlarla (324974, 2693790,
+  2176350, 2698395, 1457484, 2066157); başlıklarda ~16,5 GiB.
+- [x] **"Nova preset" hücresi:** "Femboy ve futa denemesi (v11 madde 501)" — aday tablosu, her üretimin
+  dört adımı, ne karşılaştırılır, ne getirilecek, F, G, H, 1 ve 3 kareleri `BREAK` yerine virgülle
+  (deneme talimatındakilerle `BREAK` → `, ` dışında birebir aynı olduğu kodla karşılaştırıldı).
+- [x] **5. bölüm:** son hücrenin ipucularına deneme için iki satır.
+- [x] **`git rm -r collab-toolbox/photo_experiments/femboy-futa-lora/`**; `collab-toolbox/README.md`'deki
+  cümle nova-3dcg'nin defterine döndü; spec'in defter linki yeni yere.
+- [x] **Yerel deneme ✅** (`tmp/` altında, CPU, sonra silindi): 1.57.6'da kullanıcının penceresi birebir;
+  1.46.15'te hatasız, eksik node yok.
+- [x] Dört suite.
+
 ---
 
 ## 3. Maliyet ve bozulabilecekler
