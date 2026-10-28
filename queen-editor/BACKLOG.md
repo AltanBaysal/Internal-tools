@@ -74,6 +74,16 @@ saçma şeyler ortaya çıkıyor".)* **v7'nin ilk maddesi olarak yazıldı, koş
 
 ## Diğer
 
+### Kendi kutusu olan modelde bilinmeyen LoRA çizimi durdurmuyor
+
+*(501'in reviewer'ı buldu, 28 Ekim.)* Madde 238'in kuralı: kutunun bilmediği bir LoRA çizimi durdurur,
+çünkü yerine başka bir şeyle çizilen kare istenen kare değildir ve bunu söyleyen bir yer yoktur. Satırı
+kendi kutusunu taşıyan modellerde — Krea 499'dan beri, DaSiWa 501'den beri — eski bir plan
+satırındaki bilinmeyen LoRA ise sessizce kutunun ilk satırıyla çiziliyor (`catalog.drawn_with`).
+Kuyruğa ekle böyle bir LoRA'yı zaten reddediyor; yalnız bir checkout'un bilmediği bir kimliği taşıyan
+eski satırlarda olur. Düzeltme kararı kullanıcının: ya bu modellerde de çizim durur, ya kural 238'e
+istisna olarak yazılır.
+
 ### Boşta Colab kapansın
 
 *(Kullanıcı, 27 Ekim — "bence bunu roadmapten backloga koyalım şuanlık kapatmak yerine bildirim
@@ -81,6 +91,28 @@ yollasın sadece"; v11 roadmap'inin v11-2'sinden çıktı.)* Sıra 10 dk boş ka
 mısın?" diye sorar; *"sorudan sonra 5 dk da cevapp kalmazsa kapansın"*. Süren export ya da ajan iş
 sayılır. v11-2 bugün yalnız bildirim gönderiyor; sekme kapalıyken bildirim de gitmez, A100'ü o
 durumda ancak kapatma kurtarır. Açık soru: sekme kapalıyken kim sayar — bunu Colab tarafı yapmalı.
+
+### Silinmiş fotoğraftan video, ve kopya karenin fotoğrafının üstüne yazılması
+
+*(497'nin coder'ı buldu, 27 Ekim; denenmedi.)* `run_loop._source_for` ve `_end_for` karenin fotoğraf
+hücresini durumuna bakmadan alıyor, bu yüzden silinmiş bir hücre de dosyasını veriyor. Yol: kopya kare
+`C1_F`, `F.png`'yi paylaşıyor. `F`'in videosu sıradayken fotoğraf katmanı siliniyor; `remove_layer`
+videoyu düşürmüyor, ve `F.png` kopya kare tuttuğu için diskte kalıyor. Video silinmiş fotoğraftan
+yapılıyor, `F`'in fotoğraf yeri boş olduğu için videonun ilk karesi `F.png` olarak kaydediliyor, ve
+`os.replace` kopya karenin resminin üstüne yazıyor.
+
+### Galeriden yapılan bir işlemin hatası fotoğraf sekmesinde görünmüyor
+
+*(497'nin coder'ı buldu, 27 Ekim.)* Galeriden yapılan bir yazma — sıralama, silme, kopyalama —
+reddedilince hata `ProjectScreen`'in `error`'una gidiyor. GeneratePanel onu yalnız kendi Kuyruğa ekle'si
+reddedilince gösteriyor, bu yüzden fotoğraf sekmesi açıkken bu hata ancak video, ses ya da sıra
+sekmesine geçince görünüyor. Hata sunucunun cümlesini taşıyor; eksik olan yeri.
+
+### Windows'ta sıranın süre satırı yazılamıyor
+
+*(497'nin QA'sı buldu, 27 Ekim; yalnız yerelde.)* Windows'ta stdout cp1252 iken sıranın `⏱ …` satırı
+yazılamıyor ve sıra 'charmap' hatasıyla duruyor; `PYTHONIOENCODING=utf-8` ile geçiyor. Colab UTF-8
+olduğu için orada olmaz.
 
 ### Civitai yoklaması iyi bir dosyayı reddedebiliyor
 
@@ -124,18 +156,6 @@ bağlantılar doğru belgeye çevrilir ya kaldırılır. Kullanıcının görece
 "gerek yok, MMAudio silmeyi backloga ekle".)* H3 videoyu sesiyle birlikte üretiyor; MMAudio ayrı bir
 ses üreticisi, ve ses talimatı `data/prompt_writer.py`'nin `AUDIO_INSTRUCTION`'ında. **Ayrıntılar
 kullanıcıyla konuşulacak:** notebook'taki kurulumu, paneldeki yeri ve eski projelerdeki ses işleri.
-
-### Qwen Image 2.1 için LoRA eğitimi
-
-*(Kullanıcı, 21 Ekim — "ilk küçük lora eğitiriz olmazsa büyük yaparız"; "lorayı şuan sadece qwen için
-düşünüyoruz".)* **v11'in tek maddesi olarak (v11-1) yol haritasındaydı, koşulmadan backlog'a döndü**
-*(kullanıcı, 21 Ekim — "qweni fine etmeyi sonraya bırakalım backloga koyalım"; Krea 2 Turbo denemesi
-işe yaradı ve tarz prompt'a yazılarak belirlenebiliyor: "bu ayar güzel stylei yazarak
-belirleyebiliyoruz zaten")*.
-
-**Kararlaşanlar:** önce küçük bir LoRA, yetmezse büyük; ana modelde eğitilir, Turbo'da kullanılır ve
-Turbo'da çalışıp çalışmadığı ilk denemede ölçülür. Geri kalan ayrıntıları iş yapılırken kullanıcı
-belirler.
 
 ### Karakter LoRA'sı eklenecek
 
@@ -182,7 +202,7 @@ kartın kodladığı doğrulandı. **Kalan aday, kodlamanın etrafındaki CPU zi
 **Kararlaşmadı:** zincirin karta taşınıp taşınmayacağı. Taşımanın iki bilinen bedeli var —
 `overlay_cuda` saydam PNG'de bozabiliyor *(girdinin `yuva420p`'ye çevrilip `hwupload` ile
 yüklenmesi gerekiyor)*, ve yarım taşımak tam CPU'dan kötü. Kaldıraçların tamamı
-[2026-09-21 export hızı araştırmasında](../docs/research/2026-09-21-queen-editor-export-hizi.md).
+[2026-09-21 export hızı araştırmasında](../docs/arsiv/research/2026-09-21-queen-editor-export-hizi.md).
 
 ### Loop'larda sona doğru tempo düşmesi — asıl çözüm
 
@@ -382,5 +402,5 @@ bölünerek yapılacak. Buraya yazılmasının sebebi bu.
 parçalanmanın nereden başlayacağı. Üçü de sırası gelince detaylandırılacak, ve buraya bir tahmin
 yazılmıyor.
 
-**İlk parça:** [v9-4](../docs/roadmaps/2026-10-05-queen-editor-v9-roadmap.md) — salt
+**İlk parça:** [v9-4](../docs/arsiv/roadmaps/2026-10-05-queen-editor-v9-roadmap.md) — salt
 okunur sohbet *(kullanıcı, 5 Ekim)*.

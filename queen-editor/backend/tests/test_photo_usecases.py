@@ -56,6 +56,7 @@ from backend.features.photo_generation.domain.usecases.halt_project import halt_
 from backend.features.photo_generation.domain.usecases.save_order import InvalidOrder, save_order
 from backend.features.photo_generation.domain.usecases.stop_generation import stop_generation
 from backend.features.photo_generation.runner import PhotoRunner
+from backend.services.storage.storage import StorageError
 
 
 class FakeStore:
@@ -615,28 +616,55 @@ def test_a_lora_the_app_does_not_know_is_refused_before_anything_is_planned():
     assert plan_store.frames == [] and generator.calls == []
 
 
-def test_a_krea_batch_records_the_lora_and_the_negative_it_is_drawn_with():
-    """Krea's graph has its own lora and no negative (madde 486): its lines say so, rather than the
-    boxes' values, so a Krea frame's page never names a lora or a negative that was not used. The
-    request still carries the boxes' values -- the project's settings keep them for Nova."""
+@pytest.mark.parametrize("model, lora", [("krea2", "slime"), ("krea2", "gitmiş"),
+                                          ("nova3dcg", "snofs_slime"),
+                                          ("nova3dcg", "futa"), ("nova3dcg", "futa_on_male"),
+                                          ("dasiwa", "snofs")])
+def test_a_lora_the_model_s_box_does_not_offer_is_refused(model, lora):
+    """Madde 238's rule for every box (madde 499): Krea and DaSiWa are asked against their own
+    box, which is what they draw with, so Nova's Slime on Krea -- or Krea's pick on Nova, or
+    DaSiWa's futa on Nova (madde 501) -- is refused at the button rather than drawn with something
+    nobody picked."""
+    from backend.features.photo_generation.domain.usecases.start_batch import InvalidLora
+
+    plan_store = FakePlanStore()
+    with pytest.raises(InvalidLora) as exc:
+        run_batch(sync_runner(), FakeStore(), FakeGenerator(), plan_store=plan_store,
+                  text='["a"]', variants=1, model=model, lora=lora)
+
+    assert lora in str(exc.value)
+    assert plan_store.frames == []
+
+
+@pytest.mark.parametrize("model, lora, recorded", [
+    ("krea2", "snofs", "snofs"), ("krea2", "snofs_slime", "snofs_slime"), ("krea2", "none", "none"),
+    ("krea2", "", "snofs"),
+])
+def test_a_model_with_a_box_of_its_own_records_the_pick(model, lora, recorded):
+    """Krea's box is SNOFS, SNOFS + Slime and Boş (madde 499): what is picked is what is drawn, and
+    the line says it. No pick is the list's first row."""
     plan_store, generator = FakePlanStore(), FakeGenerator()
     run_batch(sync_runner(), FakeStore(), generator, plan_store=plan_store, text='["a"]',
-              variants=2, model="krea2", negative="bulanık", lora="slime")
+              variants=1, model=model, negative="bulanık", lora=lora)
 
-    assert [(line["lora"], line["negative"]) for line in plan_store.frames] == \
-        [("snofs", ""), ("snofs", "")]
-    assert generator.loras == ["snofs", "snofs"]
-    assert [call[1] for call in generator.calls] == ["", ""]
+    assert (plan_store.frames[0]["lora"], plan_store.frames[0]["negative"]) == (recorded, "")
+    assert generator.loras == [recorded]
 
 
-def test_a_krea_batch_is_not_stopped_by_a_lora_its_box_no_longer_offers():
-    """The box's lora is not what Krea draws with, so a stale pick hidden behind it is no reason to
-    refuse the batch."""
-    plan_store = FakePlanStore()
-    run_batch(sync_runner(), FakeStore(), FakeGenerator(), plan_store=plan_store, text='["a"]',
-              variants=1, model="krea2", lora="gitmiş")
+@pytest.mark.parametrize("lora, recorded", [
+    ("futa", "futa"), ("futa_on_male", "futa_on_male"), ("usnr", "usnr"), ("slime", "slime"),
+    ("none", "none"), ("", "usnr"),
+])
+def test_dasiwa_records_its_own_box_s_pick_and_keeps_its_negative(lora, recorded):
+    """DaSiWa's box is the shared one and its two futa picks (madde 501). A checkpoint takes a
+    negative, so DaSiWa keeps the one typed; no pick is the box's first row, USNR, the default the
+    shared box draws an empty pick with too."""
+    plan_store, generator = FakePlanStore(), FakeGenerator()
+    run_batch(sync_runner(), FakeStore(), generator, plan_store=plan_store, text='["a"]',
+              variants=1, model="dasiwa", negative="bulanık", lora=lora)
 
-    assert plan_store.frames[0]["lora"] == "snofs"
+    assert (plan_store.frames[0]["lora"], plan_store.frames[0]["negative"]) == (recorded, "bulanık")
+    assert generator.loras == [recorded]
 
 
 @pytest.mark.parametrize("lora", ["", "usnr", "slime", "none"])
@@ -3062,6 +3090,19 @@ def test_an_old_krea_frame_made_again_records_snofs_rather_than_its_old_lora():
     assert (job["lora"], job["negative"]) == ("snofs", "")
 
 
+def test_a_krea_slime_photo_made_again_keeps_its_pick():
+    """The pick is the frame's own (madde 499): made again, it is drawn with what it was."""
+    store, record, plan_store = video_project((0, "a"))
+    plan_store.frames[0].update(model="krea2", lora="snofs_slime")
+
+    regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
+               {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
+               "düğün", "0_a", layers.PHOTO, "p", negative="bulanık")
+
+    job = plan_store.appended[-1][0]
+    assert (job["lora"], job["negative"]) == ("snofs_slime", "")
+
+
 def test_a_layer_over_the_photo_carries_no_negative_whatever_it_is_given():
     # Only a photo is made from a prompt and a negative of its own; the layers over it are made from
     # what is under them. The editable box is the photo tab's alone and this is the rule behind it.
@@ -4361,20 +4402,57 @@ def test_nothing_is_written_when_nobody_asked_for_timings():
 
 def test_the_model_list_is_nova_3dcg_dasiwa_and_krea_2_turbo():
     """A row in the Model box is a model and nothing else: the lora is its own box (madde 237).
-    Krea 2 Turbo is the one with a graph of its own rather than a checkpoint (madde 482)."""
+    Krea 2 Turbo (madde 482) is drawn with a graph of its own rather than a checkpoint."""
     from backend.features.photo_generation.domain.catalog import KREA2, MODELS
 
     assert [model["id"] for model in MODELS] == ["nova3dcg", "dasiwa", KREA2]
     assert [model.get("checkpoint") is None for model in MODELS] == [False, False, True]
 
 
-def test_krea_is_listed_by_its_name_with_its_own_lora_and_no_negative():
-    """The panel's LoRA box shows the one lora Krea's graph draws with, and its negative box goes:
-    the row says so, so the screen never has to know a model by its id (madde 486). SNOFS is not
-    in the lora list, which is Nova's and DaSiWa's box."""
-    assert list_models(["krea2"]) == [{"value": "krea2", "label": "Krea 2 Turbo",
-                                       "lora": {"value": "snofs", "label": "SNOFS"},
-                                       "negative": False}]
+def test_krea_is_listed_with_its_own_lora_box_and_no_negative():
+    """Krea's box is its own list, Boş last, and its negative box goes: the row says so, so the
+    screen never has to know a model by its id (madde 486, 499). None of these is in the lora list,
+    which is Nova's box."""
+    assert list_models(["krea2"]) == [{
+        "value": "krea2", "label": "Krea 2 Turbo", "negative": False,
+        "loras": [{"value": "snofs", "label": "SNOFS"},
+                  {"value": "snofs_slime", "label": "SNOFS + Slime"},
+                  {"value": "none", "label": "Boş"}]}]
+
+
+def test_qwen_is_no_row_of_the_model_box_any_more():
+    """Madde 508: an older notebook that still names Qwen gets the rest of its models, and no row
+    for the one this checkout no longer knows."""
+    assert list_models(["krea2", "qwen21turbo"]) == list_models(["krea2"])
+
+
+def test_dasiwa_is_listed_with_the_shared_box_and_its_two_futa_picks():
+    """The user's words (madde 501): "bunlar dasiwa için olacak / 2 senecek olucak"; "novada ikisde
+    iyi çalımıyor". So DaSiWa's box is its own -- the shared box's rows, then Futa and Futa on male,
+    Boş last -- and Nova keeps the shared one. DaSiWa takes a negative, so its row says nothing
+    about one."""
+    assert list_models(["dasiwa"]) == [{
+        "value": "dasiwa", "label": "DaSiWa Illustrious | Anime",
+        "loras": [{"value": "usnr", "label": "USNR"}, {"value": "slime", "label": "Slime"},
+                  {"value": "futa", "label": "Futa"},
+                  {"value": "futa_on_male", "label": "Futa on male"},
+                  {"value": "none", "label": "Boş"}]}]
+
+
+def test_dasiwa_s_futa_picks_are_the_user_s_files_strengths_and_triggers():
+    """The user's words (madde 501): "1 futa sadece futa flaccid olacak 0.50 ile / 2. seçenekte futa
+    on male olacak buda 0.50 futa flaccid 1.00 futa on male olucak 2 lora"; "tetik kelilerini queen
+    editor otomaik eklicek". The two-lora pick carries both words, in the order its files are laid."""
+    from backend.features.photo_generation.domain import catalog
+
+    assert catalog.box_row("dasiwa", "futa") == {
+        "id": "futa", "label": "Futa", "trigger": "flaccid futa",
+        "files": [{"lora": "futa_flaccid_v3.safetensors", "strength": 0.5}]}
+    assert catalog.box_row("dasiwa", "futa_on_male") == {
+        "id": "futa_on_male", "label": "Futa on male",
+        "trigger": "flaccid futa, futa on male, futa with male, futanari",
+        "files": [{"lora": "futa_flaccid_v3.safetensors", "strength": 0.5},
+                  {"lora": "futa_on_male_il_v2.safetensors", "strength": 1.0}]}
 
 
 def test_a_model_this_checkout_does_not_know_records_the_boxes_lora_and_negative():
@@ -4407,15 +4485,14 @@ def test_the_models_the_notebook_chose_are_what_the_panel_lists():
     is the plain id: nothing carries a `recipe:` prefix any more (madde 237)."""
     rows = list_models(["nova3dcg", "dasiwa"])
 
-    assert rows == [{"value": "nova3dcg", "label": "Nova 3DCG XL"},
-                    {"value": "dasiwa", "label": "DaSiWa Illustrious | Anime"}]
+    assert [row["value"] for row in rows] == ["nova3dcg", "dasiwa"]
+    assert rows[0] == {"value": "nova3dcg", "label": "Nova 3DCG XL"}
 
 
 def test_a_model_the_notebook_did_not_choose_is_not_offered():
     """A lora can bring a checkpoint onto the disk with it, so reading the disk would offer rows the
     user never ticked."""
-    assert list_models(["dasiwa"]) == [
-        {"value": "dasiwa", "label": "DaSiWa Illustrious | Anime"}]
+    assert [row["value"] for row in list_models(["dasiwa"])] == ["dasiwa"]
 
 
 def test_an_unknown_model_id_is_dropped_and_takes_nothing_with_it():
@@ -4613,3 +4690,45 @@ def test_the_writer_is_told_which_mode_the_job_is_in():
              lambda: "t", "düğün", writers={layers.VIDEO: writer})()
 
     assert writer.modes == ["loop"]
+
+
+REFUSED = "kayıt reddedildi"
+
+
+class DriveFull(FakeStore):
+    """A store whose saves the storage door refuses (madde 497) -- no room left, or the mount gone.
+    The door's sentence itself is test_storage.py's; here it only has to reach the screen as is."""
+
+    def save(self, project, filename, data):
+        raise StorageError(REFUSED)
+
+
+def test_a_photo_drive_refuses_stops_the_queue_with_its_sentence_and_is_not_done():
+    """Madde 497: the screen shows the halted queue with the door's sentence as it is, and the frame
+    whose file never landed has no done line -- it stays owed and is drawn again on resume."""
+    record, runner, generator = FakeRecord(), sync_runner(), FakeGenerator()
+
+    run_batch(runner, DriveFull(), generator, text='["ilk", "ikinci"]', variants=1,
+              record=record)
+
+    state = runner.status()
+    assert state["status"] == "error"
+    assert state["error"] == REFUSED
+    assert record.statuses("düğün") == {}
+    # The work stopped at the first frame: the second was never drawn.
+    assert [call[0] for call in generator.calls] == ["ilk"]
+
+
+def test_a_video_drive_refuses_stops_the_queue_with_its_sentence_and_is_not_done():
+    _, record, plan_store = video_job_project(job_prompt="kadın dönüyor")
+    store = DriveFull()
+    store.files["0_a.png"] = b"PNG"
+    runner = sync_runner()
+
+    resume_batch(runner, store, record, plan_store, {layers.VIDEO: FakeGenerator()},
+                 lambda: "t", "düğün")
+
+    state = runner.status()
+    assert state["status"] == "error"
+    assert state["error"] == REFUSED
+    assert "video" not in record.slots("düğün")["0_a"]

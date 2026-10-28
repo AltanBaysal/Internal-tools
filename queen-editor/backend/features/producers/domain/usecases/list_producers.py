@@ -4,9 +4,8 @@ Installed means every row of the producer's declared group is answered. A row as
 questions and its shape says which: a named row asks for that file, a row naming a kind asks
 whether there is anything of that kind, and a row of alternatives asks whether one of them is here
 whole. The photo group's model is the third sort: any checkpoint -- the user's pick since Madde 140
--- or every file of Krea 2 Turbo (madde 482). A kind with no group is not
-installed -- which is the rule the engine already applies when it refuses to dispatch a job type
-nobody can do.
+-- or every file of Krea 2 Turbo (madde 482). A kind with no group is not installed -- which is the
+rule the engine already applies when it refuses to dispatch a job type nobody can do.
 
 A row says nothing about installing, because the app does not install: the models come down in the
 Colab notebook, before the app starts (FOUNDATION 9). Reading the disk is the whole of what this

@@ -451,9 +451,9 @@ def test_every_file_the_app_renders_with_is_one_the_notebook_can_fetch():
     checkpoints = _cell("PHOTO_CHECKPOINTS = [")
     source = _source()
 
-    # Krea has no checkpoint: its graph's files are held to the notebook through the photo group
-    # (test_every_file_the_panel_counts_is_fetched_by_the_notebook), and the group to the graph in
-    # test_workflow_asset.
+    # Krea has no checkpoint: its graph's and box's files are held to the notebook
+    # through the photo group (test_every_file_the_panel_counts_is_fetched_by_the_notebook), and the
+    # group to the graphs in test_workflow_asset.
     for model in [model for model in models if "checkpoint" in model]:
         assert model["checkpoint"] in checkpoints, \
             f"{model['id']}: modelin checkpoint'i defterde yok — {model['checkpoint']}"
@@ -587,6 +587,16 @@ def test_the_notebook_fetches_snofs_by_its_version_through_the_mirror():
     assert "snofs_krea_v1_5.safetensors" not in MIRRORLESS
 
 
+def test_the_notebook_fetches_translucent_penetration_s_krea_version_through_the_mirror():
+    """Madde 499: v5+Krea2, Civitai version 3117012, under a name of ours -- Civitai's has a "+" --
+    with Krea's other files, through the mirror like every Civitai file the app keeps."""
+    from colab.downloads import MIRRORLESS
+
+    assert re.search(r'\(\s*3117012,\s*LORA,\s*"translucent_penetration_v5_krea2\.safetensors",',
+                     _listing("CIVITAI_KREA2")), "CIVITAI_KREA2'de Slime'ın Krea satırı yok"
+    assert "translucent_penetration_v5_krea2.safetensors" not in MIRRORLESS
+
+
 def test_krea_s_files_come_only_with_its_box():
     """Reached through the photo lists, so photo's box and Krea's both have to be ticked."""
     cell = _cell("# === Target folders ===")
@@ -599,11 +609,11 @@ def test_krea_s_files_come_only_with_its_box():
 
 
 def test_the_disk_estimate_counts_krea_when_it_is_ticked():
-    """Its four files are 20,551,370,926 bytes, about 19.1 GiB."""
+    """Its five files are 20,786,074,662 bytes, about 19.4 GiB."""
     assert "+ (20 if PHOTO_KREA2 else 0)" in _cell("PHOTO_GIB ="), "Disk hesabı Krea'yı saymıyor"
 
 
-def test_the_models_cell_shows_krea_s_folders():
+def test_the_models_cell_shows_the_folders_krea_fills():
     cell = _cell("# === Target folders ===")
 
     for folder in ("diffusion_models", "vae", "text_encoders"):
@@ -612,9 +622,67 @@ def test_the_models_cell_shows_krea_s_folders():
     assert "INSTALL_KREA2 = INSTALL_PHOTO and PHOTO_KREA2" in cell
 
 
-def test_the_clone_checks_for_the_krea_graph():
-    assert "workflow_photo_krea2_api.json" in _cell("# === Clone ==="), \
-        "Klon Krea'nın grafiğini aramıyor"
+def test_the_clone_checks_for_every_graph_that_ships_and_no_other():
+    """A graph the clone does not look for is one a run can miss; one it looks for that no longer
+    ships stops every run."""
+    clone = _cell("# === Clone ===")
+    listed = set(re.findall(r'"(workflow_[^"]+\.json)"', clone))
+    shipped = {name for name in os.listdir(os.path.join(TOOL, "assets")) if name.endswith(".json")}
+
+    assert listed == shipped, f"Klonun aradığı: {sorted(listed)}, assets'te: {sorted(shipped)}"
+
+
+def test_qwen_is_gone_from_the_notebook():
+    """Madde 508, the user's words: "qweni kaldıralım iyi bir şey üretmiyor gereksiz kalabalık". A
+    box left behind would still bring ~17 GiB down for a model the app no longer offers. Krea's and
+    H3's Qwen3-VL encoders and Krea's Qwen Image VAE are theirs, and stay."""
+    source = _source()
+
+    for leftover in ("PHOTO_QWEN21TURBO", "qwen21turbo", "HF_QWEN", "CIVITAI_QWEN", "INSTALL_QWEN",
+                     "Comfy-Org/Qwen-Image-2.1", "qwen_image_2.1", "qwen3vl_8b",
+                     "translucent_penetration_v5_qwen_image_2_1", "3370853"):
+        assert leftover not in source, f"Defterde kaldırılan Qwen'den iz kaldı: {leftover}"
+
+
+# DaSiWa's two futa loras (madde 501): the user's picks from the trial, for DaSiWa alone.
+
+
+def test_the_notebook_fetches_dasiwa_s_futa_loras_by_their_versions_through_the_mirror():
+    """Flaccid Futa v3.0 IL (2698395) and Futa on Male IL v2 (2066157), under the names the trial
+    saved them by. Kept now, so through the mirror like every Civitai file the app keeps."""
+    from colab.downloads import MIRRORLESS
+
+    listing = _listing("CIVITAI_DASIWA")
+    for version, name in ((2698395, "futa_flaccid_v3.safetensors"),
+                          (2066157, "futa_on_male_il_v2.safetensors")):
+        assert re.search(rf'\(\s*{version},\s*LORA,\s*"{re.escape(name)}",', listing), \
+            f"CIVITAI_DASIWA'da {name} satırı yok:\n{listing}"
+        assert name not in MIRRORLESS
+
+
+def test_dasiwa_s_loras_come_only_with_its_box():
+    """Neither draws well on Nova (the user's trial), so a run without DaSiWa does not take them."""
+    assert "+ (CIVITAI_DASIWA if PHOTO_DASIWA else [])" in _cell("# === Target folders ==="), \
+        "CIVITAI_DASIWA DaSiWa'nın kutusunun arkasında değil"
+
+
+def test_the_disk_estimate_counts_dasiwa_s_loras_when_it_is_ticked():
+    """228,460,108 and 228,482,300 bytes, about 0.43 GiB, rounded up as Krea's are."""
+    assert "+ (1 if PHOTO_DASIWA else 0)" in _cell("PHOTO_GIB ="), \
+        "Disk hesabı DaSiWa'nın LoRA'larını saymıyor"
+
+
+def test_every_file_a_checkpoint_s_own_box_lays_is_one_the_notebook_can_fetch():
+    """DaSiWa's box draws on the photo graph, whose files the photo group does not name one by one
+    (Krea's are held through it), so its files are held to the notebook here."""
+    models, _loras = _catalog()
+    source = _source()
+
+    for model in [model for model in models if "checkpoint" in model]:
+        for row in model.get("loras", []):
+            for file in row["files"]:
+                assert file["lora"] in source, \
+                    f"{model['id']} / {row['id']}: LoRA defterde yok — {file['lora']}"
 
 
 def test_the_models_cell_lists_the_detailer_s_folders():

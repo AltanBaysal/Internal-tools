@@ -31,7 +31,7 @@ cell, no shared file, no shared Drive folder. What we inherit is knowledge, not 
 | MMAudio's settings — architecture, fine-tune, steps, cfg, solver, negative, chunk lengths — written into our own files | Importing anything from `mmaudio_generate.ipynb`, or running it. Sound is the one engine we call as a library rather than through ComfyUI ([FOUNDATION 6](FOUNDATION.md)) |
 | Setup machinery — the custom nodes, headless ComfyUI, the model downloads — taken from those notebooks, because it is proven, and written into `colab/`, where it runs under test | Running or importing their cells, or reading a file they own. A copy is not a dependency; its cost is that the two notebooks are maintained separately |
 | Which model files each pipeline needs: the names into `features/producers/` so the panel can answer whether they are here, the addresses into `queeneditor.ipynb` where they are fetched ([FOUNDATION 9](FOUNDATION.md)) | Two places knowing one address. The app carries no URL at all — a producer's group is a reading list, and reading it is all the app does with it |
-| Proven behaviour: `/prompt` → `/history` → `/view`, and the idea that a failure is either the frame's or the run's | Copying those functions — we write them into our own layers. The stop rule itself is ours: the same frame is retried three times, not three frames in a row ([Madde 8](../docs/specs/2026-08-09-queen-editor-v4-madde-8-durma-kurali-design.md)) |
+| Proven behaviour: `/prompt` → `/history` → `/view`, and the idea that a failure is either the frame's or the run's | Copying those functions — we write them into our own layers. The stop rule itself is ours: the same frame is retried three times, not three frames in a row ([Madde 8](../docs/arsiv/specs/2026-08-09-queen-editor-v4-madde-8-durma-kurali-design.md)) |
 
 Every direct subfolder of our Drive root is a project, so the root must be ours alone: point it at
 the notebook's folder and its `output/` shows up as a phantom project card. The one exception is
@@ -82,10 +82,18 @@ exports' (`main.py`): every read and write of a root goes through its door, the 
 outside the process reads included — ffmpeg, ffprobe and Flask serving a file are
 handed a path by `Storage.path`, never one built by hand. What stays outside is the machine's own
 scratch space (`tempfile`, an export's pieces). Its rules, each because of how Colab's Drive mount
-fails ([madde 472](../docs/specs/2026-10-20-queen-editor-m472-storage-design.md)):
+fails ([madde 472](../docs/arsiv/specs/2026-10-20-queen-editor-m472-storage-design.md)):
 - **The mount is checked before every operation:** the root is stat'ed once and its device compared
   with the one it had on first use (not at construction, which touches no disk). A failed stat, a
   missing root or another device stops the operation with the OS's own words.
+- **Every write asks for room first** — a save and an appended line alike: the root's free space
+  against the bytes about to be written. Too little stops the write before anything is written,
+  with the door's own sentence carrying the two numbers the mount reported. Google's own
+  `flush_and_unmount` shows a write can still be waiting to reach Google after it returned, and on a
+  full Drive files the screen showed as saved were lost
+  ([madde 497](../docs/arsiv/specs/2026-10-27-queen-editor-m497-drive-kayit-kontrolu-design.md)). That
+  DriveFS reports the account's quota as the mount's free space is unverified until the user's
+  Colab trial; a push that fails after the write returned is not seen.
 - **A save is whole or absent:** a temporary file with a recognisable prefix in the target's own
   folder, `fsync`, then `os.replace`. Listings skip the prefix. A save returning is what "saved"
   means. The two records that grow line by line, `photos.jsonl` and `chats.jsonl`, are appended to,

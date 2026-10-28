@@ -28,8 +28,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 PHOTO_GRAPH = config.WORKFLOW_PATH
 
 # Every graph config knows the way to -- the four it names, in one place.
-GRAPHS = (config.WORKFLOW_PATH, config.KREA2_WORKFLOW_PATH, config.H3_VIDEO_WORKFLOW_PATH,
-          config.H3_VIDEO_FIRST_LAST_WORKFLOW_PATH)
+GRAPHS = (config.WORKFLOW_PATH, config.KREA2_WORKFLOW_PATH,
+          config.H3_VIDEO_WORKFLOW_PATH, config.H3_VIDEO_FIRST_LAST_WORKFLOW_PATH)
 
 
 def test_no_graph_is_left_in_the_tool_root():

@@ -17,12 +17,14 @@ the graphs load by, so a rename here has to follow the graph rather than the sou
 HF_MMAUDIO_NSFW = "mmaudio_large_44k_nsfw_gold_8.5k_final_fp16.safetensors"
 
 # What Krea 2 Turbo's graph loads (madde 482), every one by name: the int8 DiT, its Qwen3-VL encoder,
-# Qwen Image's VAE and SNOFS, which the graph switches on.
+# Qwen Image's VAE and SNOFS, which the graph switches on -- and Translucent Penetration's Krea
+# version, which its lora box lays over SNOFS (madde 499).
 KREA2_FILES = [
     {"folder": "diffusion_models", "name": "krea2_turbo_int8_convrot.safetensors"},
     {"folder": "text_encoders", "name": "qwen3vl_4b_fp8_scaled.safetensors"},
     {"folder": "vae", "name": "qwen_image_vae.safetensors"},
     {"folder": "loras", "name": "snofs_krea_v1_5.safetensors"},
+    {"folder": "loras", "name": "translucent_penetration_v5_krea2.safetensors"},
 ]
 
 GROUPS = {
@@ -35,12 +37,15 @@ GROUPS = {
         # model and every one of them is empty by default. A checkpoint is a kind rather than a
         # file: the graph renders with whichever it was handed, and the panel asks whether there is
         # anything to hand it. Naming one made the panel call the producer uninstalled for anyone
-        # who picked a different model. Krea is the other kind (madde 482): a graph of its own,
-        # whose files all have to be here.
+        # who picked a different model. Krea (madde 482) is the other kind: a graph of its own, whose
+        # files all have to be here.
         {"any": [[{"folder": "checkpoints", "suffix": ".safetensors"}], KREA2_FILES]},
         # Both loras come down whichever models were ticked: either can go over any checkpoint, and
         # hanging the panel's count on the choice would make "installed" mean a different set of
         # files on every machine. A Krea-only run takes them too (~2 GiB with the three below).
+        # DaSiWa's two futa loras (madde 501) come down with DaSiWa's box alone, so they are not
+        # counted here, as no one checkpoint is; a run that ticked DaSiWa and did not get them
+        # stopped in the notebook's download cell.
         {"folder": "loras", "name": "USNR_STYLE_ILL_V1_lokr3-000024.safetensors"},
         {"folder": "loras", "name": "translucent_penetration_v5.safetensors"},
         {"folder": "upscale_models", "name": "4x_foolhardy_Remacri.pth"},

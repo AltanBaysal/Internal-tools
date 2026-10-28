@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
 import { Mono, Note } from "../../vendor/kit.jsx";
+import { askPermission } from "../idle/notification.js";
 import InstallCard from "../producers/InstallCard.jsx";
 import { PhotoGlyph } from "./glyphs.jsx";
 import { FIRST_ORIENTATION, OrientationSegment } from "./orientation.jsx";
@@ -9,6 +10,12 @@ import { FIRST_ORIENTATION, OrientationSegment } from "./orientation.jsx";
 const LABEL = { color: "var(--ink-2)", letterSpacing: ".08em", textTransform: "uppercase" };
 
 const PLACEHOLDER = '["ilk prompt", "ikinci prompt"]';
+
+// How small the prompt block may get: its label and about three lines of the box. The box gives way
+// to whatever stands under it, and a refusal card with the server's words under it (madde 497) once
+// squeezed it to 22 px at 1280×720, clipping the one line it held. Past this floor the panel
+// scrolls instead, which it already does (SidePanel's PANEL).
+const PROMPT_FLOOR = 96;
 
 const MAX_VARIANTS = 26;
 // What the box starts at in a project that has never saved a count. Two rather than four (İstek 8):
@@ -38,6 +45,10 @@ const REMEMBERED = new Map();
  * record carries a number that may be null, and a model and a lora that may be empty -- an empty
  * box is filled with the server's first row once the list is here. An orientation that is empty --
  * a record from before it was kept -- opens on the first one (madde 477).
+ *
+ * The lora box keeps a pick per list (madde 499), and the record holds one lora: the last one sent.
+ * Which box it belongs to takes the model list to answer, so it is kept as it came (`saved`) and
+ * read where the box is drawn; `picks` holds only what was picked on this visit.
  */
 function opening(project, settings) {
   const draft = REMEMBERED.get(project);
@@ -46,10 +57,20 @@ function opening(project, settings) {
     prompts: settings.prompts,
     negative: settings.negative,
     model: settings.model || "",
-    lora: settings.lora || "",
+    picks: {},
+    saved: { model: settings.model || "", lora: settings.lora || "" },
     orientation: settings.orientation || FIRST_ORIENTATION,
     variants: settings.variants === null ? FIRST_VARIANTS : String(settings.variants),
   };
+}
+
+// The key of the shared lora box: the server's `loras` list. A model whose row carries a box keys its
+// pick by its own value (madde 499).
+const SHARED = "";
+
+/** Which box a model's pick is kept under. */
+function boxOf(row) {
+  return row?.loras ? row.value : SHARED;
 }
 
 /** What the box may hold while it is being typed in.
@@ -90,36 +111,34 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
   const [prompts, setPrompts] = useState(boxes.prompts);
   const [negative, setNegative] = useState(boxes.negative);
   const [model, setModel] = useState(boxes.model);
-  const [lora, setLora] = useState(boxes.lora);
+  // What was picked in each lora box on this visit, by boxOf; a box nobody touched has no key.
+  const [picks, setPicks] = useState(boxes.picks);
   const [orientation, setOrientation] = useState(boxes.orientation);
   const [variants, setVariants] = useState(boxes.variants);
   const [submitting, setSubmitting] = useState(false);
   // How many frames the last submission added, straight from the server; null once it has faded.
   const [added, setAdded] = useState(null);
-  const [refused, setRefused] = useState(false);
+  // The server's words for the last press's refusal, or null. Kept here rather than read off
+  // `error`, which the next good status poll clears while the refusal still stands (madde 497).
+  const [refused, setRefused] = useState(null);
   const fade = useRef(null);
 
   useEffect(() => () => clearTimeout(fade.current), []);
 
   // Whatever the boxes hold is what a later mount starts from. One effect rather than a write in
-  // each of the setters: the model and lora boxes have a second writer -- each fills itself from
-  // the server's list when nothing was saved -- and a store written in six places would be six
-  // chances to forget one.
+  // each of the setters: the model box has a second writer -- it fills itself from the server's
+  // list when nothing was saved -- and a store written in six places would be six chances to forget
+  // one. The record's lora goes with it, for the boxes nobody touched.
   useEffect(() => {
-    REMEMBERED.set(project, { prompts, negative, model, lora, orientation, variants });
-  }, [project, prompts, negative, model, lora, orientation, variants]);
+    REMEMBERED.set(project, { prompts, negative, model, picks, saved: boxes.saved, orientation,
+                              variants });
+  }, [project, prompts, negative, model, picks, boxes.saved, orientation, variants]);
 
   // Nothing saved yet: the field has to show a real choice rather than a blank, so the first row
   // the server lists is taken. Only ever fills an empty box -- a saved choice is never moved.
   useEffect(() => {
     if (!model && models && models.length) setModel(models[0].value);
   }, [models, model]);
-
-  // The same for the lora, and the first row is the default by the server's order (madde 238):
-  // what the box shows is then what is sent. Boş is a value of its own, so a pick of it stays.
-  useEffect(() => {
-    if (!lora && loras && loras.length) setLora(loras[0].value);
-  }, [loras, lora]);
 
   const loadingModels = models === null;
   // A saved pick the server no longer offers stays selected: quietly sliding the user onto
@@ -130,19 +149,35 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
   // The lost pick is drawn under its own value: an id is a poor label, and inventing a
   // prettier one for a row nobody offers any more would be inventing what it used to be called.
   const options = gone ? [{ value: model, label: model }, ...models] : (models || []);
-  // The lora box on the model box's terms, without its note: whether a lost pick is still good is
-  // the server's to say when the batch is sent (the user's call, madde 238).
-  const loadingLoras = loras === null;
-  const loraGone = Boolean(lora) && Boolean(loras) && loras.length > 0
-    && !loras.some((row) => row.value === lora);
-  const loraOptions = loraGone ? [{ value: lora, label: lora }, ...loras] : (loras || []);
-  // A model drawn with its own graph says so on its row: which lora that graph has, and that it
-  // takes no negative (madde 486). The boxes then show that lora and no negative, while their own
-  // values stay as the user left them -- they are what a model on the boxes' terms gets back, and
-  // what goes with the request; what Krea is drawn with is the server's to record.
+  // A model whose row carries a box is drawn with that box, and a row may say its model takes no
+  // negative (madde 486, 499). The panel then shows that box, and no negative where the row says so;
+  // the negative typed stays for a model that takes one, and each box keeps its own pick (madde 499).
   const chosen = (models || []).find((row) => row.value === model);
-  const ownLora = chosen?.lora || null;
+  const ownLoras = chosen?.loras || null;
   const takesNegative = chosen?.negative !== false;
+  const box = boxOf(chosen);
+  // The record's lora is the pick of the box it was sent from: the saved model's own box when that
+  // box holds it, the shared one otherwise -- an old Krea project's settings carry Nova's Slime.
+  const savedRow = (models || []).find((row) => row.value === boxes.saved.model);
+  const savedBox = savedRow?.loras?.some((row) => row.value === boxes.saved.lora)
+    ? savedRow.value : SHARED;
+  const held = box in picks ? picks[box] : (box === savedBox ? boxes.saved.lora : "");
+  // The shared box on the model box's terms, without its note: whether a lost pick is still good
+  // is the server's to say when the batch is sent (the user's call, madde 238). Nothing picked
+  // shows the first row, the default by the server's order, and Boş is a value of its own.
+  const loadingLoras = loras === null;
+  const loraGone = Boolean(held) && Boolean(loras) && loras.length > 0
+    && !loras.some((row) => row.value === held);
+  const loraOptions = loraGone ? [{ value: held, label: held }, ...loras] : (loras || []);
+  // An own box shows its first row for a pick it does not hold, the way the server draws it
+  // (catalog.drawn_with). Either way, what the box shows is what is sent.
+  const lora = ownLoras
+    ? (ownLoras.some((row) => row.value === held) ? held : ownLoras[0].value)
+    : (held || (loras && loras.length ? loras[0].value : ""));
+
+  function pickLora(e) {
+    setPicks((was) => ({ ...was, [box]: e.target.value }));
+  }
 
   const perPrompt = Number(variants);
   // What the server blamed, if it blamed anything. A named field means the request never reached
@@ -157,7 +192,7 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
   // belong to the try that just ended, and leaving either behind would put a stale answer under a
   // button that is about to be pressed again.
   function clearAnswers() {
-    setRefused(false);
+    setRefused(null);
     if (errorField) onClearError();
   }
 
@@ -181,9 +216,11 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
   }
 
   function handleAdd() {
+    // Here, inside the click: the browser asks for notifications only then (madde 498).
+    askPermission();
     setSubmitting(true);
     setAdded(null);
-    setRefused(false);
+    setRefused(null);
     clearTimeout(fade.current);
     onGenerate({
       prompts,
@@ -198,7 +235,7 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
           setAdded(result.added);
           fade.current = setTimeout(() => setAdded(null), CONFIRM_MS);
         } else {
-          setRefused(true);
+          setRefused(result?.error ?? null);
         }
       })
       // The list is deliberately not cleared: what the user typed must not disappear beyond
@@ -240,16 +277,16 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
       {/* Under the model, because it finishes what the model box started: one lora laid over the
           checkpoint, or Boş. One pick and no more, the user's words (madde 237). A list that could
           not be read leaves the button alone: the pick the box holds goes as it is, and the server
-          says whether it is good (madde 238). A model with a lora of its own shows that one, and
-          it is no choice. */}
+          says whether it is good (madde 238). A model with a box of its own shows that one
+          (madde 499). */}
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         <Mono size={11} style={LABEL}>LoRA</Mono>
-        <select className="wf-input" aria-label="LoRA" value={ownLora ? ownLora.value : lora}
-                disabled={Boolean(ownLora) || loadingLoras || !loraOptions.length}
-                onChange={(e) => setLora(e.target.value)}
+        <select className="wf-input" aria-label="LoRA" value={lora}
+                disabled={!ownLoras && (loadingLoras || !loraOptions.length)}
+                onChange={pickLora}
                 style={{ fontSize: 12.5, color: "var(--ink)", cursor: "pointer" }}>
-          {ownLora ? (
-            <option value={ownLora.value}>{ownLora.label}</option>
+          {ownLoras ? (
+            ownLoras.map((row) => <option key={row.value} value={row.value}>{row.label}</option>)
           ) : loadingLoras ? (
             <option value="">yükleniyor…</option>
           ) : loraOptions.length ? (
@@ -260,7 +297,8 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
         </select>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minHeight: 0 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1,
+                    minHeight: PROMPT_FLOOR }}>
         <Mono size={11} style={LABEL}>Prompt listesi</Mono>
         <textarea
           className="wf-input"
@@ -334,9 +372,10 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
             {fieldError}
           </Note>
         ) : refused ? (
-          <Note size={12} style={{ color: "var(--danger)", textAlign: "center" }}>
-            Kuyruğa eklenemedi — tekrar dene
-          </Note>
+          // What was attempted as the heading, the server's own words under it -- a full Drive
+          // refusing the settings write, or the queue refusing the batch (madde 497). A fixed
+          // "tekrar dene" said nothing about why, and trying again changes nothing on a full Drive.
+          <StatusErrorCard text="Kuyruğa eklenemedi" raw={refused} />
         ) : busyElsewhere ? (
           <Note size={12} style={{ color: "var(--ink-3)" }}>
             Üretim sürüyor: {job.project} — bitmesini bekle.

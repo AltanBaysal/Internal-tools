@@ -82,6 +82,17 @@ describe("GeneratePanel — the button", () => {
     expect(screen.getByText("Kuyruğa ekle").closest("button").disabled).toBe(true);
   });
 
+  it("asks the browser for notifications on the press, inside the click (madde 498)", async () => {
+    // The browser asks only inside a click, and only while it has no answer yet.
+    const requestPermission = vi.fn(() => Promise.resolve("granted"));
+    vi.stubGlobal("Notification", { permission: "default", requestPermission });
+    renderPanel();
+
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    expect(requestPermission).toHaveBeenCalledTimes(1);
+  });
+
   it("lets go of it once the group has landed", () => {
     renderPanel({ producer: { id: "photo", name: "Fotoğraf üreticisi", installed: true } });
 
@@ -277,50 +288,137 @@ describe("GeneratePanel — the lora field (madde 237, 238)", () => {
   });
 });
 
-// Madde 486: Krea is drawn with its own graph's lora and no negative, and its row says so -- the
-// panel reads the row, never the model's id.
-const KREA = { value: "krea2", label: "Krea 2 Turbo",
-               lora: { value: "snofs", label: "SNOFS" }, negative: false };
+// Madde 486, 499: Krea is drawn with a lora box of its own and no negative, and its row says so --
+// the panel reads the row, never the model's id.
+const KREA = { value: "krea2", label: "Krea 2 Turbo", negative: false,
+               loras: [{ value: "snofs", label: "SNOFS" },
+                       { value: "snofs_slime", label: "SNOFS + Slime" },
+                       { value: "none", label: "Boş" }] };
+// Madde 501: DaSiWa's box is the shared one and two futa picks, and DaSiWa takes a negative, so its
+// row carries a box and nothing about the negative -- as the server lists it.
+const DASIWA = { value: "dasiwa", label: "DaSiWa Illustrious | Anime",
+                 loras: [{ value: "usnr", label: "USNR" }, { value: "slime", label: "Slime" },
+                         { value: "futa", label: "Futa" },
+                         { value: "futa_on_male", label: "Futa on male" },
+                         { value: "none", label: "Boş" }] };
+const ALL = [MODELS[0], DASIWA, KREA];
+const rows = () => [...loraBox().options].map((o) => o.textContent);
+const queue = () => act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
-describe("GeneratePanel — Krea's own lora and no negative (madde 486)", () => {
-  it("shows Krea's lora alone, as no choice, and no negative box", () => {
-    renderPanel({ models: [...MODELS, KREA], settings: { ...SETTINGS, model: "krea2" } });
+describe("GeneratePanel — Krea's own lora box and no negative (madde 486, 499)", () => {
+  it("offers Krea's three, opens on SNOFS, and draws no negative box", () => {
+    renderPanel({ models: ALL, settings: { ...SETTINGS, model: "krea2" } });
 
-    expect([...loraBox().options].map((o) => o.textContent)).toEqual(["SNOFS"]);
+    expect(rows()).toEqual(["SNOFS", "SNOFS + Slime", "Boş"]);
     expect(loraBox().value).toBe("snofs");
-    expect(loraBox().disabled).toBe(true);
+    expect(loraBox().disabled).toBe(false);
     expect(screen.queryByText("Negatif prompt")).toBeNull();
     // The orientation is still there: it is Krea's too.
     expect(screen.getByText("Yön")).toBeTruthy();
   });
 
-  it("gives both boxes back on the way to Nova, with what the user had in them", () => {
-    renderPanel({ models: [...MODELS, KREA],
-                  settings: { ...SETTINGS, negative: "bulanık", lora: "slime" } });
+  it("sends the Krea pick", async () => {
+    const onGenerate = vi.fn().mockResolvedValue({ added: 4 });
+    renderPanel({ onGenerate, models: ALL, settings: { ...SETTINGS, model: "krea2" } });
+
+    fireEvent.change(loraBox(), { target: { value: "snofs_slime" } });
+    await queue();
+
+    expect(loraBox().value).toBe("snofs_slime");
+    expect(onGenerate).toHaveBeenCalledWith(expect.objectContaining({
+      model: "krea2", lora: "snofs_slime",
+    }));
+  });
+
+  it("sends SNOFS when Krea's box was left alone", async () => {
+    // What the box shows is what goes.
+    const onGenerate = vi.fn().mockResolvedValue({ added: 4 });
+    renderPanel({ onGenerate, models: ALL, settings: { ...SETTINGS, model: "krea2" } });
+
+    await queue();
+
+    expect(onGenerate).toHaveBeenCalledWith(expect.objectContaining({ lora: "snofs" }));
+  });
+
+  it("keeps each box's pick on the way between models", () => {
+    renderPanel({ models: ALL, settings: { ...SETTINGS, negative: "bulanık", lora: "slime" } });
 
     fireEvent.change(modelBox(), { target: { value: "krea2" } });
     expect(screen.queryByDisplayValue("bulanık")).toBeNull();
+    fireEvent.change(loraBox(), { target: { value: "snofs_slime" } });
 
     fireEvent.change(modelBox(), { target: { value: "nova3dcg" } });
     expect(screen.getByText("Negatif prompt")).toBeTruthy();
     expect(screen.getByDisplayValue("bulanık")).toBeTruthy();
-    expect([...loraBox().options].map((o) => o.textContent)).toEqual(["USNR", "Slime", "Boş"]);
+    expect(rows()).toEqual(["USNR", "Slime", "Boş"]);
     expect(loraBox().value).toBe("slime");
-    expect(loraBox().disabled).toBe(false);
+
+    // DaSiWa has a box of its own since madde 501, and so a pick of its own: its first row until one
+    // is made there.
+    fireEvent.change(modelBox(), { target: { value: "dasiwa" } });
+    expect(loraBox().value).toBe("usnr");
+    fireEvent.change(loraBox(), { target: { value: "futa" } });
+
+    fireEvent.change(modelBox(), { target: { value: "krea2" } });
+    expect(loraBox().value).toBe("snofs_slime");
+    fireEvent.change(modelBox(), { target: { value: "nova3dcg" } });
+    expect(loraBox().value).toBe("slime");
+    fireEvent.change(modelBox(), { target: { value: "dasiwa" } });
+    expect(loraBox().value).toBe("futa");
   });
 
-  it("still sends the boxes' own values, so the project keeps them for Nova", async () => {
-    // What Krea is drawn with is the server's to record; the request carries what the user has in
-    // the boxes, and the project's settings keep it across a reload (spec, karar 3).
-    const onGenerate = vi.fn().mockResolvedValue({ added: 4 });
-    renderPanel({ onGenerate, models: [...MODELS, KREA],
-                  settings: { ...SETTINGS, model: "krea2", negative: "bulanık", lora: "slime" } });
+  it("opens an old Krea project's Nova lora on Nova's box and Krea on SNOFS", () => {
+    // Before 499 the panel sent Nova's lora with Krea, so the settings say {krea2, slime}: Slime is
+    // Nova's pick, and Krea's box opens on its own first row.
+    renderPanel({ models: ALL, settings: { ...SETTINGS, model: "krea2", lora: "slime" } });
 
-    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+    expect(loraBox().value).toBe("snofs");
+    fireEvent.change(modelBox(), { target: { value: "nova3dcg" } });
+    expect(loraBox().value).toBe("slime");
+  });
+
+  it("opens on the Krea pick the project was last sent with", () => {
+    renderPanel({ models: ALL, settings: { ...SETTINGS, model: "krea2", lora: "snofs_slime" } });
+
+    expect(loraBox().value).toBe("snofs_slime");
+    fireEvent.change(modelBox(), { target: { value: "nova3dcg" } });
+    expect(loraBox().value).toBe("usnr");
+  });
+});
+
+describe("GeneratePanel — DaSiWa's own lora box (madde 501)", () => {
+  it("offers the shared rows and the two futa picks, opens on USNR, and keeps the negative", () => {
+    renderPanel({ models: ALL, settings: { ...SETTINGS, model: "dasiwa", negative: "bulanık" } });
+
+    expect(rows()).toEqual(["USNR", "Slime", "Futa", "Futa on male", "Boş"]);
+    expect(loraBox().value).toBe("usnr");
+    expect(screen.getByText("Negatif prompt")).toBeTruthy();
+    expect(screen.getByDisplayValue("bulanık")).toBeTruthy();
+  });
+
+  it("sends Futa on male with DaSiWa", async () => {
+    const onGenerate = vi.fn().mockResolvedValue({ added: 4 });
+    renderPanel({ onGenerate, models: ALL, settings: { ...SETTINGS, model: "dasiwa" } });
+
+    fireEvent.change(loraBox(), { target: { value: "futa_on_male" } });
+    await queue();
 
     expect(onGenerate).toHaveBeenCalledWith(expect.objectContaining({
-      model: "krea2", negative: "bulanık", lora: "slime",
+      model: "dasiwa", lora: "futa_on_male",
     }));
+  });
+
+  it("does not offer the futa picks on Nova", () => {
+    renderPanel({ models: ALL, settings: { ...SETTINGS, model: "nova3dcg" } });
+
+    expect(rows()).toEqual(["USNR", "Slime", "Boş"]);
+  });
+
+  it("opens a DaSiWa project on the pick it was last sent with", () => {
+    // A project sent with Slime on DaSiWa before 501 says {dasiwa, slime}; DaSiWa's box holds it.
+    renderPanel({ models: ALL, settings: { ...SETTINGS, model: "dasiwa", lora: "slime" } });
+
+    expect(loraBox().value).toBe("slime");
   });
 });
 
@@ -410,23 +508,59 @@ describe("GeneratePanel — the confirmation", () => {
   });
 
   it("takes the refusal back the moment the user starts a new attempt", async () => {
-    renderPanel({ onGenerate: () => Promise.resolve(null) });
+    renderPanel({ onGenerate: () => Promise.resolve({ error: "Kuyruk dolu" }) });
 
     fireEvent.click(screen.getByText("Kuyruğa ekle"));
-    await waitFor(() => expect(screen.getByText("Kuyruğa eklenemedi — tekrar dene")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Kuyruğa eklenemedi")).toBeTruthy());
 
     fireEvent.change(promptBox(), { target: { value: '["yeni"]' } });
 
-    expect(screen.queryByText("Kuyruğa eklenemedi — tekrar dene")).toBeNull();
+    expect(screen.queryByText("Kuyruğa eklenemedi")).toBeNull();
   });
 
-  it("says one line when the queue would not take the frames", async () => {
-    renderPanel({ onGenerate: () => Promise.resolve(null) });
+  it("draws a refusal card, and no green line, when the queue would not take the frames", async () => {
+    renderPanel({ onGenerate: () => Promise.resolve({ error: "Kuyruk dolu" }) });
 
     fireEvent.click(screen.getByText("Kuyruğa ekle"));
 
-    await waitFor(() => expect(screen.getByText("Kuyruğa eklenemedi — tekrar dene")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Kuyruğa eklenemedi")).toBeTruthy());
     expect(screen.queryByText(/kuyruğa eklendi/)).toBeNull();
+  });
+
+  it("shows the server's own sentence under a refusal, not a fixed one (madde 497)", async () => {
+    // QA's case: the settings write before the batch is refused by a full Drive, and the panel
+    // used to say only "tekrar dene". The refusal brings its words with it (ProjectScreen).
+    const said = "Drive'da yer yok: /drive/düğün/settings.json için 107 bayt gerekiyor, "
+      + "Drive'ın bildirdiği boş yer 10 bayt";
+    renderPanel({ onGenerate: () => Promise.resolve({ error: said }) });
+
+    fireEvent.click(screen.getByText("Kuyruğa ekle"));
+
+    await waitFor(() => expect(screen.getByText("Kuyruğa eklenemedi")).toBeTruthy());
+    expect(screen.getByText(said)).toBeTruthy();
+    expect(screen.queryByText(/tekrar dene/)).toBeNull();
+  });
+
+  it("keeps a refused batch's own words after the poll clears the shared error", async () => {
+    // The batch itself refused -- a full Drive refusing the plan's write -- while a run of this
+    // project is going: the next good status poll clears the hook's error, and the card must not
+    // lose the sentence with it.
+    const said = "Drive'da yer yok: /drive/düğün/plan.json için 900 bayt gerekiyor";
+    const { rerender } = renderPanel({
+      error: said, onGenerate: () => Promise.resolve({ error: said }) });
+
+    fireEvent.click(screen.getByText("Kuyruğa ekle"));
+    await waitFor(() => expect(screen.getByText(said)).toBeTruthy());
+
+    rerender(
+      <GeneratePanel job={{ status: "idle" }} error={null} busyElsewhere={false}
+                     settings={SETTINGS} project="düğün" models={MODELS} loras={LORAS}
+                     modelsError={null} onGenerate={() => Promise.resolve({ error: said })}
+                     onClearError={() => {}} />,
+    );
+
+    expect(screen.getByText("Kuyruğa eklenemedi")).toBeTruthy();
+    expect(screen.getByText(said)).toBeTruthy();
   });
 });
 
@@ -548,6 +682,22 @@ describe("GeneratePanel — coming back to the form", () => {
     expect(loraBox().value).toBe("slime");
     expect(facing("Dikey").getAttribute("aria-pressed")).toBe("true");
     expect(variantBox().value).toBe("9");
+  });
+
+  it("keeps every lora box's pick, and the record's, across the step out", () => {
+    // Madde 499: a pick per box. The saved Slime was never touched and still has to come back.
+    const first = renderPanel({ models: ALL, settings: { ...SETTINGS, lora: "slime" } });
+
+    fireEvent.change(modelBox(), { target: { value: "krea2" } });
+    fireEvent.change(loraBox(), { target: { value: "none" } });
+    first.unmount();
+
+    renderPanel({ models: ALL, settings: { ...SETTINGS, lora: "slime" } });
+
+    expect(modelBox().value).toBe("krea2");
+    expect(loraBox().value).toBe("none");
+    fireEvent.change(modelBox(), { target: { value: "nova3dcg" } });
+    expect(loraBox().value).toBe("slime");
   });
 
   it("fills the boxes from the record when nothing has been typed yet", () => {

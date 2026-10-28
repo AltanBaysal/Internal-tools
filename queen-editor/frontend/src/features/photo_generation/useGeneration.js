@@ -160,8 +160,10 @@ export function useGeneration(project) {
     (form) => {
       setError(null);
       setErrorField(null);
-      // Resolves with the server's answer (it carries how many frames the queue took) or null when
-      // the queue refused it -- the panel needs to tell those two apart.
+      // Resolves with the server's answer (it carries how many frames the queue took) or, when the
+      // queue refused it, with the server's own words -- the panel needs to tell those two apart,
+      // and to keep the words: the hook's error is the poll's too, and a good poll clears it while
+      // the refusal still stands under the button (madde 497).
       return generateBatch(project, form)
         .then((body) => {
           if (!alive.current) return null;
@@ -170,9 +172,10 @@ export function useGeneration(project) {
         })
         .catch((err) => {
           if (!alive.current) return null;
-          setError(failureText(err));
+          const said = failureText(err);
+          setError(said);
           setErrorField(err.field || null);
-          return null;
+          return { error: said };
         });
     },
     [project, startPolling],

@@ -56,6 +56,26 @@ def test_the_app_comes_up_and_answers_health(import_main):
     assert response.status_code == 200
 
 
+def test_every_worker_runs_its_work_on_the_idle_watchs_threads(import_main):
+    """Madde 498: the queue, the export and the agent tell the watch when work starts and ends by
+    running it where the watch can see it -- one that ran elsewhere would be invisible to it, and
+    the question would come while it worked. The agent's wait on the user is the watch's too."""
+    main = import_main()
+
+    assert main._photo_runner._spawn == main._idle.spawn
+    assert main._export_runner._spawn == main._idle.spawn
+    assert main._agent_runner._spawn == main._idle.spawn
+    assert main._agent_runner._waiting == main._idle.waiting
+
+
+def test_the_app_comes_up_with_nothing_asked(import_main):
+    main = import_main()
+
+    response = main.app.test_client().get("/api/idle")
+
+    assert response.get_json() == {"version": 0, "asking": False}
+
+
 def test_a_root_that_is_not_there_is_nobodys_business_until_it_is_asked(import_main, monkeypatch,
                                                                          tmp_path):
     """Madde 472: building the storage door touches no disk, so the app comes up whatever the mount
@@ -210,10 +230,14 @@ def test_a_krea_frame_reaches_krea_s_graph_and_any_other_the_photo_graph(import_
     photo = main._producers[layers.PHOTO]
 
     photo.generate("kraliçe tahtta", "", 1, "krea2", "usnr")
+    photo.generate("kraliçe tahtta", "", 1, "qwen21turbo", "none")
     photo.generate("kraliçe tahtta", "", 1, "nova3dcg", "usnr")
 
-    krea, nova = sent
+    krea, qwen, nova = sent
     assert krea["53:19"]["inputs"]["value"] == "kraliçe tahtta"
+    # Madde 508: Qwen has no graph any more. A line queued before it left is a value the catalog
+    # does not know, so it reaches the photo graph as a file name, which ComfyUI refuses.
+    assert qwen["45"]["inputs"]["ckpt_name"] == "qwen21turbo"
     assert nova["45"]["inputs"]["ckpt_name"] == "nova3DCGXL_ilV90.safetensors"
 
 

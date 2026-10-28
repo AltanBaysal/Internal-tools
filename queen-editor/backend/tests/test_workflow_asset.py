@@ -162,7 +162,8 @@ def test_the_only_graphs_shipped_are_the_two_photo_ones_and_h3_s():
     """Madde 435, the user's words: "wan modelini kaldıralım queen editorden direkt kullanımıyor
     zaten". Queen Editor makes H3 videos alone, so WAN's two graphs no longer ship -- a graph left
     behind would be one nobody renders and somebody edits. Krea 2 Turbo's is the second photo graph
-    (madde 482)."""
+    (madde 482). Qwen Image 2.1 Turbo's went the same way in madde 508 (the user: "qweni
+    kaldıralım iyi bir şey üretmiyor")."""
     shipped = sorted(name for name in os.listdir(os.path.dirname(config.WORKFLOW_PATH))
                      if name.endswith(".json"))
 
@@ -369,32 +370,43 @@ def test_the_krea_graph_has_no_negative_to_write():
 
 
 def test_the_krea_graph_renders_with_snofs_switched_on():
-    """The user's workflow draws with SNOFS at 0.8, and the lora box's Illustrious loras cannot load
-    on Krea -- so this is the lora every Krea picture has."""
+    """The user's workflow draws with SNOFS at 0.8, behind the switch Boş turns off (madde 499)."""
     krea = _krea()
 
     assert (krea["53:15"]["inputs"]["lora_name"], krea["53:15"]["inputs"]["strength_model"]) == \
         ("snofs_krea_v1_5.safetensors", 0.8)
-    assert krea["53:22"]["inputs"]["switch"] == ["53:23", 0]
+    assert krea["53:15"]["inputs"]["model"] == ["53:10", 0]
+    assert krea["53:22"]["inputs"] == {"switch": ["53:23", 0], "on_false": ["53:10", 0],
+                                       "on_true": ["53:15", 0]}
     assert krea["53:23"]["inputs"]["value"] is True
 
 
-def test_the_lora_the_panel_names_for_krea_is_the_one_its_graph_loads():
-    """The LoRA box shows Krea's lora by the catalog's row (madde 486). Swapping the lora in the
-    user's workflow without the row would have the panel name a lora no Krea picture is drawn
-    with."""
+def test_krea_s_snofs_is_the_one_its_graph_loads():
+    """The producer writes SNOFS from the catalog into 53:15 (madde 499): a lora swapped in the
+    user's workflow without the row, or the row without the workflow, would draw a SNOFS the user
+    never chose."""
     from backend.features.photo_generation.domain import catalog
 
-    assert _krea()["53:15"]["inputs"]["lora_name"] == catalog.KREA2_LORA["lora"]
+    loader = _krea()["53:15"]["inputs"]
+    assert (loader["lora_name"], loader["strength_model"]) == \
+        (catalog.SNOFS_KREA["lora"], catalog.SNOFS_KREA["strength"])
+    assert catalog.KREA2_LORAS[0]["files"] == [catalog.SNOFS_KREA]
+
+
+def _box_files(loras):
+    """Every lora file an own lora box lays over its graph."""
+    return {file["lora"] for row in loras for file in row["files"]}
 
 
 def test_every_model_the_krea_graph_loads_is_krea_s_row_in_the_photo_group():
-    """The panel counts Krea as a photo model by these files, so a file the graph loads and the row
-    does not name is a panel that says ready over a render that cannot start -- and one the row names
-    and the graph does not is a download nobody uses."""
+    """The panel counts Krea as a photo model by these files, so a file the graph or its lora box
+    loads and the row does not name is a panel that says ready over a render that cannot start --
+    and one the row names and neither loads is a download nobody uses."""
+    from backend.features.photo_generation.domain import catalog
     from backend.features.producers.domain.model_groups import KREA2_FILES
 
-    assert _model_files(_krea()) == {row["name"] for row in KREA2_FILES}
+    assert _model_files(_krea()) | _box_files(catalog.KREA2_LORAS) == \
+        {row["name"] for row in KREA2_FILES}
 
 
 def test_krea_s_sizes_keep_the_video_s_shape():
@@ -410,3 +422,32 @@ def test_krea_s_sizes_keep_the_video_s_shape():
         assert pw * vh == ph * vw, f"{name}: Krea {pw}x{ph}, video {vw}x{vh} aynı oranda değil"
         assert pw % 16 == 0 and ph % 16 == 0, f"{name}: {pw}x{ph} 16'nın katı değil"
         assert (pw > ph) == (vw > vh), f"{name}: Krea'nın şekli videonunkine ters"
+
+
+def _links(node):
+    """The [node id, output] links among a node's inputs."""
+    return [value for value in node["inputs"].values()
+            if isinstance(value, list) and len(value) == 2 and isinstance(value[0], str)]
+
+
+def _hanging(graph, outputs):
+    """The nodes no output reads, walking back from the nodes of the `outputs` classes."""
+    waiting = [node_id for node_id, node in graph.items() if node["class_type"] in outputs]
+    reached = set()
+    while waiting:
+        node_id = waiting.pop()
+        if node_id not in reached:
+            reached.add(node_id)
+            waiting += [link[0] for link in _links(graph[node_id])]
+    return sorted(set(graph) - reached)
+
+
+def test_the_krea_graph_hangs_together():
+    """Krea's switches are written by the producer (madde 499), and a link naming no node, or a node
+    no output reads, is what that goes wrong as -- ComfyUI says so only on the machine."""
+    graph = _krea()
+
+    dangling = [(node_id, link) for node_id, node in graph.items() for link in _links(node)
+                if link[0] not in graph]
+    assert dangling == [], f"Var olmayan düğüme bağlantı: {dangling}"
+    assert _hanging(graph, {"SaveImage", "PreviewAny"}) == [], "Hiçbir çıkışa ulaşmayan düğüm var"

@@ -12,6 +12,12 @@ So:
 
 - Before every operation the root is stat'ed once and its device compared with the one recorded on
   first use. Any of the three failures stops the operation with the OS's own words.
+- Every write -- a save or an appended line -- first asks the mount how much room is left, and
+  stops with the door's own sentence, carrying the two numbers the mount reported, when the bytes
+  will not fit. Google's own flush_and_unmount shows a write can still be waiting to reach Google
+  after it returned here, and on a full Drive files were lost with nothing said (madde 497). That
+  DriveFS reports the account's quota as the mount's free space is unverified until the user's
+  Colab trial. A push that fails after the write returned is not seen here.
 - A save is whole or absent: written to a temporary file in the target's own folder, flushed to the
   mount, then moved over the target in one step. A save returning is what "saved" means.
 - No write opens a root or a folder directly under it; only make_dir does. Folders below those are
@@ -259,27 +265,35 @@ class Storage:
         return (info.st_mtime, info.st_size)
 
     def write_bytes(self, folder, name, data):
-        self._save(folder, name, lambda opened: opened.write(data))
+        self._save(folder, name, len(data), lambda opened: opened.write(data))
 
     def write_text(self, folder, name, text):
         self.write_bytes(folder, name, text.encode("utf-8"))
 
     def save_file(self, folder, name, source):
-        """Bring a file in from the machine's own disk -- what ffmpeg wrote there -- as one save."""
-        def copy(opened):
-            with open(source, "rb") as handle:
-                shutil.copyfileobj(handle, opened)
-        self._save(folder, name, copy)
+        """Bring in the file at `source` as one save: a piece ffmpeg cut on the machine's own disk,
+        or a photo an export copies over from the projects' root, which is on the mount too.
+
+        The source is opened once and its size read from the open handle, so a source on the mount
+        costs one trip there rather than a stat and then an open.
+        """
+        with open(source, "rb") as handle:
+            self._save(folder, name, os.fstat(handle.fileno()).st_size,
+                       lambda opened: shutil.copyfileobj(handle, opened))
 
     def append_line(self, folder, name, line):
         """Add one line to the end of the file, creating the file but never its folder.
 
         Nothing already written is rewritten, so a session that dies mid-write can lose at most the
         line it was adding -- which is why the two records that grow line by line are appended to
-        rather than saved whole. Flushed to the mount before it returns, like a save.
+        rather than saved whole. Asks for room first and is flushed to the mount before it returns,
+        like a save.
         """
-        with open(self._file(folder, name), "a", encoding="utf-8") as f:
-            f.write(line + "\n")
+        path = self._file(folder, name)
+        text = line + "\n"
+        self._room(len(text.encode("utf-8")), path)
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(text)
             f.flush()
             os.fsync(f.fileno())
 
@@ -291,9 +305,10 @@ class Storage:
         except FileNotFoundError:
             pass
 
-    def _save(self, folder, name, write):
-        """Write through a temporary file beside the target, flush it to the mount, then move it
-        over the target in one step: a reader sees the old file or the new one, never half of it.
+    def _save(self, folder, name, size, write):
+        """Write `size` bytes through a temporary file beside the target, flush it to the mount, then
+        move it over the target in one step: a reader sees the old file or the new one, never half of
+        it. The room for them is asked first, so a save that cannot fit leaves nothing behind.
 
         os.replace rather than os.rename: on Windows rename refuses a target that is already there.
 
@@ -303,6 +318,7 @@ class Storage:
         """
         parts = _parts(folder)
         target = self._file(parts, name)
+        self._room(size, target)
         directory = os.path.dirname(target)
         try:
             handle, temporary = tempfile.mkstemp(prefix=TEMP_PREFIX, dir=directory)
@@ -322,6 +338,15 @@ class Storage:
         except BaseException:
             _discard(temporary)
             raise
+
+    def _room(self, size, target):
+        """Stop unless the mount has `size` bytes free, before anything of `target` is written. The
+        root is asked: every folder under it is on the same device, which the mount check has just
+        confirmed. A failure to answer is raised as it is, never read as room."""
+        free = shutil.disk_usage(self._root).free
+        if free < size:
+            raise StorageError(f"Drive'da yer yok: {target} için {size} bayt gerekiyor, "
+                               f"Drive'ın bildirdiği boş yer {free} bayt")
 
     def _open_inside(self, parts):
         """Open the folders below the folder directly under the root, one level at a time. That

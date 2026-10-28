@@ -44,6 +44,10 @@ ones there. It records what the user asked for and decided, and specs are writte
 - A roadmap's first item raises the version its tool's screen shows to the roadmap's own, so the user
   can tell which run a screen comes from (the user, 27 Ekim — "her roadmapin başında şun uyapmanı
   istiyorum ui daki sürümü arttıralım"; "ilk görev o olsun").
+- A finished roadmap moves to `docs/arsiv/roadmaps/` with its specs, plans, research and design-needs,
+  by `git mv`, and every link to them is rewritten, so `docs/` holds only open work (the user, 27 Ekim —
+  "eklensin"; item 500). The archive repeats `docs/`'s folders, so links between two archived
+  documents stay as they are.
 - The user's approval starts the run and covers it to the end, and the user tests the roadmap once it
   is finished. So the run goes from item to item, and asks when a question comes up that nothing it
   has can settle: one question, numbered options, a recommendation.

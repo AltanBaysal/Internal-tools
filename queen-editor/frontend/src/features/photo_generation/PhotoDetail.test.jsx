@@ -409,17 +409,18 @@ describe("PhotoDetail — the layer tabs", () => {
       expect(screen.getByText("LoRA").parentElement.textContent).toContain(label);
     });
 
-  it("names Krea's own lora and draws no negative box for a Krea frame (madde 486)", async () => {
-    // Krea is drawn with its graph's lora and no negative, and its line records exactly that. The
-    // row the server lists says so; SNOFS is in no lora list, the row carries its name.
+  it("names a Krea frame's own lora and draws no negative box (madde 486, 499)", async () => {
+    // Krea is drawn with its own box's pick and no negative, and its lines record exactly that.
+    // The model's row carries its box; none of it is in the shared lora list.
     await open("P0_0", {
-      frames: [{ ...LAYERED, model: "krea2", lora: "snofs", negative: "" }],
-      models: [{ value: "krea2", label: "Krea 2 Turbo",
-                 lora: { value: "snofs", label: "SNOFS" }, negative: false }],
+      frames: [{ ...LAYERED, model: "krea2", lora: "snofs_slime", negative: "" }],
+      models: [{ value: "krea2", label: "Krea 2 Turbo", negative: false,
+                 loras: [{ value: "snofs_slime", label: "SNOFS + Slime" },
+                         { value: "none", label: "Boş" }] }],
     });
     fireEvent.click(details());
 
-    expect(screen.getByText("LoRA").parentElement.textContent).toContain("SNOFS");
+    expect(screen.getByText("LoRA").parentElement.textContent).toContain("SNOFS + Slime");
     expect(screen.queryByText("Foto negatif prompt'u")).toBeNull();
     expect(screen.getByText("Foto prompt'u")).toBeTruthy();
   });

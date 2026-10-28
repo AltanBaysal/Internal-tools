@@ -222,6 +222,23 @@ describe("useGeneration", () => {
     expect(listFrames).not.toHaveBeenCalled();
   });
 
+  it("answers a refused batch with the server's own words, its own to keep (madde 497)", async () => {
+    // The hook's error is the poll's too -- a good poll clears it -- so the panel that was pressed
+    // is handed the words with the answer rather than left to read them off shared state.
+    getStatus.mockResolvedValue({ status: "idle" });
+    listFrames.mockResolvedValue([]);
+    const refusal = new Error("Drive'da yer yok");
+    refusal.evidence = "POST /api/generate/ret\n503 SERVICE UNAVAILABLE";
+    generateBatch.mockRejectedValue(refusal);
+
+    const { result } = renderHook(() => useGeneration("ret"));
+    await settle();
+    let answer;
+    await act(async () => { answer = await result.current.generate({ prompts: "a" }); });
+
+    expect(answer).toEqual({ error: "Drive'da yer yok\nPOST /api/generate/ret\n503 SERVICE UNAVAILABLE" });
+  });
+
   it("still asks for the gallery on a path that carries none", async () => {
     getStatus.mockResolvedValue({ status: "idle" });
     listFrames.mockResolvedValue([]);

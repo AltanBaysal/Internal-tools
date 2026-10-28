@@ -81,8 +81,12 @@ Why: Colab machines are disposable, Drive is where the user already works, and a
 naming point makes renaming a one-line change.
 Consequence: every read and write of those roots goes through one door, `services/storage/`, and a save
 counts as done only once the whole file is on the mount and in place. Colab's mount can drop
-mid-session and leave writes on the machine's own disk while the screen says they were saved, so the
-door checks the mount before each operation and the error reaches the screen in the OS's own words
+mid-session and leave writes on the machine's own disk while the screen says they were saved, and a
+write can still be waiting to reach Google after it returned (Google's own `flush_and_unmount` says
+so) — on a full Drive, files were lost in silence (madde 497). So the door checks the mount before
+each operation, and the error reaches the screen in the OS's own words; and it checks the room
+before every write, refusing in its own sentence with the numbers the mount reported — which, on
+Colab, is taken to be the account's quota until the user's Colab trial confirms it
 ([CODE-STANDARD, Services](CODE-STANDARD.md#services-backendservices)).
 
 **8. No runtime dependency on `collab-toolbox/`.**

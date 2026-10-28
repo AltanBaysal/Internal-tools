@@ -97,11 +97,11 @@ def test_a_row_says_nothing_about_installing_because_the_app_does_not():
 
 
 def test_the_photo_group_carries_everything_the_graph_reads():
-    """The first row is the model, and either kind will do (madde 482): any checkpoint, the user's
-    pick since Madde 140, or all four of Krea 2 Turbo's files, which its graph loads by name. The
-    other five are named by the file itself. The face detector and SAM came back with the detailer
-    (madde 469): FaceDetailer loads them at startup, so a photo render needs them on the disk. They
-    come down with a Krea-only run too, as the group always has."""
+    """The first row is the model, and either of two kinds will do: any checkpoint, the user's pick
+    since Madde 140, or every file of Krea 2 Turbo (madde 482), which its graph and lora box load by
+    name. The other five are named by the file itself. The face detector and SAM came back with the
+    detailer (madde 469): FaceDetailer loads them at startup, so a photo render needs them on the
+    disk. They come down with a Krea-only run too, as the group always has."""
     rows = model_groups.GROUPS["photo"]
 
     assert rows[0] == {"any": [[{"folder": "checkpoints", "suffix": ".safetensors"}],
