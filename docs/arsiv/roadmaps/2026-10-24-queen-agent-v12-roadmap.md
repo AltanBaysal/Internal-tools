@@ -1,8 +1,8 @@
 # QueenAgent — Yol Haritası v12
 
-**Durum:** Bitti · 6/6 · dal `feat/queenagent-v12` · kullanıcının denemesini bekliyor
+**Tarih:** 2026-10-24 · **Koşu dalı:** `feat/queenagent-v12` · **Durum:** 6/6 · bitti; kullanıcı 28 Ekim'de denedi *(kullanıcı, 28 Ekim — "ve gerisi düzgün queen agnetı ve editoru maine mergelyebilrisn")*
 
-**Önceki sürüm:** [v11](../arsiv/roadmaps/2026-10-20-queen-agent-v11-roadmap.md) — bitti.
+**Önceki sürüm:** [v11](2026-10-20-queen-agent-v11-roadmap.md) — bitti.
 
 **Sıra: tek tek, dalga yok** *(kullanıcı, 27 Ekim — "ilk queen ediytor tasklarını yapıcaz bitincebana
 haber vericeksin queen anget tasklarına geçiçez"; "sıryaal paralel yapmicaz")*. Queen Editor v11'in

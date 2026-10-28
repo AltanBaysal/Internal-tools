@@ -2,9 +2,9 @@
 
 **Tarih:** 27 Ekim 2026 · **Madde:** [v12 yol haritası](../roadmaps/2026-10-24-queen-agent-v12-roadmap.md#v12-5),
 502 · v12-5 · **Dal:** `feat/queenagent-v12` · **Önceki:** v11'de
-[489](../arsiv/specs/2026-10-22-queen-agent-m489-version-v11-design.md) ·
-**Kurallar:** [FOUNDATION](../../queen-agent/FOUNDATION.md) ·
-[CODE-STANDARD](../../queen-agent/CODE-STANDARD.md)
+[489](../specs/2026-10-22-queen-agent-m489-version-v11-design.md) ·
+**Kurallar:** [FOUNDATION](../../../queen-agent/FOUNDATION.md) ·
+[CODE-STANDARD](../../../queen-agent/CODE-STANDARD.md)
 
 ## Ne ve neden
 

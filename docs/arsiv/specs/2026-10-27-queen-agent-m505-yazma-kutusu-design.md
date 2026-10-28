@@ -3,8 +3,8 @@
 **Tarih:** 27 Ekim 2026 · **Madde:** [v12 yol haritası](../roadmaps/2026-10-24-queen-agent-v12-roadmap.md#v12-2),
 505 · v12-2 · **Dal:** `feat/queenagent-v12` · **Önceki:**
 [504](2026-10-27-queen-agent-m504-duzenleme-kutusu-design.md) (düzenleme kutusu, `useGrowingField`) ·
-**Kurallar:** [FOUNDATION](../../queen-agent/FOUNDATION.md) ·
-[CODE-STANDARD](../../queen-agent/CODE-STANDARD.md)
+**Kurallar:** [FOUNDATION](../../../queen-agent/FOUNDATION.md) ·
+[CODE-STANDARD](../../../queen-agent/CODE-STANDARD.md)
 
 ## Ne ve neden
 

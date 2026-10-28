@@ -2,10 +2,10 @@
 
 **Tarih:** 27 Ekim 2026 · **Madde:** [v12 yol haritası](../roadmaps/2026-10-24-queen-agent-v12-roadmap.md#v12-3),
 503 · v12-3 · **Dal:** `feat/queenagent-v12` · **Önceki:** v11'de
-[492](../arsiv/specs/2026-10-22-queen-agent-m492-krea-prompts-design.md) (iki model, dört skill) ve
-[495](../arsiv/specs/2026-10-23-queen-agent-m495-skill-md-design.md) (skill'ler `.md`) ·
-**Kurallar:** [FOUNDATION](../../queen-agent/FOUNDATION.md) ·
-[CODE-STANDARD](../../queen-agent/CODE-STANDARD.md)
+[492](../specs/2026-10-22-queen-agent-m492-krea-prompts-design.md) (iki model, dört skill) ve
+[495](../specs/2026-10-23-queen-agent-m495-skill-md-design.md) (skill'ler `.md`) ·
+**Kurallar:** [FOUNDATION](../../../queen-agent/FOUNDATION.md) ·
+[CODE-STANDARD](../../../queen-agent/CODE-STANDARD.md)
 
 ## Ne ve neden
 

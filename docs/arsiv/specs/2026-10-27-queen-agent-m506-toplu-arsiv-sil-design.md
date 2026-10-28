@@ -1,8 +1,8 @@
 # Madde 506 · Projeleri toplu arşivle/sil — tasarım
 
 **Tarih:** 27 Ekim 2026 · **Madde:** [v12 yol haritası](../roadmaps/2026-10-24-queen-agent-v12-roadmap.md#v12-4),
-506 · v12-4 · **Dal:** `feat/queenagent-v12` · **Kurallar:** [FOUNDATION](../../queen-agent/FOUNDATION.md) ·
-[CODE-STANDARD](../../queen-agent/CODE-STANDARD.md)
+506 · v12-4 · **Dal:** `feat/queenagent-v12` · **Kurallar:** [FOUNDATION](../../../queen-agent/FOUNDATION.md) ·
+[CODE-STANDARD](../../../queen-agent/CODE-STANDARD.md)
 
 ## Ne ve neden
 

@@ -2,8 +2,8 @@
 
 **Tarih:** 27 Ekim 2026 · **Madde:** [v12 yol haritası](../roadmaps/2026-10-24-queen-agent-v12-roadmap.md#v12-1),
 504 · v12-1 · **Dal:** `feat/queenagent-v12` · **Sonraki:** 505 · v12-2 (yazma kutusu) aynı parçayı
-kullanır · **Kurallar:** [FOUNDATION](../../queen-agent/FOUNDATION.md) ·
-[CODE-STANDARD](../../queen-agent/CODE-STANDARD.md)
+kullanır · **Kurallar:** [FOUNDATION](../../../queen-agent/FOUNDATION.md) ·
+[CODE-STANDARD](../../../queen-agent/CODE-STANDARD.md)
 
 ## Ne ve neden
 
