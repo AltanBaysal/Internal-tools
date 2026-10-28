@@ -1,6 +1,6 @@
 # Madde 482 · Qwen Image 2.1 — nerede, nasıl denenir — araştırma
 
-**Tarih:** 20 Ekim 2026 · **Madde:** [v10 yol haritası](../arsiv/roadmaps/2026-10-20-queen-editor-v10-roadmap.md),
+**Tarih:** 20 Ekim 2026 · **Madde:** [v10 yol haritası](../roadmaps/2026-10-20-queen-editor-v10-roadmap.md),
 482 · v10-4 · **Kod yok.** Kararları kullanıcı verir; deneme ve entegrasyon onlardan sonra başlar.
 
 Kullanıcının sorusu *(20 Ekim)*: *"tamam şimdi qwen image geçelim comfy ui da yada nerede test edeceğiz
@@ -18,7 +18,7 @@ kaynağı, resmî değil · **🧮** doğrulanmış sayılardan hesaplandı · *
    Kanallar gelir getiriyorsa bu bir engel. Seçenekler aşağıda, [Açık sorular](#açık-sorular) 1'de.
    Bunu bir hukuk görüşü olarak değil, lisansın kendi cümlesi olarak okuyun.
 2. **İlk bakış için: ayrı, elle sürülen bir ComfyUI deneme defteri, Colab'da A100'de.** MiniMax H3 da
-   böyle denenmişti: önce [video_experiments/minimax-h3/manual.ipynb](../../collab-toolbox/video_experiments/minimax-h3/manual.ipynb)
+   böyle denenmişti: önce [video_experiments/minimax-h3/manual.ipynb](../../../collab-toolbox/video_experiments/minimax-h3/manual.ipynb)
    (madde 213), sonra Queen Editor'e alındı (madde 243). Defter Comfy'nin **hazır resmî şablonunu**
    açar (`image_qwen_image_2_1_t2i.json`, Turbo'su da var) ve üç dosya indirir, toplam ~17,3 GB. Hepsi
    HF'te açık, Civitai'ye ve aynaya gerek yok. Uygulamanın koduna dokunulmaz. Bu defterde bir projeden
@@ -78,7 +78,7 @@ açıldı. ✅ Kesin.
 - **Sürüm:** Hangi sürümle geldiğini resmî bir kaynakta bulamadım. ComfyUI Wiki **0.37.0 ve üstü**
   diyor 🗣️ [comfyui-wiki](https://comfyui-wiki.com/en/news/2026-09-21-qwen-image-2-1). Bizim için
   fark etmez: defter ComfyUI'yi her koşuda `master`'dan çekiyor
-  *([colab/comfy.py](../../queen-editor/colab/comfy.py), `install_comfy`: `git clone` + `git pull`)*. ✅
+  *([colab/comfy.py](../../../queen-editor/colab/comfy.py), `install_comfy`: `git clone` + `git pull`)*. ✅
 - **Hazır resmî şablonlar var** ✅ [docs.comfy.org](https://docs.comfy.org/tutorials/image/qwen/qwen-image-2-1),
   [workflow_templates](https://github.com/Comfy-Org/workflow_templates):
   - `image_qwen_image_2_1_t2i.json`: metinden resim, 25 adım, `cfg 1`, `euler` / `simple`
@@ -118,7 +118,7 @@ bunun yanına ya Turbo DiT'i (+7,26 GB) ya da Turbo LoRA'sı (+0,91 GB) gelir.
 
 - **fp8:** [unsloth/Qwen-Image-2.1-FP8](https://huggingface.co/unsloth/Qwen-Image-2.1-FP8) 🗣️. Ama
   fp8 A100'de yerel değil. Depo H3'te bu yüzden `int8_convrot`'u seçmişti
-  *([deneme-listesi.md](../../collab-toolbox/video_experiments/deneme-listesi.md))*. Qwen'de de
+  *([deneme-listesi.md](../../../collab-toolbox/video_experiments/deneme-listesi.md))*. Qwen'de de
   resmî int8 sürümü varken fp8'e gerek yok.
 - **GGUF:** resmî bir GGUF yok. Topluluktan
   [unsloth/Qwen-Image-2.1-GGUF](https://huggingface.co/unsloth/Qwen-Image-2.1-GGUF) 🗣️: Q8_0
@@ -136,14 +136,14 @@ bunun yanına ya Turbo DiT'i (+7,26 GB) ya da Turbo LoRA'sı (+0,91 GB) gelir.
 ## 3. Hız ve VRAM — Colab'ın kartında
 
 **Bizim kartlar.** Defter GPU'yu yalnızca `nvidia-smi` ile okuyor, belli bir kart istemiyor.
-Assert mesajı T4'ü öneriyor *([queeneditor.ipynb](../../queen-editor/queeneditor.ipynb), hücre 1)*.
+Assert mesajı T4'ü öneriyor *([queeneditor.ipynb](../../../queen-editor/queeneditor.ipynb), hücre 1)*.
 Depoda ölçülmüş iki kart var: **T4, 14,74 GiB** ve **A100, 39,56 GiB**
-*([test_comfy_photo_generator.py](../../queen-editor/backend/tests/test_comfy_photo_generator.py))*.
+*([test_comfy_photo_generator.py](../../../queen-editor/backend/tests/test_comfy_photo_generator.py))*.
 H3 videosu A100'de koşuyor. ✅
 
 - **A100 40 GB:** asgari set 17,3 GB. DiT (7,3 GB) ile metin kodlayıcı (9,4 GB) aynı anda bile karta
   sığar 🧮. Int8 ConvRot dosyaları bu depoda A100'de zaten çalışıyor: H3'ün DiT'i ve VAE'si de
-  `int8_convrot` ✅ *([model_groups.py](../../queen-editor/backend/features/producers/domain/model_groups.py))*.
+  `int8_convrot` ✅ *([model_groups.py](../../../queen-editor/backend/features/producers/domain/model_groups.py))*.
 - **T4 15 GB:** DiT tek başına sığar. Metin kodlayıcıyla birlikte sığmaz, ComfyUI sırayla yükleyip
   boşaltmak zorunda kalır. T4'te bf16 donanım desteği de yok. Qwen 2.1'in T4'te çalıştığına dair bir
   kaynak bulamadım. **Denenmeden önerilmez.** ≈
@@ -192,7 +192,7 @@ referans resimler 32'ye yuvarlanıyor ✅. Bu yüzden 32'nin katları seçildi.
 - 1696 × 2528 = 0,6709, yani 2:3'ten **%0,63** farklı.
 
 Depo %1'e kadar farka izin veriyor, ama 475 birebir oranı seçmişti, çünkü hiçbir şeye mal olmuyor
-([475 araştırması](../arsiv/research/2026-10-20-queen-editor-m475-h3-16-9.md)).
+([475 araştırması](../research/2026-10-20-queen-editor-m475-h3-16-9.md)).
 
 **Tam 16:9 olan boyutlar** 🧮: boyut 16k × 9k olmalı.
 - 16'nın katı olması için k'nin 16'nın katı olması gerekir: … 1280 × 720, 1536 × 864, 1792 × 1008,
@@ -226,9 +226,9 @@ Export bugün kareyi 1920 × 1080'e sığdırıyor. 2048 × 1152 ve üstü expor
 - **Bizim prompt'larımız Illustrious için yazılmış booru etiketleri.** QueenAgent'ın talimatı
   *"The image model is weak and draws every tag in the prompt"* diye başlıyor ve tüm senaryo için tek
   bir negatif liste yazdırıyor ✅
-  *([queen-agent prompt.py](../../queen-agent/backend/features/workspace/domain/prompt.py))*.
+  *([queen-agent prompt.py](../../../queen-agent/backend/features/workspace/domain/prompt.py))*.
   Grafikte de Illustrious'un kalite etiketleri var: `masterpiece, best quality, amazing quality,
-  absurdres` *([workflow_api.json](../../queen-editor/assets/workflow_api.json), node 3)*.
+  absurdres` *([workflow_api.json](../../../queen-editor/assets/workflow_api.json), node 3)*.
   - Etiketler bir LLM'e kelime olarak yine anlam taşır. Ama kalite etiketleri, sanatçı ve karakter
     etiketleri Illustrious'taki işi görmez ≈.
   - Qwen tabanlı başka bir anime modeli için yapılmış bir incelemede *"Danbooru tags are not as
@@ -300,10 +300,10 @@ Kod değil, yalnız şekli; spec, kod okunduktan sonra yazılır.
   - Bugünkü grafikteki gibi sabit id'li node'ları olur: Width / Height (`easy int`), POSITIVE ve
     NEGATIVE metni, Seed, Batch Size, UNETLoader ve bir LoRA yükleyicisi. Id'ler export'ta belli
     olur; `ComfyPhotoGenerator` bugün bunları dosyanın başında sabit olarak tutuyor
-    *([comfy_photo_generator.py](../../queen-editor/backend/features/photo_generation/data/comfy_photo_generator.py))*.
+    *([comfy_photo_generator.py](../../../queen-editor/backend/features/photo_generation/data/comfy_photo_generator.py))*.
 - **Kare başına model, grafiği de seçer.**
   - Bugün `catalog.MODELS`'ın bir satırı `{"id", "label", "checkpoint"}`, ve `_graph` node 45'e
-    `ckpt_name` yazıyor *([catalog.py](../../queen-editor/backend/features/photo_generation/domain/catalog.py))*.
+    `ckpt_name` yazıyor *([catalog.py](../../../queen-editor/backend/features/photo_generation/domain/catalog.py))*.
   - Qwen satırı bunun yerine kendi grafiğini ve dosyalarını adlandırmalı. Grafiği ya üretici seçer
     ya da ayrı bir üretici sınıfı olur; hangisi olacağı spec'in kararı.
   - Ayrıca bugünkü `SIZES`, `WEIGHT_BYTES` (SDXL'in 2,6B'si) ve `PICTURE_BYTES` SDXL'e göre
@@ -338,7 +338,7 @@ Kod değil, yalnız şekli; spec, kod okunduktan sonra yazılır.
 - **Fotoğraf ile video aynı ComfyUI'de.**
   - Qwen ve H3 aynı karta sırayla yüklenir. Model değişimi her geçişte bir yükleme süresi demek ≈.
   - Diske de ek olarak 17,3 GB gelir; video 37 GiB, fotoğraf bugün iki modelle ~16 GiB
-    *([queeneditor.ipynb](../../queen-editor/queeneditor.ipynb), `PHOTO_GIB`)*.
+    *([queeneditor.ipynb](../../../queen-editor/queeneditor.ipynb), `PHOTO_GIB`)*.
 
 ## Açık sorular
 

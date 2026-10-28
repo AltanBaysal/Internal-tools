@@ -2,9 +2,9 @@
 
 **Tarih:** 27 Ekim 2026 · **Madde:** [v11 yol haritası](../roadmaps/2026-10-24-queen-editor-v11-roadmap.md#v11-6),
 496 · v11-6 · **Dal:** `feat/queen-editor-v11` · **Önceki:** v10'da
-[471](../arsiv/specs/2026-10-20-queen-editor-m471-version-design.md) ·
-**Kurallar:** [FOUNDATION](../../queen-editor/FOUNDATION.md) ·
-[CODE-STANDARD](../../queen-editor/CODE-STANDARD.md)
+[471](../specs/2026-10-20-queen-editor-m471-version-design.md) ·
+**Kurallar:** [FOUNDATION](../../../queen-editor/FOUNDATION.md) ·
+[CODE-STANDARD](../../../queen-editor/CODE-STANDARD.md)
 
 ## Ne ve neden
 

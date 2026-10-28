@@ -2,8 +2,8 @@
 
 **Tarih:** 27 Ekim 2026 · **Madde:** [v11 yol haritası](../roadmaps/2026-10-24-queen-editor-v11-roadmap.md#v11-4),
 501 · v11-4 · **Dal:** `feat/queen-editor-v11` · **Kurallar:**
-[NOTEBOOK-STANDARD](../../collab-toolbox/NOTEBOOK-STANDARD.md) · **Defter:**
-[collab-toolbox/photo_generator/nova-3dcg/manual.ipynb](../../collab-toolbox/photo_generator/nova-3dcg/manual.ipynb)
+[NOTEBOOK-STANDARD](../../../collab-toolbox/NOTEBOOK-STANDARD.md) · **Defter:**
+[collab-toolbox/photo_generator/nova-3dcg/manual.ipynb](../../../collab-toolbox/photo_generator/nova-3dcg/manual.ipynb)
 *(28 Ekim'den beri; aşağıda, "Yapılırken değişti")* · **Plan:** [2026-10-27-queen-editor-m501-femboy-futa-lora-deneme-plan.md](../plans/2026-10-27-queen-editor-m501-femboy-futa-lora-deneme-plan.md)
 
 ## Ne, neden
@@ -24,7 +24,7 @@ workflow'u bozuk gördü; `photo_generator/nova-3dcg/workflow_manual.json`'u ayn
 sürükleyince de *"Loading aborted due to error reloading workflow data TypeError: t.findInputSlot is not
 a function"* çıktı, kaynağı `/extensions/ComfyUI-Impact-Pack/impact-pack.js`. Kararı *(kullanıcı, 28 Ekim
 — "photo generator novaya gerekli loraları indirttir ordan direkt kullanıp test edeyim foto
-experimentide silelim")*: altı aday [nova-3dcg/manual.ipynb](../../collab-toolbox/photo_generator/nova-3dcg/manual.ipynb)'nin
+experimentide silelim")*: altı aday [nova-3dcg/manual.ipynb](../../../collab-toolbox/photo_generator/nova-3dcg/manual.ipynb)'nin
 `CIVITAI_MODELS`'ına girdi (sürümler ve dosya adları aynı), aday tablosu — LoRA, güç, tetik — her
 üretimin adımları ve kullanıcının ne getireceği "Nova preset" hücresine; Queen Editor'ün grafiğinden
 workflow kuran 5. bölüm ve onun karşılaştırması gitti. Workflow'u kullanıcı sürükler, adayı Power Lora

@@ -2,7 +2,7 @@
 
 **Tarih:** 27 Ekim 2026 · **Madde:** [v11 yol haritası](../roadmaps/2026-10-24-queen-editor-v11-roadmap.md#v11-3),
 497 · v11-3 · **Dal:** `feat/queen-editor-v11` · **Kurallar:** queen-editor
-[FOUNDATION](../../queen-editor/FOUNDATION.md) · [CODE-STANDARD](../../queen-editor/CODE-STANDARD.md)
+[FOUNDATION](../../../queen-editor/FOUNDATION.md) · [CODE-STANDARD](../../../queen-editor/CODE-STANDARD.md)
 
 ## Kabul koşulu (maddeden)
 

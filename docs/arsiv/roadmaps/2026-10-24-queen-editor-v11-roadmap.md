@@ -1,8 +1,8 @@
 # Queen Editor — Yol Haritası v11
 
-**Durum:** Bitti · 7/7 · dal `feat/queen-editor-v11`
+**Tarih:** 2026-10-24 · **Koşu dalı:** `feat/queen-editor-v11` · **Durum:** 7/7 · bitti; kullanıcı 28 Ekim'de denedi *(kullanıcı, 28 Ekim — "ve gerisi düzgün queen agnetı ve editoru maine mergelyebilrisn")*
 
-**Önceki sürüm:** [v10](../arsiv/roadmaps/2026-10-20-queen-editor-v10-roadmap.md) — bitti.
+**Önceki sürüm:** [v10](2026-10-20-queen-editor-v10-roadmap.md) — bitti.
 
 **Sıra: tek tek, dalga yok** *(kullanıcı, 27 Ekim — "ilk queen ediytor tasklarını yapıcaz bitincebana
 haber vericeksin queen anget tasklarına geçiçez"; "sıryaal paralel yapmicaz")*. Koşu bu roadmap'le
@@ -78,7 +78,7 @@ sürerken ikisi de gelmiyor.
 - **Bildirim:** *"bir de bildirim atabiliryosa iyi olur arkaplanda kalmış olabilri çünkü"*.
 - **Colab'ı kapatmak bu maddeden çıktı:** *"bence bunu roadmapten backloga koyalım şuanlık kapatmak
   yerine bildirim yollasın sadece ve 1 sayılsın"*. "1": süren export ya da ajan cevabı iş sayılır.
-  Kapatma [BACKLOG.md](../../queen-editor/BACKLOG.md)'de, *"Boşta Colab kapansın"*.
+  Kapatma [BACKLOG.md](../../../queen-editor/BACKLOG.md)'de, *"Boşta Colab kapansın"*.
 - **Tekrar** *(cevap: "2")*: bildirime cevap gelmezse sıra boş kaldıkça her 10 dk'da bir yeniden gelir.
 - **Ekranda da sorulur** *(cevap: "yes")*: bildirimle birlikte ekranda "orada mısın?" çıkar.
 - **Claude'un kararları** *(kullanıcı, 27 Ekim — "sen karar ver")*: kutuda tek bir **"Buradayım"**

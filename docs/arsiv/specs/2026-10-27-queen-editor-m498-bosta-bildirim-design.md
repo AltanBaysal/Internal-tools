@@ -2,7 +2,7 @@
 
 **Tarih:** 27 Ekim 2026 · **Madde:** [v11 yol haritası](../roadmaps/2026-10-24-queen-editor-v11-roadmap.md#v11-2),
 498 · v11-2 · **Dal:** `feat/queen-editor-v11` · **Kurallar:** queen-editor
-[FOUNDATION](../../queen-editor/FOUNDATION.md) · [CODE-STANDARD](../../queen-editor/CODE-STANDARD.md)
+[FOUNDATION](../../../queen-editor/FOUNDATION.md) · [CODE-STANDARD](../../../queen-editor/CODE-STANDARD.md)
 
 ## Kabul koşulu (maddeden)
 
@@ -20,7 +20,7 @@ Kararlar maddede yazılı:
 - sunucuda merkezi bir bekçi, olayla çalışır, sorarak değil (*"Olayla, sorarak değil"*), ve ekran
   olayı 491'in long polling'iyle öğrenir.
 
-Colab'ı kapatmak bu maddede yok ([BACKLOG](../../queen-editor/BACKLOG.md), *"Boşta Colab kapansın"*).
+Colab'ı kapatmak bu maddede yok ([BACKLOG](../../../queen-editor/BACKLOG.md), *"Boşta Colab kapansın"*).
 
 ## Bugün kim neyi biliyor
 

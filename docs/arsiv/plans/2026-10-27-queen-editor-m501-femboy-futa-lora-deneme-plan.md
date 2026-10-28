@@ -4,9 +4,9 @@
 **Dal:** `feat/queen-editor-v11` · **Spec:**
 [2026-10-27-queen-editor-m501-femboy-futa-lora-deneme-design.md](../specs/2026-10-27-queen-editor-m501-femboy-futa-lora-deneme-design.md)
 · **Önce:** 484'ün ve 485'in deneme defterleri
-([qwen-image-21/](../../collab-toolbox/photo_experiments/qwen-image-21/),
-[krea-2/](../../collab-toolbox/photo_experiments/krea-2/)) ve nova-3dcg'nin arayüz grafiği
-([photo_generator/nova-3dcg/](../../collab-toolbox/photo_generator/nova-3dcg/)).
+([qwen-image-21/](../../../collab-toolbox/photo_experiments/qwen-image-21/),
+[krea-2/](../../../collab-toolbox/photo_experiments/krea-2/)) ve nova-3dcg'nin arayüz grafiği
+([photo_generator/nova-3dcg/](../../../collab-toolbox/photo_generator/nova-3dcg/)).
 
 **Kullanıcının istediği (27 Ekim):** femboysXL ve Civitai'den 1–2 femboy LoRA'sı daha, sonra 3 futa
 LoRA'sı; tek defter, tek Colab oturumu, ComfyUI'de elle *("bu taskı femboyla berabe yap zaten nerdeyse
