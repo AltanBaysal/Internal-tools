@@ -178,7 +178,86 @@ Hepsi defterin bir koşusunda, kullanıcının makinesinde; Queen Editor'ün ça
 - Denemenin sonucu yol haritasının maddesine yazılır (kabul koşulu: *"Femboy ve futa adaylarının deneme
   sonucu yazılı"*).
 
-## Ne zaman bitti (bu adım)
+## Seçim *(28 Ekim)*
+
+Kullanıcı, 28 Ekim — *"tamam test ettim / bunlar dasiwa için olacak / 2 senecek olucak / 1 futa sadece
+futa flaccid olacak 0.50 ile / 2. seçenekte futa on male olacak buda 0.50 futa flaccid 1.00 futa on male
+olucak 2 lora / novada ikisde iyi çalımıyor çünkü / tetik kelilerini queen editor otomaik eklicek"*.
+
+- **Yalnız DaSiWa.** Yukarıdaki "Seçimden sonra"nın *ortak kutu*su yerine: iki LoRA da Nova'da iyi
+  çizmiyor, o yüzden Nova'nın kutusu bugünkü gibi kalır — USNR, Slime, Boş.
+- **DaSiWa'nın LoRA kutusunda iki yeni seçenek:**
+
+  | Seçenek | Yükleyicide (`27`) | Tetik, prompt'un önünde |
+  |---|---|---|
+  | **Futa** | `futa_flaccid_v3` 0,50 | `flaccid futa` |
+  | **Futa on male** | `futa_flaccid_v3` 0,50 + `futa_on_male_il_v2` 1,00 | `flaccid futa, futa on male, futa with male, futanari` |
+
+- **Femboy seçilmedi;** Queen Editor'e femboy girmez.
+- **QueenAgent'a madde açılmadı:** kullanıcı yalnız tetikleri istedi ve onları Queen Editor ekler; özel
+  bir prompt istenmedi.
+
+### Nasıl kuruldu
+
+- **DaSiWa'nın kendi kutusu** (`catalog.DASIWA_LORAS`). Kutu bugüne kadar Nova ve DaSiWa'nın ortak
+  listesiydi (`catalog.LORAS`); yalnız DaSiWa'ya iki seçenek eklemenin yolu 499'un Krea ve Qwen için
+  açtığı yol: modelin satırında kendi kutusu (`"loras"`). Kutu ortak listenin satırları — her biri tek
+  dosya olarak, ortak satırdan kurulur, iki kez yazılmaz — ve iki futa seçeneği. Satır biçimi Krea'nınki:
+  üst üste konan dosyalar ve bir tetik; "Futa on male", Krea'nın "SNOFS + Slime"ı gibi iki dosya. İki
+  tetik, dosyalarla aynı sırada, `, ` ile tek tetik olarak yazılır; `with_trigger` onu bugünkü gibi
+  prompt'un önüne koyar.
+- **Panel değişmedi:** modelin satırında kutu varsa panel o kutuyu gösterir, hiçbir modeli adıyla
+  bilmeden. DaSiWa negatif alır, satırı negatif hakkında bir şey söylemez; negatif kutusu kalır.
+- **Hangi kutu kuralı tek yerde** *(review'dan sonra)*: `catalog.box_row(model, lora)` — modelin
+  satırı kutu taşıyorsa o kutudaki satır, taşımıyorsa ortak kutunun satırı tek dosya olarak; kutu
+  tutmuyorsa None. `start_batch`'in kontrolü, `drawn_with` ve `own_pick` onu kullanır.
+  `catalog.pick(model, lora)` bir karenin çizildiği seçim: `drawn_with`'ten geçer, ortak kutuda boş
+  seçim varsayılan, Boş dosyasız bir seçim, bilinmeyen None.
+- **Kuyruğa ekle** DaSiWa'nın seçimini DaSiWa'nın kutusunda arar, Nova'nınkini ortak kutuda: Nova'da
+  Futa reddedilir. DaSiWa'da boş seçim kutunun ilk satırı, USNR, olarak kaydedilir (`drawn_with`) —
+  çizdiği bugünküyle aynı.
+- **Grafik** (`comfy_photo_generator._pick`): `catalog.pick`'in seçimini alır, None'da çizimi durdurur,
+  Power Lora Loader'ı `lora_1`'den başlayarak seçimin dosyalarıyla doldurur — "Futa on male"de
+  `lora_1` ve `lora_2`.
+- **Defter** (`queeneditor.ipynb`): `CIVITAI_DASIWA` iki satır (2698395, 2066157; denemenin dosya
+  adlarıyla), `CIVITAI_PHOTO`'ya `+ (CIVITAI_DASIWA if PHOTO_DASIWA else [])` ile girer — yalnız DaSiWa
+  işaretliyse iner. `civitai_fetch` önce HF aynası, yoksa Civitai, sonra aynaya yükler; ikisi
+  `MIRRORLESS`'te değil. Disk hesabına `+ (1 if PHOTO_DASIWA else 0)` (228.460.108 + 228.482.300 B,
+  ~0,43 GiB, Krea ve Qwen'inkiler gibi yukarı yuvarlanmış).
+- **Üretici paneli** (`model_groups`) iki dosyayı saymaz: bir checkpoint gibi bir kutuya bağlılar, ve
+  inmezlerse defterin indirme hücresi durur.
+- **Nova'nın defteri** (`nova-3dcg/manual.ipynb`): altı adayın `CIVITAI_MODELS` satırları, "Nova preset"
+  hücresindeki "Femboy ve futa denemesi" bölümü ve son hücrenin iki ipucu satırı çıktı; başlıklar
+  denemeden önceki ~15 GiB'a döndü. Arayüzün 1.46.15 sabitlemesi, rgthree'nin `main` dalı ve http2
+  tüneli kalır.
+
+### Maliyet
+
+Çalışma anına istek eklenmez. Model listesi aynı tek cevapta DaSiWa'nın satırına beş satırlık kutusunu
+koyar; bir kare yine bir grafik ve bir ComfyUI işi. Defter DaSiWa işaretliyse iki dosya daha indirir
+(~0,43 GiB): ilk koşuda Civitai'den, çerezle (ikisi girişli), sonra aynadan.
+
+### Ne kırılabilir
+
+- **DaSiWa'nın seçimi artık kendi kutusunda tutulur.** Bugüne kadar Nova'da seçilen Slime DaSiWa'ya
+  geçince de Slime görünüyordu; şimdi her kutu kendi seçimini tutar (499'un kuralı) ve DaSiWa kendi
+  seçimi yapılana kadar USNR'de açılır. Slime'la gönderilmiş eski bir DaSiWa projesi Slime'da açılır.
+- **DaSiWa'nın bilinmeyen bir LoRA'sı** çizimi durdurmaz, kutunun ilk satırıyla çizilir — Krea ve Qwen'in
+  499'dan beri kuralı; bir testle sabit. Kuyruğa ekle bilinmeyeni zaten reddeder; yalnız eski bir
+  satırda olabilir. 238'e aykırı olduğu için BACKLOG'da (*"Kendi kutusu olan modelde bilinmeyen LoRA
+  çizimi durdurmuyor"*).
+- İlk koşuda iki dosya aynada yoksa `CIVITAI_COOKIE` gerekir.
+
+### Ne zaman bitti (ikinci adım)
+
+- DaSiWa'nın LoRA kutusunda Futa ve Futa on male var, Nova'nınkinde yok.
+- Futa ile bir kare `futa_flaccid_v3` 0,50'yle ve `flaccid futa, ` ile başlayan prompt'la; Futa on male
+  ile iki LoRA'yla ve iki tetikle çiziliyor.
+- `PHOTO_DASIWA` işaretliyse iki dosya iniyor, değilse inmiyor.
+- Nova'nın defterinde aday kalmadı.
+- Gerçek kareler ve indirme kullanıcının Colab denemesinde.
+
+## Ne zaman bitti (deneme adımı)
 
 - `femboy-futa-lora/` klasöründe defter, `instructions.md` ve `indirilecekler.md` var; defter Krea ve
   Qwen denemelerinin biçiminde ve NOTEBOOK-STANDARD'a uygun.

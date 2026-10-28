@@ -172,6 +172,53 @@ kullanıp test edeyim foto experimentide silelim"*. Gerekçe ve kanıt spec'te, 
   1.46.15'te hatasız, eksik node yok.
 - [x] Dört suite.
 
+### 2.8 Seçim: DaSiWa'ya iki futa seçeneği *(28 Ekim)*
+
+Kullanıcı, 28 Ekim — *"tamam test ettim / bunlar dasiwa için olacak / 2 senecek olucak / 1 futa sadece
+futa flaccid olacak 0.50 ile / 2. seçenekte futa on male olacak buda 0.50 futa flaccid 1.00 futa on male
+olucak 2 lora / novada ikisde iyi çalımıyor çünkü / tetik kelilerini queen editor otomaik eklicek"*.
+Femboy seçilmedi. Neden ve nasıl spec'te, "Seçim".
+
+- [x] **Önce testler** (kırmızı görüldü): `test_photo_usecases.py` — DaSiWa'nın listede kendi kutusu
+  (USNR, Slime, Futa, Futa on male, Boş), ortak satırların ortak listeden kurulduğu, iki futa satırının
+  dosya, güç ve tetiği, DaSiWa'nın seçimi kaydedip negatifi tuttuğu, Nova'da futa'nın ve DaSiWa'da
+  SNOFS'un reddedildiği; `test_comfy_photo_generator.py` — Futa `lora_1`'de 0,5 ve tetik, Futa on male
+  `lora_1` + `lora_2` ve iki tetik, Nova'da futa çizimi durdurur; `test_notebook_installs_the_producer_groups.py`
+  — `CIVITAI_DASIWA`'nın iki sürümü, aynadan, DaSiWa'nın kutusunun arkasında, disk hesabında, ve bir
+  checkpoint'in kendi kutusundaki her dosya defterde.
+- [x] **`backend/features/photo_generation/domain/catalog.py`:** `LORAS` `MODELS`'ın üstüne alındı (DaSiWa'nın
+  kutusu ondan kurulur); `FUTA_FLACCID`, `FUTA_ON_MALE`, iki tetik; `_one_file`; `DASIWA_LORAS`; DaSiWa'nın
+  satırına `"loras": DASIWA_LORAS`. Docstring'ler.
+- [x] **`backend/features/photo_generation/data/comfy_photo_generator.py`:** `_lora` → `_pick(model, lora)`:
+  kendi kutusu olan model `own_pick`, öteki ortak kutu, ikisi de `{"files", "trigger"}`; `_set_loras`
+  seçimin dosyalarını alır.
+- [x] **`start_batch.py`, `list_models.py`, `model_groups.py`:** yalnız yorumlar.
+- [x] **`queeneditor.ipynb`:** `CIVITAI_DASIWA`, `+ (CIVITAI_DASIWA if PHOTO_DASIWA else [])`,
+  `+ (1 if PHOTO_DASIWA else 0)`. `BRANCH` satırına dokunulmadı.
+- [x] **Frontend:** kod değişmedi — panel kutuyu modelin satırından okur. `GeneratePanel.test.jsx`'e
+  DaSiWa'nın kutusu (dört test) ve "her kutu kendi seçimini tutar" testinde DaSiWa'nın artık kendi seçimi;
+  `GeneratePanel.jsx` ve `PhotoDetail.jsx`'te yalnız yorumlar; dist yeniden derlendi.
+- [x] **`collab-toolbox/photo_generator/nova-3dcg/manual.ipynb`:** altı aday satırı, "Femboy ve futa
+  denemesi" bölümü, son hücrenin iki ipucu satırı ve başlıklardaki ~16,5 GiB çıktı. Hücreler denemeden
+  önceki (`6cf5c5b5`) hâllerine döndü; arayüz sabitlemesi, rgthree `main` ve http2 kaldı. JSON düzeni
+  aynı (NotebookEdit, hücre kaynakları tek satır).
+- [x] Dört suite.
+
+### 2.9 Review'un düzeltmeleri *(28 Ekim)*
+
+- [x] **Kural domain'e:** `catalog.find_own_lora` → `catalog.box_row` (kutu taşıyan satırın kutusu, yoksa
+  ortak kutunun satırı `_one_file`'la); `catalog.pick` (çizilen seçim: `drawn_with`, ortak kutuda
+  varsayılan, Boş dosyasız, bilinmeyen None). `start_batch`, `drawn_with`, `own_pick` `box_row`'u;
+  üretecin `_pick`'i `catalog.pick`'i kullanır, yalnız None'da durur. `with_trigger`'ın docstring'i.
+- [x] **Yorumlar:** `catalog.py`'nin modül docstring'i, `plan_frames`'in docstring'i, DaSiWa'nın boş
+  seçim testi; model sayan yorumlar *"satırı kutu taşıyan model"* oldu (`start_batch.py`,
+  `list_models.py`, `catalog.py`, `GeneratePanel.jsx`, `PhotoDetail.jsx`). Dist değişmedi.
+- [x] **DaSiWa'da bilinmeyen id** ilk satıra düşer, bir üreteç testiyle sabit; `queen-editor/BACKLOG.md`'ye
+  238'e aykırılığı yazan madde.
+- [x] `test_dasiwa_s_shared_rows_are_the_shared_box_s_own` çıktı.
+- [x] **`model_groups.py`:** rgthree'nin eksik dosyada ne yaptığı bu repoda okunamadı; yorum yalnız
+  indirme hücresinin durduğunu söylüyor.
+
 ---
 
 ## 3. Maliyet ve bozulabilecekler

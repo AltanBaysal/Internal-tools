@@ -52,7 +52,9 @@ GROUPS = {
         # Both loras come down whichever models were ticked: either can go over any checkpoint, and
         # hanging the panel's count on the choice would make "installed" mean a different set of
         # files on every machine. A Krea-only or Qwen-only run takes them too (~2 GiB with the
-        # three below).
+        # three below). DaSiWa's two futa loras (madde 501) come down with DaSiWa's box alone, so
+        # they are not counted here, as no one checkpoint is; a run that ticked DaSiWa and did not
+        # get them stopped in the notebook's download cell.
         {"folder": "loras", "name": "USNR_STYLE_ILL_V1_lokr3-000024.safetensors"},
         {"folder": "loras", "name": "translucent_penetration_v5.safetensors"},
         {"folder": "upscale_models", "name": "4x_foolhardy_Remacri.pth"},

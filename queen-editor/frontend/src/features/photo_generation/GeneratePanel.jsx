@@ -64,8 +64,8 @@ function opening(project, settings) {
   };
 }
 
-// The key of the lora box Nova and DaSiWa share: the server's `loras` list. A model with a box of its
-// own -- Krea, Qwen -- keys its pick by its own value (madde 499).
+// The key of the shared lora box: the server's `loras` list. A model whose row carries a box keys its
+// pick by its own value (madde 499).
 const SHARED = "";
 
 /** Which box a model's pick is kept under. */
@@ -149,9 +149,9 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
   // The lost pick is drawn under its own value: an id is a poor label, and inventing a
   // prettier one for a row nobody offers any more would be inventing what it used to be called.
   const options = gone ? [{ value: model, label: model }, ...models] : (models || []);
-  // A model drawn with its own graph says so on its row: the lora box it has, and that it takes no
-  // negative (madde 486, 499). The panel then shows that box and no negative; the negative typed
-  // stays for a model that takes one, and each box keeps its own pick (madde 499).
+  // A model whose row carries a box is drawn with that box, and a row may say its model takes no
+  // negative (madde 486, 499). The panel then shows that box, and no negative where the row says so;
+  // the negative typed stays for a model that takes one, and each box keeps its own pick (madde 499).
   const chosen = (models || []).find((row) => row.value === model);
   const ownLoras = chosen?.loras || null;
   const takesNegative = chosen?.negative !== false;

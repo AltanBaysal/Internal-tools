@@ -297,7 +297,14 @@ const KREA = { value: "krea2", label: "Krea 2 Turbo", negative: false,
 const QWEN = { value: "qwen21turbo", label: "Qwen Image 2.1 Turbo", negative: false,
                loras: [{ value: "translucent_penetration", label: "Translucent Penetration" },
                        { value: "none", label: "Boş" }] };
-const ALL = [...MODELS, KREA, QWEN];
+// Madde 501: DaSiWa's box is the shared one and two futa picks, and DaSiWa takes a negative, so its
+// row carries a box and nothing about the negative -- as the server lists it.
+const DASIWA = { value: "dasiwa", label: "DaSiWa Illustrious | Anime",
+                 loras: [{ value: "usnr", label: "USNR" }, { value: "slime", label: "Slime" },
+                         { value: "futa", label: "Futa" },
+                         { value: "futa_on_male", label: "Futa on male" },
+                         { value: "none", label: "Boş" }] };
+const ALL = [MODELS[0], DASIWA, KREA, QWEN];
 const rows = () => [...loraBox().options].map((o) => o.textContent);
 const queue = () => act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
@@ -363,12 +370,18 @@ describe("GeneratePanel — Krea's and Qwen's own lora boxes and no negative (ma
     expect(rows()).toEqual(["USNR", "Slime", "Boş"]);
     expect(loraBox().value).toBe("slime");
 
-    // DaSiWa shares Nova's box, and so its pick.
+    // DaSiWa has a box of its own since madde 501, and so a pick of its own: its first row until one
+    // is made there.
     fireEvent.change(modelBox(), { target: { value: "dasiwa" } });
-    expect(loraBox().value).toBe("slime");
+    expect(loraBox().value).toBe("usnr");
+    fireEvent.change(loraBox(), { target: { value: "futa" } });
 
     fireEvent.change(modelBox(), { target: { value: "krea2" } });
     expect(loraBox().value).toBe("snofs_slime");
+    fireEvent.change(modelBox(), { target: { value: "nova3dcg" } });
+    expect(loraBox().value).toBe("slime");
+    fireEvent.change(modelBox(), { target: { value: "dasiwa" } });
+    expect(loraBox().value).toBe("futa");
   });
 
   it("opens an old Krea project's Nova lora on Nova's box and Krea on SNOFS", () => {
@@ -387,6 +400,42 @@ describe("GeneratePanel — Krea's and Qwen's own lora boxes and no negative (ma
     expect(loraBox().value).toBe("snofs_slime");
     fireEvent.change(modelBox(), { target: { value: "nova3dcg" } });
     expect(loraBox().value).toBe("usnr");
+  });
+});
+
+describe("GeneratePanel — DaSiWa's own lora box (madde 501)", () => {
+  it("offers the shared rows and the two futa picks, opens on USNR, and keeps the negative", () => {
+    renderPanel({ models: ALL, settings: { ...SETTINGS, model: "dasiwa", negative: "bulanık" } });
+
+    expect(rows()).toEqual(["USNR", "Slime", "Futa", "Futa on male", "Boş"]);
+    expect(loraBox().value).toBe("usnr");
+    expect(screen.getByText("Negatif prompt")).toBeTruthy();
+    expect(screen.getByDisplayValue("bulanık")).toBeTruthy();
+  });
+
+  it("sends Futa on male with DaSiWa", async () => {
+    const onGenerate = vi.fn().mockResolvedValue({ added: 4 });
+    renderPanel({ onGenerate, models: ALL, settings: { ...SETTINGS, model: "dasiwa" } });
+
+    fireEvent.change(loraBox(), { target: { value: "futa_on_male" } });
+    await queue();
+
+    expect(onGenerate).toHaveBeenCalledWith(expect.objectContaining({
+      model: "dasiwa", lora: "futa_on_male",
+    }));
+  });
+
+  it("does not offer the futa picks on Nova", () => {
+    renderPanel({ models: ALL, settings: { ...SETTINGS, model: "nova3dcg" } });
+
+    expect(rows()).toEqual(["USNR", "Slime", "Boş"]);
+  });
+
+  it("opens a DaSiWa project on the pick it was last sent with", () => {
+    // A project sent with Slime on DaSiWa before 501 says {dasiwa, slime}; DaSiWa's box holds it.
+    renderPanel({ models: ALL, settings: { ...SETTINGS, model: "dasiwa", lora: "slime" } });
+
+    expect(loraBox().value).toBe("slime");
   });
 });
 

@@ -675,6 +675,47 @@ def test_the_disk_estimate_counts_qwen_when_it_is_ticked():
         "Disk hesabı Qwen'i saymıyor"
 
 
+# DaSiWa's two futa loras (madde 501): the user's picks from the trial, for DaSiWa alone.
+
+
+def test_the_notebook_fetches_dasiwa_s_futa_loras_by_their_versions_through_the_mirror():
+    """Flaccid Futa v3.0 IL (2698395) and Futa on Male IL v2 (2066157), under the names the trial
+    saved them by. Kept now, so through the mirror like every Civitai file the app keeps."""
+    from colab.downloads import MIRRORLESS
+
+    listing = _listing("CIVITAI_DASIWA")
+    for version, name in ((2698395, "futa_flaccid_v3.safetensors"),
+                          (2066157, "futa_on_male_il_v2.safetensors")):
+        assert re.search(rf'\(\s*{version},\s*LORA,\s*"{re.escape(name)}",', listing), \
+            f"CIVITAI_DASIWA'da {name} satırı yok:\n{listing}"
+        assert name not in MIRRORLESS
+
+
+def test_dasiwa_s_loras_come_only_with_its_box():
+    """Neither draws well on Nova (the user's trial), so a run without DaSiWa does not take them."""
+    assert "+ (CIVITAI_DASIWA if PHOTO_DASIWA else [])" in _cell("# === Target folders ==="), \
+        "CIVITAI_DASIWA DaSiWa'nın kutusunun arkasında değil"
+
+
+def test_the_disk_estimate_counts_dasiwa_s_loras_when_it_is_ticked():
+    """228,460,108 and 228,482,300 bytes, about 0.43 GiB, rounded up as Krea's and Qwen's are."""
+    assert "+ (1 if PHOTO_DASIWA else 0)" in _cell("PHOTO_GIB ="), \
+        "Disk hesabı DaSiWa'nın LoRA'larını saymıyor"
+
+
+def test_every_file_a_checkpoint_s_own_box_lays_is_one_the_notebook_can_fetch():
+    """DaSiWa's box draws on the photo graph, whose files the photo group does not name one by one
+    (Krea's and Qwen's are held through it), so its files are held to the notebook here."""
+    models, _loras = _catalog()
+    source = _source()
+
+    for model in [model for model in models if "checkpoint" in model]:
+        for row in model.get("loras", []):
+            for file in row["files"]:
+                assert file["lora"] in source, \
+                    f"{model['id']} / {row['id']}: LoRA defterde yok — {file['lora']}"
+
+
 def test_the_models_cell_lists_the_detailer_s_folders():
     """What each ticked folder holds is printed under the downloads; the detailer's two are the
     photo group's."""

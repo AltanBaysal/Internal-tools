@@ -74,6 +74,16 @@ saçma şeyler ortaya çıkıyor".)* **v7'nin ilk maddesi olarak yazıldı, koş
 
 ## Diğer
 
+### Kendi kutusu olan modelde bilinmeyen LoRA çizimi durdurmuyor
+
+*(501'in reviewer'ı buldu, 28 Ekim.)* Madde 238'in kuralı: kutunun bilmediği bir LoRA çizimi durdurur,
+çünkü yerine başka bir şeyle çizilen kare istenen kare değildir ve bunu söyleyen bir yer yoktur. Satırı
+kendi kutusunu taşıyan modellerde — Krea ve Qwen 499'dan beri, DaSiWa 501'den beri — eski bir plan
+satırındaki bilinmeyen LoRA ise sessizce kutunun ilk satırıyla çiziliyor (`catalog.drawn_with`).
+Kuyruğa ekle böyle bir LoRA'yı zaten reddediyor; yalnız bir checkout'un bilmediği bir kimliği taşıyan
+eski satırlarda olur. Düzeltme kararı kullanıcının: ya bu modellerde de çizim durur, ya kural 238'e
+istisna olarak yazılır.
+
 ### Boşta Colab kapansın
 
 *(Kullanıcı, 27 Ekim — "bence bunu roadmapten backloga koyalım şuanlık kapatmak yerine bildirim

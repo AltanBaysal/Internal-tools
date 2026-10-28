@@ -617,11 +617,14 @@ def test_a_lora_the_app_does_not_know_is_refused_before_anything_is_planned():
 
 
 @pytest.mark.parametrize("model, lora", [("krea2", "slime"), ("krea2", "gitmiş"),
-                                          ("qwen21turbo", "snofs"), ("nova3dcg", "snofs_slime")])
+                                          ("qwen21turbo", "snofs"), ("nova3dcg", "snofs_slime"),
+                                          ("nova3dcg", "futa"), ("nova3dcg", "futa_on_male"),
+                                          ("dasiwa", "snofs")])
 def test_a_lora_the_model_s_box_does_not_offer_is_refused(model, lora):
-    """Madde 238's rule for every box (madde 499): Krea and Qwen are asked against their own box,
-    which is what they draw with, so Nova's Slime on Krea -- or Krea's pick on Nova -- is refused
-    at the button rather than drawn with something nobody picked."""
+    """Madde 238's rule for every box (madde 499): Krea, Qwen and DaSiWa are asked against their own
+    box, which is what they draw with, so Nova's Slime on Krea -- or Krea's pick on Nova, or
+    DaSiWa's futa on Nova (madde 501) -- is refused at the button rather than drawn with something
+    nobody picked."""
     from backend.features.photo_generation.domain.usecases.start_batch import InvalidLora
 
     plan_store = FakePlanStore()
@@ -647,6 +650,22 @@ def test_a_model_with_a_box_of_its_own_records_the_pick(model, lora, recorded):
               variants=1, model=model, negative="bulanık", lora=lora)
 
     assert (plan_store.frames[0]["lora"], plan_store.frames[0]["negative"]) == (recorded, "")
+    assert generator.loras == [recorded]
+
+
+@pytest.mark.parametrize("lora, recorded", [
+    ("futa", "futa"), ("futa_on_male", "futa_on_male"), ("usnr", "usnr"), ("slime", "slime"),
+    ("none", "none"), ("", "usnr"),
+])
+def test_dasiwa_records_its_own_box_s_pick_and_keeps_its_negative(lora, recorded):
+    """DaSiWa's box is the shared one and its two futa picks (madde 501). A checkpoint takes a
+    negative, so DaSiWa keeps the one typed; no pick is the box's first row, USNR, the default the
+    shared box draws an empty pick with too."""
+    plan_store, generator = FakePlanStore(), FakeGenerator()
+    run_batch(sync_runner(), FakeStore(), generator, plan_store=plan_store, text='["a"]',
+              variants=1, model="dasiwa", negative="bulanık", lora=lora)
+
+    assert (plan_store.frames[0]["lora"], plan_store.frames[0]["negative"]) == (recorded, "bulanık")
     assert generator.loras == [recorded]
 
 
@@ -4396,7 +4415,7 @@ def test_the_model_list_is_nova_3dcg_dasiwa_krea_2_turbo_and_qwen_image_2_1_turb
 def test_krea_is_listed_with_its_own_lora_box_and_no_negative():
     """Krea's box is its own list, Boş last, and its negative box goes: the row says so, so the
     screen never has to know a model by its id (madde 486, 499). None of these is in the lora list,
-    which is Nova's and DaSiWa's box."""
+    which is Nova's box."""
     assert list_models(["krea2"]) == [{
         "value": "krea2", "label": "Krea 2 Turbo", "negative": False,
         "loras": [{"value": "snofs", "label": "SNOFS"},
@@ -4410,6 +4429,35 @@ def test_qwen_is_listed_with_translucent_penetration_or_nothing_and_no_negative(
         "value": "qwen21turbo", "label": "Qwen Image 2.1 Turbo", "negative": False,
         "loras": [{"value": "translucent_penetration", "label": "Translucent Penetration"},
                   {"value": "none", "label": "Boş"}]}]
+
+
+def test_dasiwa_is_listed_with_the_shared_box_and_its_two_futa_picks():
+    """The user's words (madde 501): "bunlar dasiwa için olacak / 2 senecek olucak"; "novada ikisde
+    iyi çalımıyor". So DaSiWa's box is its own -- the shared box's rows, then Futa and Futa on male,
+    Boş last -- and Nova keeps the shared one. DaSiWa takes a negative, so its row says nothing
+    about one."""
+    assert list_models(["dasiwa"]) == [{
+        "value": "dasiwa", "label": "DaSiWa Illustrious | Anime",
+        "loras": [{"value": "usnr", "label": "USNR"}, {"value": "slime", "label": "Slime"},
+                  {"value": "futa", "label": "Futa"},
+                  {"value": "futa_on_male", "label": "Futa on male"},
+                  {"value": "none", "label": "Boş"}]}]
+
+
+def test_dasiwa_s_futa_picks_are_the_user_s_files_strengths_and_triggers():
+    """The user's words (madde 501): "1 futa sadece futa flaccid olacak 0.50 ile / 2. seçenekte futa
+    on male olacak buda 0.50 futa flaccid 1.00 futa on male olucak 2 lora"; "tetik kelilerini queen
+    editor otomaik eklicek". The two-lora pick carries both words, in the order its files are laid."""
+    from backend.features.photo_generation.domain import catalog
+
+    assert catalog.box_row("dasiwa", "futa") == {
+        "id": "futa", "label": "Futa", "trigger": "flaccid futa",
+        "files": [{"lora": "futa_flaccid_v3.safetensors", "strength": 0.5}]}
+    assert catalog.box_row("dasiwa", "futa_on_male") == {
+        "id": "futa_on_male", "label": "Futa on male",
+        "trigger": "flaccid futa, futa on male, futa with male, futanari",
+        "files": [{"lora": "futa_flaccid_v3.safetensors", "strength": 0.5},
+                  {"lora": "futa_on_male_il_v2.safetensors", "strength": 1.0}]}
 
 
 def test_a_model_this_checkout_does_not_know_records_the_boxes_lora_and_negative():
@@ -4442,15 +4490,14 @@ def test_the_models_the_notebook_chose_are_what_the_panel_lists():
     is the plain id: nothing carries a `recipe:` prefix any more (madde 237)."""
     rows = list_models(["nova3dcg", "dasiwa"])
 
-    assert rows == [{"value": "nova3dcg", "label": "Nova 3DCG XL"},
-                    {"value": "dasiwa", "label": "DaSiWa Illustrious | Anime"}]
+    assert [row["value"] for row in rows] == ["nova3dcg", "dasiwa"]
+    assert rows[0] == {"value": "nova3dcg", "label": "Nova 3DCG XL"}
 
 
 def test_a_model_the_notebook_did_not_choose_is_not_offered():
     """A lora can bring a checkpoint onto the disk with it, so reading the disk would offer rows the
     user never ticked."""
-    assert list_models(["dasiwa"]) == [
-        {"value": "dasiwa", "label": "DaSiWa Illustrious | Anime"}]
+    assert [row["value"] for row in list_models(["dasiwa"])] == ["dasiwa"]
 
 
 def test_an_unknown_model_id_is_dropped_and_takes_nothing_with_it():

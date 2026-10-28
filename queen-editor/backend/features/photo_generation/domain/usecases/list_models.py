@@ -4,8 +4,8 @@ A row is `{"value", "label"}`: what the renderer is sent, and what the user read
 id from the catalog and the label is the name it is picked by. A model drawn with a lora box of its
 own carries that box under "loras", Boş last, and one that takes no negative says
 `"negative": False` (madde 486, 499): the panel shows that box in place of the shared one and hides
-the negative, without knowing any model by its id. A checkpoint's row carries neither -- the boxes
-are its answer, as they always were.
+the negative, without knowing any model by its id. A row may carry a box and take a negative; a row
+that carries neither leaves the shared boxes as its answer, as they always were.
 
 The models are the ones the notebook installed, in the order it lists them. With none, photo was
 not installed on this machine, and the answer is an empty list rather than a question to ComfyUI:

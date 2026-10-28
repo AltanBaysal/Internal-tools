@@ -45,8 +45,9 @@ def plan_frames(start, entries, negative, variants, new_seed, model="", lora="",
 
     The negative, the model, the lora and the orientation ride on the frame rather than on the
     plan: a live queue holds batches submitted under different settings, and a frame has to render
-    with the ones it was submitted under. What they are is catalog.drawn_with's answer: Krea's and
-    Qwen's lines record their own box's pick and no negative (madde 486, 499).
+    with the ones it was submitted under. What they are is catalog.drawn_with's answer: a model whose
+    row carries a box records that box's pick, and one whose row says it takes no negative records
+    none (madde 486, 499).
 
     Seeds are drawn here, when the frames are planned, rather than when a frame renders: the plan is
     what a resumed run reads back, so a frame has to produce the image it was planned to produce.
@@ -95,11 +96,9 @@ def start_batch(runner, store, record, plan_store, producers, new_seed, now,
     # The app's own list, not the disk: a lora it does not know renders on no machine, and saying so
     # here keeps the frame out of a queue it would only fail in. The panel sends whatever it holds
     # -- a saved pick can outlive its row -- so this is the one place that answers (madde 238).
-    # Empty is no pick, and renders with the default. A model with a lora box of its own -- Krea,
-    # Qwen -- is asked against that box, which is what it draws with (madde 499).
-    known = (catalog.find_own_lora(model, lora) if catalog.own_loras(model) is not None
-             else catalog.find_lora(lora))
-    if lora not in ("", catalog.NO_LORA) and known is None:
+    # Empty is no pick, and renders with the default. A model whose row carries a box is asked
+    # against that box, which is what it draws with (madde 499, catalog.box_row).
+    if lora not in ("", catalog.NO_LORA) and catalog.box_row(model, lora) is None:
         raise InvalidLora(f"Tanınmayan LoRA: {lora} — listeden başka bir LoRA seç.")
     orientations.validate(orientation)       # raises InvalidOrientation
     if not store.project_exists(project):

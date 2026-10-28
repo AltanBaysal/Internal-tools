@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v11
 
-**Durum:** Koşuyor · 5/6 bitti · dal `feat/queen-editor-v11`
+**Durum:** Bitti · 6/6 · dal `feat/queen-editor-v11` · kullanıcının denemesini bekliyor
 
 **Önceki sürüm:** [v10](../arsiv/roadmaps/2026-10-20-queen-editor-v10-roadmap.md) — bitti.
 
@@ -24,7 +24,7 @@ ana klasörde koşunun dalında yürür.
 | 499 · [v11-1](#v11-1) | Translucent Penetration: Krea'da, ve Qwen yeni model olarak | ✅ *(gerçek Krea + Slime ve Qwen fotoğrafları, Qwen graph'ının ComfyUI'de çalışması ve A100'de bellek kullanıcının sondaki Colab denemesinde; ilk çalıştırma iki yeni LoRA için `CIVITAI_COOKIE` ister)* · `ALIGNED` |
 | 498 · [v11-2](#v11-2) | Sıra boşken bildirim | ✅ *(gerçek 10 dk, tünelden geçen açık istek ve işletim sisteminin bildirimi kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
 | 497 · [v11-3](#v11-3) | Drive'a kayıt olmayınca hata verip dursun | ✅ *(Colab'da dolu Drive ve kopan bağlantı kullanıcının sondaki denemesinde)* · `ALIGNED` |
-| 501 · [v11-4](#v11-4) | Femboy ve futa LoRA'ları | 🔄 *(deneme Nova'nın defterinde — `collab-toolbox/photo_generator/nova-3dcg/manual.ipynb`; kullanıcının Colab denemesini bekliyor)* · `ALIGNED` |
+| 501 · [v11-4](#v11-4) | Femboy ve futa LoRA'ları | ✅ *(DaSiWa'nın kutusunda Futa ve Futa on male; gerçek kareler ve iki dosyanın inişi kullanıcının sondaki Colab denemesinde; ilk çalıştırma iki yeni LoRA için `CIVITAI_COOKIE` ister)* · `ALIGNED` |
 | 500 · [v11-5](#v11-5) | Eski belgeler ve roadmap'ler arşive | ✅ · `ALIGNED` |
 | 496 · [v11-6](#v11-6) | Sürüm V11 | ✅ · `ALIGNED` |
 
@@ -178,6 +178,23 @@ yapalım sonra karar veridğimizi queen editore koyarız"*. Deneme notebook'u
   istemedim yazdığı nyerdende temizle promtpları")*. Prompt'ları kullanıcı kendisi yazar; defterde
   adaylar, güçleri ve tetikleri kalır, POSITIVE'e tetik + `, ` + kendi prompt'u yazılır. Hazır kareler
   ve onlara dayanan karşılaştırma defterden, spec'ten ve plandan silindi.
+- **Yapılırken kararlaşan: seçim — yalnız DaSiWa, iki futa seçeneği** *(kullanıcı, 28 Ekim — "tamam test
+  ettim / bunlar dasiwa için olacak / 2 senecek olucak / 1 futa sadece futa flaccid olacak 0.50 ile / 2.
+  seçenekte futa on male olacak buda 0.50 futa flaccid 1.00 futa on male olucak 2 lora / novada ikisde
+  iyi çalımıyor çünkü / tetik kelilerini queen editor otomaik eklicek")*. Kabul koşulundaki "Nova ve
+  DaSiWa'nın LoRA kutusu" bununla değişti: iki LoRA Nova'da iyi çizmediği için yalnız DaSiWa'nın kutusuna
+  girer, Nova'nınki bugünkü gibi kalır. DaSiWa'nın kutusunda iki yeni seçenek var: **Futa** —
+  `futa_flaccid_v3` 0,50, tek başına; **Futa on male** — `futa_flaccid_v3` 0,50 ve `futa_on_male_il_v2`
+  1,00, ikisi birlikte. Tetikleri Queen Editor prompt'un önüne kendisi ekler: `flaccid futa`, ve ikincide
+  `flaccid futa, futa on male, futa with male, futanari`. Femboy seçilmedi, Queen Editor'e girmez.
+  QueenAgent'a madde açılmadı: istenen yalnız tetikler, onları Queen Editor ekliyor. İki dosya defterde
+  yalnız DaSiWa işaretliyse iner; Nova'nın defterindeki altı aday ve deneme bölümü çıktı.
+  - **Bir yan etki:** DaSiWa'nın artık kendi kutusu olduğu için seçimi de kendisinin. Nova'da seçilen
+    Slime, DaSiWa'ya geçince DaSiWa'da görünmez; DaSiWa kendi seçimi yapılana kadar USNR'de açılır.
+  - **Kullanıcının Colab'da deneyeceği:** `PHOTO_DASIWA` işaretliyken iki dosyanın inmesi (ilk koşuda
+    aynada olmadıkları için Civitai'den, çerezle; sonraki koşularda aynadan) ve işaretsizken inmemesi;
+    panelde DaSiWa seçiliyken LoRA kutusunda Futa ve Futa on male, Nova seçiliyken olmaması; Futa ve Futa
+    on male ile birer DaSiWa karesi.
 
 <a id="v11-5"></a>
 ### 500 · v11-5 — Eski belgeler ve roadmap'ler arşive

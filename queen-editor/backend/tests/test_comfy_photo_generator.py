@@ -153,8 +153,8 @@ def test_a_nova_frame_that_names_no_lora_renders_with_usnr(tmp_path):
 
 
 def test_a_dasiwa_frame_that_names_no_lora_renders_with_usnr(tmp_path):
-    """The default is the lora box's, not the model's: there is no arrangement of a model's own any
-    more, and the user asked for USNR on every model (madde 238)."""
+    """DaSiWa's box is its own since madde 501, and no pick draws its first row -- USNR, which the
+    user asked for on every model (madde 238)."""
     client, generator = generator_at(tmp_path)
 
     generator.generate("kraliçe", "", 1, "dasiwa")
@@ -162,6 +162,18 @@ def test_a_dasiwa_frame_that_names_no_lora_renders_with_usnr(tmp_path):
     assert client.submitted["45"]["inputs"]["ckpt_name"] == \
         "DasiwaIllustriousAnime_epitaphecstasy.safetensors"
     assert lora_slots(client.submitted["27"]["inputs"]) == USNR
+
+
+def test_an_unknown_lora_on_a_dasiwa_line_draws_the_box_s_first_row(tmp_path):
+    """A model whose row carries a box draws a pick the box does not hold with its first row, as Krea
+    and Qwen have since madde 499 -- not the stop madde 238 gives the shared box. Kuyruğa ekle refuses
+    such an id, so only an old line can carry one (BACKLOG: "Kendi kutusu olan modelde ...")."""
+    client, generator = generator_at(tmp_path)
+
+    generator.generate("kraliçe", "", 1, "dasiwa", "gitmiş")
+
+    assert lora_slots(client.submitted["27"]["inputs"]) == USNR
+    assert client.submitted["3"]["inputs"]["populated_text"] == "kraliçe"
 
 
 @pytest.mark.parametrize("model", ["nova3dcg", "dasiwa"])
@@ -229,6 +241,47 @@ def test_a_lora_goes_onto_any_model_it_is_chosen_with(tmp_path):
     assert client.submitted["45"]["inputs"]["ckpt_name"] == \
         "DasiwaIllustriousAnime_epitaphecstasy.safetensors"
     assert lora_slots(client.submitted["27"]["inputs"]) == SLIME
+
+
+def test_dasiwa_s_futa_loads_flaccid_futa_alone_at_half_and_names_it(tmp_path):
+    """The user's first futa pick (madde 501): futa_flaccid_v3 at 0.50, alone, its word in front of
+    the prompt."""
+    client, generator = generator_at(tmp_path)
+
+    generator.generate("kraliçe tahtta", "blurry", 1, "dasiwa", "futa")
+
+    assert client.submitted["45"]["inputs"]["ckpt_name"] == \
+        "DasiwaIllustriousAnime_epitaphecstasy.safetensors"
+    assert lora_slots(client.submitted["27"]["inputs"]) == {
+        "lora_1": {"on": True, "lora": "futa_flaccid_v3.safetensors", "strength": 0.5}}
+    assert client.submitted["3"]["inputs"]["populated_text"] == "flaccid futa, kraliçe tahtta"
+    assert client.submitted["4"]["inputs"]["populated_text"] == "blurry"
+
+
+def test_dasiwa_s_futa_on_male_loads_both_loras_and_both_words(tmp_path):
+    """The user's second pick (madde 501): flaccid futa at 0.50 and futa on male at 1.00 in one
+    loader, the two words in front of the prompt in the order the files are laid."""
+    client, generator = generator_at(tmp_path)
+
+    generator.generate("kraliçe tahtta", "", 1, "dasiwa", "futa_on_male")
+
+    assert lora_slots(client.submitted["27"]["inputs"]) == {
+        "lora_1": {"on": True, "lora": "futa_flaccid_v3.safetensors", "strength": 0.5},
+        "lora_2": {"on": True, "lora": "futa_on_male_il_v2.safetensors", "strength": 1.0}}
+    assert client.submitted["3"]["inputs"]["wildcard_text"] == \
+        "flaccid futa, futa on male, futa with male, futanari, kraliçe tahtta"
+
+
+@pytest.mark.parametrize("lora", ["futa", "futa_on_male"])
+def test_a_futa_pick_on_nova_stops_the_render(tmp_path, lora):
+    """Neither draws well on Nova (the user's trial, madde 501), so they are no Nova lora: a Nova
+    frame naming one is an id Nova's box does not know."""
+    _client, generator = generator_at(tmp_path)
+
+    with pytest.raises(RuntimeError) as exc:
+        generator.generate("kraliçe", "", 1, "nova3dcg", lora)
+
+    assert lora in str(exc.value)
 
 
 def test_an_old_slime_recipe_renders_as_nova_with_slime(tmp_path):

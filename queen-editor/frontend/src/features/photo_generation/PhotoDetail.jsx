@@ -476,9 +476,8 @@ export default function PhotoDetail({ project, frame: fid }) {
   const madeWith = (madeBy?.label || storedModel).replace(/\.safetensors$/, "");
   // And the lora laid over it, by the same rule. A frame that names none gets no row: a
   // recipe:slime frame names none and was made with Slime, and a DaSiWa one sent under Standart was
-  // made with none, so any name there would be a guess (madde 238). A model drawn with a lora box
-  // of its own -- Krea, Qwen -- carries that box on its row, and its names are looked up there
-  // first (madde 486, 499).
+  // made with none, so any name there would be a guess (madde 238). A model whose row carries a box
+  // is drawn with it, and its names are looked up there first (madde 486, 499).
   const storedLora = frame?.lora || "";
   const laidOver = storedLora
     && ([...(madeBy?.loras || []), ...(loras || [])].find((row) => row.value === storedLora)?.label

@@ -6,7 +6,8 @@ Node ids come from our own export (queen-editor/workflow_api.json):
   "3"  ImpactWildcardProcessor, _meta.title "POSITIVE"
   "4"  ImpactWildcardProcessor, _meta.title "NEGATIVE"
   "23" easy int "Batch Size" -> EmptyLatentImage's batch_size: how many pictures one job makes
-  "27" Power Lora Loader (rgthree) -> which loras are switched on, and how strongly
+  "27" Power Lora Loader (rgthree) -> which loras are switched on, and how strongly: the pick's
+       files from lora_1 on, so a two-file pick fills lora_1 and lora_2
   "40" Seed (rgthree) -> KSampler, FaceDetailer and both wildcard processors read it
   "45" CheckpointLoaderSimple -> which model renders the frame
 
@@ -98,8 +99,8 @@ class ComfyPhotoGenerator:
             self._set_size(workflow, SIZES[orientation])
         model, lora = catalog.LEGACY.get(model, (model, lora))
         chosen = self._model(model)
-        extra = self._lora(lora)
-        self._set_text(workflow, PROMPT_NODE, catalog.with_trigger(prompt, extra))
+        pick = self._pick(model, lora)
+        self._set_text(workflow, PROMPT_NODE, catalog.with_trigger(prompt, pick))
         # An empty negative is written through as empty: leaving the export's own text in place
         # would mean "no negative" silently kept a negative.
         self._set_text(workflow, NEGATIVE_NODE, negative or "")
@@ -112,7 +113,7 @@ class ComfyPhotoGenerator:
             workflow[MODEL_NODE]["inputs"]["ckpt_name"] = chosen["checkpoint"]
             # The pick fills the loader alone rather than joining the lora the export ships with:
             # Slime was liked with USNR off (madde 214). Boş empties it.
-            self._set_loras(workflow, [extra] if extra else [])
+            self._set_loras(workflow, pick["files"])
         elif model:
             # A bare file name is a checkpoint and nothing more: picking one has never meant picking
             # a lora, and a frame planned that way keeps rendering the way it did -- with the
@@ -134,14 +135,11 @@ class ComfyPhotoGenerator:
         return catalog.find_model(model)
 
     @staticmethod
-    def _lora(lora):
-        """The catalog lora this value names, or None for Boş. A frame that names none renders with
-        the default (madde 238). An id nobody knows stops the render, for the same reason an unknown
-        model does."""
-        if lora == catalog.NO_LORA:
-            return None
-        lora = lora or catalog.DEFAULT_LORA
-        found = catalog.find_lora(lora)
+    def _pick(model, lora):
+        """What this value draws with: the files the loader gets, one over another, and the word
+        that opens the prompt (catalog.pick). An id the model's box does not know stops the render,
+        for the same reason an unknown model does."""
+        found = catalog.pick(model, lora)
         if found is None:
             raise RuntimeError(f"Tanınmayan LoRA: {lora} — uygulama bu LoRA'yı bilmiyor, "
                                "defter bu depodan yeni olabilir")
