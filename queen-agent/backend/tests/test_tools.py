@@ -1354,13 +1354,63 @@ def test_the_rules_forbid_an_or():
     said = _rules()
     assert " or " in said
     assert "coin" in said.lower()
+    # Madde 507: a sentence offering two choices is the same coin as a tag offering them.
+    assert "Never write the word or inside a tag or a sentence." in said
 
 
-def test_the_rules_ask_for_tags_rather_than_sentences():
+def test_the_rules_ask_for_tags_mixed_with_short_sentences():
+    # Madde 507, the user's decision of 28 October, to be tried on Nova and kept only if it draws
+    # better: "Her şey senin örneğindeki gibi karışık olur. Karakterler de cümleyle anlatılır". The
+    # known tags stay, and a short sentence carries what a tag cannot -- who does what to whom.
     said = _rules()
-    assert "tags" in said.lower() and "sentence" in said.lower()
-    # An article is not a tag: the density is the thing a weak model gets wrong first.
-    assert "article" in said.lower()
+    assert (
+        "Write each entry and each frame's action as Danbooru tags mixed with short English "
+        "sentences, with commas between them." in said
+    )
+    assert "A character, an outfit and a place are written this way too." in said
+    assert "Write a short sentence for what a tag cannot say" in said
+    # Asked after the presence above, so the absence cannot pass on a text nobody wrote. The rule
+    # that sent every sentence out, and the article rule that went with it: a sentence has articles.
+    writing = said.split("## The negative list")[0]
+    assert "never sentences" not in writing
+    assert "article" not in writing.lower()
+
+
+def test_the_rules_that_name_a_tag_hold_for_a_sentence_too():
+    # The camera-angle rules, the frame's checks and the start skill's steps all say tag. A sentence
+    # is drawn the same way, hidden or not, so one line carries them over rather than every rule
+    # rewritten -- which keeps Madde 507 one text to take back if the trial says so.
+    assert (
+        "Every rule about tags holds for the sentences too: the image model draws every sentence, "
+        "as it draws every tag." in _rules()
+    )
+
+
+def test_a_sentence_names_a_character_when_a_pronoun_could_mean_two():
+    # Characters mixing is the biggest problem the guide names, and a she in a frame with two women
+    # can carry the action onto the wrong one (the coordinator, 28 October, on Madde 507).
+    said = _rules()
+    assert (
+        "Name a character in a sentence by what tells the character apart, as in the slime girl or "
+        "the man, whenever she or he could point at more than one person in the frame." in said
+    )
+    assert "A pronoun can carry an action onto the wrong person." in said
+
+
+def test_a_sentence_ends_without_a_full_stop():
+    # The builder joins the parts of a block with commas, so a sentence ending on a full stop came
+    # out as "arms., next" (Madde 507). The rule rather than a change to the join.
+    assert (
+        "End a sentence without a full stop: commas separate the parts, and the code joins the "
+        "parts with commas." in _rules()
+    )
+
+
+def test_the_negative_list_stays_tags():
+    # Madde 507 mixes the prompt, not the negative list: a negative works on the whole photo, and a
+    # sentence there would take a whole description off every character.
+    negative = _rules().split("## The negative list")[1].split("## The scene")[0]
+    assert "- Write the negative list in tags alone, never sentences.\n" in negative
 
 
 def test_create_file_no_longer_offers_to_write_a_structure():
@@ -2630,8 +2680,8 @@ def test_the_rules_put_one_thing_in_each_tag():
 
 def test_the_rules_say_what_to_do_when_the_vocabulary_has_nothing():
     # It is large but not everything, and a rule that stopped at "use the vocabulary" would leave the
-    # model to invent a form for whatever is not in it -- which is where the sentences come back.
-    assert "no tag for it" in _rules()
+    # model to invent a form for whatever is not in it. Since Madde 507 the form is a short sentence.
+    assert "Write a short sentence too when the vocabulary has no tag for it." in _rules()
 
 
 def test_the_character_field_says_which_categories_to_write():

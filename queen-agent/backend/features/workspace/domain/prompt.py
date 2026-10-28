@@ -336,7 +336,10 @@ KREA_EDIT = _read("krea-edit.md")
 # October: "Model adı olmasın"); the image-model rules of Start a scenario's Step 6 and Step 11,
 # which that skill keeps a copy of because the model is weak ("Evet, kopyası belgeye de girsin");
 # and, since Madde 492, what left the tools' texts -- solo, who leads a frame, the fixed order -- and
-# the scene's rules. A rule about one field's contents stays on that field (correction 34).
+# the scene's rules. A rule about one field's contents stays on that field (correction 34). Since
+# Madde 507 the entries and the actions mix those tags with short English sentences, characters too,
+# and the negative list stays tags: a trial on Nova, kept only if it draws better (the user, 28
+# October: "Her şey senin örneğindeki gibi karışık olur. Karakterler de cümleyle anlatılır").
 #
 # The Krea guide is from the research of 22 October (the spec of Madde 492 cites it): Krea reads
 # sentences, the style leads, each person's look and action go together, and the SDXL habits --

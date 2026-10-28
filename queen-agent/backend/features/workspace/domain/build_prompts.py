@@ -166,8 +166,9 @@ def _looked_up(name, known, field, number, misses):
 
 
 def _tags(parts):
-    # A prompt is comma-separated tags, so the join happens tag by tag: a trailing comma in a map
-    # entry or an empty field cannot leave ", ," behind.
+    # A prompt is tags and short sentences with commas between them (Madde 507), so the join happens
+    # piece by piece: a trailing comma in a map entry or an empty field cannot leave ", ," behind,
+    # and a comma inside a sentence comes back as the same comma.
     return ", ".join(
         tag for part in parts for tag in (piece.strip() for piece in str(part).split(",")) if tag
     )

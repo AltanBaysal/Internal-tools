@@ -1,6 +1,6 @@
 # QueenAgent — Yol Haritası v12
 
-**Durum:** Koşuyor · 5/6 · dal `feat/queenagent-v12`
+**Durum:** Bitti · 6/6 · dal `feat/queenagent-v12` · kullanıcının denemesini bekliyor
 
 **Önceki sürüm:** [v11](../arsiv/roadmaps/2026-10-20-queen-agent-v11-roadmap.md) — bitti.
 
@@ -26,7 +26,7 @@ bitir")*; deneme sonucu gelince 501 araya alınır. Bir madde birleşince sırad
 | 503 · [v12-3](#v12-3) | SDXL start seçiliyken model sormasın | ✅ *(ajanın gerçekten sormadığı, canlı modelle, kullanıcının sondaki denemesinde)* · `ALIGNED` |
 | 506 · [v12-4](#v12-4) | Projeleri toplu arşivle/sil | ✅ *(açık nokta kullanıcının denemesinde: seçimi bırakmak için Clear düğmesi ya da Escape yok)* · `ALIGNED` |
 | 502 · [v12-5](#v12-5) | Sürüm V12 | ✅ · `ALIGNED` |
-| 507 · [v12-6](#v12-6) | SDXL prompt'ları tag'lerle cümleler karışık yazılsın | `ALIGNED` |
+| 507 · [v12-6](#v12-6) | SDXL prompt'ları tag'lerle cümleler karışık yazılsın | ✅ *(kullanıcının Nova'daki denemesinde: daha iyi çizerse kalır)* · `ALIGNED` |
 
 ---
 
