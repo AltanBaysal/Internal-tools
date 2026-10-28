@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v11
 
-**Durum:** Bitti · 6/6 · dal `feat/queen-editor-v11` · kullanıcının denemesini bekliyor
+**Durum:** Koşuyor · 6/7 · dal `feat/queen-editor-v11`
 
 **Önceki sürüm:** [v10](../arsiv/roadmaps/2026-10-20-queen-editor-v10-roadmap.md) — bitti.
 
@@ -16,6 +16,7 @@ ana klasörde koşunun dalında yürür.
 5. **500 · v11-5** — arşiv; koşunun belgeleri yazıldıktan sonra, linkler bir seferde düzelsin diye.
 6. **501 · v11-4** — femboy ve futa LoRA'ları, kullanıcıyla, en sonda *("bir femboy taskını son al çünkü ban ihtiaçın
    olcak")*. Bitince kullanıcıya haber verilir, sonra QueenAgent v12'ye geçilir.
+7. **508 · v11-7** — Qwen kalkar; kullanıcının sondaki denemesinden çıktı.
 
 ---
 
@@ -27,6 +28,7 @@ ana klasörde koşunun dalında yürür.
 | 501 · [v11-4](#v11-4) | Femboy ve futa LoRA'ları | ✅ *(DaSiWa'nın kutusunda Futa ve Futa on male; gerçek kareler ve iki dosyanın inişi kullanıcının sondaki Colab denemesinde; ilk çalıştırma iki yeni LoRA için `CIVITAI_COOKIE` ister)* · `ALIGNED` |
 | 500 · [v11-5](#v11-5) | Eski belgeler ve roadmap'ler arşive | ✅ · `ALIGNED` |
 | 496 · [v11-6](#v11-6) | Sürüm V11 | ✅ · `ALIGNED` |
+| 508 · [v11-7](#v11-7) | Qwen kalkar | `ALIGNED` |
 
 ---
 
@@ -230,3 +232,14 @@ da olsa, o belgeyi arar ve bulamaz.
 olur mu"; "ilk görev o olsun ynai".)*
 
 **Kabul koşulu:** Queen Editor'ün ekranında "Queen Editor V11" yazıyor; bugün "V10".
+
+<a id="v11-7"></a>
+### 508 · v11-7 — Qwen kalkar
+
+*(Kullanıcı, 28 Ekim, koşunun sonundaki Colab denemesinde — "qweni kaldıralım iyi bir şey üretmiyor
+gereksiz kalabalık".)*
+
+**Kabul koşulu:** Queen Editor'de Qwen Image 2.1 Turbo yok: model listesinde, LoRA kutusunda ve
+defterin CONFIG'inde görünmüyor, defter onun dosyalarını indirmiyor. 499'un Qwen'le gelen her parçası
+— graph'ı, üreticisi, LoRA satırı, testleri — gider; Krea'nın SNOFS + Slime'ı ve Boş'u kalır. Daha önce
+Qwen'le çizilmiş fotoğraflar Drive'da durur.
