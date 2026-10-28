@@ -25,11 +25,15 @@ sürükleyince de *"Loading aborted due to error reloading workflow data TypeErr
 a function"* çıktı, kaynağı `/extensions/ComfyUI-Impact-Pack/impact-pack.js`. Kararı *(kullanıcı, 28 Ekim
 — "photo generator novaya gerekli loraları indirttir ordan direkt kullanıp test edeyim foto
 experimentide silelim")*: altı aday [nova-3dcg/manual.ipynb](../../collab-toolbox/photo_generator/nova-3dcg/manual.ipynb)'nin
-`CIVITAI_MODELS`'ına girdi (sürümler ve dosya adları aynı), denemenin tabloları, F, G, H, 1 ve 3
-kareleri, ne karşılaştırılacağı ve kullanıcının ne getireceği "Nova preset" hücresine; Queen Editor'ün
-grafiğinden workflow kuran 5. bölüm ve onun karşılaştırması gitti. Workflow'u kullanıcı sürükler, adayı
-Power Lora Loader'a kendisi ekler. Bu grafikte `CLIPTextEncodeBREAK` yok, bu yüzden karelerde `BREAK`
-yerine virgül var.
+`CIVITAI_MODELS`'ına girdi (sürümler ve dosya adları aynı), aday tablosu — LoRA, güç, tetik — her
+üretimin adımları ve kullanıcının ne getireceği "Nova preset" hücresine; Queen Editor'ün grafiğinden
+workflow kuran 5. bölüm ve onun karşılaştırması gitti. Workflow'u kullanıcı sürükler, adayı Power Lora
+Loader'a kendisi ekler.
+
+**Kareler çıktı** *(kullanıcı, 28 Ekim — "ben senden kare yamanı istemedim yazdığı nyerdende temizle
+promtpları")*: prompt'ları kullanıcı kendisi yazar, defterden yalnız tetikleri ister. F, G, H, 1 ve 3
+kareleri, onlara dayanan karşılaştırma ve 48 resim sayısı defterden ve bu belgeden silindi; POSITIVE'e
+adayın tetiği + `, ` + kullanıcının kendi prompt'u yazılır.
 
 **Hatanın sebebi, koddan:** Impact-Pack'in `js/impact-pack.js`'i (Main, son commit 2026-04-20), satır 639:
 ImpactSwitch'in `onConnectionsChange`'i grafik yüklenirken `node.connect(link_info.origin_slot, node.id,
@@ -56,8 +60,8 @@ Civitai API'si, 27 Ekim; LoRA, indirme sayısına göre, Illustrious sürümü o
 DaSiWa'nın tabanı Illustrious'a uyum, yenilik, indirme sayısı; tek bir karakter ya da çizim tarzı değil,
 genel bir kavram. İndirme sayısı modelin bütün sürümlerinin toplamı.
 
-**Tetik:** sayfanın eğitim sözcükleri, karenin kendisi söylediği sayılar (`1boy`, `1futa`, `2girls`) ve
-beden ya da eylem etiketleri çıkarılarak; Queen Editor'ün `catalog.with_trigger`'ı gibi prompt'un önüne
+**Tetik:** sayfanın eğitim sözcükleri, sayılar (`1boy`, `1futa`, `2girls`) ve beden ya da eylem
+etiketleri çıkarılarak — onları prompt'un kendisi söyler; Queen Editor'ün `catalog.with_trigger`'ı gibi prompt'un önüne
 konur. **Güç:** sayfanın önerdiği; önermeyende 1,0, yükleyicinin kendi değeri. Talimat 0,7'yi de denetir.
 
 ### Femboy
@@ -89,16 +93,9 @@ konur. **Güç:** sayfanın önerdiği; önermeyende 1,0, yükleyicinin kendi de
 - **E** ve **F** Illustrious'ta en çok indirilen iki futa kavramı, biri bir kadınla biri bir erkekle.
   İkisi de **eylem** LoRA'sı: eğitim satırları partnerli sahneler. Illustrious'ta genel bir futa beden
   kavramı az; D'den sonra en genel ve en çok indirilenler bunlar.
-- **Üç futa adayı da iki kare çizer** *(ana ajanın kararı, 27 Ekim, review'dan sonra)*: tek kişilik
-  **Kare G** — D'nin ölçüsü, ve E ile F'nin tetiği bir partner adlandırırken partnersiz bir karede ne
-  yaptıkları — ve partnerli **Kare H** — futa ve senaryonun erkek karakteri, E ile F'nin eğitildiği şey.
-  H'deki partner erkek: senaryonun ikinci karakteri o, ve F'nin eşleşmesi; E'nin bir erkeği ne yaptığı
-  da bir sonuç. Futa workflow'ları G'yle açılır, H'yi kullanıcı yapıştırır.
-- **Karşılaştırma, iki checkpoint'te:** femboy'larda F, Kare 1, Kare 3 (18 resim); futa'larda G, H,
-  Kare 1, Kare 3 (24 resim); LoRA'sız F, G, H (6 resim) — **48 resim**.
 - **`男の娘、ふたなり` (otoko no ko, futanari, ILL v2.0) futa adayı olarak da seçilmedi:** güç önerisi
   olan bir beden kavramı, ama tek tetikle iki ayrı şeyi — femboy'u ve futa'yı — öğretiyor; iki gruptan
-  birinin karesini ötekine çekebilir.
+  birinin prompt'unu ötekine çekebilir.
 - Seçilmeyenlerin tamamı ve nedenleri `instructions.md`'de.
 
 ## Deneme nasıl kuruluyor
@@ -116,14 +113,9 @@ numaraları aynı. Defter ikisini de reponun `main`'inden okur ve:
 2. node türü farklıysa Queen Editor'ünkini alır: `36` `CLIPTextEncode` → `CLIPTextEncodeBREAK`;
 3. her aday için Queen Editor'ün yazdıklarını yazar: `45` checkpoint (Nova; DaSiWa elle), `27` Power
    Lora Loader'a **yalnız aday** (Queen Editor'de bir LoRA seçilince USNR kapanır, `_set_loras`), `3`
-   POSITIVE'e tetik + grubunun karesi, `40` seed'e sabit `20261027` (adaylar aynı gürültüden).
+   POSITIVE'e tetik ve bir prompt, `40` seed'e sabit `20261027` (adaylar aynı gürültüden).
 
-Bir adayın satırı grubunu taşır (`femboy` / `futa`), ve grup workflow'un hangi kareyle açılacağını
-seçer: **Kare F** — örnek senaryonun kapı önü karesi, kadın karakterin yerine bir femboy — ya da **Kare
-G** — aynı kare, aynı kadın futanari olarak. **Kare H** — aynı futa ve senaryonun erkek karakteri,
-yatakta — yalnız `instructions.md`'de. Üçü de QueenAgent'ın `build_prompts`'unun biçiminde; H'de
-senaryonun karakter satırındaki `solo` yok, iki kişilik bir karede yanlış olduğu için. Workflow'un adı
-adayın kaydedilen dosya adı.
+Workflow'un adı adayın kaydedilen dosya adı.
 
 **Negatif Queen Editor'deki gibi değil.** Queen Editor grafiğin negatifini hiç kullanmaz: panelin negatif
 kutusuna yazılanı yazar (`routes.py`, `start_batch`; proje başına saklanır, boşsa boş —
@@ -192,10 +184,10 @@ Hepsi defterin bir koşusunda, kullanıcının makinesinde; Queen Editor'ün ça
   Qwen denemelerinin biçiminde ve NOTEBOOK-STANDARD'a uygun.
 - 5. bölümün kodu bu makinede iki gerçek grafikle ve defterin kendi aday listesiyle çalıştırıldı:
   karşılaştırma geçti, altı workflow yazıldı, `36`'nın türü değişti ve altısında `27`, `3`, `40`, `45`
-  beklenen değerlerde — femboy'larda Kare F, futa'larda Kare G. GitHub'ın API adresi `Accept:
+  beklenen değerlerde. GitHub'ın API adresi `Accept:
   application/vnd.github.raw` ile ham dosyayı veriyor; özetin hata yolu bozuk bir header'la denendi.
 - Kullanıcı defteri Colab'da koşup her gruptaki üç adayı karşılaştırabiliyor.
 - *(28 Ekim'den beri, yukarıdaki ilk iki maddenin — `femboy-futa-lora/` klasörü ve 5. bölümün workflow'ları —
-  yerine)* Altı aday `nova-3dcg/manual.ipynb`'den iniyor, deneme
-  onun "Nova preset" hücresinde yazılı, `workflow_manual.json` arayüz 1.46.15'le yerelde hatasız
+  yerine)* Altı aday `nova-3dcg/manual.ipynb`'den iniyor, adaylar ve tetikleri onun "Nova preset"
+  hücresinde yazılı — kare yok, prompt'u kullanıcı yazar —, `workflow_manual.json` arayüz 1.46.15'le yerelde hatasız
   yükleniyor ve `femboy-futa-lora/` silindi.

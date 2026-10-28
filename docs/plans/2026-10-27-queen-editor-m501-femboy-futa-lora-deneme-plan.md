@@ -15,7 +15,7 @@ DaSiWa'nın LoRA kutusuna girer; bu plan yalnız denemeyi kurar.
 
 **Ana ajanın brifi:** gördüğü Queen Editor'ün çizeceği olsun — Queen Editor'ün fotoğraf grafiği,
 yükleyicide yalnız aday, USNR kapalı, tetik prompt'un önünde; iki checkpoint Queen Editor'ün indirdiği;
-`CIVITAI_COOKIE` öteki denemelerdeki gibi; prompt'lar örnek senaryodan, artı grup başına bir kare.
+`CIVITAI_COOKIE` öteki denemelerdeki gibi.
 
 İşaretler: **✅** kaynaktan ya da dosyanın kendisinden doğrulandı · **≈** doğrulanmadı.
 
@@ -35,8 +35,6 @@ yükleyicide yalnız aday, USNR kapalı, tetik prompt'un önünde; iki checkpoin
   `femboy-lora/`'dan, henüz commit'lenmemişken adı değişti).
 - **Güç:** sayfanın önerdiği, önermeyende 1,0. **Tetik:** sayfanın eğitim sözcükleri, sayılar ve beden ya
   da eylem etiketleri çıkarılarak.
-- **Kare H** *(ana ajanın kararı, review'dan sonra)*: futa'lar tek kişilik G'nin yanında partnerli H'yi de
-  çizer.
 
 ---
 
@@ -101,8 +99,8 @@ Krea'nın `turbo.ipynb`'sinin biçiminde, 13 hücre.
 - [x] **Hücre 9–10 (workflow'lar):** `fetched(path)` — token'la API, token'sız ham adres; `differences()`
   — API'deki her node arayüzde var ve açık mı, bağları aynı node'dan mı (kapalı node'un içinden
   izlenerek), değerleri kutularda mı; tutmazsa durur. Farklı türü Queen Editor'ünkine çevirir
-  (`36` → `CLIPTextEncodeBREAK`). Aday başına `candidate_graph`: `45` Nova, `27` yalnız aday, `3` tetik +
-  grubunun karesi (`FRAMES`: F ya da G), `40` sabit seed. `.part`'a yaz, `os.replace`; aynı adlı dosya
+  (`36` → `CLIPTextEncodeBREAK`). Aday başına `candidate_graph`: `45` Nova, `27` yalnız aday, `3` tetik ve
+  bir prompt, `40` sabit seed. `.part`'a yaz, `os.replace`; aynı adlı dosya
   varsa dokunma.
 - [x] **Hücre 11–12 (başlat):** Krea'nınki; ayağa kalkınca bir `/object_info` ve Queen Editor'ün
   grafiğindeki her node türü orada aranır; tünel; altı workflow'un listesi.
@@ -111,8 +109,7 @@ Krea'nın `turbo.ipynb`'sinin biçiminde, 13 hücre.
 
 - [x] İki aday tablosu (femboy, futa): link, sürüm, taban, indirme, güç, tetik, workflow; nedenler ve
   seçilmeyenler.
-- [x] Çalıştırma, ne karşılaştırılır (48 resim), ne söylenecek; negatifin tek fark olduğu.
-- [x] Prompt'lar: F, G, H, Kare 1, Kare 3.
+- [x] Çalıştırma, ne söylenecek; negatifin tek fark olduğu.
 
 ### 2.3 `indirilecekler.md`
 
@@ -145,8 +142,6 @@ Krea'nın `turbo.ipynb`'sinin biçiminde, 13 hücre.
   tutar.
 - [x] **5.** `differences()`'ın docstring'i: değer `widgets_values`'ta sırasından bağımsız aranır, ve
   `True`/`False` `1`/`0`'a eşit — bir farkı kaçırabilir, uyduramaz.
-- [x] **6. Kare H:** futa ve senaryonun erkek karakteri, yatakta; üç futa adayı da G ve H'yi iki
-  checkpoint'te çizer. Sayılar: femboy 18, futa 24, LoRA'sız 6 — 48.
 - [x] **7.** `civitai_fetch`'te §3'ü anan yorum geri geldi: bozuk dosya saklanır, ama bu `.part`'ın
   baytları bir safetensors header'ıyla başlamıyor ve başı basıldı, o yüzden silinir.
 - [x] **8.** Spec `…-m501-femboy-futa-lora-deneme-design.md` oldu; ona giden başka link yoktu.
@@ -165,10 +160,12 @@ kullanıp test edeyim foto experimentide silelim"*. Gerekçe ve kanıt spec'te, 
   paragraf. *(Review'dan sonra)* rgthree, Queen Editor'ün `BRANCHES`'ı gibi `main` dalından (madde 470).
 - [x] **4. bölüm:** `CIVITAI_MODELS`'a altı aday, deneme defterindeki sürüm ve adlarla (324974, 2693790,
   2176350, 2698395, 1457484, 2066157); başlıklarda ~16,5 GiB.
-- [x] **"Nova preset" hücresi:** "Femboy ve futa denemesi (v11 madde 501)" — aday tablosu, her üretimin
-  dört adımı, ne karşılaştırılır, ne getirilecek, F, G, H, 1 ve 3 kareleri `BREAK` yerine virgülle
-  (deneme talimatındakilerle `BREAK` → `, ` dışında birebir aynı olduğu kodla karşılaştırıldı).
-- [x] **5. bölüm:** son hücrenin ipucularına deneme için iki satır.
+- [x] **"Nova preset" hücresi:** "Femboy ve futa denemesi (v11 madde 501)" — aday tablosu (LoRA, güç,
+  tetik), her üretimin dört adımı (POSITIVE: tetik + `, ` + kullanıcının kendi prompt'u), ne getirilecek.
+- [x] **Kareler çıktı** *(kullanıcı, 28 Ekim — "ben senden kare yamanı istemedim yazdığı nyerdende temizle
+  promtpları")*: prompt'ları kullanıcı yazar, yalnız tetikleri ister. Kareler, onlara dayanan
+  karşılaştırma ve resim sayısı defterden, spec'ten ve bu plandan silindi.
+- [x] **5. bölüm:** son hücrenin ipucularına deneme için iki satır, karesiz.
 - [x] **`git rm -r collab-toolbox/photo_experiments/femboy-futa-lora/`**; `collab-toolbox/README.md`'deki
   cümle nova-3dcg'nin defterine döndü; spec'in defter linki yeni yere.
 - [x] **Yerel deneme ✅** (`tmp/` altında, CPU, sonra silindi): 1.57.6'da kullanıcının penceresi birebir;
@@ -197,4 +194,4 @@ kullanıp test edeyim foto experimentide silelim"*. Gerekçe ve kanıt spec'te, 
 - **B'nin tetiği** `Fboy` ≈; defterin etiket sayımı gösterecek.
 - **Adayların Nova ve DaSiWa'da nasıl çizdiği:** sayfalardaki örneklerin üretim bilgisi girişsiz
   okunmuyor ≈. Denemenin sorusu bu.
-- **E ve F'nin partnersiz bir karede ne yaptığı**, ve E'nin bir erkekle ne yaptığı ≈ — G ve H gösterecek.
+- **E ve F'nin partnersiz bir prompt'ta ne yaptığı**, ve E'nin bir erkekle ne yaptığı ≈.

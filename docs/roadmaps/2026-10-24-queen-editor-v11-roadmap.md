@@ -174,6 +174,10 @@ yapalım sonra karar veridğimizi queen editore koyarız"*. Deneme notebook'u
   arasında: arayüz 1.47'den beri node numaralarını yazı olarak tutuyor, Impact-Pack'in ImpactSwitch'i
   ise yüklenirken numarayı node yerine veriyor. Defter arayüzü 1.46.15'te sabitler; yerelde 1.57.6'da
   aynı hata çıktı, 1.46.15'te grafik hatasız ve eksik node'suz açıldı.
+- **Yapılırken kararlaşan: kare yok, yalnız tetikler** *(kullanıcı, 28 Ekim — "ben senden kare yamanı
+  istemedim yazdığı nyerdende temizle promtpları")*. Prompt'ları kullanıcı kendisi yazar; defterde
+  adaylar, güçleri ve tetikleri kalır, POSITIVE'e tetik + `, ` + kendi prompt'u yazılır. Hazır kareler
+  ve onlara dayanan karşılaştırma defterden, spec'ten ve plandan silindi.
 
 <a id="v11-5"></a>
 ### 500 · v11-5 — Eski belgeler ve roadmap'ler arşive
