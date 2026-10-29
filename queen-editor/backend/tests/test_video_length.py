@@ -12,6 +12,7 @@ import pytest
 
 from backend.features.photo_generation.domain import layers, queue
 from backend.features.photo_generation.domain.run_loop import make_job
+from backend.features.photo_generation.domain.running_name import RunningName
 from backend.features.photo_generation.domain.usecases.queue_layer import queue_layer
 from backend.features.photo_generation.domain.usecases.queue_references import queue_references
 from backend.features.photo_generation.domain.usecases.regenerate import regenerate
@@ -266,7 +267,7 @@ def made(job):
                               **job})
     generator = FakeGenerator()
     make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
-             lambda: "t", "düğün")()
+             lambda: "t", named=RunningName("düğün"))()
     return generator, next(row for row in record.rows if row.get("layer") == "video")
 
 
@@ -297,6 +298,6 @@ def test_a_waiting_video_comes_out_at_the_length_it_was_added_with():
     generator = FakeGenerator()
 
     make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
-             lambda: "t", "düğün")()
+             lambda: "t", named=RunningName("düğün"))()
 
     assert generator.lengths == [8]

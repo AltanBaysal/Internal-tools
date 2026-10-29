@@ -14,6 +14,7 @@ from backend.features.photo_generation.domain.photo_name import (
 from backend.features.photo_generation.domain.frame_list import InvalidFrames
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
 from backend.features.photo_generation.domain.run_loop import make_job
+from backend.features.photo_generation.domain.running_name import RunningName
 from backend.features.photo_generation.domain.usecases.copy_frames import copy_frames
 from backend.features.photo_generation.domain.usecases.remove_frames import remove_frames
 from backend.features.photo_generation.domain.usecases.get_status import get_status
@@ -1969,7 +1970,7 @@ def render_one_video(mode, linked_to=None, gallery=((0, "a"), (1, "a")), photos=
     plan_store.append("düğün", [job])
     generator = FakeGenerator()
     make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
-             lambda: "t", "düğün")()
+             lambda: "t", named=RunningName("düğün"))()
     return generator, record
 
 
@@ -2007,7 +2008,8 @@ def render_a_video(record, store, stills=None, log=None):
     plan_store = FakePlanStore(frames=[{"id": "0_a", "type": "video", "number": 0, "variant": 0,
                                         "prompt": "p", "negative": "", "seed": 1, "model": ""}])
     state = make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: FakeVideoGenerator()},
-                     lambda: "t", "düğün", stills=stills, log=log)()
+                     lambda: "t", named=RunningName("düğün"), stills=stills,
+                     log=log)()
     return state, plan_store
 
 
@@ -2140,7 +2142,8 @@ def write_one_video(mode, linked_to=None, numbers=(0, 1)):
     plan_store.append("düğün", [job])
     writer, generator = FakeWriter(), FakeGenerator()
     make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
-             lambda: "t", "düğün", writers={layers.VIDEO: writer})()
+             lambda: "t", named=RunningName("düğün"),
+             writers={layers.VIDEO: writer})()
     return writer, generator, record
 
 
@@ -2241,7 +2244,7 @@ def render_seedless(new_seed, jobs=1):
     plan_store.append("düğün", planned)
     generator = FakeGenerator()
     make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
-             lambda: "t", "düğün", new_seed=new_seed)()
+             lambda: "t", named=RunningName("düğün"), new_seed=new_seed)()
     return generator, record
 
 
@@ -2292,7 +2295,8 @@ def test_the_three_attempts_of_one_job_share_one_seed():
     generator = FakeGenerator(fail_on=["p"])
 
     make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
-             lambda: "t", "düğün", new_seed=lambda: next(seeds))()
+             lambda: "t", named=RunningName("düğün"),
+             new_seed=lambda: next(seeds))()
 
     assert len(generator.calls) == 3
     assert len({call[2] for call in generator.calls}) == 1
@@ -3006,7 +3010,7 @@ def test_a_run_reads_the_project_name_again_every_turn():
     named = MovingName("düğün")
 
     job = make_job(sync_runner(), store, record, plan_store,
-                   {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", named=named)
+                   {layers.PHOTO: FakeGenerator()}, lambda: "t", named=named)
     named.name = "başka"
     job()
 
@@ -3921,6 +3925,91 @@ def test_adding_while_another_project_runs_is_busy():
     assert str(exc.value) == "Zaten bir üretim sürüyor."
 
 
+class ClosingPlanStore(FakePlanStore):
+    """Lets one press in right after the read that finds nothing owed, once `ready` says the loop
+    is that far: the loop has decided it is done and the runner has not yet said so -- the window
+    madde 511 is about."""
+
+    def __init__(self, ready):
+        super().__init__()
+        self.ready, self.press = ready, None
+
+    def read(self, project):
+        plan = super().read(project)
+        if self.press and self.ready():
+            press, self.press = self.press, None
+            press()
+        return plan
+
+
+def test_a_job_queued_as_the_queue_closes_still_starts():
+    """The user, 29 Ekim -- "eklediğim video niye başlamıyor abi". No job is left owed with the
+    worker idle, and the queue's end is told once, when nothing is."""
+    jobs, told = [], []
+    runner = PhotoRunner(spawn=jobs.append, ended=told.append)
+    store, record, generator = FakeStore(), FakeRecord(), FakeGenerator()
+    plan_store = ClosingPlanStore(ready=lambda: len(generator.calls) == 1)
+    plan_store.press = lambda: run_batch(runner, store, generator, text='["ikinci"]', variants=1,
+                                         record=record, plan_store=plan_store)
+
+    run_batch(runner, store, generator, text='["ilk"]', variants=1, record=record,
+              plan_store=plan_store)
+    jobs.pop()()
+
+    assert [prompt for prompt, *_rest in generator.calls] == ["ilk", "ikinci"]
+    assert owed_files(record, plan_store) == []
+    assert jobs == []                                   # no second worker was started
+    assert [state["status"] for state in told] == ["done"]
+    assert runner.status()["status"] == "done"
+
+
+class Overtaken(PhotoRunner):
+    """A worker another press claims while this press is between its look at the worker and its
+    start: after status() has answered, before start() runs. `other` is that press's own claim."""
+
+    def __init__(self, other):
+        super().__init__(spawn=lambda fn: None)
+        self.other = other
+
+    def _overtake(self):
+        other, self.other = self.other, None
+        if other:
+            other(self)
+
+    def status(self):
+        state = super().status()
+        self._overtake()
+        return state
+
+    def start(self, project, job):
+        self._overtake()
+        return super().start(project, job)
+
+
+def test_a_press_overtaken_by_another_press_of_its_project_joins_it():
+    """Two presses of one idle project at once: the one that loses the claim joins the run rather
+    than being told a production is already going (madde 511)."""
+    runner = Overtaken(lambda worker: PhotoRunner.start(worker, "düğün", lambda: None))
+    plan_store = FakePlanStore()
+
+    run_batch(runner, FakeStore(), FakeGenerator(), text='["ikinci"]', variants=1,
+              plan_store=plan_store)
+
+    assert runner.status() == {"status": "running", "project": "düğün"}
+    assert len(plan_store.frames) == 1
+
+
+def test_a_press_overtaken_by_another_project_leaves_that_run_where_it_is():
+    """Another project claims the worker in the same moment: this press is refused, and the run that
+    won goes on reading its own folder -- nothing but the claim points the worker anywhere."""
+    runner = Overtaken(lambda worker: PhotoRunner.start(worker, "başka", lambda: None))
+
+    with pytest.raises(Busy):
+        run_batch(runner, FakeStore(), FakeGenerator(), text='["ilk"]', variants=1)
+
+    assert runner.named.now() == "başka"
+
+
 def test_a_failed_frame_is_written_to_the_log():
     record = FakeRecord()
     run_batch(sync_runner(), FakeStore(), FakeGenerator(fail_on=["patlak"]), text='["patlak"]',
@@ -4101,8 +4190,8 @@ def timed_job(lines, ticks, frames, generator=None):
     plan_store.append("düğün", frames)
     clock = iter(ticks)
     return make_job(sync_runner(), FakeStore(), FakeRecord(), plan_store,
-                    {layers.PHOTO: generator or FakeGenerator()}, lambda: "t1", "düğün",
-                    clock=lambda: next(clock), log=lines.append)
+                    {layers.PHOTO: generator or FakeGenerator()}, lambda: "t1",
+                    named=RunningName("düğün"), clock=lambda: next(clock), log=lines.append)
 
 
 def test_the_render_and_the_writes_are_measured_apart():
@@ -4165,7 +4254,7 @@ def test_a_produced_layer_carries_how_long_the_model_worked_on_it():
     clock, record, plan_store = Clock(), FakeRecord(), FakePlanStore(frames=[frame(0)])
 
     make_job(sync_runner(), FakeStore(), record, plan_store, {layers.PHOTO: Takes(clock, 46.34)},
-             lambda: "t", "düğün", clock=clock)()
+             lambda: "t", named=RunningName("düğün"), clock=clock)()
 
     # A tenth of a second is all the card's m:ss will ever need.
     assert rows_of(record, "photo")[0]["renderSeconds"] == 46.3
@@ -4177,7 +4266,8 @@ def test_waiting_in_the_queue_is_no_part_of_a_layers_time():
     plan_store = FakePlanStore(frames=[frame(0), frame(1)])
 
     make_job(sync_runner(), FakeStore(), record, plan_store,
-             {layers.PHOTO: Takes(clock, 30.0, 50.0)}, lambda: "t", "düğün", clock=clock)()
+             {layers.PHOTO: Takes(clock, 30.0, 50.0)}, lambda: "t",
+             named=RunningName("düğün"), clock=clock)()
 
     assert [row["renderSeconds"] for row in rows_of(record, "photo")] == [30.0, 50.0]
 
@@ -4202,7 +4292,7 @@ def test_reading_what_a_layer_is_made_from_is_no_part_of_its_time():
     store.files["0_a.png"] = b"PNG"
 
     make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: Takes(clock, 40.0)},
-             lambda: "t", "düğün", clock=clock)()
+             lambda: "t", named=RunningName("düğün"), clock=clock)()
 
     assert rows_of(record, "video")[0]["renderSeconds"] == 40.0
 
@@ -4226,7 +4316,7 @@ def test_writing_the_prompt_is_no_part_of_the_layers_time():
     store, record, plan_store = video_job_project(prompt="kırmızı elbiseli kadın")
 
     make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: Takes(clock, 40.0)},
-             lambda: "t", "düğün", clock=clock,
+             lambda: "t", named=RunningName("düğün"), clock=clock,
              writers={layers.VIDEO: SlowWriter(clock, 20.0)})()
 
     assert rows_of(record, "video")[0]["renderSeconds"] == 40.0
@@ -4237,7 +4327,8 @@ def test_a_retried_layer_carries_the_time_of_the_attempt_that_made_it():
     clock, record, plan_store = Clock(), FakeRecord(), FakePlanStore(frames=[frame(0)])
 
     make_job(sync_runner(), FakeStore(), record, plan_store,
-             {layers.PHOTO: Takes(clock, 10.0, fails=2)}, lambda: "t", "düğün", clock=clock)()
+             {layers.PHOTO: Takes(clock, 10.0, fails=2)}, lambda: "t",
+             named=RunningName("düğün"), clock=clock)()
 
     assert rows_of(record, "photo")[0]["renderSeconds"] == 10.0
 
@@ -4274,7 +4365,7 @@ def test_the_report_names_when_the_model_started_and_clears_it_for_the_next_job(
     plan_store = FakePlanStore(frames=[frame(0), frame(1)])
 
     make_job(runner, FakeStore(), FakeRecord(), plan_store, {layers.PHOTO: FakeGenerator()},
-             ticking(), "düğün")()
+             ticking(), named=RunningName("düğün"))()
 
     assert [patch["startedAt"] for patch in reports] == [None, "t1", None, "t3"]
 
@@ -4299,7 +4390,7 @@ def test_no_start_is_reported_while_the_layers_source_is_read():
     store.files["0_a.png"] = b"PNG"
 
     make_job(runner, store, record, plan_store, {layers.VIDEO: FakeGenerator()}, ticking(),
-             "düğün")()
+             named=RunningName("düğün"))()
 
     assert store.seen[0]["current"]["type"] == "video"
     assert store.seen[0]["startedAt"] is None
@@ -4324,7 +4415,7 @@ def test_no_start_is_reported_while_a_prompt_is_written():
     writer = PeekingWriter(reports)
 
     make_job(runner, store, record, plan_store, {layers.VIDEO: FakeGenerator()}, ticking(),
-             "düğün", writers={layers.VIDEO: writer})()
+             named=RunningName("düğün"), writers={layers.VIDEO: writer})()
 
     assert writer.seen[0]["current"] is None
     assert writer.seen[0]["startedAt"] is None
@@ -4352,7 +4443,7 @@ def test_each_attempt_at_a_layer_reports_its_own_start():
     producer = Glancing(reports, fails=2)
 
     make_job(runner, FakeStore(), FakeRecord(), FakePlanStore(frames=[frame(0)]),
-             {layers.PHOTO: producer}, ticking(), "düğün")()
+             {layers.PHOTO: producer}, ticking(), named=RunningName("düğün"))()
 
     assert producer.seen == ["t1", "t2", "t3"]
 
@@ -4363,7 +4454,8 @@ def test_a_job_whose_type_has_no_producer_makes_the_run_wait():
     plan_store = FakePlanStore(frames=[{"id": "P0_0", "type": "video", "number": 0, "variant": 0,
                                         "prompt": "", "seed": 1}])
     state = make_job(sync_runner(), FakeStore(), FakeRecord(), plan_store,
-                     {layers.PHOTO: FakeGenerator()}, lambda: "t1", "düğün")()
+                     {layers.PHOTO: FakeGenerator()}, lambda: "t1",
+                     named=RunningName("düğün"))()
 
     assert state["status"] == "waiting" and state["waitingFor"] == "video"
 
@@ -4390,7 +4482,7 @@ def test_the_loop_finishes_photos_before_it_starts_videos():
     done = []
     make_job(sync_runner(), store, record, plan_store,
              {layers.PHOTO: Records("photo"), layers.VIDEO: Records("video")},
-             lambda: "t1", "düğün")()
+             lambda: "t1", named=RunningName("düğün"))()
 
     # Plan order would have put the video first; the type order does not let it.
     assert done == ["photo", "video"]
@@ -4683,7 +4775,7 @@ def test_a_plain_video_is_rendered_with_no_references_at_all():
     generator = FakeGenerator()
 
     make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
-             lambda: "t", "düğün")()
+             lambda: "t", named=RunningName("düğün"))()
 
     assert generator.references == [[]]
 
@@ -4701,7 +4793,8 @@ def test_the_writer_is_told_which_mode_the_job_is_in():
     writer = FakeWriter()
 
     make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: FakeGenerator()},
-             lambda: "t", "düğün", writers={layers.VIDEO: writer})()
+             lambda: "t", named=RunningName("düğün"),
+             writers={layers.VIDEO: writer})()
 
     assert writer.modes == ["loop"]
 

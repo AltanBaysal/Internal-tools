@@ -5,6 +5,7 @@ every test there still walks the one-by-one path; the producer added here can.
 """
 from backend.features.photo_generation.domain import layers
 from backend.features.photo_generation.domain.run_loop import make_job
+from backend.features.photo_generation.domain.running_name import RunningName
 from backend.features.photo_generation.domain.usecases.regenerate import regenerate
 from backend.features.photo_generation.domain.usecases.resume_batch import resume_batch
 from backend.features.photo_generation.domain.usecases.retry_failed import retry_failed
@@ -145,8 +146,8 @@ def test_each_variants_time_is_its_share_of_the_batch():
     clock, record = Clock(), FakeRecord()
 
     make_job(sync_runner(), FakeStore(), record, one_prompt(4),
-             {layers.PHOTO: BatchGenerator(clock=clock, seconds=80.0)}, lambda: NOW, "düğün",
-             clock=clock)()
+             {layers.PHOTO: BatchGenerator(clock=clock, seconds=80.0)}, lambda: NOW,
+             named=RunningName("düğün"), clock=clock)()
 
     assert [row["renderSeconds"] for row in rows_of(record, "photo")] == [20.0] * 4
 
@@ -190,7 +191,7 @@ def test_the_card_is_asked_about_the_prompt_s_model():
                                             model="krea2"))
 
     make_job(sync_runner(), FakeStore(), FakeRecord(), plan, {layers.PHOTO: generator},
-             lambda: NOW, "düğün")()
+             lambda: NOW, named=RunningName("düğün"))()
 
     assert generator.asked_models == ["krea2"]
 
@@ -300,7 +301,7 @@ def test_video_jobs_are_never_batched():
     generator = BatchGenerator()
 
     make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: generator}, lambda: NOW,
-             "düğün", new_seed=lambda: 5)()
+             named=RunningName("düğün"), new_seed=lambda: 5)()
 
     assert len(generator.calls) == 2
     assert generator.batches == [] and generator.asked == []
@@ -338,7 +339,7 @@ def test_the_timing_line_names_the_batchs_files_together():
     clock, lines = Clock(), []
 
     make_job(sync_runner(), FakeStore(), FakeRecord(), one_prompt(2),
-             {layers.PHOTO: BatchGenerator(clock=clock, seconds=80.0)}, lambda: NOW, "düğün",
-             clock=clock, log=lines.append)()
+             {layers.PHOTO: BatchGenerator(clock=clock, seconds=80.0)}, lambda: NOW,
+             named=RunningName("düğün"), clock=clock, log=lines.append)()
 
     assert lines == ["⏱ P0_0.png, P0_1.png · render 80.0 sn · drive 0.0 sn"]

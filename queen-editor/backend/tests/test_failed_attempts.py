@@ -10,6 +10,7 @@ No test waits a real second: the loop is handed a sleep that writes down what it
 """
 from backend.features.photo_generation.domain import layers
 from backend.features.photo_generation.domain.run_loop import make_job
+from backend.features.photo_generation.domain.running_name import RunningName
 from backend.tests.test_photo_usecases import (
     FakePlanStore,
     FakeRecord,
@@ -58,7 +59,7 @@ def run(producer, runner=None, sleep=None):
     lines, waits, record = [], [], FakeRecord()
     summary = make_job(runner or sync_runner(), FakeStore(), record,
                        FakePlanStore(frames=[frame(0)]), {layers.PHOTO: producer},
-                       lambda: "t", "düğün", log=lines.append,
+                       lambda: "t", named=RunningName("düğün"), log=lines.append,
                        sleep=sleep or waits.append)()
     return summary, lines, waits, record
 

@@ -169,8 +169,9 @@ class Runner:
 
     def __init__(self):
         # Which folder the job writes into: a project can be renamed under a run, so the loop reads
-        # the name from here rather than keeping the string it was handed.
-        self.named = RunningName()
+        # the name from here rather than keeping the string it was handed. Pointed at the project
+        # these tests run, as a real runner's claim points it.
+        self.named = RunningName("düğün")
 
     def stop_requested(self):
         return False
@@ -230,7 +231,7 @@ def test_the_queue_runs_the_three_real_producers_end_to_end(tmp_path):
 
     state = make_job(Runner(), store, Record(), Plan(FRAMES),
                      producers_over(video_comfy, ffmpeg, tmp_path),
-                     lambda: "2026-08-13T00:00:00+00:00", "düğün")()
+                     lambda: "2026-08-13T00:00:00+00:00")()
 
     assert state["status"] == "done"
     # The domain names every file; no producer gets a say in it.
@@ -246,7 +247,7 @@ def test_each_layer_is_made_from_the_one_below_it(tmp_path):
 
     make_job(Runner(), store, Record(), Plan(FRAMES),
              producers_over(video_comfy, ffmpeg, tmp_path),
-             lambda: "2026-08-13T00:00:00+00:00", "düğün")()
+             lambda: "2026-08-13T00:00:00+00:00")()
 
     assert video_comfy.uploaded == [("P0_0.png", PORTRAIT)]  # the video hangs on the frame's photo
     assert ffmpeg.saw == b"MP4"                             # the sound is laid over that video
@@ -271,7 +272,7 @@ def test_the_queue_hands_the_real_producers_a_video_job_that_carries_its_length(
 
     state = make_job(Runner(), store, Record(), Plan(timed),
                      producers_over(video_comfy, ffmpeg, tmp_path),
-                     lambda: "2026-10-06T00:00:00+00:00", "düğün")()
+                     lambda: "2026-10-06T00:00:00+00:00")()
 
     assert state["status"] == "done"
     assert store.saved == ["P0_0.png", "P0_0_V1_0.mp4", "P0_0_V1_0_S1_0.wav"]
@@ -308,7 +309,7 @@ def test_a_prompts_variants_go_through_the_real_photo_producer_as_one_batch():
 
     make_job(Runner(), store, Record(), Plan(VARIANTS),
              {layers.PHOTO: ComfyPhotoGenerator(comfy, PHOTO_GRAPH, timeout=60)},
-             lambda: "2026-10-01T00:00:00+00:00", "düğün")()
+             lambda: "2026-10-01T00:00:00+00:00")()
 
     assert len(comfy.graphs) == 1
     graph = comfy.graphs[0]
@@ -345,7 +346,7 @@ def test_a_krea_prompt_goes_through_the_real_photo_producers_on_its_own_graph(tm
                                                            timeout=60)})
 
     state = make_job(Runner(), store, Record(), Plan(krea_jobs + VARIANTS), {layers.PHOTO: photo},
-                     lambda: "2026-10-21T00:00:00+00:00", "düğün")()
+                     lambda: "2026-10-21T00:00:00+00:00")()
 
     assert state["status"] == "done"
     assert [graph["53:3"]["inputs"]["seed"] for graph in krea.graphs] == [5, 6]
@@ -364,7 +365,7 @@ def video_row(video, asked, tmp_path):
             for job in FRAMES]
     producers = {**producers_over(VideoComfy(), Ffmpeg(), tmp_path), layers.VIDEO: video}
     make_job(Runner(), Store(), record, Plan(jobs), producers,
-             lambda: "2026-10-06T00:00:00+00:00", "düğün")()
+             lambda: "2026-10-06T00:00:00+00:00")()
     return next(row for row in record.rows if row["layer"] == layers.VIDEO)
 
 
@@ -399,7 +400,7 @@ def test_the_queue_hands_the_real_h3_a_video_job_that_ends_happily(tmp_path):
 
     state = make_job(Runner(), store, Record(), Plan(happy),
                      producers_over(video_comfy, ffmpeg, tmp_path),
-                     lambda: "2026-10-09T00:00:00+00:00", "düğün")()
+                     lambda: "2026-10-09T00:00:00+00:00")()
 
     assert state["status"] == "done"
     assert "HMCumshot_V1.0.safetensors" in video_comfy.submitted["2678"]["inputs"]["stack_data"]
@@ -414,7 +415,7 @@ def sizes_made(lines, tmp_path):
     producers = {**producers_over(video_comfy, Ffmpeg(), tmp_path),
                  layers.PHOTO: ComfyPhotoGenerator(photo_comfy, PHOTO_GRAPH, timeout=60)}
     state = make_job(Runner(), Store(), Record(), Plan(lines), producers,
-                     lambda: "2026-10-20T00:00:00+00:00", "düğün")()
+                     lambda: "2026-10-20T00:00:00+00:00")()
     assert state["status"] == "done"
     photo, director = photo_comfy.submitted, video_comfy.submitted["2730"]["inputs"]
     return ((photo["1"]["inputs"]["value"], photo["11"]["inputs"]["value"]),

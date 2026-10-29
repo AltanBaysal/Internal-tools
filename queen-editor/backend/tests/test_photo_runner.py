@@ -63,11 +63,19 @@ def test_unexpected_exception_becomes_error_with_the_real_message():
     assert state["status"] == "error" and state["error"] == "ComfyUI öldü"
 
 
-def test_second_start_is_refused_while_running():
-    runner = PhotoRunner(spawn=lambda fn: None)   # never runs -> stays "running"
+def test_a_start_while_running_joins_this_projects_run_and_refuses_anothers():
+    """One worker: another project's start is refused, and this project's joins the run rather than
+    starting a second one (madde 511)."""
+    jobs = []
+    runner = PhotoRunner(spawn=jobs.append)
     assert runner.start("düğün", lambda: {"status": "done"}) is True
     assert runner.status()["status"] == "running"
-    assert runner.start("düğün", lambda: {"status": "done"}) is False
+
+    assert runner.start("başka", lambda: {"status": "done"}) is False
+    assert runner.start("düğün", lambda: {"status": "done"}) is True
+
+    assert len(jobs) == 1
+    assert runner.named.now() == "düğün"
 
 
 def test_a_finished_job_does_not_block_the_next_one():
@@ -143,6 +151,91 @@ def test_a_pause_says_nothing():
     runner.start("düğün", lambda: {"status": "paused"})
 
     assert told == []
+
+
+def deferred_runner():
+    """A runner whose job waits until the test runs it, and what it told of the queue's end."""
+    jobs, told = [], []
+    return jobs, told, PhotoRunner(spawn=jobs.append, ended=told.append)
+
+
+def test_work_joined_while_the_run_closes_is_looked_at_before_done():
+    """Madde 511: the loop has found nothing owed and a job is queued before the runner says done.
+    The run looks again rather than end, and the end is told once, after the look that found
+    nothing."""
+    jobs, told, runner = deferred_runner()
+    passes = []
+
+    def job():
+        passes.append(len(passes) + 1)
+        if len(passes) == 1:
+            assert runner.start("düğün", lambda: {"status": "never run"}) is True
+        return {"status": "done", "pass": len(passes)}
+
+    runner.start("düğün", job)
+    jobs.pop()()
+
+    assert passes == [1, 2]
+    assert jobs == []                                   # the join started no second worker
+    assert told == [{"status": "done", "pass": 2, "project": "düğün"}]
+    assert runner.status() == told[0]
+
+
+@pytest.mark.parametrize("summary", [
+    {"status": "done"},
+    {"status": "paused"},
+    {"status": "error", "error": "ComfyUI cevap vermedi."},
+    {"status": "waiting", "waitingFor": "video"},
+], ids=["done", "paused", "error", "waiting"])
+def test_any_ending_a_job_joined_runs_again(summary):
+    """A press means the same whenever it lands (madde 511): one that joined the run is answered as
+    one made right after its end would be -- the loop runs again and says what it finds."""
+    jobs, told, runner = deferred_runner()
+    passes = []
+
+    def job():
+        passes.append(1)
+        if len(passes) == 1:
+            runner.start("düğün", lambda: {"status": "never run"})
+        return summary
+
+    runner.start("düğün", job)
+    jobs.pop()()
+
+    assert passes == [1, 1]
+    assert runner.status() == {**summary, "project": "düğün"}
+    assert len(told) == (0 if summary["status"] == "paused" else 1)
+
+
+def test_a_join_leaves_a_stop_standing():
+    """Durdur pressed, then a job queued before the run ended: the run comes back paused, as the loop
+    does when the stop flag is up."""
+    jobs, _told, runner = deferred_runner()
+    seen = []
+
+    def job():
+        seen.append(runner.stop_requested())
+        if len(seen) == 1:
+            runner.request_stop()
+            runner.start("düğün", lambda: {"status": "never run"})
+        return {"status": "paused"}
+
+    runner.start("düğün", job)
+    jobs.pop()()
+
+    assert seen == [False, True]
+
+
+def test_a_run_renamed_under_it_ends_under_its_new_name():
+    """The screen tells its own run by the status's project, so the end of a run whose project was
+    renamed meanwhile is published under the name it has now."""
+    jobs, told, runner = deferred_runner()
+
+    runner.start("düğün", lambda: runner.rename("düğün", "nikah") or {"status": "done"})
+    jobs.pop()()
+
+    assert runner.status() == {"status": "done", "project": "nikah"}
+    assert told == [{"status": "done", "project": "nikah"}]
 
 
 def test_stop_requested_during_the_job_is_visible():

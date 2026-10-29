@@ -74,6 +74,15 @@ saçma şeyler ortaya çıkıyor".)* **v7'nin ilk maddesi olarak yazıldı, koş
 
 ## Diğer
 
+### Aynı anda gelen kuyruk basışı ve yeniden adlandırma bir işi bekletebilir
+
+*(511'in reviewer'ı buldu, 29 Ekim.)* Bir proje aynı anda hem kuyruğa iş alır hem yeniden adlandırılırsa
+iş başlamadan kalabilir. Yol: basış işi `P` projesine yazar; yeniden adlandırma `P`'yi `Q`'ya taşır ve
+adın tutucusunu `Q`'ya çevirir; basış ardından işçiyi eski adla, `P` ile alır; koşu var olmayan `P`'yi
+okur, borç bulmaz ve `done` yayımlar — iş `Q`'da borçlu kalır. İki sekme ya da yeniden
+adlandırma sürerken basan ajan gerekir. Düzeltme, işçiyi almakla yeniden adlandırmanın adı kimin
+tuttuğunda anlaşmasını ister (ör. `start` artık var olmayan bir adı reddeder).
+
 ### Kendi kutusu olan modelde bilinmeyen LoRA çizimi durdurmuyor
 
 *(501'in reviewer'ı buldu, 28 Ekim.)* Madde 238'in kuralı: kutunun bilmediği bir LoRA çizimi durdurur,

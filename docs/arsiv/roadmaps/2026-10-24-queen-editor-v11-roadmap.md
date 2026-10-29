@@ -328,3 +328,12 @@ Hata 509'dan eski; 509 yalnız ona yanlış bir bildirim ekledi.
 - **Bildirim sırayı etkilemez:** *"bildirim ile sırasını nnasıl çalıştığını asla etkilememli öyle bir şey
   yok"*; *"bildirim tamamne ayrı bir şey sıra mantığın ıdeğiştiremez"*.
 - **Bu yamada düzelir** *(cevap: "Bu yamaya madde olarak ekleyip düzeltelim")*.
+- **Yapılırken kararlaşan** *(Claude, 29 Ekim; reviewer'ın bulduklarıyla, kullanıcının "kesinlik" sözü
+  üzerine)*:
+  - Sırayı başlatmak ve çalışan sıraya iş katmak tek adım olur. Böylece iki komşu boşluk da kapanır:
+    aynı anda basılan iki Kuyruğa ekle'den birinin yanlışlıkla "Zaten bir üretim sürüyor." demesi, ve
+    o anda başka bir projenin başlaması çalışan sırayı yanlış projenin klasörüne çevirebilmesi.
+  - Sıra hangi sonla biterse bitsin, kapanırken eklenen iş bir tur daha döndürür; yalnız "bitti" değil.
+    Durdur yine durdurur.
+  - Sıra çalışırken proje yeniden adlandırılırsa, sıranın sonu yeni adla yazılır; yoksa ekran biten
+    sırayı kendi sırası olarak tanımıyor.

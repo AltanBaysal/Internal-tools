@@ -12,6 +12,7 @@ import pytest
 
 from backend.features.photo_generation.domain import layers
 from backend.features.photo_generation.domain.run_loop import make_job
+from backend.features.photo_generation.domain.running_name import RunningName
 from backend.features.photo_generation.domain.usecases.queue_layer import queue_layer
 from backend.features.photo_generation.domain.usecases.queue_references import queue_references
 from backend.features.photo_generation.domain.usecases.regenerate import regenerate
@@ -273,7 +274,8 @@ def run_one(job, writer=None):
                               "seed": 5, "model": "", **job})
     generator = FakeGenerator()
     make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
-             lambda: "t", "düğün", writers={layers.VIDEO: writer} if writer else None)()
+             lambda: "t", named=RunningName("düğün"),
+             writers={layers.VIDEO: writer} if writer else None)()
     return generator
 
 
@@ -304,6 +306,6 @@ def test_a_waiting_video_comes_out_with_the_switch_it_was_added_with():
     generator = FakeGenerator()
 
     make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
-             lambda: "t", "düğün")()
+             lambda: "t", named=RunningName("düğün"))()
 
     assert generator.endings == [True]

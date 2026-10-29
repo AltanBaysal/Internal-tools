@@ -211,11 +211,12 @@ def _wait(runner, sleep, seconds):
         sleep(1)
 
 
-def make_job(runner, store, record, plan_store, producers, now, project,
+def make_job(runner, store, record, plan_store, producers, now,
              clock=time.monotonic, log=None, order_store=None, writers=None,
              new_seed=seed.random_seed, named=None, stills=None, references=None,
              sleep=time.sleep):
-    """Returns the callable PhotoRunner.start expects: it drains this project's queue.
+    """Returns the callable PhotoRunner.start expects: it drains the queue of the project `named`
+    holds.
 
     `producers` maps a job type to the thing that can do it (see ports.PhotoGenerator). A type with
     nobody to do it stops the run and says so -- skipping it silently would drop work the user asked
@@ -256,11 +257,12 @@ def make_job(runner, store, record, plan_store, producers, now, project,
     `named` is where the project's name is read from, turn by turn: a project IS a folder and it can
     be renamed under a run, so a name captured once would leave the next turn reading a folder that
     is not there. It defaults to the runner's own holder -- the runner is what every way into the
-    queue already carries. A caller that hands its own is a test watching the run follow a move.
+    queue already carries -- and only the runner's claim points it (madde 511): a job is built
+    before the claim is won, and pointing the holder here would move another project's run. A
+    caller that runs the job itself hands a holder with the name in it.
     """
     if named is None:
         named = runner.named
-        named.took(project)
 
     def snapshot():
         project = named.now()
