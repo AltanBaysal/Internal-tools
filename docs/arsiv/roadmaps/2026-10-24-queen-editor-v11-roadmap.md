@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-10-24 · **Koşu dalı:** `feat/queen-editor-v11` · **Durum:** 7/7 · bitti; kullanıcı 28 Ekim'de denedi *(kullanıcı, 28 Ekim — "ve gerisi düzgün queen agnetı ve editoru maine mergelyebilrisn")*
 
-**Yama v11.1:** 2026-10-29 · **Koşu dalı:** `feat/queen-editor-v11.1` · **Durum:** 6/8 *(kullanıcı, 29 Ekim —
+**Yama v11.1:** 2026-10-29 · **Koşu dalı:** `feat/queen-editor-v11.1` · **Durum:** 7/8 *(kullanıcı, 29 Ekim —
 "patch gibi düşün ubnları"; "queen editorun son roadmpine ekle zaten var v11.1 yap direkt sonuna ekle işte
 ynei madde olarak")*. 509 · v11-8'den 516 · v11-15'e sekiz madde bu yamanın; yine tek tek yürürler. Ekrandaki sürüm V11
 kalır, yama onu artırmaz *(kullanıcı, 29 Ekim — "ekran sürümü değişmesin")*.
@@ -48,7 +48,7 @@ ana klasörde koşunun dalında yürür.
 | 512 · [v11-11](#v11-11) | Aynı anda basılan iki Kuyruğa ekle'nin ikisi de sırada kalır | ✅ *(gerçek Drive gecikmesinde, iki sekmeden ya da ajanla aynı anda basılınca ikinci basışın ekranın 10 sn sınırını aşıp aşmadığı kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
 | 513 · [v11-12](#v11-12) | Bitmiş bir kare yeniden çizilmez | ✅ *(gerçek Drive gecikmesi ve Drive'da aynı anda yazılan kayıt satırlarının sırası kullanıcının sondaki Colab denemesinde; deneme birleştirmeye kadar bu dalla yapılır)* · `ALIGNED` |
 | 514 · [v11-13](#v11-13) | MMAudio kalkar | ✅ *(defterin iki kutucukla baştan sona çalışması ve MMAudio'nun artık inmemesi kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
-| 515 · [v11-14](#v11-14) | Ses düğmesi her videoda | `ALIGNED` |
+| 515 · [v11-14](#v11-14) | Ses düğmesi her videoda | ✅ *(gerçek H3 videosunun kendi sesiyle sessiz oynaması ve sessiz export'u kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
 | 516 · [v11-15](#v11-15) | "Kuyruktan çıkar" yalnız sıradaki işi çıkarır | `ALIGNED` |
 | 511 · [v11-10](#v11-10) | Sıra kapanırken eklenen iş de başlar | ✅ *(gerçek Drive gecikmesinde son iş biterken Kuyruğa ekle kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
 
