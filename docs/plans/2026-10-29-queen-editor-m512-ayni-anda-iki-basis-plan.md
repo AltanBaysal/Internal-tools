@@ -32,10 +32,17 @@
      `with plan_store.held(project):`.
    - `ports.py` ve `plan_store.py`'nin yorumları kilidin ne olduğunu söyler: kare adlandıran ya da
      kapatan kapıların yazma kapısı (plan, kayıt ve sıra birlikte), döngü kaydı dışında yazar.
-5. **`queen-editor/BACKLOG.md`, Diğer:** *"Windows'ta okunan bir dosyanın üstüne kayıt düşebilir"*,
+5. **QA'nın bulduğu: kopya önce, sürükleme sonra.**
+   - `test_plan_hold.py` — kırmızı: kopya düştükten sonra kopyayı bilmeyen bir liste ile sürükleme
+     (`['0_a', '1_a']`, ikiz yok); listenin atladığı yan yana kareler kendi sıralarını koruyor.
+   - Yeşil: `domain/gallery_order.py`'ye `keep_unnamed(named, gallery)` — listenin adlandırmadığı her
+     kare, galeride hemen altındaki karenin üstüne, alttan yukarı; `save_order.py` kilit altında
+     ekranın süzülmüş listesini `list_frames`'in sırasıyla ona verir. Modülün yorumu değişir: listenin
+     unuttuğu kare artık tepeye çıkmaz.
+6. **`queen-editor/BACKLOG.md`, Diğer:** *"Windows'ta okunan bir dosyanın üstüne kayıt düşebilir"*,
    *"Referans sırası ve arşiv işaretleri aynı anda iki yazmada birini kaybedebilir"* ve *"Fotoğraf
    kaydına aynı anda iki satır yazılabilir"*; spec'in Sınırlar'ı onlara bağlanır.
 
 ## Kapanış
 
-6. Tek tek: `python -m pytest queen-editor -q`, `npm test --prefix queen-editor/frontend`.
+7. Tek tek: `python -m pytest queen-editor -q`, `npm test --prefix queen-editor/frontend`.

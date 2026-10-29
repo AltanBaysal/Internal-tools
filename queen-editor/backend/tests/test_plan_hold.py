@@ -291,3 +291,30 @@ def test_a_drag_never_drops_the_place_of_a_copy_made_at_the_same_moment():
 
     assert other.done()["copies"] == ["C1_0_a"]
     assert sorted(order.order) == ["0_a", "C1_0_a"]
+
+
+def test_a_drag_sent_before_a_copy_arrived_keeps_the_copy_above_its_source():
+    """The other way round from the test above: the copy lands first, and the drag's list was made
+    on a screen that had not seen it yet. A frame the list does not name keeps its place against the
+    gallery as it stands -- directly above the frame that was under it -- rather than jumping to the
+    top."""
+    store, record, plan_store = video_project((0, "a"), (1, "a"))
+    order = FakeOrderStore(["1_a", "0_a"])
+    copy_frames(record, store, plan_store, order, lambda: "t", "düğün", ["0_a"])
+
+    stored = save_order(record, store, plan_store, order, "düğün", ["0_a", "1_a"])
+
+    assert stored == order.order == ["C1_0_a", "0_a", "1_a"]
+
+
+def test_frames_a_drag_does_not_name_keep_their_own_sequence():
+    store, record, plan_store = video_project((0, "a"), (1, "a"))
+    order = FakeOrderStore(["1_a", "0_a"])
+    copy_frames(record, store, plan_store, order, lambda: "t", "düğün", ["0_a", "1_a"])
+    copy_frames(record, store, plan_store, order, lambda: "t", "düğün", ["0_a"])
+
+    assert order.order == ["C1_1_a", "1_a", "C1_0_a", "C2_0_a", "0_a"]
+
+    save_order(record, store, plan_store, order, "düğün", ["0_a", "1_a"])
+
+    assert order.order == ["C1_0_a", "C2_0_a", "0_a", "C1_1_a", "1_a"]

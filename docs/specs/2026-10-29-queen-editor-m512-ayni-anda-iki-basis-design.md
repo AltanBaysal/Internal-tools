@@ -49,6 +49,12 @@ ve silme onun fotoğrafını götürür: yeni kopyanın sıradaki videosu olmaya
 bir kopyanın yeri gider. Üçü de testle kırmızı görüldü: silme ile aynı anda kopya `['C1_0_a']` doğdu,
 fotoğraf katmanı silinirken video basışı `2` iş ekledi, sürükleme kopyanın yerini sildi (`['0_a']`).
 
+**Ve sürüklemenin listesi** (512'nin QA'sından): kilit yalnız sürükleme kapıya önce varınca yetiyordu.
+Kopya önce düşer de ekran listesini kopya gelmeden yaptıysa, `save_order` ekranın listesini — bilinen
+karelere süzülmüş — olduğu gibi yazıyordu; listede olmayan ikiz sıradan düşüp galerinin tepesine
+çıkıyordu (QA'nın `race.py dragfirst`'ünde 10/10, tam aynı anda 16/30). Testle kırmızı görüldü
+(`test_a_drag_sent_before_a_copy_arrived_keeps_the_copy_above_its_source`): `['0_a', '1_a']`, ikiz yok.
+
 ## Ne yapılır
 
 **Projenin yazma kapısı tutulur.** `DrivePlanStore` her proje için bir kilit tutar ve onu dışarıya
@@ -90,6 +96,17 @@ kopya basışı aynı ikizi doğurur.
 Böylece galeri sırasını (`order.json`) yazan her kapı — `queue_layer`, `regenerate`, `fix_photo`,
 `copy_frames`, `remove_frames`, `save_order` — sırayla yazar. Üçü de `run_queue` çağırmaz.
 
+**Sürükleme listesinin adlandırmadığı kareler yerinde kalır.** Kilit altında `save_order`, ekranın
+listesini (bilinen karelere süzülmüş, tekrarlar atılmış) alır ve galerinin şimdiki sırasında olup
+listede olmayan her kareyi, galeride hemen altındaki karenin hemen üstüne geri koyar; altında hiçbir
+şey yoksa en alta. Galeri alttan yukarı yürünür, böylece yan yana atlanan kareler kendi aralarındaki
+sırayı korur. Ekranın listesi kopya gelmeden yapıldıysa ikiz, `copy_frame.placed`'in koyduğu yerde,
+kaynağının hemen üstünde kalır. Kural `gallery_order.keep_unnamed`'de, saf bir fonksiyon. Galerinin
+şimdiki sırası zaten okunan galeriden (`list_frames`) gelir; sıra dosyası ikinci kez okunmaz. Bugüne
+kadar listenin unuttuğu kare bir sonraki okumada tepeye çıkıyordu; artık yerinde kalır. Sıra
+dosyasının hiç bilmediği yeni bir kare de (galerinin tepesinde duran) o an tepedeki karenin üstüne
+yazılır.
+
 `retry_frame` ve `retry_failed` tutmaz: yeni ad vermezler, yalnız kırmızı bir videonun planda zaten
 olan satırını projenin şimdiki ayarıyla yeniden yazarlar (`video_settings.as_set_now`). Aradaki bir
 basış o satırı değiştirmez, ve yazmalarını `append`'in kendi kilidi korur.
@@ -112,7 +129,9 @@ dışarıda olunca kilidin içinde başka bir kilit (işçinin kilidi) alınmaz.
   silmeden önce doğar (ve silme onu görüp dosyayı bırakır) ya sonra (ve kaynağı silinmiş bulup
   doğmaz). Silinmiş bir fotoğrafa iş eklenmez.
 - **Galeri sırası:** onu yazan her kapı onu okuduğu galeriden yazar ve aynı kilidi tutar; sonraki,
-  öncekinin yazdığı sırayı okur.
+  öncekinin yazdığı sırayı okur. Sürükleme ise ekranın listesini yazar, ama o listede olmayan her
+  kareyi okuduğu galerideki yerine geri koyar; bu yüzden ekran onu görmeden önce gelmiş bir kare de
+  yerini kaybetmez, kim önce gelirse gelsin.
 - **"Eklendi" denen iş:** kapı "eklendi"yi ancak `append` döndükten sonra söyler; o andan sonraki her
   `append` onun satırlarını okuyup yeniden yazar. Sırayı başlatmak ya da çalışan sıraya katılmak 511'in
   işi: yazılmış her iş ya yeni bir koşuyu başlatır ya onu sonra okuyacak bir geçişe katılır.
@@ -132,6 +151,8 @@ sürecin `main.py`'sinden geçer. Kilit bellekte olduğu için bu yeter (`DriveM
   ikincisi, birincinin tuttuğu kısım bitene kadar bekler — o kapının galeriyi okuması (kayıt, disk
   listesi, plan, sıra) ve yazmaları, silmede de dosya silmeleri; Drive'da birkaç gidiş dönüş, birkaç
   saniye, çok kare silinirken kare başına bir silme daha. Sonra kendi işini aynı maliyetle yapar.
+- **Sürükleme:** Drive'a eskisi kadar gidiş dönüş; listede olmayan kareleri geri koymak bellekte,
+  kare sayısının karesi kadar adım (kare başına bir arama), yüzlerce karede önemsiz.
 - **Başka projelere basış:** beklemez; her projenin kendi kilidi var.
 - **Döngü, `/api/status`, galeri ve sıra okumaları:** kilidi almaz, beklemez. Durdur ve yeniden
   adlandırma da almaz.
@@ -164,6 +185,10 @@ sürecin `main.py`'sinden geçer. Kilit bellekte olduğu için bu yeter (`DriveM
 - Fotoğraf kaydına (`photos.jsonl`) döngü ve kapılar aynı anda, kilitsiz satır ekliyor. Yerel Linux'ta
   tek bir `O_APPEND` yazması ötekine karışmaz; Drive'ın FUSE bağlamasında bilinmiyor. BACKLOG'a:
   *"Fotoğraf kaydına aynı anda iki satır yazılabilir"*, Colab'da denenecek.
+- Sürüklemenin listesinde olmayan kare artık tepeye çıkmaz, galerideki yerinde kalır; ekran her
+  sürüklemede bütün galeriyi gönderdiği için bunu yalnız ekranın henüz görmediği kare yaşar. Ekranın
+  bilmediği bir kare sürüklenerek taşınamaz: yeri, altındaki kareye bağlı kalır ve ekran onu
+  gördüğünde kullanıcı onu ayrıca sürükler.
 
 ## Ne zaman bitti
 
@@ -175,8 +200,11 @@ sürecin `main.py`'sinden geçer. Kilit bellekte olduğu için bu yeter (`DriveM
   `C1_0_a` ve `C2_0_a` (ikisi de galerinin sırasında); `fix_photo`'nun biri `fixed`, öteki `changed` ve
   planda tek yeni satır.
 - Bir kare silinirken aynı anda kopyası istenirse kare bütün gidiyor ve kopya doğmuyor; bir karenin
-  fotoğraf katmanı silinirken aynı anda video istenirse video işi eklenmiyor (`0`); sürükleme ile aynı
-  anda doğan kopyanın yeri sırada kalıyor.
+  fotoğraf katmanı silinirken aynı anda video istenirse video işi eklenmiyor (`0`).
+- Sürükleme ile aynı anda doğan kopya, hangisi önce gelirse gelsin, sırada kaynağının hemen üstünde
+  kalıyor: sürükleme önce gelince kopya onun yazdığı sıraya yerleşiyor; kopya önce gelip ekranın
+  listesi onu bilmeyince `save_order` onu `['C1_0_a', '0_a', '1_a']` diye geri koyuyor. Listenin
+  atladığı yan yana kareler kendi sıralarını koruyor.
 - `python -m pytest queen-editor -q` ve `npm test --prefix queen-editor/frontend` yeşil. Ekran
   değişmediği için `dist` yeniden kurulmaz.
 
