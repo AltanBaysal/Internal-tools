@@ -214,7 +214,7 @@ def red_videos(*numbers, seconds):
                                   "variant": 0, "prompt": "kadın dönüyor", "negative": "",
                                   "seed": 5, "model": "", "mode": "loop", "seconds": seconds})
         record.mark("düğün", f"{number}_a", "video", f"{number}_a_V1_0.mp4", queue.FAILED, "t",
-                    error="node 41")
+                    seen=None, error="node 41")
     return store, record, plan_store
 
 

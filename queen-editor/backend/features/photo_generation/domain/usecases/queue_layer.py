@@ -11,7 +11,8 @@ A frame whose own layer has not landed is skipped: the card has not settled yet,
 to hang anything on. What a layer needs UNDER it is layers.NEEDS' answer -- a video hangs on nothing
 (madde 293). A frame that already has this layer is never written over -- "üret = ekle" means
 the extra one becomes a frame of its own, sharing what is under it and taking the next variant of
-its source's number (madde 25, 102).
+its source's number (madde 25, 102). A frame whose layer is already in line is not given it again.
+Both are the record's answer, read under the press's gate, not the gallery's (madde 513).
 """
 from backend.features.photo_generation.domain import layers, production_mode, queue, video_settings
 from backend.features.photo_generation.domain.copy_frame import (
@@ -21,7 +22,7 @@ from backend.features.photo_generation.domain.copy_frame import (
     next_id,
     placed,
 )
-from backend.features.photo_generation.domain.photo_name import variant_of
+from backend.features.photo_generation.domain.photo_name import layer_file, variant_of
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
 from backend.features.photo_generation.domain.usecases.run_queue import run_queue
 from backend.features.photo_generation.domain.usecases.start_batch import (  # noqa: F401
@@ -130,8 +131,9 @@ def queue_layer(runner, store, record, plan_store, order_store, producers, now, 
         # the length and the switch of this moment (madde 422, 426).
         timed = video_settings.carried(length, ending, project) if kind == layers.VIDEO else {}
         taken = known_ids(record, plan_store, project)
-        # What the log last said about each slot. Read once: the only cells consulted below belong
-        # to frames that already exist, and the rows written during the loop are about other slots.
+        # What the log says about each slot, and what decides it: the gallery was read a moment
+        # earlier, and the loop writes without waiting for this press -- a video that landed in
+        # between is a video here (madde 513).
         slots = record.slots(project)
         jobs, born = [], {}
         # Written oldest first, the direction the engine works in: the gallery is newest-first and
@@ -144,18 +146,34 @@ def queue_layer(runner, store, record, plan_store, order_store, producers, now, 
                 continue
             mark = {**mark, **timed}
             number, variant = family(frame)
-            held = frame.get("layers", {})
+            cell = slots.get(fid, {}).get(kind)
+            status = cell["status"] if cell else None
+            # Taken, or free with its name still under another frame: a copy frame holds the file
+            # this frame let go of, and the layer made again would be saved over it (madde 513).
+            # The name is the one the loop will save under (run_loop's own).
+            video = (slots.get(fid, {}).get(layers.VIDEO) or {}).get("file")
+            full = layers.is_taken(status) or layers.held_elsewhere(
+                slots, fid, layer_file(kind, fid, video=video))
+            if files is None and full:
+                # Landed since the gallery was read, or its name is a copy's: the row is "frames
+                # without this layer", and this one cannot be given its own.
+                continue
             owed = variants
-            if kind not in held:
-                settled = slots.get(fid, {}).get(kind)
-                if settled:
+            if status == queue.QUEUED:
+                # Already in line: the frame's own job is the first variant, and it is not added
+                # again (the user, 29 Ekim -- "galeri sırada / kayıt bitti demesi lazım değil mi").
+                owed -= 1
+            elif not full:
+                if status is not None:
                     # Free is not the same as never written about: emptying the queue writes removed
                     # and deleting a layer writes deleted, and both close the job for good. queued
                     # is the one line that reopens it -- the same line Tekrar dene writes, with the
                     # slot's own file name -- and without it the job appended below lands in a plan
                     # the queue cannot see it in. Reported 2026-08-14: after emptying the queue,
-                    # sound could never be queued again.
-                    record.mark(project, fid, kind, settled["file"], queue.QUEUED, now())
+                    # sound could never be queued again. It names the closed status it reopens, so
+                    # a layer that lands before it is not reopened by it (madde 513).
+                    record.mark(project, fid, kind, cell["file"], queue.QUEUED, now(),
+                                seen=status)
                 jobs.append(_job(kind, fid, number, variant, mark))
                 owed -= 1
             for _ in range(owed):

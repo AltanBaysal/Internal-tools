@@ -382,6 +382,10 @@ dosyasının üstüne yazılıyor. Basış galeriyi okurken kare videosuz görü
 okurken sıranın "bitti" satırını görüyor ve bitmiş yeri yeniden açıyor. Bu da kabul koşuluna girer:
 hiçbir basış bitmiş bir katmanı yeniden üretmez; isteyen yeni bir varyant ister. Hata 512'den eski.
 
+**Kullanıcının kararı** *(29 Ekim — "galeri sırada / kayıt bitti demesi lazım değil mi")*: sırada ya da
+bitmiş bir iş yeniden eklenmez; kayıt "bitti" dediyse ondan önce verilmiş bir "yeniden yap" kararı onu
+ezemez. Sıra bunun için beklemez.
+
 <a id="v11-13"></a>
 ### 514 · v11-13 — MMAudio kalkar
 

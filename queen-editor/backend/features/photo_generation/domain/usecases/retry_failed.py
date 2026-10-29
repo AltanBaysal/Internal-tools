@@ -27,7 +27,9 @@ def retry_failed(runner, store, record, plan_store, producers, now, project, log
                               [fid for fid, layer, _cell in red if layer == layers.VIDEO], length,
                               ending)
     for fid, layer, cell in red:
-        record.mark(project, fid, layer, cell["file"], queue.QUEUED, now())
+        # Over the red it was read as: a second press that read it red too reopens nothing the
+        # first one put back and the loop has made since (madde 513).
+        record.mark(project, fid, layer, cell["file"], queue.QUEUED, now(), seen=queue.FAILED)
     run_queue(runner, store, record, plan_store, producers, now, project, log,
               order_store=order_store, writers=writers, stills=stills,
               references=references)

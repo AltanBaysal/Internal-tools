@@ -234,7 +234,7 @@ def failed_pair():
     plan_store = FakePlanStore(frames=plan_frames(0, [{"prompt": "a"}], "neg", 2,
                                                   lambda: next(seeds)))
     for fid in ("P0_0", "P0_1"):
-        record.mark("düğün", fid, layers.PHOTO, f"{fid}.png", "failed", NOW,
+        record.mark("düğün", fid, layers.PHOTO, f"{fid}.png", "failed", NOW, seen=None,
                     error="node 41: a — 3 kez denendi")
     return record, plan_store
 

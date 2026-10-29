@@ -194,9 +194,13 @@ class PhotoRecord(Protocol):
         """Every photo that still exists, newest first."""
         ...
 
-    def mark(self, project: str, frame: str, layer: str, file: str, status: str, at: str,
-             error: str | None = None) -> None:
-        """Append a line for an event that produced no layer."""
+    def mark(self, project: str, frame: str, layer: str, file: str, status: str, at: str, *,
+             seen: str | None, error: str | None = None) -> None:
+        """Append a line for an event that produced no layer.
+
+        `seen` is the slot's status as the writer read it when it decided (None: never written
+        about). The line counts only while the slot still stands there (queue.applies, madde 513).
+        """
         ...
 
     def prompt_written(self, project: str, frame: str, layer: str, file: str, prompt: str,
@@ -211,7 +215,8 @@ class PhotoRecord(Protocol):
 
     def slots(self, project: str) -> dict:
         """{frame: {slot: {"status", "file"[, "error"][, "renderSeconds"][, "seconds"]}}} -- the
-        latest line per (frame, slot).
+        latest line per (frame, slot) that applies: a decision taken over a status the slot had
+        already left is passed over (madde 513).
 
         "error" is there only where the line carried one, which is only on a failure.
         "renderSeconds" only on a layer produced since madde 405: the seconds the model worked on it.

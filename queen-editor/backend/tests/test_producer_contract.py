@@ -145,7 +145,9 @@ class Record:
     def append(self, _project, entry):
         self.rows.append(entry)
 
-    def mark(self, _project, frame, layer, file, status, at, error=None):
+    def mark(self, _project, frame, layer, file, status, at, *, seen, error=None):
+        # `seen` is not kept: this run has one writer, so no line can land over a slot that moved
+        # (madde 513's rule, which DrivePhotoRecord's own tests cover).
         self.rows.append({"frame": frame, "layer": layer, "file": file, "status": status})
 
     def slots(self, _project):

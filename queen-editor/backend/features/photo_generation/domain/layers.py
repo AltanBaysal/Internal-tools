@@ -64,6 +64,20 @@ def can_produce(slots, slot):
     return under is None or is_taken(slots.get(under))
 
 
+def held_elsewhere(slots, frame, file):
+    """Whether a frame other than `frame` still holds `file` in a slot that is taken.
+
+    slots: {frame: {slot: {"status", "file"}}} for the whole project.
+
+    A layer is made again under the name its frame gives it, and a deleted layer's file stays on disk
+    while a copy frame still holds it (files_to_unlink). Made again, it would be saved over the copy's
+    -- so a slot whose name another frame stands on is not a free one (madde 513).
+    """
+    return any(cell["file"] == file and is_taken(cell["status"])
+               for other, frame_slots in slots.items() if other != frame
+               for cell in frame_slots.values())
+
+
 def files_to_unlink(slots, closing):
     """Which files stop being pointed at once `closing` is closed.
 

@@ -31,20 +31,26 @@ def retry_frame(runner, store, record, plan_store, producers, now, project, fid,
     target = next((f for f in frames if f["id"] == fid), None)
     if target is None:
         raise FrameMissing(f"Bu kare planda yok: {fid}")
-    cells = record.slots(project).get(fid, {})
-    red = [(layer, cell) for layer, cell in cells.items() if cell["status"] == queue.FAILED]
+    slots = record.slots(project)
+    cells = slots.get(fid, {})
+    red =[(layer, cell) for layer, cell in cells.items() if cell["status"] == queue.FAILED]
     # Before the red lines are put back, so a loop already running never takes the video the way it
     # is leaving.
     if any(layer == layers.VIDEO for layer, _cell in red):
         video_settings.as_set_now(plan_store, project, [fid], length, ending)
     for layer, cell in red:
         # The layer's own file, not the frame's photo: what goes back in line is the render that
-        # blew up.
-        record.mark(project, fid, layer, cell["file"], queue.QUEUED, now())
-    if not red:
+        # blew up. Over the red it was read as, so a second press that read it red too -- after
+        # the first put it back and it landed -- reopens nothing (madde 513).
+        record.mark(project, fid, layer, cell["file"], queue.QUEUED, now(), seen=queue.FAILED)
+    photo, name = (cells.get(layers.PHOTO) or {}).get("status"), photo_file(fid)
+    if not red and not layers.is_taken(photo) and not layers.held_elsewhere(slots, fid, name):
         # Nothing red: the frame is asking for a photo it no longer has (a deleted one), which is
-        # what retry meant before a frame had layers.
-        record.mark(project, fid, layers.PHOTO, photo_file(fid), queue.QUEUED, now())
+        # what retry meant before a frame had layers. The screen offers Tekrar dene only on a red
+        # layer, so this is a press a moment behind -- the red was put back by another one -- and
+        # it asks for nothing a finished file stands in the way of: not a photo it has, and not one
+        # whose name a copy frame still stands on (madde 513).
+        record.mark(project, fid, layers.PHOTO, name, queue.QUEUED, now(), seen=photo)
     run_queue(runner, store, record, plan_store, producers, now, project, log,
               order_store=order_store, writers=writers, stills=stills,
               references=references)

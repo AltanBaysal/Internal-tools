@@ -265,12 +265,15 @@ def make_job(runner, store, record, plan_store, producers, now,
         named = runner.named
 
     def snapshot():
-        project = named.now()
-        return (plan_store.read(project)["frames"], record.slots(project),
-                order_store.read(project) if order_store else ())
+        """The turn's name and what the queue says under it. Read under the rename's gate: a move
+        between the plan's read and the record's left a full plan beside an empty record, every
+        finished job looked owed, and the first was made again over its own file (madde 513)."""
+        with named.steady() as project:
+            return (project, plan_store.read(project)["frames"], record.slots(project),
+                    order_store.read(project) if order_store else ())
 
     def summary(status, **extra):
-        jobs, slots, _order = snapshot()
+        _project, jobs, slots, _order = snapshot()
         return {"status": status, **queue.counts(jobs, slots), **extra}
 
     def job():
@@ -282,9 +285,9 @@ def make_job(runner, store, record, plan_store, producers, now,
             if runner.stop_requested():
                 return summary("paused")
             # Read again every turn: a rename moves the folder under the run, and this is what lets
-            # the next turn simply work in the new one.
-            project = named.now()
-            jobs, slots, order = snapshot()
+            # the next turn simply work in the new one. The turn's reads use the name the snapshot
+            # was read under.
+            project, jobs, slots, order = snapshot()
             owed = queue.open_jobs(jobs, slots, order)
             if not owed:
                 return summary("done")
@@ -415,11 +418,15 @@ def make_job(runner, store, record, plan_store, producers, now,
                 if policy.is_frame_fault(exc):
                     # The renderer answered three times that this one job is what failed. The queue
                     # owes the rest nothing, so the tile turns red where it stands and work goes on
-                    # -- every tile of a batch, which failed as one job.
+                    # -- every tile of a batch, which failed as one job. Each line names the open
+                    # status its job was taken in, so a failure landing after the job was pulled out
+                    # of the queue leaves it pulled out (madde 513). A done names none: its file is
+                    # on disk, and a free slot over it would be built on.
                     with named.steady() as project:
                         for failed, file in zip(together, _files(name, together)):
                             record.mark(project, failed["id"], kind, file, queue.FAILED, now(),
-                                        error=policy.frame_reason(exc, attempts))
+                                        error=policy.frame_reason(exc, attempts),
+                                        seen=_held(slots, failed["id"]).get(kind))
                     attempts, holding = 0, None
                     continue
                 # No answer came at all, three times: the next job would fall the same way, so the

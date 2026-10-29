@@ -61,15 +61,23 @@ def remove_frames(record, store, plan_store, order_store, now, project, frames):
         for file in sorted(layers.files_to_unlink(slots, closing)):
             store.delete(project, file)
         for fid, slot in sorted(closing):
-            record.mark(project, fid, slot, slots[fid][slot]["file"], queue.DELETED, now())
+            record.mark(project, fid, slot, slots[fid][slot]["file"], queue.DELETED, now(),
+                        seen=slots[fid][slot]["status"])
         for fid in removed:
             # The name each job was planned to take: nothing was ever produced under it, and a line
             # still has to say which file it was about. A card owed nothing at all is closed on its
             # photo slot, so that "never produced" is written down rather than left as a silence.
-            video = (slots.get(fid, {}).get(layers.VIDEO) or {}).get("file")
+            cells = slots.get(fid, {})
+            video = (cells.get(layers.VIDEO) or {}).get("file")
             for slot in gallery[fid].get("owed") or (layers.PHOTO,):
+                status = (cells.get(slot) or {}).get("status")
+                if status == queue.DONE:
+                    # Landed since the gallery was read: the render wins, as above, and a removed
+                    # line over it would leave its file under a free slot (madde 513).
+                    continue
+                # Over the status it was read in, so a layer landing after this look keeps it.
                 record.mark(project, fid, slot, layer_file(slot, fid, video), queue.REMOVED,
-                            now())
+                            now(), seen=status)
 
         gone = set(deleted + removed)
         if gone:

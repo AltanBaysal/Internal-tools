@@ -86,7 +86,8 @@ def test_prompts_are_folded_per_layer(tmp_path):
 def test_a_failure_line_keeps_its_reason(tmp_path):
     # Why the slot is red travels with it: the detail page prints the renderer's own sentence.
     record = record_at(tmp_path)
-    record.mark("düğün", "P0_0", "photo", "P0_0.png", "failed", "t", error="CUDA — 3 kez denendi")
+    record.mark("düğün", "P0_0", "photo", "P0_0.png", "failed", "t", seen=None,
+                error="CUDA — 3 kez denendi")
 
     assert record.slots("düğün")["P0_0"]["photo"] == {
         "status": "failed", "file": "P0_0.png", "error": "CUDA — 3 kez denendi"}
@@ -134,7 +135,8 @@ def test_a_deleted_photo_leaves_the_list_but_not_the_file(tmp_path):
     record.append("düğün", entry("0_a.png"))
     record.append("düğün", entry("0_b.png"))
 
-    record.mark("düğün", "0_a", "photo", "0_a.png", "deleted", "2026-08-05T10:00:00+00:00")
+    record.mark("düğün", "0_a", "photo", "0_a.png", "deleted", "2026-08-05T10:00:00+00:00",
+                seen="done")
 
     assert [row["file"] for row in record.list("düğün")] == ["0_b.png"]
     # The log is only ever appended to: the original row is still in the file.
@@ -145,7 +147,8 @@ def test_a_deleted_photo_leaves_the_list_but_not_the_file(tmp_path):
 def test_the_record_remembers_the_numbers_of_deleted_photos(tmp_path):
     record = record_at(tmp_path)
     record.append("düğün", entry("7_a.png"))
-    record.mark("düğün", "7_a", "photo", "7_a.png", "deleted", "2026-08-05T10:00:00+00:00")
+    record.mark("düğün", "7_a", "photo", "7_a.png", "deleted", "2026-08-05T10:00:00+00:00",
+                seen="done")
 
     assert record.max_number("düğün") == 7
 
@@ -170,15 +173,16 @@ def photo_statuses(record, project="düğün"):
 def test_the_latest_line_about_a_slot_wins(tmp_path):
     record = record_at(tmp_path)
     record.append("düğün", {**entry("0_a.png"), "status": "done"})
-    record.mark("düğün", "1_a", "photo", "1_a.png", "failed", "t2", error="ComfyUI 500")
-    record.mark("düğün", "0_a", "photo", "0_a.png", "deleted", "t3")
+    record.mark("düğün", "1_a", "photo", "1_a.png", "failed", "t2", seen=None,
+                error="ComfyUI 500")
+    record.mark("düğün", "0_a", "photo", "0_a.png", "deleted", "t3", seen="done")
 
     assert photo_statuses(record) == {"0_a": "deleted", "1_a": "failed"}
 
 
 def test_a_failure_line_carries_the_servers_own_words(tmp_path):
     record = record_at(tmp_path)
-    record.mark("düğün", "1_a", "photo", "1_a.png", "failed", "t2",
+    record.mark("düğün", "1_a", "photo", "1_a.png", "failed", "t2", seen=None,
                 error="ComfyUI 500: out of memory")
 
     line = (tmp_path / "düğün" / "photos.jsonl").read_text(encoding="utf-8").splitlines()[0]
@@ -187,7 +191,7 @@ def test_a_failure_line_carries_the_servers_own_words(tmp_path):
 
 def test_a_line_without_an_error_carries_no_error_field(tmp_path):
     record = record_at(tmp_path)
-    record.mark("düğün", "1_a", "photo", "1_a.png", "removed", "t2")
+    record.mark("düğün", "1_a", "photo", "1_a.png", "removed", "t2", seen=None)
 
     line = (tmp_path / "düğün" / "photos.jsonl").read_text(encoding="utf-8").splitlines()[0]
     assert "error" not in json.loads(line)
@@ -245,15 +249,15 @@ def test_lines_written_before_the_status_field_still_read(tmp_path):
 def test_only_produced_frames_are_photos(tmp_path):
     record = record_at(tmp_path)
     record.append("düğün", {**entry("0_a.png"), "status": "done"})
-    record.mark("düğün", "1_a", "photo", "1_a.png", "removed", "t2")
-    record.mark("düğün", "2_a", "photo", "2_a.png", "failed", "t3")
+    record.mark("düğün", "1_a", "photo", "1_a.png", "removed", "t2", seen=None)
+    record.mark("düğün", "2_a", "photo", "2_a.png", "failed", "t3", seen=None)
 
     assert [row["file"] for row in record.list("düğün")] == ["0_a.png"]
 
 
 def test_a_frame_pulled_out_of_the_queue_still_claims_its_number(tmp_path):
     record = record_at(tmp_path)
-    record.mark("düğün", "7_a", "photo", "7_a.png", "removed", "t1")
+    record.mark("düğün", "7_a", "photo", "7_a.png", "removed", "t1", seen=None)
 
     assert record.max_number("düğün") == 7
 
@@ -273,7 +277,7 @@ def test_slots_fold_the_latest_line_per_frame_and_layer(tmp_path):
     record.append("düğün", {**entry("0_a.png"), "status": "done"})
     record.append("düğün", {"file": "0_a_v0.mp4", "frame": "0_a", "layer": "video",
                             "status": "done"})
-    record.mark("düğün", "0_a", "video", "0_a_v0.mp4", "deleted", "t3")
+    record.mark("düğün", "0_a", "video", "0_a_v0.mp4", "deleted", "t3", seen="done")
 
     assert record.slots("düğün") == {
         "0_a": {"photo": {"status": "done", "file": "0_a.png"},
@@ -286,7 +290,7 @@ def test_two_frames_over_one_file_close_independently(tmp_path):
                             "status": "done"})
     record.append("düğün", {"file": "0_a.png", "frame": "0_a_c1", "layer": "photo",
                             "status": "done"})
-    record.mark("düğün", "0_a", "photo", "0_a.png", "deleted", "t3")
+    record.mark("düğün", "0_a", "photo", "0_a.png", "deleted", "t3", seen="done")
 
     slots = record.slots("düğün")
     assert slots["0_a"]["photo"]["status"] == "deleted"
@@ -307,7 +311,7 @@ def test_the_photo_list_follows_the_frame_not_the_file(tmp_path):
                             "status": "done"})
     record.append("düğün", {"file": "0_a.png", "frame": "0_a_c1", "layer": "photo",
                             "status": "done"})
-    record.mark("düğün", "0_a", "photo", "0_a.png", "deleted", "t3")
+    record.mark("düğün", "0_a", "photo", "0_a.png", "deleted", "t3", seen="done")
 
     # One frame let go of the picture; the other still shows it.
     assert [row["frame"] for row in record.list("düğün")] == ["0_a_c1"]
@@ -349,7 +353,7 @@ def test_a_written_prompt_is_not_a_status_of_the_layer(tmp_path):
     back in line stays put back -- the queue orders those two apart."""
     record = record_at(tmp_path)
     record.prompt_written("düğün", "0_a", "video", "0_a_V1_0.mp4", "kadın dönüyor", "t")
-    record.mark("düğün", "1_a", "video", "1_a_V1_0.mp4", "queued", "t")
+    record.mark("düğün", "1_a", "video", "1_a_V1_0.mp4", "queued", "t", seen=None)
     record.prompt_written("düğün", "1_a", "video", "1_a_V1_0.mp4", "kadın eğiliyor", "t")
 
     assert record.slots("düğün") == {
@@ -363,7 +367,7 @@ def test_the_next_line_about_the_layer_ends_its_written_prompt(tmp_path, status)
     record = record_at(tmp_path)
     record.prompt_written("düğün", "0_a", "video", "0_a_V1_0.mp4", "kadın dönüyor", "t")
 
-    record.mark("düğün", "0_a", "video", "0_a_V1_0.mp4", status, "t2")
+    record.mark("düğün", "0_a", "video", "0_a_V1_0.mp4", status, "t2", seen=None)
 
     assert record.written_prompts("düğün") == {}
 
@@ -372,6 +376,6 @@ def test_a_written_prompt_is_about_its_own_layer_alone(tmp_path):
     record = record_at(tmp_path)
     record.prompt_written("düğün", "0_a", "video", "0_a_V1_0.mp4", "kadın dönüyor", "t")
 
-    record.mark("düğün", "0_a", "photo", "0_a.png", "deleted", "t2")
+    record.mark("düğün", "0_a", "photo", "0_a.png", "deleted", "t2", seen=None)
 
     assert record.written_prompts("düğün") == {"0_a": {"video": "kadın dönüyor"}}

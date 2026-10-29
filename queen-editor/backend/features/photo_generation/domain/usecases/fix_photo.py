@@ -116,7 +116,9 @@ def fix_photo(runner, store, record, plan_store, order_store, producers, now, pr
         for file in sorted(layers.files_to_unlink(slots, closing)):
             store.delete(project, file)
         for _fid, slot in sorted(closing):
-            record.mark(project, fid, slot, slots[fid][slot]["file"], queue.DELETED, now())
+            # Over the status it was read in (madde 513), as every decision's line is.
+            record.mark(project, fid, slot, slots[fid][slot]["file"], queue.DELETED, now(),
+                        seen=slots[fid][slot]["status"])
 
     try:
         run_queue(runner, store, record, plan_store, producers, now, project, log,

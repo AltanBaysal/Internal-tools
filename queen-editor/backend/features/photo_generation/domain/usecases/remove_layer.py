@@ -54,16 +54,23 @@ def remove_layer(record, store, plan_store, order_store, now, project, frames, k
                         if layers.is_taken((cells.get(slot) or {}).get("status"))}
             # A job the queue still owes on a closed layer would go looking for a video that is no
             # longer there. The name written down is the one it would have taken -- worked out
-            # here, while the video's own row is still readable.
+            # here, while the video's own row is still readable. A slot read as taken landed since
+            # the gallery was read: it is closing above, and its deleted line is all it needs
+            # (madde 513).
             video = (cells.get(layers.VIDEO) or {}).get("file")
-            dropping += [(fid, slot, layer_file(slot, fid, video))
-                         for slot in over if slot in frame.get("owed", [])]
+            dropping += [(fid, slot, layer_file(slot, fid, video),
+                          (cells.get(slot) or {}).get("status"))
+                         for slot in over if slot in frame.get("owed", [])
+                         and (fid, slot) not in closing]
 
         deleted = sorted(layers.files_to_unlink(slots, closing))
         for name in deleted:
             store.delete(project, name)
+        # Each line over the status the slot was read in, so a job the loop lands after this look
+        # keeps its layer (madde 513).
         for fid, slot in sorted(closing):
-            record.mark(project, fid, slot, slots[fid][slot]["file"], queue.DELETED, now())
-        for fid, slot, name in dropping:
-            record.mark(project, fid, slot, name, queue.REMOVED, now())
+            record.mark(project, fid, slot, slots[fid][slot]["file"], queue.DELETED, now(),
+                        seen=slots[fid][slot]["status"])
+        for fid, slot, name, status in dropping:
+            record.mark(project, fid, slot, name, queue.REMOVED, now(), seen=status)
     return {"deleted": deleted}

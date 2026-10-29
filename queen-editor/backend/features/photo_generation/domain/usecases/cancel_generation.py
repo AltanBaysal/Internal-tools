@@ -19,7 +19,11 @@ def cancel_generation(runner, store, record, plan_store, now, project):
     if runner.status().get("status") == "running":
         raise Busy("Üretim sürüyor — önce durdur.")
     jobs = plan_store.read(project)["frames"]
-    for owed in queue.open_jobs(jobs, record.slots(project)):
-        record.mark(project, owed["id"], queue.type_of(owed), photo_file(owed["id"]),
-                    queue.REMOVED, now())
+    slots = record.slots(project)
+    for owed in queue.open_jobs(jobs, slots):
+        kind = queue.type_of(owed)
+        # Over the open status it was read in: a run that started after the look above and landed
+        # this job keeps it (madde 513).
+        record.mark(project, owed["id"], kind, photo_file(owed["id"]), queue.REMOVED, now(),
+                    seen=(slots.get(owed["id"], {}).get(kind) or {}).get("status"))
     runner.reset()

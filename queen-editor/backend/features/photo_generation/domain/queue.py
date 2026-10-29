@@ -36,6 +36,20 @@ def is_open(status):
     return status is None or status == QUEUED
 
 
+def applies(now, seen):
+    """Whether a decision's line moves a slot that stands at `now`: only from the status the door
+    read when it decided, `seen` (None for a slot never written about).
+
+    A door reads the record and writes its decision a moment later, and the loop writes the record
+    without waiting for it (madde 512's gate is the doors'). So a line can land on a slot that has
+    moved since it was read -- a queued written over a video that has just landed would have it
+    made again over its own file. Such a line is passed over, the way a written prompt is: the
+    user's rule, "kayıt bitti demesi lazım değil mi" -- a decision taken before a done never
+    overrides it (madde 513). The rows a produced layer writes carry no `seen` and always apply.
+    """
+    return now == seen
+
+
 def type_of(job):
     """A job planned before the queue knew types can only be a photo job."""
     kind = job.get("type")

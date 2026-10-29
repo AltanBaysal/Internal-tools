@@ -222,7 +222,7 @@ def test_a_frame_with_a_sound_is_written_with_it():
 
 def test_a_sound_that_blew_up_leaves_its_video_silent():
     store, record, plan_store = with_videos(sound_on=("0_a",))
-    record.mark("düğün", "0_a", "audio", "0_a_V1_0_S1_0.wav", "failed", "t")
+    record.mark("düğün", "0_a", "audio", "0_a_V1_0_S1_0.wav", "failed", "t", seen="done")
     exporter = FakeExporter()
 
     export(store, record, plan_store, exporter)

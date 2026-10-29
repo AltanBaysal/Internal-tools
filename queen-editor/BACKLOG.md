@@ -101,6 +101,20 @@ anda ekleyebiliyor. Yerel Linux'ta tek bir `O_APPEND` yazması ötekine karışm
 bunu koruyup korumadığı bilinmiyor. `chat_record` aynı yazmayı bu yüzden kilitliyor. Colab'da denenecek:
 aynı anda çok sayıda satır ekleyip dosyada yarım ya da kayıp satır var mı.
 
+513 de buna dayanıyor: bir kararın satırı (`from`'lu) ancak okunduğu durumun üstüne düşerse geçerli, ve
+bu, satırların dosyada eklendikleri sırada durmasına bağlı. Denemede satırların sırası da bakılacak:
+ekleme sırası ile dosyadaki sıra aynı mı.
+
+### Yeniden adlandırma bir videoyu boş prompt'la ürettirebilir
+
+*(513'ün coder'ı buldu, 29 Ekim; denenmedi.)* Sıranın turu planı ve kaydı adın kapısında, tek adla okur
+(513). Ama turun sonraki okumaları — karenin sözleri (`record.prompts`), altındaki fotoğraf, yazılmış
+prompt (`written_prompts`) — o adla, kapının dışında yapılıyor. Yeniden adlandırma bunların arasına
+düşerse çoğu okuma eski adda bir şey bulamaz ve deneme düşüp yeniden denenir. Ama taşıma tam fotoğrafın
+okunmasıyla yazılmış prompt'un okunması arasına düşerse prompt boş gelir ve video boş prompt'la üretilip
+yeni klasöre yazılır. Bitmiş bir şeyin yeniden üretilmesi değil; yanlış bir video. Düzeltme, turun
+render'dan önceki okumalarının da aynı ada bağlanmasını ister (yazar çağrısı kapının dışında kalarak).
+
 ### Windows'ta okunan bir dosyanın üstüne kayıt düşebilir
 
 *(512'nin coder'ı buldu, 29 Ekim; yalnız yerelde.)* Windows açık bir dosyanın üstüne `os.replace`'e izin

@@ -177,7 +177,7 @@ def test_a_copy_frame_is_made_with_the_settings_of_the_frame_that_made_its_pictu
             made("C1_P1_0", MIXED_PROMPT, file="P1_0.png", seed=42)]
     project = Project(rows=rows, order=("C1_P1_0", "P2_0", "P0_0"))
     # The source, P1_0, was deleted: its plan line stays and its photo is held by the copy alone.
-    project.record.mark("düğün", "P1_0", "photo", "P1_0.png", "deleted", "t")
+    project.record.mark("düğün", "P1_0", "photo", "P1_0.png", "deleted", "t", seen=None)
 
     project.fix(project.card("C1_P1_0"))
 
@@ -265,7 +265,8 @@ def test_a_failed_video_goes_with_the_old_frame():
     """No video was made, so the frame was fixable; its red slot would otherwise keep the old card in
     the gallery beside the new one."""
     project = Project()
-    project.record.mark("düğün", "P1_0", "video", "P1_0_V1_0.mp4", "failed", "t", error="OOM")
+    project.record.mark("düğün", "P1_0", "video", "P1_0_V1_0.mp4", "failed", "t",
+                        seen=None, error="OOM")
 
     project.fix(project.card("P1_0"))
 
@@ -306,7 +307,7 @@ def video_queued(project):
 
 
 def photo_gone(project):
-    project.record.mark("düğün", "P1_0", "photo", "P1_0.png", "deleted", "t")
+    project.record.mark("düğün", "P1_0", "photo", "P1_0.png", "deleted", "t", seen="done")
 
 
 @pytest.mark.parametrize("change", [changed_prompt, changed_negative, video_landed, video_queued,
