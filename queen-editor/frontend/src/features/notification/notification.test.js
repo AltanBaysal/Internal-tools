@@ -22,7 +22,7 @@ beforeEach(() => {
   vi.stubGlobal("Notification", FakeNotification);
 });
 
-describe("askPermission — the first Kuyruğa ekle asks (madde 498)", () => {
+describe("askPermission — the first Kuyruğa ekle asks (madde 498, 509)", () => {
   it("asks while the browser has no answer yet", () => {
     askPermission();
 
@@ -53,14 +53,14 @@ describe("askPermission — the first Kuyruğa ekle asks (madde 498)", () => {
 });
 
 describe("notify", () => {
-  it("shows the question with one tag, so a second one replaces the first and still rings", () => {
+  it("shows the news under the app's name, one tag replacing the last and still ringing", () => {
     FakeNotification.permission = "granted";
 
     notify("Sıra boş.");
 
     expect(shown).toHaveLength(1);
-    expect(shown[0].title).toBe("Queen Editor — orada mısın?");
-    expect(shown[0].options).toEqual({ body: "Sıra boş.", tag: "queen-editor-idle",
+    expect(shown[0].title).toBe("Queen Editor");
+    expect(shown[0].options).toEqual({ body: "Sıra boş.", tag: "queen-editor-queue",
                                        renotify: true });
   });
 

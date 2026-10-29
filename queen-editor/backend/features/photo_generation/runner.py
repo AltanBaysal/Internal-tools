@@ -6,10 +6,19 @@ so a change here can never break another pipeline (the maintenance rule for this
 The worker knows nothing about photos, frames or policy: it starts one job, holds whatever progress
 the job reports, and carries the stop flag the job reads between frames. `spawn` is injected:
 production starts a daemon thread, tests run the job inline and stay deterministic.
+
+`ended` is told when a job ends the queue, with the state it published (madde 509): done -- which
+the loop answers only once nothing is owed -- or stopped by an error, a job that raised included, or
+waiting for a producer that is not installed. A pause tells nothing: whoever pressed Durdur is at the
+screen.
 """
 import threading
 
 from backend.features.photo_generation.domain.running_name import RunningName
+
+# The endings `ended` hears of. Named rather than "all but paused", so a status added later tells
+# nobody until someone decides it should.
+TOLD = ("done", "error", "waiting")
 
 
 def _thread_spawn(fn):
@@ -17,8 +26,9 @@ def _thread_spawn(fn):
 
 
 class PhotoRunner:
-    def __init__(self, spawn=None):
+    def __init__(self, spawn=None, ended=None):
         self._spawn = spawn or _thread_spawn
+        self._ended = ended or (lambda state: None)
         self._lock = threading.Lock()
         self._state = {"status": "idle"}
         self._stop = False
@@ -36,8 +46,8 @@ class PhotoRunner:
     def start(self, project, job):
         """Claim the worker and run `job` in the background. False means one is already running.
 
-        `job()` returns the summary dict it wants published ({"status": "done"|"stopped"|"error",
-        ...}); the runner stamps the project onto it.
+        `job()` returns the summary dict it wants published ({"status": "done"|"paused"|"waiting"|
+        "error", ...}); the runner stamps the project onto it.
         """
         with self._lock:
             if self._state["status"] == "running":
@@ -85,9 +95,12 @@ class PhotoRunner:
         try:
             summary = job()
         except Exception as exc:   # the message is user-facing: whatever really failed, verbatim
-            self._set({"status": "error", "project": project, "error": str(exc)})
-            return
-        self._set({**summary, "project": project})
+            summary = {"status": "error", "error": str(exc)}
+        state = {**summary, "project": project}
+        self._set(state)
+        # After the status, and outside the lock: whoever hears it and asks the status reads it.
+        if state["status"] in TOLD:
+            self._ended(state)
 
     def _set(self, state):
         with self._lock:

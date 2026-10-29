@@ -1,8 +1,8 @@
-"""The idle watch's two doors (madde 498): the held ask, and Buradayım."""
+"""The queue-ended door (madde 509): the held ask for the queue ending."""
 from flask import Blueprint, jsonify, request
 
 ASK_WAIT_SECONDS = 50
-"""How long one ask may be held while the question does not move.
+"""How long one ask may be held while the count does not move.
 
 Long polling, as QueenAgent's events door does it (madde 491): the Quick Tunnel holds a GET's body
 until it ends, so the answer is one that ends, and the screen asks again at once. Under the tunnel's
@@ -11,17 +11,13 @@ its screen wants to hear a turn's progress, while this one waits for a single ev
 """
 
 
-def make_idle_blueprint(watch):
-    bp = Blueprint("idle", __name__)
+def make_ended_blueprint(watch):
+    bp = Blueprint("queue_ended", __name__)
 
-    @bp.get("/api/idle")
+    @bp.get("/api/queue/ended")
     def ask():
-        # Not a number is no version: answered at once, as it stands.
+        # Not a number is no count: answered at once, as it stands.
         after = request.args.get("after", type=int)
         return jsonify(watch.changed_since(after, ASK_WAIT_SECONDS))
-
-    @bp.post("/api/idle/here")
-    def here():
-        return jsonify(watch.here())
 
     return bp

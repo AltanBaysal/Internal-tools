@@ -1,3 +1,5 @@
+import pytest
+
 from backend.features.photo_generation.runner import PhotoRunner
 
 
@@ -86,6 +88,61 @@ def test_the_job_sees_the_stop_request():
 
     runner.start("düğün", job)
     assert seen == [False], "start must clear a stale stop flag"
+
+
+def ending_runner():
+    """A runner that says when the queue ended (madde 509): what it said, each with the status the
+    runner stood at as it said it, and the runner."""
+    told = []
+    runner = PhotoRunner(spawn=lambda fn: fn(),
+                         ended=lambda state: told.append((state, runner.status())))
+    return told, runner
+
+
+def test_a_job_that_drained_the_queue_says_so_once_its_status_is_written():
+    """The loop answers done only once nothing is owed. The status comes first, so a screen that
+    hears the news and asks /api/status reads done."""
+    told, runner = ending_runner()
+
+    runner.start("düğün", lambda: {"status": "done", "done": 2, "failed": 0, "total": 2})
+
+    done = {"status": "done", "project": "düğün", "done": 2, "failed": 0, "total": 2}
+    assert told == [(done, done)]
+
+
+@pytest.mark.parametrize("summary", [
+    {"status": "error", "error": "ComfyUI cevap vermedi.\nTimeout"},
+    {"status": "waiting", "waitingFor": "video"},
+], ids=["error", "waiting"])
+def test_a_queue_that_stopped_with_work_owed_says_so_too(summary):
+    """The user, 29 Ekim -- "gelsin": a queue stopped by an error or by a producer that is not
+    installed tells, with what it said."""
+    told, runner = ending_runner()
+
+    runner.start("düğün", lambda: summary)
+
+    assert told == [({**summary, "project": "düğün"}, {**summary, "project": "düğün"})]
+
+
+def test_a_job_that_raised_says_so_in_its_own_words():
+    told, runner = ending_runner()
+
+    def boom():
+        raise RuntimeError("ComfyUI öldü")
+
+    runner.start("düğün", boom)
+
+    assert [state for state, _status in told] == [
+        {"status": "error", "project": "düğün", "error": "ComfyUI öldü"}]
+
+
+def test_a_pause_says_nothing():
+    """Durdur: whoever pressed it is at the screen."""
+    told, runner = ending_runner()
+
+    runner.start("düğün", lambda: {"status": "paused"})
+
+    assert told == []
 
 
 def test_stop_requested_during_the_job_is_visible():

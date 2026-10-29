@@ -273,6 +273,9 @@ kullanıcıyı görmüyor, ve cümlesi her oturumda "A100" diyor.
   yoksa"*); kullanıcı onu karışık bulup bıraktı.
 - **"Üretim bitti" ne demek** *(cevap: "Sıra boşalınca: sıradaki bütün fotoğraf ve videolar bitince")*:
   export'un bitişi bildirim getirmez.
+- **Sıra boşalmadan durunca da** *(cevap: "gelsin"; yapılırken reviewer'ın sorusu üzerine)*: sıra bir
+  hatayla ya da kurulu olmayan bir model yüzünden durunca da kendi cümlesiyle bildirim gelir. Durdur'a
+  basılınca gelmez; basan zaten ekranın başında.
 - **A100:** *"sürekli a100 diyor ama hep a100 kualnımıyor garip oluyor"*.
 
 <a id="v11-9"></a>

@@ -1,10 +1,10 @@
-// The browser's own notification, for a tab left in the background (madde 498). Whatever the browser
-// cannot or will not do, the box on screen still asks: every way out here is silent.
+// The browser's own notification, for a tab left in the background (madde 498, 509). Whatever the
+// browser cannot or will not do is let go in silence: nothing else on screen stands in for it.
 
-const TITLE = "Queen Editor — orada mısın?";
-// One tag for every one of them: a question asked again replaces the last instead of stacking, and
-// `renotify` makes it ring all the same.
-const TAG = "queen-editor-idle";
+const TITLE = "Queen Editor";
+// One tag for every one of them: a notification shown again replaces the last instead of stacking,
+// and `renotify` makes it ring all the same.
+const TAG = "queen-editor-queue";
 
 const supported = () => typeof Notification !== "undefined";
 
@@ -25,6 +25,6 @@ export function notify(body) {
       shown.close();
     };
   } catch {
-    // Chrome on Android allows a notification only through a service worker: the box is up anyway.
+    // Chrome on Android allows a notification only through a service worker.
   }
 }

@@ -18,8 +18,6 @@ from backend.features.agent.domain.usecases.chats import (
 )
 from backend.features.agent.presentation.routes import make_agent_blueprint, make_chats_blueprint
 from backend.features.agent.runner import AgentRunner
-from backend.features.idle.presentation.routes import make_idle_blueprint
-from backend.features.idle.watch import IdleWatch
 from backend.features.photo_generation.data.comfy_krea_photo_generator import (
     ComfyKreaPhotoGenerator,
 )
@@ -121,6 +119,8 @@ from backend.features.projects.presentation.reference_settings_routes import (
     make_reference_settings_blueprint,
 )
 from backend.features.projects.presentation.routes import make_projects_blueprint
+from backend.features.queue_ended.presentation.routes import make_ended_blueprint
+from backend.features.queue_ended.watch import EndedWatch
 from backend.services.comfy.client import ComfyClient
 from backend.services.deepseek.box import Box
 from backend.services.deepseek.client import DeepSeekClient
@@ -173,15 +173,15 @@ _writers = {layers.VIDEO: _video_writer, layers.AUDIO: AudioPromptWriter(_queen_
 # What a card with no picture gets when its video lands (madde 296). ffmpeg is already on the
 # machine -- the sound engine cuts with it, and the export joins with it.
 _stills = FfmpegStills()
-# "Orada mısın?" once nothing has worked for ten minutes (madde 498). The three workers run their
-# work on its threads, which is how it hears each start and end: the one place they all meet.
-_idle = IdleWatch()
-_photo_runner = PhotoRunner(spawn=_idle.spawn)
+# One browser notification each time the queue ends -- emptied, or stopped (madde 509): the queue's
+# worker is the one that knows, so it is the one that tells the watch the screen listens to.
+_ended = EndedWatch()
+_photo_runner = PhotoRunner(ended=_ended.ended)
 _photo_record = DrivePhotoRecord(_storage)
 _plan_store = DrivePlanStore(_storage)
 _order_store = DriveOrderStore(_storage)
 
-_export_runner = ExportRunner(spawn=_idle.spawn)
+_export_runner = ExportRunner()
 _video_exporter = FfmpegVideoExporter(disclaimer=config.DISCLAIMER_PATH)
 
 # The one place the two features meet: deleting a project has to stop the production that project
@@ -371,18 +371,18 @@ _agent = partial(answer_question, _queen_ai,
                          log=_timing, writers=_writers, stills=_stills,
                          references=_reference_files))
 # Which chats' agents are working: in this process alone, so a restart ends them all.
-_agent_runner = AgentRunner(_chat_record, spawn=_idle.spawn, waiting=_idle.waiting)
+_agent_runner = AgentRunner(_chat_record)
 _agent_bp = make_agent_blueprint(
     ask_question=partial(ask_question, _chat_record, _agent_runner, _agent,
                          lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
     stop_agent=partial(stop_agent, _chat_record, _agent_runner),
     working_chats=partial(working_chats, _chat_record, _agent_runner),
     answer_permission=partial(answer_permission, _chat_record, _agent_runner))
-_idle_bp = make_idle_blueprint(_idle)
+_ended_bp = make_ended_blueprint(_ended)
 
 app = create_app(blueprints=[_projects_bp, _reference_settings_bp, _photo_bp, _references_bp,
                              _video_length_bp, _happy_ending_bp, _producers_bp, _chats_bp,
-                             _agent_bp, _idle_bp])
+                             _agent_bp, _ended_bp])
 
 if __name__ == "__main__":
     print(f"Proje kökü: {config.DRIVE_ROOT}")

@@ -297,20 +297,16 @@ export async function getStatus() {
   return request("/api/status");
 }
 
-// "Orada mısın?" as the server's idle watch has it (madde 498): { version, asking }. Asked from a
-// version, the server holds the answer until the question moves or 50 seconds pass -- long polling,
-// since the Quick Tunnel holds a streaming body until it ends -- so the wait outlasts the server's
-// hold and stays under the tunnel's cut of about 100 quiet seconds. With no version, at once.
-const IDLE_ASK_TIMEOUT_MS = 80_000;
+// How many times the queue has ended and how it last did, as the server keeps them (madde 509):
+// { ended, last }.
+// Asked from a count, the server holds the answer until the count moves or 50 seconds pass -- long
+// polling, since the Quick Tunnel holds a streaming body until it ends -- so the wait outlasts the
+// server's hold and stays under the tunnel's cut of about 100 quiet seconds. With no count, at once.
+const ENDED_ASK_TIMEOUT_MS = 80_000;
 
-export async function waitForIdle(after) {
+export async function waitForEnded(after) {
   const since = after === null ? "" : `?after=${after}`;
-  return request(`/api/idle${since}`, { timeout: IDLE_ASK_TIMEOUT_MS });
-}
-
-// Buradayım: the question closes and the ten minutes start again. Answers like waitForIdle.
-export async function sayHere() {
-  return request("/api/idle/here", { method: "POST" });
+  return request(`/api/queue/ended${since}`, { timeout: ENDED_ASK_TIMEOUT_MS });
 }
 
 // Plain URL, not a fetch: the browser loads it into an <img>, a <video> or an <audio>. Any file

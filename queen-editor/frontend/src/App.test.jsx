@@ -42,11 +42,10 @@ vi.mock("./shared/api.js", () => ({
   saveSettings: vi.fn(),
   startExport: vi.fn(),
   stopGeneration: vi.fn(),
-  sayHere: vi.fn().mockResolvedValue({ version: 0, asking: false }),
-  waitForIdle: vi.fn(() => new Promise((resolve) => { heldAsks.push(resolve); })),
+  waitForEnded: vi.fn((after) => new Promise((resolve) => { heldAsks.push({ after, resolve }); })),
 }));
 
-// The idle watch's held asks, answered by the test that wants the question asked.
+// The queue-ended asks, answered by the test that wants the queue ended.
 const heldAsks = [];
 
 const FRAME = { id: "1_a", file: "1_a.png", status: "done" };
@@ -102,37 +101,49 @@ describe("App — the project screen while its record is on its way", () => {
   });
 });
 
-describe("App — orada mısın? on every screen (madde 498)", () => {
-  const ASKED = { version: 1, asking: true };
+describe("App — the queue's notification on every screen (madde 509)", () => {
+  // The browser's Notification, faked: the titles of those shown.
+  let shown;
+  class FakeNotification {
+    static permission = "granted";
+    constructor(title) { shown.push(title); }
+  }
 
   beforeEach(() => {
     heldAsks.length = 0;
-    // The photo panel's record is no business of the box's.
+    shown = [];
+    vi.stubGlobal("Notification", FakeNotification);
+    // The photo panel's record is no business of the notification's.
     getSettings.mockImplementation(() => new Promise(() => {}));
   });
 
-  it("asks over the projects list", async () => {
-    window.history.pushState({}, "", "/");
+  // The first ask, with no count, answered at once: where the count stands when the page opens.
+  async function openOn(path) {
+    window.history.pushState({}, "", path);
     render(<App />);
     await act(async () => {});
+    await act(async () => { heldAsks.at(-1).resolve({ ended: 0, last: null }); });
+  }
 
-    await act(async () => { heldAsks.at(-1)(ASKED); });
+  it("rings over the projects list, and asks nobody whether they are there", async () => {
+    await openOn("/");
 
-    expect(screen.getByText("Orada mısın?")).toBeTruthy();
+    await act(async () => { heldAsks.at(-1).resolve({ ended: 1, last: { status: "done" } }); });
+
+    expect(shown).toEqual(["Queen Editor"]);
+    expect(screen.queryByText("Orada mısın?")).toBeNull();
   });
 
-  it("asks over a project, and moving between screens keeps the one ask it holds", async () => {
-    window.history.pushState({}, "", "/");
-    render(<App />);
-    await act(async () => {});
+  it("keeps the one ask it holds while moving between screens", async () => {
+    await openOn("/");
 
     act(() => navigate(`/projects/${encodeURIComponent("sayan")}`));
     await act(async () => {});
-    expect(heldAsks).toHaveLength(1);
+    expect(heldAsks.map((one) => one.after)).toEqual([null, 0]);
 
-    await act(async () => { heldAsks.at(-1)(ASKED); });
+    await act(async () => { heldAsks.at(-1).resolve({ ended: 1, last: { status: "done" } }); });
 
-    expect(screen.getByText("Orada mısın?")).toBeTruthy();
+    expect(shown).toEqual(["Queen Editor"]);
     expect(screen.getByText("sayan")).toBeTruthy();
   });
 });

@@ -301,49 +301,6 @@ def test_each_question_has_its_own_number_and_only_the_project_s_chats_are_liste
         ended(thread)
 
 
-@pytest.fixture
-def paused(record, held):
-    """A runner that tells the idle watch when its run waits on the user (madde 498): what was
-    told, in order, and the runner."""
-    from contextlib import contextmanager
-
-    from backend.features.agent.runner import AgentRunner
-    told = []
-
-    @contextmanager
-    def waiting():
-        told.append("waits")
-        try:
-            yield
-        finally:
-            told.append("goes on")
-
-    return told, AgentRunner(record, spawn=held.append, waiting=waiting)
-
-
-@pytest.mark.parametrize("answer", ["reply", "stop"])
-def test_a_run_waiting_on_the_user_is_paused_for_the_idle_watch(paused, held, until, ended,
-                                                                 answer):
-    """An agent waiting on İzin ver / Reddet is not work: the watch hears it pause for exactly as
-    long as the question stands, and go on once it is answered -- or stopped."""
-    import threading
-
-    told, runner = paused
-    runner.start("düğün", 1, "Düzelt", ASKED, lambda run: run.permit(CHANGE))
-    thread = threading.Thread(target=held.pop(), daemon=True)
-    thread.start()
-    number = asked_id(runner, until)
-    assert told == ["waits"]
-
-    if answer == "reply":
-        runner.reply("düğün", 1, number, True)
-    else:
-        runner.stop("düğün", 1)
-    ended(thread)
-
-    assert told == ["waits", "goes on"]
-
-
 def test_a_change_s_number_is_one_the_page_reads_exactly(runner, asks, until, ended):
     """The page reads the number as a JavaScript number and sends it back: rounded, it would never
     match, and no change could be answered."""

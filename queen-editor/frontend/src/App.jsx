@@ -1,7 +1,7 @@
 import ProjectScreen from "./features/photo_generation/ProjectScreen.jsx";
 import ProjectsScreen from "./features/projects/ProjectsScreen.jsx";
 import { useProjectSettings } from "./features/projects/useProjectSettings.js";
-import IdleWatch from "./features/idle/IdleWatch.jsx";
+import { useEndedNotification } from "./features/notification/useEndedNotification.js";
 import ExportScreen from "./features/photo_generation/ExportScreen.jsx";
 import PhotoDetail from "./features/photo_generation/PhotoDetail.jsx";
 import { routeFromPath, useRoute } from "./shared/router.js";
@@ -32,13 +32,9 @@ function Screen() {
   return <ProjectRoute project={project} />;
 }
 
-// "Orada mısın?" stands beside the screen rather than inside each one (madde 498): one watch for
-// all four, and moving between them does not take it down, so its one held ask goes on.
+// The queue's notification listens here rather than inside each screen (madde 509): one listener
+// for all four, and moving between them does not take it down, so its one held ask goes on.
 export default function App() {
-  return (
-    <>
-      <Screen />
-      <IdleWatch />
-    </>
-  );
+  useEndedNotification();
+  return <Screen />;
 }

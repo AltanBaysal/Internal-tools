@@ -89,7 +89,8 @@ istisna olarak yazılır.
 *(Kullanıcı, 27 Ekim — "bence bunu roadmapten backloga koyalım şuanlık kapatmak yerine bildirim
 yollasın sadece"; v11 roadmap'inin v11-2'sinden çıktı.)* Sıra 10 dk boş kalınca Queen Editor "orada
 mısın?" diye sorar; *"sorudan sonra 5 dk da cevapp kalmazsa kapansın"*. Süren export ya da ajan iş
-sayılır. v11-2 bugün yalnız bildirim gönderiyor; sekme kapalıyken bildirim de gitmez, A100'ü o
+sayılır. Bugün geri sayım ve kutu yok ([509 · v11-8](../docs/arsiv/roadmaps/2026-10-24-queen-editor-v11-roadmap.md#v11-8)
+kaldırdı); yalnız sıra boşalınca ya da durunca bir bildirim geliyor. Sekme kapalıyken bildirim de gitmez, A100'ü o
 durumda ancak kapatma kurtarır. Açık soru: sekme kapalıyken kim sayar — bunu Colab tarafı yapmalı.
 
 ### Silinmiş fotoğraftan video, ve kopya karenin fotoğrafının üstüne yazılması

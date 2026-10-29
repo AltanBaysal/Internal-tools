@@ -56,24 +56,24 @@ def test_the_app_comes_up_and_answers_health(import_main):
     assert response.status_code == 200
 
 
-def test_every_worker_runs_its_work_on_the_idle_watchs_threads(import_main):
-    """Madde 498: the queue, the export and the agent tell the watch when work starts and ends by
-    running it where the watch can see it -- one that ran elsewhere would be invisible to it, and
-    the question would come while it worked. The agent's wait on the user is the watch's too."""
+def test_the_queue_tells_the_ended_watch_when_it_ends_and_nothing_else_does(import_main):
+    """Madde 509: the one notification is the queue ending -- an export ending brings none, and
+    the agent has nothing to say to the watch either."""
+    from backend.features.agent.runner import _thread_spawn as agent_spawn
+    from backend.features.photo_generation.export_runner import _thread_spawn as export_spawn
     main = import_main()
 
-    assert main._photo_runner._spawn == main._idle.spawn
-    assert main._export_runner._spawn == main._idle.spawn
-    assert main._agent_runner._spawn == main._idle.spawn
-    assert main._agent_runner._waiting == main._idle.waiting
+    assert main._photo_runner._ended == main._ended.ended
+    assert main._export_runner._spawn is export_spawn
+    assert main._agent_runner._spawn is agent_spawn
 
 
-def test_the_app_comes_up_with_nothing_asked(import_main):
+def test_the_app_comes_up_with_the_queue_never_ended(import_main):
     main = import_main()
 
-    response = main.app.test_client().get("/api/idle")
+    response = main.app.test_client().get("/api/queue/ended")
 
-    assert response.get_json() == {"version": 0, "asking": False}
+    assert response.get_json() == {"ended": 0, "last": None}
 
 
 def test_a_root_that_is_not_there_is_nobodys_business_until_it_is_asked(import_main, monkeypatch,

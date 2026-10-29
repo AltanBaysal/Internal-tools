@@ -35,26 +35,25 @@ describe("api.request", () => {
     expect(url).not.toContain("düğün");
   });
 
-  it("asks the idle watch from a version, or at once with none (madde 498)", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(okResponse({ version: 2, asking: true }));
+  it("asks how often the queue ended from a count, or at once with none (madde 509)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse({ ended: 2, last: { status: "done" } }));
     vi.stubGlobal("fetch", fetchMock);
 
-    expect(await api.waitForIdle(1)).toEqual({ version: 2, asking: true });
-    await api.waitForIdle(null);
-    await api.sayHere();
+    expect(await api.waitForEnded(1)).toEqual({ ended: 2, last: { status: "done" } });
+    await api.waitForEnded(null);
 
     expect(fetchMock.mock.calls.map(([url, options]) => [options.method || "GET", url])).toEqual([
-      ["GET", "/api/idle?after=1"], ["GET", "/api/idle"], ["POST", "/api/idle/here"]]);
+      ["GET", "/api/queue/ended?after=1"], ["GET", "/api/queue/ended"]]);
   });
 
-  it("holds the idle ask longer than the server does, and cuts it before the tunnel would", async () => {
+  it("holds the ended ask longer than the server does, and cuts it before the tunnel would", async () => {
     vi.useFakeTimers();
     vi.stubGlobal("fetch", vi.fn((url, { signal }) => new Promise((resolve, reject) => {
       signal.addEventListener("abort", () => reject(Object.assign(new Error("aborted"),
                                                                    { name: "AbortError" })));
     })));
 
-    const asked = api.waitForIdle(0).catch((err) => err);
+    const asked = api.waitForEnded(0).catch((err) => err);
     // The server holds an ask 50 seconds: a client cut at the usual ten would never hear it.
     await vi.advanceTimersByTimeAsync(60_000);
     let settled = false;
@@ -63,7 +62,7 @@ describe("api.request", () => {
     expect(settled).toBe(false);
 
     await vi.advanceTimersByTimeAsync(40_000);
-    expect((await asked).evidence).toBe("GET /api/idle?after=0\nZaman aşımı (80 sn)");
+    expect((await asked).evidence).toBe("GET /api/queue/ended?after=0\nZaman aşımı (80 sn)");
   });
 
   it("throws the server's own text when the server rejects a request", async () => {

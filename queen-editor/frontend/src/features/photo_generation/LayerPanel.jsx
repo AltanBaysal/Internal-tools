@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { getReferenceSettings, saveReferenceSettings } from "../../shared/api.js";
 import { Mono, Note } from "../../vendor/kit.jsx";
-import { askPermission } from "../idle/notification.js";
+import { askPermission } from "../notification/notification.js";
 import InstallCard from "../producers/InstallCard.jsx";
 import { SoundGlyph, VideoGlyph } from "./glyphs.jsx";
 import { FIRST_ORIENTATION, OrientationSegment } from "./orientation.jsx";
