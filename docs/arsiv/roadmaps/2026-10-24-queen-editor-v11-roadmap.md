@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-10-24 · **Koşu dalı:** `feat/queen-editor-v11` · **Durum:** 7/7 · bitti; kullanıcı 28 Ekim'de denedi *(kullanıcı, 28 Ekim — "ve gerisi düzgün queen agnetı ve editoru maine mergelyebilrisn")*
 
-**Yama v11.1:** 2026-10-29 · **Koşu dalı:** `feat/queen-editor-v11.1` · **Durum:** 4/7 *(kullanıcı, 29 Ekim —
+**Yama v11.1:** 2026-10-29 · **Koşu dalı:** `feat/queen-editor-v11.1` · **Durum:** 5/7 *(kullanıcı, 29 Ekim —
 "patch gibi düşün ubnları"; "queen editorun son roadmpine ekle zaten var v11.1 yap direkt sonuna ekle işte
 ynei madde olarak")*. 509 · v11-8'den 515 · v11-14'e yedi madde bu yamanın; yine tek tek yürürler. Ekrandaki sürüm V11
 kalır, yama onu artırmaz *(kullanıcı, 29 Ekim — "ekran sürümü değişmesin")*.
@@ -45,7 +45,7 @@ ana klasörde koşunun dalında yürür.
 | 509 · [v11-8](#v11-8) | "Orada mısın?" kalkar, üretim bitince bildirim gelir | ✅ *(tünelden gelen işletim sistemi bildirimi ve ona tıklayınca sekmenin öne gelmesi kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
 | 510 · [v11-9](#v11-9) | Videonun sesi kare sayfasından kapatılabilir | ✅ *(gerçek H3 + MMAudio videosunun sessiz oynaması, iki export ve işaretin Colab yeniden açılınca durması kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
 | 512 · [v11-11](#v11-11) | Aynı anda basılan iki Kuyruğa ekle'nin ikisi de sırada kalır | ✅ *(gerçek Drive gecikmesinde, iki sekmeden ya da ajanla aynı anda basılınca ikinci basışın ekranın 10 sn sınırını aşıp aşmadığı kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
-| 513 · [v11-12](#v11-12) | Bitmiş bir kare yeniden çizilmez | `ALIGNED` |
+| 513 · [v11-12](#v11-12) | Bitmiş bir kare yeniden çizilmez | ✅ *(gerçek Drive gecikmesi ve Drive'da aynı anda yazılan kayıt satırlarının sırası kullanıcının sondaki Colab denemesinde; deneme birleştirmeye kadar bu dalla yapılır)* · `ALIGNED` |
 | 514 · [v11-13](#v11-13) | MMAudio kalkar | `ALIGNED` |
 | 515 · [v11-14](#v11-14) | Ses düğmesi her videoda | `ALIGNED` |
 | 511 · [v11-10](#v11-10) | Sıra kapanırken eklenen iş de başlar | ✅ *(gerçek Drive gecikmesinde son iş biterken Kuyruğa ekle kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |

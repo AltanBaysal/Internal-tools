@@ -33,7 +33,7 @@ def retry_frame(runner, store, record, plan_store, producers, now, project, fid,
         raise FrameMissing(f"Bu kare planda yok: {fid}")
     slots = record.slots(project)
     cells = slots.get(fid, {})
-    red =[(layer, cell) for layer, cell in cells.items() if cell["status"] == queue.FAILED]
+    red = [(layer, cell) for layer, cell in cells.items() if cell["status"] == queue.FAILED]
     # Before the red lines are put back, so a loop already running never takes the video the way it
     # is leaving.
     if any(layer == layers.VIDEO for layer, _cell in red):

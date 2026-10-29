@@ -12,7 +12,7 @@ import pytest
 from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
 from backend.features.photo_generation.data.plan_store import DrivePlanStore
-from backend.features.photo_generation.domain import layers, queue
+from backend.features.photo_generation.domain import layers, production_mode, queue
 from backend.features.photo_generation.domain.run_loop import make_job
 from backend.features.photo_generation.domain.running_name import RunningName
 from backend.features.photo_generation.domain.usecases.cancel_generation import cancel_generation
@@ -281,6 +281,30 @@ def test_a_video_press_on_a_frame_whose_video_is_in_line_adds_nothing():
     assert len(plan_store.appended) == 1                    # only the line set up above
     assert len(record.rows) == 3                            # nothing written by the press
     assert runner.status()["status"] == "idle"
+
+
+def test_a_second_video_press_before_the_first_is_made_does_not_add_the_frames_own_job_again():
+    """The usual double press: the first press's job is planned and has no line in the record yet.
+    The frame's own video is in line -- the user's "sırada … yeniden eklenmez" -- so the second
+    press adds only its copies, says so, and the first press's mode stands on the frame's job."""
+    store, record, order = FakeStore(), FakeRecord(), FakeOrderStore()
+    plan_store = FakePlanStore(frames=[frame(0)])
+    record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done"})
+    runner = idle_runner()
+
+    def press(mode):
+        return queue_layer(runner, store, record, plan_store, order, {}, now, "düğün",
+                           layers.VIDEO, files=["0_a.png"], variants=2, mode=mode)
+
+    assert press(production_mode.LOOP) == 2
+    assert press(production_mode.STANDARD) == 1
+
+    own = [job for job in plan_store.read("düğün")["frames"]
+           if job["id"] == "0_a" and job.get("type") == layers.VIDEO]
+    assert [job["mode"] for job in own] == [production_mode.LOOP]
+    copies = [job["id"] for job in plan_store.read("düğün")["frames"]
+              if job.get("type") == layers.VIDEO and job["id"] != "0_a"]
+    assert len(copies) == 2 and len(set(copies)) == 2
 
 
 def sound_copy_holding_the_video():

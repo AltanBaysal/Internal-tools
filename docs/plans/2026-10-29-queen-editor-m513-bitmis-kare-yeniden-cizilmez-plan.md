@@ -51,6 +51,8 @@
    - `queue_layer`: döngünün kaydedeceği adı başka bir karenin dolu yeri tutuyorsa yer dolu sayılır —
      önce kırmızı test (`test_a_video_press_never_saves_over_the_video_a_copy_still_holds`, iki
      kapsamda); tarama `layers.held_elsewhere`'de, `retry_frame` ile ortak.
+   - QA'nın bulduğu: planda borçlu ve kayıtta yazılmamış iş de sırada sayılır — önce kırmızı test
+     (`test_a_second_video_press_before_the_first_is_made_does_not_add_the_frames_own_job_again`).
 7. **`queen-editor/BACKLOG.md`, Diğer:** *"Fotoğraf kaydına aynı anda iki satır yazılabilir"*'e
    513'ün de satır sırasına dayandığı eklenir; yeni madde *"Yeniden adlandırma bir videoyu boş
    prompt'la ürettirebilir"*.

@@ -11,7 +11,8 @@ A frame whose own layer has not landed is skipped: the card has not settled yet,
 to hang anything on. What a layer needs UNDER it is layers.NEEDS' answer -- a video hangs on nothing
 (madde 293). A frame that already has this layer is never written over -- "üret = ekle" means
 the extra one becomes a frame of its own, sharing what is under it and taking the next variant of
-its source's number (madde 25, 102). A frame whose layer is already in line is not given it again.
+its source's number (madde 25, 102). A frame whose layer is already in line -- put back, or planned
+and not yet made -- is not given it again.
 Both are the record's answer, read under the press's gate, not the gallery's (madde 513).
 """
 from backend.features.photo_generation.domain import layers, production_mode, queue, video_settings
@@ -159,9 +160,14 @@ def queue_layer(runner, store, record, plan_store, order_store, producers, now, 
                 # without this layer", and this one cannot be given its own.
                 continue
             owed = variants
-            if status == queue.QUEUED:
-                # Already in line: the frame's own job is the first variant, and it is not added
-                # again (the user, 29 Ekim -- "galeri sırada / kayıt bitti demesi lazım değil mi").
+            in_line = status == queue.QUEUED or (status is None
+                                                  and kind in frame.get("owed", ()))
+            if not full and in_line:
+                # Already in line -- put back, or planned and never written about yet, the usual
+                # second press before the first is made: the frame's own job is the first variant,
+                # and it is not added again (the user, 29 Ekim -- "galeri sırada / kayıt bitti
+                # demesi lazım değil mi"). Planned is the gallery's owed, the plan's answer, which
+                # only these gated doors write; the record still saying nothing is today's read.
                 owed -= 1
             elif not full:
                 if status is not None:

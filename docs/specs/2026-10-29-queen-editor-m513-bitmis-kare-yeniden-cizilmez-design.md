@@ -93,13 +93,17 @@ taşıma yok.
   kareden başka bir karenin dolu bir yeri bu dosyayı adlandırıyor mu. `queue_layer` ve `retry_frame`
   aynı yardımcıyı, döngünün kaydedeceği adla (`layer_file`, `photo_file`) sorar.
 - **`queue_layer`:** karenin kendi yeri için kararı galeriden değil, kayıttaki durumdan verir:
-  - `queued` (sırada): yerin işi yeniden eklenmez; ilk varyant odur, kalan varyantlar kopya kare olur.
+  - sırada — `queued`, ya da planda borçlu ve kayıtta hiç yazılmamış (ikinci basış birincisi
+    üretilmeden geldiğinde olağan durum): yerin işi yeniden eklenmez ve sayılmaz; ilk varyant odur,
+    kalan varyantlar kopya kare olur. Böylece ilk basışın kipi ve süresi karenin işinde kalır: plana
+    düşen ikinci bir satır son satır olup onları değiştirirdi. "Planda borçlu" galerinin `owed`'udur,
+    planın cevabı, ve planı yalnız kapıdaki kapılar yazar.
   - `done` ya da `failed`, ya da adı başka bir karenin dolu yerinde: yer doludur; seçimle istendiyse
     bütün varyantlar kopya kare olur — yeni varyant, kendi adıyla (bugünkü gibi) — "videosu olmayan
     kareler" ise kare atlanır: galeri okunduktan sonra inmiştir, ya da adı bir kopyanındır.
     Kullanıcı video istediyse bir video alır, hiçbir dosyanın üstüne yazılmaz.
   - `removed` ya da `deleted`: `queued` yazılır, `from` o durum, ve iş eklenir.
-  - hiç yazılmamış: iş eklenir (bugünkü gibi).
+  - hiç yazılmamış ve planda borçlu değil: iş eklenir (bugünkü gibi).
 - **`retry_frame`:** kırmızı bir şey yoksa fotoğrafı ancak yerinde fotoğraf yoksa (`is_taken` değilse)
   ve başka bir karenin dolu yeri o adı (`photo_file(fid)`) tutmuyorsa yeniden ister; yoksa hiçbir şey
   yazmaz. Ekran Tekrar dene'yi yalnız kırmızı bir katmanda gösteriyor (galerinin kırmızı kartı ve
@@ -143,8 +147,8 @@ Yani `done` olmuş bir yeri, dosyasını silen bir silme dışında hiçbir sat�
 zaman okumuş olursa olsun. Yarış yarış:
 
 - **Galeri ile kayıt arasına inen video:** `queue_layer` artık kayda bakıyor. İniş okumadan önceyse
-  kayıt `done` der: yeni bir varyant ya da hiçbir şey. Sonraysa basış ya hiçbir satır yazmaz (yer
-  yazılmamış ya da `queued`) — eklediği plan satırını inen `done` kapatır — ya da `queued`'u
+  kayıt `done` der: yeni bir varyant ya da hiçbir şey. Sonraysa basış ya karenin işini sırada bulur ve
+  hiçbir şey yazmaz (`queued`, ya da planda borçlu ve yazılmamış), ya da `queued`'u
   `removed`/`deleted`'dan yazar ve bu satır `done`'un üstüne düşerse üstünden geçilir.
 - **Çıkarılıp yeniden istenen, çizilirken:** basışın `queued`'u `from = removed`; video ondan önce inerse
   satır uygulanmaz, sonra inerse `done` yine son sözdür. Bir kez üretilir.
@@ -203,8 +207,8 @@ yazma kapısını tutan kapılar adın kilidini almaz, `run_queue` kapının dı
 ## Sınırlar
 
 - Galeri okunduktan sonra videosu inen kareye seçimle basılan video yeni bir varyant (kopya kare) olur
-  — basış kayıtta videoyu görmüştür. İnişten önce okuyan basışın plan satırını inen video kapatır; o
-  yer bir kez üretilir (512'nin sınırı gibi).
+  — basış kayıtta videoyu görmüştür. İnişten önce okuyan basış karenin kendi işini sırada bulur ve
+  yeniden eklemez; o yer bir kez üretilir.
 - Çıkarılıp başka bir kipte yeniden istenen video çizilirken inerse, inen video kalır ve yeni istek onu
   yeniden üretmez: yer bitmiştir. Başka kip isteyen yeni bir varyant ister.
 - Çıkarılan beklenen bir kartın fotoğrafı o sırada inerse kart galeride kalır ve sıra dosyasında
@@ -228,7 +232,9 @@ yazma kapısını tutan kapılar adın kilidini almaz, `run_queue` kapının dı
     `P0_0.png` aynı kalıyor, sıra yeni klasörde bitiyor;
   - ilk video inerken gelen ikinci basışta, yer yazılmamışken de `removed`'dan yeniden açılmışken de,
     karenin kendi videosu bir kez iniyor ve `done` kalıyor;
-  - sırada videosu olan kareye video basışı hiçbir şey eklemiyor;
+  - sırada videosu olan kareye video basışı hiçbir şey eklemiyor; birincisi üretilmeden gelen ikinci
+    basış (iki varyant) karenin kendi işini yeniden eklemiyor, yalnız eklediğini sayıyor (`1`), ve
+    karenin işinde ilk basışın kipi kalıyor;
   - videosunu bir ses kopyasının tuttuğu, kendi videosu silinmiş kareye video basışı `P1_0_V1_0.mp4`'ün
     üstüne kaydetmiyor: seçimle yeni varyantlar kendi adlarıyla, "videosu olmayan kareler"de hiçbir şey;
   - fotoğrafı bitmiş kareye, ya da fotoğrafı silinmiş ama dosyasını bir kopyanın tuttuğu kareye Tekrar

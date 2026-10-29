@@ -171,9 +171,11 @@ sürecin `main.py`'sinden geçer. Kilit bellekte olduğu için bu yeter (`DriveM
 
 ## Sınırlar
 
-- Videosu olmayan bir kareye aynı anda iki video basışı: ikisi de karenin kendi video
-  işini sıraya koyar, ve o yer bir kez üretilir — art arda iki basış da böyle davranır, yer bir tanedir.
-  İkinci varyantlar her basışın kendi kopya karesidir ve ikisi de üretilir.
+- Videosu olmayan bir kareye aynı anda iki video basışı: 513'ten beri
+  ([spec](2026-10-29-queen-editor-m513-bitmis-kare-yeniden-cizilmez-design.md)) ikinci basış karenin
+  kendi video işini sırada bulur ve yalnız kopya karelerini ekler; karenin kendi işi bir kez planlanır
+  ve bir kez üretilir — art arda iki basış da böyle davranır. İkinci varyantlar her basışın kendi kopya
+  karesidir ve ikisi de üretilir.
 - Windows'ta, plan okunurken (döngü, galeri) onun üstüne taşınan yazma hâlâ `Access is denied`
   alabilir: Windows açık bir dosyanın üstüne taşımaya izin vermez. Colab Linux'tur, orada olmaz; yalnız
   yerelde. Bu Drive'ın kapısının (`services/storage/`) her dosya için davranışı; bu madde ona

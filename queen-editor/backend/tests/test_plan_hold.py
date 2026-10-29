@@ -196,11 +196,13 @@ def test_two_video_presses_at_once_give_their_variants_their_own_frames():
 
     other = Contention(press, *every_write(record, plan_store, order))
     assert press() == 2
-    assert other.done() == 2
+    # The second finds the frame's own video in line and adds only its copy (madde 513).
+    assert other.done() == 1
 
-    # Each press puts the frame's own video in line and a copy frame for its second variant.
+    # Each press has a copy frame of its own; the frame's own video is in line once.
     copies = [fid for fid in planned(plan_store) if fid != "0_a"]
     assert sorted(copies) == ["P0_1", "P0_2"]
+    assert planned(plan_store).count("0_a") == 1
 
 
 def test_two_new_frames_of_one_family_at_once_take_their_own_names():
