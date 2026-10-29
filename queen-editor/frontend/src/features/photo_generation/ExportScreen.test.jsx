@@ -134,6 +134,21 @@ describe("ExportScreen", () => {
     expect(screen.getByText("⚠ 16 videonun sesi yok")).toBeTruthy();
   });
 
+  it("says how many have their sound turned off, on a line under the missing ones (madde 510)",
+     async () => {
+    await open({ ...SUMMARY, silent: 16, muted: 2 });
+
+    const off = screen.getByText("⚠ 2 videonun sesi kapalı");
+    const missing = screen.getByText("⚠ 16 videonun sesi yok");
+    expect(missing.compareDocumentPosition(off) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("says nothing of turned-off sounds when there are none", async () => {
+    await open({ ...SUMMARY, muted: 0 });
+
+    expect(screen.queryByText(/sesi kapalı/)).toBeNull();
+  });
+
   it("says which frames the sequence will not hold", async () => {
     await open({ ...SUMMARY, withoutVideo: 3 });
 

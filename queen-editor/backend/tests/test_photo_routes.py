@@ -1,6 +1,7 @@
 import json
 from functools import partial
 
+from backend.features.photo_generation.data.mute_store import DriveMuteStore
 from backend.features.photo_generation.data.order_store import DriveOrderStore
 from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
@@ -99,6 +100,7 @@ def make_client(tmp_path, generator=None, runner=None):
     record = DrivePhotoRecord(storage)
     plan_store = DrivePlanStore(storage)
     order_store = DriveOrderStore(storage)
+    mutes = DriveMuteStore(storage)
     runner = runner or PhotoRunner(spawn=lambda fn: fn())
     export_runner = ExportRunner(spawn=lambda fn: fn())
     exporter = RecordingExporter()
@@ -130,10 +132,10 @@ def make_client(tmp_path, generator=None, runner=None):
         list_loras=list_loras,
         save_order=partial(save_order, record, store, plan_store, order_store),
         export_summary=partial(export_summary, record, store, plan_store, order_store,
-                               lambda: 5),
+                               lambda: 5, mutes=mutes),
         export_state=export_runner.state,
         run_export=partial(start_export, export_runner, store, record, plan_store, order_store,
-                           exporter, lambda: "2026-08-12 14-32"),
+                           exporter, lambda: "2026-08-12 14-32", mutes=mutes),
         cancel_export=lambda: [export_runner.cancel(mode) for mode in MODES],
         remove_frames=partial(remove_frames, record, store, plan_store, order_store,
                               lambda: "2026-08-05T10:00:00+00:00"),

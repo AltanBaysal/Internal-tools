@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Mono } from "../../vendor/kit.jsx";
-import { PauseGlyph, PlayGlyph } from "./glyphs.jsx";
+import { PauseGlyph, PlayGlyph, SpeakerGlyph, SpeakerOffGlyph } from "./glyphs.jsx";
 
 // Madde 74's numbers: a 64px round button in the middle of a 16:9 stage, and a waveform of 46 bars
 // where the sound rides along.
@@ -22,6 +22,14 @@ const BUTTON = { position: "absolute", top: "50%", left: "50%", transform: "tran
                  borderWidth: 1, borderStyle: "solid", borderColor: "rgba(255,255,255,.35)",
                  background: "rgba(10,8,7,.72)", color: "#fff", cursor: "pointer",
                  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2 };
+// The sound's switch (madde 510): top right of the video, the user's place for it, on the round
+// button's own dark ground and outline so it reads over any frame. Small, because it is looked at
+// once and the picture is what is watched.
+const SWITCH = { position: "absolute", top: 12, right: 12, width: 32, height: 32,
+                 borderRadius: "50%", borderWidth: 1, borderStyle: "solid",
+                 borderColor: "rgba(255,255,255,.35)", background: "rgba(10,8,7,.72)",
+                 color: "#fff", cursor: "pointer", padding: 0, zIndex: 2,
+                 display: "flex", alignItems: "center", justifyContent: "center" };
 // Fark 114/115: the clock, the line and the waveform live inside the picture now, a little above
 // its bottom edge, so the player reads as one thing rather than two stacked.
 const TRACK = { position: "absolute", left: 12, right: 12, bottom: 10, zIndex: 1,
@@ -80,7 +88,13 @@ function useWaveform(audioUrl) {
 //
 // A new frame or tab builds a new player (madde 232), so nothing that was playing carries over.
 // onReady and onFail say when the video has arrived or will not.
-export default function LayerPlayer({ videoUrl, audioUrl, onReady, onFail, children }) {
+//
+// `silent` plays the video with no sound at all -- the layer's nor the video's own -- because its
+// sound is turned off (madde 510); the wav and its waveform stay, the sound is still the project's.
+// `onMute` is the press on the switch, and the switch is drawn only when the page hands one: the
+// page knows whether this video has a sound to turn off.
+export default function LayerPlayer({ videoUrl, audioUrl, silent = false, onMute, onReady, onFail,
+                                      children }) {
   const video = useRef(null);
   const audio = useRef(null);
   const [playing, setPlaying] = useState(false);
@@ -122,13 +136,21 @@ export default function LayerPlayer({ videoUrl, audioUrl, onReady, onFail, child
         {/* Loops by itself: the design asks for a five second clip that keeps going round. Muted
             under a sound layer: an H3 video carries a sound of its own, and the layer takes its
             place (madde 243). */}
-        <video ref={video} src={videoUrl} loop playsInline muted={Boolean(audioUrl)}
+        <video ref={video} src={videoUrl} loop playsInline muted={Boolean(audioUrl) || silent}
                onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
                onTimeUpdate={onTime}
                onLoadedMetadata={() => setLength(video.current?.duration || 0)}
                onLoadedData={onReady} onError={onFail}
                style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
-        {audioUrl && <audio ref={audio} src={audioUrl} loop />}
+        {audioUrl && <audio ref={audio} src={audioUrl} loop muted={silent} />}
+        {onMute && (
+          /* Its click is stopped for the round button's reason: the scene would take it as play. */
+          <button type="button" aria-label={silent ? "Sesi aç" : "Sesi kapat"}
+                  title={silent ? "Sesi aç" : "Sesi kapat"}
+                  onClick={(event) => { event.stopPropagation(); onMute(); }} style={SWITCH}>
+            {silent ? <SpeakerOffGlyph size={16} /> : <SpeakerGlyph size={16} />}
+          </button>
+        )}
         {/* Madde 212: a 64px disc over the middle of a five second clip covers what is being looked
             at. It stays mounted and only stops drawing -- unmounted, a keyboard would have nothing
             left to focus and pausing would be a mouse-only move. The click is stopped here because

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   getHappyEnding,
+  getMuted,
   getStatus,
   getVideoLength,
   listFrames,
@@ -12,6 +13,7 @@ import {
   removeFrames,
   removeLayer,
   retryFrame,
+  saveMuted,
 } from "../../shared/api.js";
 import { navigate } from "../../shared/router.js";
 import { VERSION } from "../../shared/version.js";
@@ -21,6 +23,7 @@ vi.mock("../../shared/api.js", () => ({
   cancelGeneration: vi.fn(),
   generateBatch: vi.fn(),
   getHappyEnding: vi.fn(),
+  getMuted: vi.fn(),
   getStatus: vi.fn(),
   getVideoLength: vi.fn(),
   listFrames: vi.fn(),
@@ -31,6 +34,7 @@ vi.mock("../../shared/api.js", () => ({
   removeLayer: vi.fn(),
   resumeBatch: vi.fn(),
   retryFrame: vi.fn(),
+  saveMuted: vi.fn(),
   saveOrder: vi.fn(),
   stopGeneration: vi.fn(),
   fileUrl: (project, file) => `/photos/${project}/${file}`,
@@ -160,6 +164,8 @@ beforeEach(() => {
   listProducers.mockResolvedValue([]);
   getVideoLength.mockResolvedValue(8);
   getHappyEnding.mockResolvedValue(false);
+  // No sound turned off (madde 510): every older test reads the page as it was.
+  getMuted.mockResolvedValue([]);
 });
 
 // The frame the worker is holding a layer of: its photo is on disk, its video is not yet.
@@ -2286,5 +2292,99 @@ describe("PhotoDetail — the orientation of a photo made again", () => {
     await settle();
 
     expect(pressed("Yatay")).toBe("true");
+  });
+});
+
+// Madde 510: the sound of the video being watched is turned off from its page -- top right of the
+// video, only where the video has a sound -- and it plays silent there, as it will export.
+describe("PhotoDetail — the sound turned off (madde 510)", () => {
+  const offSwitch = () => screen.queryByRole("button", { name: "Sesi kapat" });
+  const onSwitch = () => screen.queryByRole("button", { name: "Sesi aç" });
+
+  it.each(["Video", "Ses"])("offers the switch on the %s tab of a video with a sound",
+                            async (name) => {
+    await open("P0_0", { frames: [LAYERED] });
+
+    fireEvent.click(tab(name));
+
+    expect(offSwitch()).toBeTruthy();
+    expect(getMuted).toHaveBeenCalledWith("düğün");
+  });
+
+  it("offers none on a video with no sound", async () => {
+    await open("P1_0", { frames: [SECOND_VIDEO] });
+    fireEvent.click(tab("Video"));
+    expect(offSwitch()).toBeNull();
+  });
+
+  it("offers none on a video whose sound blew up", async () => {
+    await open("P0_0", { frames: [{ ...LAYERED, failed: ["audio"],
+                                    errors: { audio: "ComfyUI 500 — 3 kez denendi" } }] });
+    fireEvent.click(tab("Video"));
+    expect(offSwitch()).toBeNull();
+  });
+
+  it("turns the sound off and plays the video silent, then back on", async () => {
+    saveMuted.mockResolvedValueOnce(["P0_0"]).mockResolvedValueOnce([]);
+    await open("P0_0", { frames: [LAYERED] });
+    fireEvent.click(tab("Ses"));
+
+    fireEvent.click(offSwitch());
+    await settle();
+
+    expect(saveMuted).toHaveBeenCalledWith("düğün", "P0_0", true);
+    expect(onSwitch()).toBeTruthy();
+    expect(document.querySelector("video").muted).toBe(true);
+    expect(document.querySelector("audio").muted).toBe(true);
+
+    fireEvent.click(onSwitch());
+    await settle();
+
+    expect(saveMuted).toHaveBeenLastCalledWith("düğün", "P0_0", false);
+    expect(offSwitch()).toBeTruthy();
+    expect(document.querySelector("audio").muted).toBe(false);
+  });
+
+  it("opens a frame whose sound was turned off before as silent", async () => {
+    // "kapatılan ses, yeniden açılana kadar kapalı kalır".
+    getMuted.mockResolvedValue(["P0_0"]);
+    await open("P0_0", { frames: [LAYERED] });
+
+    fireEvent.click(tab("Video"));
+
+    expect(onSwitch()).toBeTruthy();
+    expect(document.querySelector("video").muted).toBe(true);
+  });
+
+  it("puts a refused press back and says so in the server's own words", async () => {
+    saveMuted.mockRejectedValue(new Error("düğün/muted.json okunamıyor: bozuk"));
+    await open("P0_0", { frames: [LAYERED] });
+    fireEvent.click(tab("Video"));
+
+    fireEvent.click(offSwitch());
+    await settle();
+
+    expect(offSwitch()).toBeTruthy();
+    expect(screen.getByText("Ses kapatılamadı")).toBeTruthy();
+    expect(screen.getByText("düğün/muted.json okunamıyor: bozuk")).toBeTruthy();
+  });
+
+  it("takes the refusal away with the frame", async () => {
+    saveMuted.mockRejectedValue(new Error("düğün/muted.json okunamıyor: bozuk"));
+    listFrames.mockResolvedValue([LAYERED, SECOND_SOUND]);
+    getStatus.mockResolvedValue(IDLE);
+    listModels.mockResolvedValue({ models: [], loras: LORAS });
+    const { rerender } = render(<PhotoDetail project="düğün" frame="P0_0" />);
+    await settle();
+    fireEvent.click(tab("Video"));
+    fireEvent.click(offSwitch());
+    await settle();
+
+    rerender(<PhotoDetail project="düğün" frame="P1_0" />);
+    await settle();
+
+    expect(screen.queryByText("Ses kapatılamadı")).toBeNull();
+    // The list was read once for the page, not once a frame.
+    expect(getMuted).toHaveBeenCalledTimes(1);
   });
 });

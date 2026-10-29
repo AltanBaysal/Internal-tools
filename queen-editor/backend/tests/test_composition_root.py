@@ -191,6 +191,31 @@ def test_the_queue_reads_the_projects_happy_ending(import_main, monkeypatch, tmp
     assert main._happy_ending("düğün") is True
 
 
+def test_the_app_serves_the_projects_turned_off_sounds(import_main, root):
+    """Madde 510: the door's own tests wire it by hand, so only this one reads main.py's wiring."""
+    main = import_main()
+
+    response = main.app.test_client().get("/api/projects/m510-yok/muted")
+
+    assert response.status_code == 404
+    assert response.get_json() == {"error": "Proje yok: m510-yok"}
+
+
+def test_the_export_and_its_summary_read_the_sounds_the_door_turned_off(import_main, monkeypatch,
+                                                                        tmp_path):
+    """One store behind the door, the export and its summary. The summary is reached through its own
+    door: a list it cannot read is a list it read."""
+    (tmp_path / "düğün").mkdir()
+    (tmp_path / "düğün" / "muted.json").write_text("{bozuk", encoding="utf-8")
+    monkeypatch.setenv("QE_DRIVE_ROOT", str(tmp_path))
+    main = import_main()
+
+    assert main._start_export.keywords["mutes"] is main._mutes
+    response = main.app.test_client().get("/api/projects/düğün/export/summary")
+    assert response.status_code == 503
+    assert "düğün/muted.json okunamıyor" in response.get_json()["error"]
+
+
 def test_exports_land_in_the_root_the_notebook_hands_over(import_main, monkeypatch, tmp_path):
     """Madde 494: exports have a root of their own beside the projects', which the notebook opens
     and passes as QE_EXPORT_ROOT -- and nothing of theirs goes among the projects."""

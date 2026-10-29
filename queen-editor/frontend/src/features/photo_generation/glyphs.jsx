@@ -72,6 +72,30 @@ export const PauseGlyph = ({ size }) => (
   </Glyph>
 );
 
+// A speaker with its sound coming out: what the switch over a video shows while its sound is on
+// (madde 510). The cone is filled for the reason the play triangle is: small, a stroke smudges.
+const Cone = () => (
+  <path d="M2 5.3h2.1L7.2 2.8v8.4L4.1 8.7H2z" fill="currentColor" stroke="currentColor"
+        strokeWidth="1" strokeLinejoin="round" />
+);
+
+export const SpeakerGlyph = ({ size }) => (
+  <Glyph name="speaker" size={size}>
+    <Cone />
+    <path d="M9.3 5.2a2.6 2.6 0 0 1 0 3.6M10.9 3.6a4.8 4.8 0 0 1 0 6.8" stroke="currentColor"
+          strokeWidth="1.3" strokeLinecap="round" />
+  </Glyph>
+);
+
+// The same speaker with a cross where the sound would be: turned off.
+export const SpeakerOffGlyph = ({ size }) => (
+  <Glyph name="speaker-off" size={size}>
+    <Cone />
+    <path d="M9.2 5.2l3.4 3.6M12.6 5.2 9.2 8.8" stroke="currentColor" strokeWidth="1.3"
+          strokeLinecap="round" />
+  </Glyph>
+);
+
 // A crate: what a producer's model group arrives in.
 export const ProducersGlyph = ({ size }) => (
   <Glyph name="producers" size={size}>

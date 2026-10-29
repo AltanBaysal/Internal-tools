@@ -168,3 +168,64 @@ describe("LayerPlayer", () => {
     expect(screen.getByRole("button", { name: "Duraklat" })).toBeTruthy();
   });
 });
+
+// Madde 510: a video's sound turned off from its frame page plays silent there, and the icon that
+// turns it off and on stands at the video's top right.
+describe("LayerPlayer — the sound's own switch", () => {
+  it("draws no switch unless the page hands it one", () => {
+    render(<LayerPlayer videoUrl="/v.mp4" audioUrl="/s.wav" />);
+
+    expect(screen.queryByRole("button", { name: "Sesi kapat" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Sesi aç" })).toBeNull();
+  });
+
+  it("says what a press would do, top right over the video", () => {
+    const { rerender } = render(<LayerPlayer videoUrl="/v.mp4" audioUrl="/s.wav"
+                                             onMute={() => {}} />);
+
+    const off = screen.getByRole("button", { name: "Sesi kapat" });
+    expect(off.closest("[data-scene]")).toBeTruthy();
+    expect(off.style.top).toBe("12px");
+    expect(off.style.right).toBe("12px");
+    expect(off.querySelector("[data-glyph=speaker]")).toBeTruthy();
+
+    rerender(<LayerPlayer videoUrl="/v.mp4" audioUrl="/s.wav" silent onMute={() => {}} />);
+    const on = screen.getByRole("button", { name: "Sesi aç" });
+    expect(on.querySelector("[data-glyph=speaker-off]")).toBeTruthy();
+  });
+
+  it("hands the press to the page and leaves the video where it was", () => {
+    const onMute = vi.fn();
+    render(<LayerPlayer videoUrl="/v.mp4" audioUrl="/s.wav" onMute={onMute} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Sesi kapat" }));
+
+    expect(onMute).toHaveBeenCalledTimes(1);
+    // The switch sits inside the scene, whose click plays: it must not start the video too.
+    expect(screen.getByRole("button", { name: "Oynat" })).toBeTruthy();
+  });
+
+  it("plays a turned-off video with no sound at all, the layer's nor its own", () => {
+    render(<LayerPlayer videoUrl="/v.mp4" audioUrl="/s.wav" silent onMute={() => {}} />);
+
+    expect(videoOf().muted).toBe(true);
+    expect(document.querySelector("audio").muted).toBe(true);
+    // The sound is still the project's: its waveform stays where it was.
+    expect(document.querySelectorAll("[data-bar]").length).toBe(46);
+  });
+
+  it("silences the video's own sound on the video tab too", () => {
+    render(<LayerPlayer videoUrl="/v.mp4" silent onMute={() => {}} />);
+
+    expect(videoOf().muted).toBe(true);
+  });
+
+  it("lets the sound back once it is turned on", () => {
+    const { rerender } = render(<LayerPlayer videoUrl="/v.mp4" audioUrl="/s.wav" silent
+                                             onMute={() => {}} />);
+
+    rerender(<LayerPlayer videoUrl="/v.mp4" audioUrl="/s.wav" onMute={() => {}} />);
+
+    expect(document.querySelector("audio").muted).toBe(false);
+  });
+});

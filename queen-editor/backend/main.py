@@ -44,6 +44,7 @@ from backend.features.photo_generation.data.reference_order_store import (
 from backend.features.photo_generation.data.reference_store import DriveReferenceStore
 from backend.features.photo_generation.data.video_length_store import DriveVideoLengthStore
 from backend.features.photo_generation.data.happy_ending_store import DriveHappyEndingStore
+from backend.features.photo_generation.data.mute_store import DriveMuteStore
 from backend.features.photo_generation.domain.usecases.add_references import add_references
 from backend.features.photo_generation.domain.usecases.copy_frames import copy_frames
 from backend.features.photo_generation.domain.usecases.list_references import list_references
@@ -82,6 +83,7 @@ from backend.features.photo_generation.domain.usecases.happy_ending import (
     get_happy_ending,
     save_happy_ending,
 )
+from backend.features.photo_generation.domain.usecases.mute import get_muted, set_muted
 from backend.features.photo_generation.presentation.reference_routes import (
     make_reference_blueprint,
 )
@@ -92,6 +94,7 @@ from backend.features.photo_generation.presentation.video_length_routes import (
 from backend.features.photo_generation.presentation.happy_ending_routes import (
     make_happy_ending_blueprint,
 )
+from backend.features.photo_generation.presentation.mute_routes import make_mute_blueprint
 from backend.features.photo_generation.runner import PhotoRunner
 from backend.features.projects.data.project_store import DriveProjectStore
 from backend.features.projects.data.reference_settings_store import DriveReferenceSettingsStore
@@ -183,6 +186,9 @@ _order_store = DriveOrderStore(_storage)
 
 _export_runner = ExportRunner()
 _video_exporter = FfmpegVideoExporter(disclaimer=config.DISCLAIMER_PATH)
+# Which frames' sound is turned off (madde 510): one store, and its lock, behind the frame page's
+# door, the export and the export's summary.
+_mutes = DriveMuteStore(_storage)
 
 # The one place the two features meet: deleting a project has to stop the production that project
 # owns, and the worker that owns it belongs to photo generation. The projects feature is handed the
@@ -219,7 +225,8 @@ _start_export = partial(
     _video_exporter,
     # Local time and down to the minute: the folder's name is read by a person, and two exports of
     # the same opening are meant to land together (madde 92).
-    lambda: datetime.now().strftime("%Y-%m-%d %H-%M"))
+    lambda: datetime.now().strftime("%Y-%m-%d %H-%M"),
+    mutes=_mutes)
 
 
 def _cancel_export():
@@ -306,7 +313,7 @@ _photo_bp = make_photo_generation_blueprint(
     # graph answers for it. That is H3's: a WAN video's line from before 423 counts at H3's four
     # seconds, as an H3 session always counted it (madde 435).
     export_summary=partial(export_summary, _photo_record, _photo_store, _plan_store, _order_store,
-                           _video_generator.seconds),
+                           _video_generator.seconds, mutes=_mutes),
     export_state=_export_runner.state,
     run_export=_start_export,
     cancel_export=_cancel_export,
@@ -342,6 +349,10 @@ _video_length_bp = make_video_length_blueprint(
 _happy_ending_bp = make_happy_ending_blueprint(
     get_happy_ending=_happy_ending,
     save_happy_ending=partial(save_happy_ending, _happy_endings))
+# A video's sound turned off from its frame page (madde 510). Turning off asks the record whether
+# the frame has a sound to turn off.
+_mute_bp = make_mute_blueprint(get_muted=partial(get_muted, _mutes),
+                               set_muted=partial(set_muted, _mutes, _photo_record))
 
 # Every producer is judged by its own model group: installed means those files are on this machine.
 # Nothing is installed from here -- the notebook does that before this process starts
@@ -381,8 +392,8 @@ _agent_bp = make_agent_blueprint(
 _ended_bp = make_ended_blueprint(_ended)
 
 app = create_app(blueprints=[_projects_bp, _reference_settings_bp, _photo_bp, _references_bp,
-                             _video_length_bp, _happy_ending_bp, _producers_bp, _chats_bp,
-                             _agent_bp, _ended_bp])
+                             _video_length_bp, _happy_ending_bp, _mute_bp, _producers_bp,
+                             _chats_bp, _agent_bp, _ended_bp])
 
 if __name__ == "__main__":
     print(f"Proje kökü: {config.DRIVE_ROOT}")

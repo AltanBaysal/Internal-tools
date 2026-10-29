@@ -10,6 +10,7 @@ as its graph says. Measuring each file would cost a process and a Drive read per
 the screen asks.
 """
 from backend.features.photo_generation.domain import layers
+from backend.features.photo_generation.domain.mute import holds_sound, silenced
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
 
 def exportable(frames):
@@ -23,9 +24,10 @@ def exportable(frames):
             and layers.VIDEO not in frame.get("failed", [])]
 
 
-def export_summary(record, store, plan_store, order_store, seconds, project):
+def export_summary(record, store, plan_store, order_store, seconds, project, *, mutes):
     """`seconds()` answers how long a video made at its graph's own length runs -- what a line that
-    says no length is counted at.
+    says no length is counted at. `mutes` is the store of the frames whose sound is turned off
+    (madde 510), read once.
 
     Asked rather than known: the length is the video graph's own setting, and a copy of the number
     here would go on being quoted after the graph moved. It is this session's graph, and such a
@@ -37,12 +39,14 @@ def export_summary(record, store, plan_store, order_store, seconds, project):
     videos = exportable(frames)
     graph = seconds()
     # A video whose sound blew up is silent too: what is not there cannot be laid over it.
-    silent = [frame for frame in videos
-              if not frame.get("layers", {}).get(layers.AUDIO)
-              or layers.AUDIO in frame.get("failed", [])]
+    silent = [frame for frame in videos if not holds_sound(frame)]
+    # A sound turned off is not one that is missing: the two lines on the screen say different
+    # things, and a frame is in one of them at most -- `silenced` asks for a sound to be there.
+    muted = mutes.read(project)
     return {"videos": len(videos),
             "seconds": sum(frame["lengths"].get(layers.VIDEO, graph) for frame in videos),
             "silent": len(silent),
+            "muted": sum(1 for frame in videos if silenced(frame, muted)),
             # What the sequence will not hold: every frame with no video, produced or not.
             "withoutVideo": len(frames) - len(videos),
             # Where an export lands is the store's answer: building a path is not the domain's job.

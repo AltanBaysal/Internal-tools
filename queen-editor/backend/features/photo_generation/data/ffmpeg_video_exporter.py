@@ -86,6 +86,11 @@ class FfmpegVideoExporter:
         else:
             self._ffmpeg_run(["-i", video, "-c", "copy", target])
 
+    def silent(self, video, target):
+        """One frame's video at `target` with no sound at all: the picture copied, every sound
+        stream left behind -- the video's own too, which an H3 video carries (madde 510)."""
+        self._ffmpeg_run(["-i", video, "-c", "copy", "-an", target])
+
     def _encoder(self):
         """The encoder arguments for this machine, settled once by trying the card out.
 

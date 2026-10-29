@@ -285,6 +285,23 @@ describe("api.request", () => {
     expect(JSON.parse(put.body)).toEqual({ on: false });
   });
 
+  it("reads the turned-off sounds and turns one off at the frame's own address (madde 510)",
+     async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse({ frames: ["P0_0"] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(await api.getMuted("düğün")).toEqual(["P0_0"]);
+    expect(await api.saveMuted("düğün", "P0_0", true)).toEqual(["P0_0"]);
+
+    const project = `/api/projects/${encodeURIComponent("düğün")}`;
+    expect(fetchMock.mock.calls[0][0]).toBe(`${project}/muted`);
+    expect(fetchMock.mock.calls[0][1].method).toBeUndefined();
+    const [putUrl, put] = fetchMock.mock.calls[1];
+    expect(putUrl).toBe(`${project}/frames/P0_0/muted`);
+    expect(put.method).toBe("PUT");
+    expect(JSON.parse(put.body)).toEqual({ muted: true });
+  });
+
   it("does not abort a request after its answer has arrived", async () => {
     vi.useFakeTimers();
     let signal;

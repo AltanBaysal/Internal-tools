@@ -28,6 +28,7 @@ from backend.tests.test_photo_usecases import (
     FakePlanStore,
     FakeRecord,
     FakeStore,
+    NoMutes,
     frame,
 )
 
@@ -169,7 +170,7 @@ def with_a_copy():
 
 def export(store, record, plan_store, exporter, mode="separate", runner=None):
     return run_export(runner or sync_runner(), store, record, plan_store, FakeOrderStore(),
-                      exporter, lambda: MINUTE, "düğün", mode)
+                      exporter, lambda: MINUTE, "düğün", mode, mutes=NoMutes())
 
 
 def test_separate_export_numbers_the_videos_from_the_foot_of_the_gallery():
@@ -550,7 +551,8 @@ def test_the_reason_a_run_failed_is_the_tool_own_words():
 
     runner.start("separate", lambda: run_export(
         runner, store, record, plan_store, FakeOrderStore(),
-        FakeExporter(fails_on=f"{PIECES}/01.mp4"), lambda: MINUTE, "düğün", "separate"))
+        FakeExporter(fails_on=f"{PIECES}/01.mp4"), lambda: MINUTE, "düğün", "separate",
+        mutes=NoMutes()))
 
     assert runner.state()["separate"]["state"] == "error"
     assert runner.state()["separate"]["error"] == "ffmpeg: disk dolu"
@@ -578,7 +580,8 @@ def test_a_cleanup_drive_refuses_leaves_the_machine_clear_and_both_reasons_on_sc
 
     runner.start("separate", lambda: run_export(
         runner, store, record, plan_store, FakeOrderStore(),
-        FakeExporter(fails_on=f"{PIECES}/02.mp4"), lambda: MINUTE, "düğün", "separate"))
+        FakeExporter(fails_on=f"{PIECES}/02.mp4"), lambda: MINUTE, "düğün", "separate",
+        mutes=NoMutes()))
 
     assert runner.state()["separate"]["error"] == (
         "ffmpeg: disk dolu — Yarım export silinemedi: "
@@ -724,7 +727,7 @@ def on_drive(tmp_path, project):
 def export_to(store, runner, project, mode, exporter):
     _, record, plan_store = with_videos()
     return run_export(runner, store, record, plan_store, FakeOrderStore(), exporter,
-                      lambda: MINUTE, project, mode)
+                      lambda: MINUTE, project, mode, mutes=NoMutes())
 
 
 def test_a_project_named_like_a_piece_gets_a_whole_merged_file(tmp_path):

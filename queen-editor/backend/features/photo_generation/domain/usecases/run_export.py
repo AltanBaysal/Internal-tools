@@ -15,6 +15,7 @@ to take (madde 474).
 from functools import partial
 
 from backend.features.photo_generation.domain import layers
+from backend.features.photo_generation.domain.mute import holds_sound, silenced
 from backend.features.photo_generation.domain.usecases.export_summary import exportable
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
 from backend.features.photo_generation.domain.usecases.start_batch import ProjectMissing
@@ -28,16 +29,20 @@ MERGED = "merged"
 JOINED = "birlesik.mp4"
 
 
-def start_export(runner, store, record, plan_store, order_store, exporter, now, project, mode):
+def start_export(runner, store, record, plan_store, order_store, exporter, now, project, mode, *,
+                 mutes):
     """Claim the mode and write the export in the background; False means it is already going.
 
     The project is checked here rather than inside the run: the run happens in another thread, and
     an answer of "no such project" has to reach the request that asked.
+
+    `mutes` is the store of the frames whose sound is turned off (madde 510). Required, so a wiring
+    that forgot it fails rather than letting every turned-off sound back in.
     """
     if not store.project_exists(project):
         raise ProjectMissing(f"Proje yok: {project}")
     return runner.start(mode, partial(run_export, runner, store, record, plan_store, order_store,
-                                      exporter, now, project, mode))
+                                      exporter, now, project, mode, mutes=mutes))
 
 
 def _extension(filename):
@@ -55,14 +60,16 @@ def _extension(filename):
 
 def _audio_of(frame):
     """The sound laid over this frame's video, or None -- a failed one is not there."""
-    if layers.AUDIO in frame.get("failed", []):
-        return None
-    return frame.get("layers", {}).get(layers.AUDIO)
+    return frame["layers"][layers.AUDIO] if holds_sound(frame) else None
 
 
-def run_export(runner, store, record, plan_store, order_store, exporter, now, project, mode):
+def run_export(runner, store, record, plan_store, order_store, exporter, now, project, mode, *,
+               mutes):
     """Writes into a fresh dated folder and returns where it is; None when the run was cancelled."""
     frames = exportable(list_frames(record, store, plan_store, order_store, project))
+    # Once, and before anything is opened: a list that cannot be read stops the run with nothing to
+    # take back, and is never read as nothing turned off.
+    muted = mutes.read(project)
     stamp = now()
     # Before the pieces folder: a mount that refuses here leaves nothing to clean up on either disk.
     folder = store.open_export(project, stamp)
@@ -76,7 +83,8 @@ def run_export(runner, store, record, plan_store, order_store, exporter, now, pr
                   error=None)
     own = []                           # the videos this run has put on Drive, what it takes back
     try:
-        finished = _write(runner, store, exporter, frames, project, stamp, pieces_dir, mode, own)
+        finished = _write(runner, store, exporter, frames, muted, project, stamp, pieces_dir, mode,
+                          own)
     except Exception as failure:
         # The run's own reason is what the user is told first. A cleanup that fails too -- the
         # mount dropped, most likely, which is often why the run failed -- leaves a half export on
@@ -99,7 +107,7 @@ def run_export(runner, store, record, plan_store, order_store, exporter, now, pr
     return folder
 
 
-def _write(runner, store, exporter, frames, project, stamp, pieces_dir, mode, own):
+def _write(runner, store, exporter, frames, muted, project, stamp, pieces_dir, mode, own):
     """The export's work; False when it was cancelled. Each video it puts on Drive is added to
     `own` once its save has returned -- a save is whole or absent, so nothing half written is
     listed. The names are this run's, not necessarily the files': a run of the same mode finished
@@ -121,8 +129,14 @@ def _write(runner, store, exporter, frames, project, stamp, pieces_dir, mode, ow
             return False
         name = f"{index:02d}.mp4"
         piece = store.piece_path(pieces_dir, name)
-        exporter.piece(store.file_path(project, frame["layers"][layers.VIDEO]),
-                       _audio(store, project, frame), piece)
+        video = store.file_path(project, frame["layers"][layers.VIDEO])
+        if silenced(frame, muted):
+            # No sound at all, the video's own included: an H3 video carries one, and a plain copy
+            # would keep it (madde 510). A merged export writes silence into it like any other
+            # soundless piece.
+            exporter.silent(video, piece)
+        else:
+            exporter.piece(video, _audio(store, project, frame), piece)
         if mode == MERGED:
             pieces.append(piece)
         else:

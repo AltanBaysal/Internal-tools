@@ -19,6 +19,7 @@ from backend.tests.test_photo_usecases import (
     FakeOrderStore,
     FakePlanStore,
     FakeStore,
+    NoMutes,
     frame,
     sync_runner,
 )
@@ -42,7 +43,8 @@ def project(tmp_path, *videos):
 
 def summary(store, record, plan_store, graph):
     """The export summary, `graph` standing for how long the session's video graph runs."""
-    return export_summary(record, store, plan_store, FakeOrderStore(), lambda: graph, "düğün")
+    return export_summary(record, store, plan_store, FakeOrderStore(), lambda: graph, "düğün",
+                          mutes=NoMutes())
 
 
 # --- The record's fold ---------------------------------------------------------------------------

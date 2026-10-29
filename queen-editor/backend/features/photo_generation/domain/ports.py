@@ -252,3 +252,17 @@ class HappyEndingStore(Protocol):
     def write(self, project: str, on: bool) -> None:
         """Replace the saved switch."""
         ...
+
+
+class MuteStore(Protocol):
+    def project_exists(self, project: str) -> bool:
+        ...
+
+    def read(self, project: str) -> list:
+        """The frames whose sound is turned off; [] when nothing is. A list that cannot be read
+        raises OSError rather than reading as empty."""
+        ...
+
+    def put(self, project: str, frame: str, on: bool) -> list:
+        """Turn the frame's sound off (True) or on (False) and answer with the new list."""
+        ...

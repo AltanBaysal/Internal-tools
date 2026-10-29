@@ -268,6 +268,13 @@ class FakeRecord:
         return max(numbers) if numbers else None
 
 
+class NoMutes:
+    """No sound turned off (madde 510): the exports and summaries here are about something else."""
+
+    def read(self, project):
+        return []
+
+
 class FakeOrderStore:
     """Mirrors DriveOrderStore: whatever is stored reads back as frame identities."""
 
@@ -1302,9 +1309,10 @@ def test_the_summary_counts_the_frames_that_have_a_video():
     store, record, plan_store = layered_project(audio=False)
     record.append("düğün", {"file": "1_a.png", "frame": "1_a", "layer": "photo", "status": "done"})
 
-    summary = export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5,"düğün")
+    summary = export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5, "düğün",
+                             mutes=NoMutes())
 
-    assert summary == {"videos": 1, "seconds": 5, "silent": 1, "withoutVideo": 1,
+    assert summary == {"videos": 1, "seconds": 5, "silent": 1, "muted": 0, "withoutVideo": 1,
                        "folder": "/fake/queenEditorExport"}
 
 
@@ -1313,7 +1321,8 @@ def test_the_total_length_comes_from_whoever_knows_how_long_a_video_is():
     # being quoted after the graph moves.
     store, record, plan_store = layered_project()
 
-    summary = export_summary(record, store, plan_store, FakeOrderStore(), lambda: 7.5, "düğün")
+    summary = export_summary(record, store, plan_store, FakeOrderStore(), lambda: 7.5, "düğün",
+                             mutes=NoMutes())
 
     assert summary["videos"] == 1 and summary["seconds"] == 7.5
 
@@ -1321,8 +1330,9 @@ def test_the_total_length_comes_from_whoever_knows_how_long_a_video_is():
 def test_a_project_with_no_video_exports_nothing():
     store, record, plan_store = video_project((0, "a"))
 
-    assert export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5,"düğün") == {
-        "videos": 0, "seconds": 0, "silent": 0, "withoutVideo": 1,
+    assert export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5, "düğün",
+                          mutes=NoMutes()) == {
+        "videos": 0, "seconds": 0, "silent": 0, "muted": 0, "withoutVideo": 1,
         "folder": "/fake/queenEditorExport"}
 
 
@@ -1330,7 +1340,8 @@ def test_a_video_that_blew_up_is_not_counted():
     store, record, plan_store = video_project((0, "a"))
     record.mark("düğün", "0_a", "video", "0_a_V1_0.mp4", "failed", "t")
 
-    assert export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5,"düğün")["videos"] == 0
+    assert export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5, "düğün",
+                          mutes=NoMutes())["videos"] == 0
 
 
 def test_the_summary_reads_the_gallery_from_the_bottom_up():
@@ -3734,20 +3745,23 @@ def test_removing_in_a_missing_project_is_rejected():
 def test_the_summary_counts_the_videos_with_no_sound():
     store, record, plan_store = layered_project(audio=False)
 
-    assert export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5,"düğün")["silent"] == 1
+    assert export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5, "düğün",
+                          mutes=NoMutes())["silent"] == 1
 
 
 def test_a_video_with_a_sound_is_not_silent():
     store, record, plan_store = layered_project()
 
-    assert export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5,"düğün")["silent"] == 0
+    assert export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5, "düğün",
+                          mutes=NoMutes())["silent"] == 0
 
 
 def test_a_sound_that_blew_up_leaves_the_video_silent():
     store, record, plan_store = layered_project(audio=False)
     record.mark("düğün", "0_a", "audio", "0_a_V1_0_S1_0.wav", "failed", "t")
 
-    assert export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5,"düğün")["silent"] == 1
+    assert export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5, "düğün",
+                          mutes=NoMutes())["silent"] == 1
 
 
 def test_the_summary_counts_the_frames_that_have_no_video():
@@ -3759,13 +3773,13 @@ def test_the_summary_counts_the_frames_that_have_no_video():
                                  "prompt": "p", "negative": "", "seed": 1, "model": ""}])
 
     assert export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5,
-                          "düğün")["withoutVideo"] == 2
+                          "düğün", mutes=NoMutes())["withoutVideo"] == 2
 
 
 def test_the_summary_rejects_a_missing_project():
     with pytest.raises(ProjectMissing):
         export_summary(FakeRecord(), FakeStore(projects=()), FakePlanStore(), FakeOrderStore(),
-                       lambda: 5, "yok")
+                       lambda: 5, "yok", mutes=NoMutes())
 
 
 def test_get_status_passes_the_runner_state_through():

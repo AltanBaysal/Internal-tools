@@ -109,6 +109,14 @@ reddedilince hata `ProjectScreen`'in `error`'una gidiyor. GeneratePanel onu yaln
 reddedilince gösteriyor, bu yüzden fotoğraf sekmesi açıkken bu hata ancak video, ses ya da sıra
 sekmesine geçince görünüyor. Hata sunucunun cümlesini taşıyor; eksik olan yeri.
 
+### Kare sayfasında geç gelen bir ret başka karede görünüyor
+
+*(510'un reviewer'ı buldu, 29 Ekim.)* Kare sayfasında bir istek — Yeniden üret, katmanı sil, sesi
+kapat/aç — gönderilip cevabı gelmeden oklarla başka kareye geçilirse, ret geldiğinde kartı o sırada
+açık olan karede çıkıyor: sayfa takılı kalıyor, kartın durumu kareyi bilmiyor. Kart sunucunun cümlesini
+taşıyor; yanlış olan yeri. Düzeltme: her ret, geldiği isteğin kare kimliğini taşır ve yalnız o karede
+çizilir.
+
 ### Windows'ta sıranın süre satırı yazılamıyor
 
 *(497'nin QA'sı buldu, 27 Ekim; yalnız yerelde.)* Windows'ta stdout cp1252 iken sıranın `⏱ …` satırı

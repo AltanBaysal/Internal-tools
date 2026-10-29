@@ -147,6 +147,23 @@ export async function saveHappyEnding(project, on) {
   });
 }
 
+// The frames whose sound is turned off (madde 510), by identity.
+export async function getMuted(project) {
+  const body = await request(`/api/projects/${encodeURIComponent(project)}/muted`);
+  return body.frames;
+}
+
+// A state, not a toggle: true turns the frame's sound off, false on. Answers with the new list.
+export async function saveMuted(project, frame, muted) {
+  const body = await request(
+    `/api/projects/${encodeURIComponent(project)}/frames/${encodeURIComponent(frame)}/muted`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ muted }),
+    });
+  return body.frames;
+}
+
 // `orientation` is yatay or dikey (madde 477): the size the batch's photos are made at.
 export async function generateBatch(project, { prompts, negative, variants, model, lora,
                                                orientation }) {

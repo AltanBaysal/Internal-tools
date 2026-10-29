@@ -16,6 +16,7 @@ import { FIRST_ORIENTATION, OrientationSegment, shapeOf } from "./orientation.js
 import { LINKED, MODES, STANDARD, labelOf, nounOf } from "./production_modes.js";
 import { useGeneration } from "./useGeneration.js";
 import { useModels } from "./useModels.js";
+import { useMuted } from "./useMuted.js";
 import { useHappyEnding, useVideoLength, videoSaid } from "./useVideoSettings.js";
 
 // minmax(0, …) rather than plain columns: a long project or file name would otherwise widen the
@@ -371,6 +372,12 @@ export default function PhotoDetail({ project, frame: fid }) {
   const { on: ending } = useHappyEnding(project, videoRow);
   // The video panel's own ending to its sentences.
   const settingsSaid = videoSaid(length, ending);
+  // Which frames' sound is turned off (madde 510): read once for the page, which the arrows keep
+  // mounted, so walking from frame to frame asks nothing.
+  const { muted, mute } = useMuted(project);
+  // Why the last press on the sound's switch went nowhere, as the card's heading and the server's
+  // words under it, or null. The frame's, like the page's other refusals: it goes with the frame.
+  const [muteRefused, setMuteRefused] = useState(null);     // { text, raw }
   // Which window is open, not merely that one is: a failed layer's way out deletes the FRAME while
   // a layer tab is open, and deciding from the open tab would show it the layer's words.
   const [asking, setAsking] = useState(null);              // "frame" | "layer" | null
@@ -518,6 +525,11 @@ export default function PhotoDetail({ project, frame: fid }) {
   // Was this layer already sent, and was any of the presses a retry? The corner says which.
   const wasSent = (layer) => sent.some((one) => one.layer === layer);
   const retried = sent.some((one) => one.retry);
+  // Does the video on the stage have a sound to turn off, and is it off? A preview of the server's
+  // rule (domain/mute.holds_sound, silenced): only a sound that is there counts, not one that blew
+  // up.
+  const sounded = Boolean(frame?.layers?.audio) && !(frame?.failed || []).includes("audio");
+  const silent = sounded && (muted || []).includes(frame.id);
   // What the stage's media belongs to. A new frame or tab builds new media under it, so nothing of
   // the one before can stay on screen while the next file is on its way (madde 232).
   const stageKey = `${fid}/${open}`;
@@ -548,6 +560,7 @@ export default function PhotoDetail({ project, frame: fid }) {
     setWords({});
     setSent([]);
     setRefusedAct(null);
+    setMuteRefused(null);
     // The box belongs to the video behind it, so it goes with the frame -- and the orientation's
     // segment to the photo.
     setNewMode(null);
@@ -607,6 +620,15 @@ export default function PhotoDetail({ project, frame: fid }) {
     const layer = open;
     setSent((layers) => [...layers, { layer, retry: true }]);
     return retry(frame.id);
+  }
+
+  // The sound's switch over the video (madde 510): off when it is on, on when it is off. Shown at
+  // once by the hook, which puts it back if the server refuses -- and the card says why.
+  function handleMute() {
+    const off = !silent;
+    setMuteRefused(null);
+    mute(frame.id, off).catch((err) => setMuteRefused({
+      text: off ? "Ses kapatılamadı" : "Ses açılamadı", raw: err.message }));
   }
 
   // The open tab's own layer, and whatever lies over it. The frame stays in the gallery, so the
@@ -680,6 +702,10 @@ export default function PhotoDetail({ project, frame: fid }) {
                                audioUrl={open === "audio"
                                  ? fileUrl(project, frame.layers.audio)
                                  : null}
+                               /* On both tabs: both play this video. No switch until the list
+                                  is read -- one drawn before would be a guess at its state. */
+                               silent={silent}
+                               onMute={sounded && muted !== null ? handleMute : undefined}
                                onReady={onReady} onFail={onFail}>
                     {scenarioCard(true)}
                   </LayerPlayer>
@@ -890,6 +916,7 @@ export default function PhotoDetail({ project, frame: fid }) {
               )}
 
               {refusedAct && <StatusErrorCard text={refusedAct} raw={error} />}
+              {muteRefused && <StatusErrorCard text={muteRefused.text} raw={muteRefused.raw} />}
               {refused && (
                 <StatusErrorCard text={produced ? "Kare silinemedi" : "Kare kuyruktan çıkarılamadı"}
                                  raw={error} />
