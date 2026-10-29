@@ -213,13 +213,6 @@ silme (`remove_frames`) bugün bu yola varıyor. 481'in düzeltmesi böyle bir k
 panel" gibi bir yere bağlanıyor, ama repo'da — git geçmişinde de — öyle bir dosya hiç olmamış. Ya
 bağlantılar doğru belgeye çevrilir ya kaldırılır. Kullanıcının göreceği bir şey değişmez.
 
-### MMAudio silinecek
-
-*(Kullanıcı, 22 Ekim — 483'te MMAudio'nun ses talimatının da güncellenip güncellenmeyeceği sorulunca:
-"gerek yok, MMAudio silmeyi backloga ekle".)* H3 videoyu sesiyle birlikte üretiyor; MMAudio ayrı bir
-ses üreticisi, ve ses talimatı `data/prompt_writer.py`'nin `AUDIO_INSTRUCTION`'ında. **Ayrıntılar
-kullanıcıyla konuşulacak:** notebook'taki kurulumu, paneldeki yeri ve eski projelerdeki ses işleri.
-
 ### Karakter LoRA'sı eklenecek
 
 *(Kullanıcı, 6 Eylül.)* Aynı kişinin her karede aynı çıkması için. Bugün bunu tutan tek şey etiket:

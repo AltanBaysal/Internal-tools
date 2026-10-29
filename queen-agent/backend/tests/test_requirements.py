@@ -10,9 +10,7 @@ already says what the source needs.
 
 Only module level imports count -- `tree.body`, nothing nested. An import inside a function says
 "needed if this path is taken"; an import at the top says "nothing here runs without it", and only
-the second belongs in a file whose job is to make a fresh checkout work. queen-editor leans on that
-distinction: torch is imported inside MMAudioSampler.render, which is why its suite runs on a
-machine with no GPU and no torch at all.
+the second belongs in a file whose job is to make a fresh checkout work.
 """
 import ast
 import os

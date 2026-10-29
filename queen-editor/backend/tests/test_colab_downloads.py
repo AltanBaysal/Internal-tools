@@ -1070,14 +1070,14 @@ def test_an_addressed_file_makes_the_folder_its_part_is_written_in(downloads, mo
 
 def test_the_folders_of_the_chosen_groups_are_listed_with_their_files(downloads, tmp_path, capsys):
     """Subfolders too: H3's files sit under MiniMaxH3/."""
-    diff, mmau = tmp_path / "diffusion_models", tmp_path / "mmaudio"
+    diff, ckpt = tmp_path / "diffusion_models", tmp_path / "checkpoints"
     (diff / "MiniMaxH3").mkdir(parents=True)
     (diff / "MiniMaxH3" / "eros.safetensors").write_bytes(b"\0" * 2048)
-    mmau.mkdir()
-    (mmau / "nsfw.safetensors").write_bytes(b"\0" * 8)
+    ckpt.mkdir()
+    (ckpt / "nova.safetensors").write_bytes(b"\0" * 8)
 
     downloads.show_folders([(True, "diffusion_models", str(diff), "**/*.safetensors"),
-                            (False, "mmaudio", str(mmau), "*.safetensors")])
+                            (False, "checkpoints", str(ckpt), "*.safetensors")])
 
     out = capsys.readouterr().out
     eros = os.path.join("MiniMaxH3", "eros.safetensors")

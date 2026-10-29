@@ -6,11 +6,11 @@ class ComfyModelFiles:
     def __init__(self, root):
         self._root = root
 
-    def path(self, folder, name):
+    def _path(self, folder, name):
         return os.path.join(self._root, "models", folder, name)
 
     def exists(self, folder, name):
-        return os.path.exists(self.path(folder, name))
+        return os.path.exists(self._path(folder, name))
 
     def has_any(self, folder, suffix):
         """Is there a file of this kind in the folder?
@@ -32,6 +32,6 @@ class ComfyModelFiles:
 
     def remove(self, folder, name):
         try:
-            os.remove(self.path(folder, name))
+            os.remove(self._path(folder, name))
         except FileNotFoundError:
             pass

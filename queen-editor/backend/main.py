@@ -22,16 +22,10 @@ from backend.features.photo_generation.data.comfy_krea_photo_generator import (
     ComfyKreaPhotoGenerator,
 )
 from backend.features.photo_generation.data.comfy_photo_generator import ComfyPhotoGenerator
-from backend.features.photo_generation.data.ffmpeg_audio import FfmpegAudio
 from backend.features.photo_generation.data.ffmpeg_clips import FfmpegClips
 from backend.features.photo_generation.data.ffmpeg_stills import FfmpegStills
-from backend.features.photo_generation.data.mmaudio_generator import MMAudioGenerator
-from backend.features.photo_generation.data.mmaudio_sampler import MMAudioSampler
 from backend.features.photo_generation.data.comfy_h3_video_generator import ComfyH3VideoGenerator
-from backend.features.photo_generation.data.prompt_writer import (
-    AudioPromptWriter,
-    H3VideoPromptWriter,
-)
+from backend.features.photo_generation.data.prompt_writer import H3VideoPromptWriter
 from backend.features.photo_generation.domain import catalog, layers, seed
 from backend.features.photo_generation.data.order_store import DriveOrderStore
 from backend.features.photo_generation.data.photo_by_model import PhotoByModel
@@ -115,7 +109,7 @@ from backend.features.projects.domain.usecases.save_reference_settings import (
 )
 from backend.features.projects.domain.usecases.save_settings import save_settings
 from backend.features.producers.data.comfy_models import ComfyModelFiles
-from backend.features.producers.domain.model_groups import GROUPS, audio_weights
+from backend.features.producers.domain.model_groups import GROUPS
 from backend.features.producers.domain.usecases.list_producers import list_producers
 from backend.features.producers.presentation.routes import make_producers_blueprint
 from backend.features.projects.presentation.reference_settings_routes import (
@@ -150,9 +144,8 @@ _photo_generator = PhotoByModel(
     ComfyPhotoGenerator(_comfy_client, config.WORKFLOW_PATH, config.RENDER_TIMEOUT),
     {catalog.KREA2: ComfyKreaPhotoGenerator(_comfy_client, config.KREA2_WORKFLOW_PATH,
                                             config.RENDER_TIMEOUT)})
-# Queen AI writes every prompt nobody typed (madde 400, 404): a video's looking at the frame's
-# photo, a sound's from its video's prompt. Every ask goes through the box, which sends a failed
-# request again (madde 416).
+# Queen AI writes every prompt nobody typed (madde 400): a video's, looking at the frame's photo.
+# Every ask goes through the box, which sends a failed request again (madde 416).
 _queen_ai = Box(DeepSeekClient(config.DEEPSEEK_API_KEY, config.DEEPSEEK_MODEL,
                                config.DEEPSEEK_URL, timeout=config.DEEPSEEK_TIMEOUT))
 # H3 is the one video model (madde 435): every session renders its videos with H3's graphs, and
@@ -162,19 +155,15 @@ _video_generator = ComfyH3VideoGenerator(_comfy_client, config.H3_VIDEO_WORKFLOW
                                          config.H3_VIDEO_FIRST_LAST_WORKFLOW_PATH,
                                          config.VIDEO_TIMEOUT)
 _video_writer = H3VideoPromptWriter(_queen_ai)
-# Sound is the one producer that is not a ComfyUI graph: MMAudio runs inside this process. Where
-# its weights live is the producers feature's answer, so the path is taken from the group it
-# installs rather than spelled out here a second time.
-_model_files = ComfyModelFiles(config.COMFY_ROOT)
-_audio_generator = MMAudioGenerator(MMAudioSampler(audio_weights(_model_files)), FfmpegAudio())
-# What the loop dispatches on: one producer per job type. All three are ComfyUI graphs; a type with
-# nobody to do it would make the queue wait rather than skip the work.
-_producers = {layers.PHOTO: _photo_generator, layers.VIDEO: _video_generator,
-              layers.AUDIO: _audio_generator}
+# What the loop dispatches on: one producer per job type, both ComfyUI graphs. Sound has none since
+# MMAudio went (madde 514): a sound job queued before waits rather than being skipped -- the loop's
+# rule for a type with nobody to do it -- until the user takes it out of the queue.
+_producers = {layers.PHOTO: _photo_generator, layers.VIDEO: _video_generator}
 # Who writes a job's prompt when it carries none. Photo has no writer: its prompt is the user's own.
-_writers = {layers.VIDEO: _video_writer, layers.AUDIO: AudioPromptWriter(_queen_ai)}
+# A sound has none either, so a sound still owed costs no request.
+_writers = {layers.VIDEO: _video_writer}
 # What a card with no picture gets when its video lands (madde 296). ffmpeg is already on the
-# machine -- the sound engine cuts with it, and the export joins with it.
+# machine -- the export joins with it.
 _stills = FfmpegStills()
 # One browser notification each time the queue ends -- emptied, or stopped (madde 509): the queue's
 # worker is the one that knows, so it is the one that tells the watch the screen listens to.
@@ -357,6 +346,7 @@ _mute_bp = make_mute_blueprint(get_muted=partial(get_muted, _mutes),
 # Every producer is judged by its own model group: installed means those files are on this machine.
 # Nothing is installed from here -- the notebook does that before this process starts
 # (FOUNDATION 9), so the panel only reads.
+_model_files = ComfyModelFiles(config.COMFY_ROOT)
 _producers_bp = make_producers_blueprint(
     list_producers=lambda: list_producers(GROUPS, _model_files))
 

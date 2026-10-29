@@ -159,7 +159,7 @@ describe("ProjectScreen — the pool opens in place of the cards (madde 318)", (
     await open("havuz-e");
     await openReferanstan();
 
-    fireEvent.click(screen.getByLabelText("Ses üret"));
+    fireEvent.click(screen.getByLabelText("Kuyruğu takip et"));
     expect(pool()).toBeNull();
     expect(cardsHidden()).toBe(false);
 

@@ -343,16 +343,6 @@ describe("LayerPanel — another project holds the worker", () => {
     expect(screen.getByText("Üretim sürüyor: balo — bitmesini bekle.")).toBeTruthy();
   });
 
-  it("says the same thing on the sound panel", () => {
-    render(
-      <LayerPanel layer="audio" frames={FRAMES} selected={[]} producer={null} {...ELSEWHERE}
-                  onQueue={() => Promise.resolve({ added: 1 })} onInstall={() => {}} />,
-    );
-
-    expect(screen.getByText("Kuyruğa ekle").closest("button").disabled).toBe(true);
-    expect(screen.getByText("Üretim sürüyor: balo — bitmesini bekle.")).toBeTruthy();
-  });
-
   it("shows a refusal where the press was made", () => {
     // busyElsewhere arrives with the poll, so the other run can start between two of them and the
     // press goes through. The side column draws one panel at a time, and neither of the two that
@@ -635,152 +625,6 @@ describe("LayerPanel — the estimate warns about copies", () => {
     expect(screen.getByText(`1 loop video üretilecek — ${COPY}`)).toBeTruthy();
     expect(screen.queryByText(/kendine döner/)).toBeNull();
   });
-
-  it("warns in the sound panel's own words", () => {
-    const held = done("2_a.png", { video: "2_a_V1_0.mp4", audio: "2_a_A1_0.wav" });
-
-    render(
-      <LayerPanel layer="audio" frames={[done("0_a.png"), held]} selected={["2_a"]} producer={null}
-                  onQueue={() => Promise.resolve({ added: 1 })} onInstall={() => {}} />,
-    );
-
-    expect(screen.getByText(
-      "1 ses üretilecek — sesi olan 1 kare için yeniler kopya kare olur, eskisi durur."))
-      .toBeTruthy();
-  });
-});
-
-describe("LayerPanel — sound", () => {
-  const SOUND_FRAMES = [
-    done("0_a.png"),
-    done("1_a.png", { video: "1_a_V1_0.mp4" }),
-  ];
-
-  function renderSound(props) {
-    return render(
-      <LayerPanel layer="audio" frames={SOUND_FRAMES} selected={[]} producer={null}
-                  onQueue={() => Promise.resolve({ added: 1 })} onInstall={() => {}} {...props} />,
-    );
-  }
-
-  it("counts only the frames that have a video and no sound", () => {
-    renderSound();
-
-    expect(screen.getByText("Videosu olup sesi olmayan kareler").closest("button").textContent)
-      .toContain("1");
-  });
-
-  it("leaves out a frame whose video blew up -- there is nothing to lay the sound over", () => {
-    renderSound({ frames: [done("1_a.png", { video: "1_a_V1_0.mp4" })].map(
-      (frame) => ({ ...frame, failed: ["video"] }))
-    });
-
-    expect(screen.getByText("Videosu olup sesi olmayan kareler").closest("button").textContent)
-      .toContain("0");
-  });
-
-  it("says what it would make, in its own words", () => {
-    renderSound();
-
-    expect(screen.getByText("MMAudio v2")).toBeTruthy();
-    expect(screen.getByText("1 ses üretilecek — her kare kendi sesini alır.")).toBeTruthy();
-  });
-
-  it("still asks for the plain mode", async () => {
-    // Madde 216: the mode is kept by both panels though only the video one draws the row, so a
-    // default written without asking which layer it belongs to would travel with a sound job too --
-    // and the server refuses any mode but the plain one here (production_mode.validate). Nothing on
-    // screen would say why; the user would only see that no sound was made.
-    const onQueue = vi.fn().mockResolvedValue({ added: 1 });
-    renderSound({ onQueue });
-
-    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
-
-    expect(onQueue).toHaveBeenCalledWith(null, 1, "standard");
-  });
-
-  it("already names its own scope in full", () => {
-    // The anchor the video row is being matched to: this side was written out from the start, and
-    // this test is what keeps it from drifting the other way.
-    renderSound();
-
-    expect(screen.getByText("Videosu olup sesi olmayan kareler")).toBeTruthy();
-  });
-
-  it("shows its own model in that same box", () => {
-    renderSound();
-
-    expect([...screen.getByRole("combobox").options].map((one) => one.textContent))
-      .toEqual(["MMAudio v2"]);
-  });
-
-  it("has no length block either", () => {
-    renderSound();
-
-    expect(screen.queryByText("Süre")).toBeNull();
-    expect(screen.queryByText("Ses videonun süresince üretilir.")).toBeNull();
-  });
-
-  it("says all the frames already have a sound", () => {
-    renderSound({ frames: [
-      done("1_a.png", { video: "1_a_V1_0.mp4", audio: "1_a_V1_0_S1_0.wav" })] });
-
-    fireEvent.click(screen.getByText("Kuyruğa ekle").closest("button"));
-
-    expect(screen.getByText("Tüm karelerin sesi var.")).toBeTruthy();
-  });
-
-  it("says nothing has a video to lay a sound over", () => {
-    // Not the video panel's sentence: what is missing under a sound is a video, not a photo. An
-    // empty project reads this too, and it is the nearer thing that is missing.
-    renderSound({ frames: [done("0_a.png")] });
-
-    fireEvent.click(screen.getByText("Kuyruğa ekle").closest("button"));
-
-    expect(screen.getByText("Videosu olan kare yok.")).toBeTruthy();
-  });
-
-  it("says the chosen frames have no video yet", () => {
-    renderSound({ selected: ["0_a"] });
-
-    fireEvent.click(screen.getByText("Kuyruğa ekle").closest("button"));
-
-    expect(screen.getByText("Seçili karelerin videosu henüz üretilmedi.")).toBeTruthy();
-  });
-
-  it("confirms in its own words", async () => {
-    renderSound();
-
-    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
-
-    expect(screen.getByText("1 ses kuyruğa eklendi")).toBeTruthy();
-  });
-
-  it("never offers a mode -- a sound ends nowhere", () => {
-    // Loop and "Sonrakine bağla" are both about the picture a video ends on. A sound is laid over
-    // the whole of one video and arrives nowhere, so there is nothing here to choose between.
-    renderSound();
-
-    expect(screen.queryByText("Üretim modu")).toBeNull();
-    expect(screen.queryByText("Loop")).toBeNull();
-  });
-
-  it("still sends the plain mode, so the server reads one call shape", async () => {
-    const onQueue = vi.fn().mockResolvedValue({ added: 1 });
-    renderSound({ onQueue });
-
-    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
-
-    expect(onQueue).toHaveBeenCalledWith(null, 1, "standard");
-  });
-
-  it("does not explain who writes the prompt either", () => {
-    // Both panels are one component and the design asks for them to be identical; leaving the
-    // sentence on one of them would part them where nothing else does.
-    renderSound();
-
-    expect(screen.queryByText(/LLM/)).toBeNull();
-  });
 });
 
 describe("LayerPanel — producing from the reference pool", () => {
@@ -792,15 +636,11 @@ describe("LayerPanel — producing from the reference pool", () => {
     return view;
   }
 
-  it("asks the video panel where the video comes from, and never the sound panel", () => {
+  it("asks where the video comes from", () => {
     renderPanel();
     // Kareden, not Standart: Standart already names a mode on the Kareden tab itself.
     expect(screen.getByText("Kareden")).toBeTruthy();
     expect(screen.getByText("Referanstan")).toBeTruthy();
-
-    renderPanel({ layer: "audio" });
-    // A sound is laid over a video that already exists; the pool has nothing to do with it.
-    expect(screen.queryAllByText("Referanstan")).toHaveLength(1);
   });
 
   it("closes the rows that have no meaning without frames", () => {
@@ -971,14 +811,6 @@ describe("LayerPanel — the two tabs", () => {
     expect(tab("Referanstan").className).toContain("is-on");
     expect(tab("Kareden").className).not.toContain("is-on");
     expect(labels(view)).toEqual(["Model", "Referanslar", "Prompt listesi", "Yön", "Varyant"]);
-  });
-
-  it("gives the sound panel no tabs", () => {
-    // A sound is laid over a video that already exists: the pool has nothing to give it.
-    renderPanel({ layer: "audio" });
-
-    expect(screen.queryByText("Kareden")).toBeNull();
-    expect(screen.queryByText("Referanstan")).toBeNull();
   });
 });
 
@@ -1237,7 +1069,6 @@ describe("LayerPanel — the H3 video length (madde 424)", () => {
   // The video row the way the server gives it. H3 is the one video model (madde 435), so the row
   // says nothing about which: once it is read, the length is drawn.
   const H3 = { id: "video", name: "Video üreticisi", installed: true, model: "MiniMax H3" };
-  const AUDIO = { id: "audio", name: "Ses üreticisi", installed: true, model: "MMAudio v2" };
   const PLAIN = ["Model", "Kapsam", "Üretim modu", "Varyant"];
   const LOOP_LINE = "2 loop video üretilecek — her video kendine döner.";
 
@@ -1377,15 +1208,6 @@ describe("LayerPanel — the H3 video length (madde 424)", () => {
     expect(screen.queryByText("Sunucuya ulaşılamadı — bağlantıyı kontrol et.")).toBeNull();
   });
 
-  it("has no length on the sound panel", async () => {
-    const view = await renderReady({ layer: "audio", producer: AUDIO,
-                                     frames: [done("0_a.png", { video: "0_a_V1_0.mp4" })] });
-
-    expect(labels(view)).toEqual(["Model", "Kapsam", "Varyant"]);
-    expect(screen.getByText("1 ses üretilecek — her kare kendi sesini alır.")).toBeTruthy();
-    expect(getVideoLength).not.toHaveBeenCalled();
-  });
-
   it.each([
     ["Loop", "2 loop video üretilecek — her video kendine döner. 8 sn."],
     ["Sonrakine bağla", "2 bağlı video üretilecek — her video sıradaki karede biter. 8 sn."],
@@ -1462,7 +1284,6 @@ describe("LayerPanel — the H3 video length (madde 424)", () => {
 
 describe("LayerPanel — Mutlu son (madde 426)", () => {
   const H3 = { id: "video", name: "Video üreticisi", installed: true, model: "MiniMax H3" };
-  const AUDIO = { id: "audio", name: "Ses üreticisi", installed: true, model: "MMAudio v2" };
   const LOOP_LINE = "2 loop video üretilecek — her video kendine döner.";
 
   const off = () => screen.getByRole("button", { name: "Mutlu son kapalı" });
@@ -1572,14 +1393,6 @@ describe("LayerPanel — Mutlu son (madde 426)", () => {
 
     expect(labels(view)).not.toContain("Mutlu son");
     expect(screen.getByText(`${LOOP_LINE} 8 sn.`)).toBeTruthy();
-  });
-
-  it("is not on the sound panel", async () => {
-    const view = await renderReady({ layer: "audio", producer: AUDIO,
-                                     frames: [done("0_a.png", { video: "0_a_V1_0.mp4" })] });
-
-    expect(labels(view)).not.toContain("Mutlu son");
-    expect(getHappyEnding).not.toHaveBeenCalled();
   });
 
   it("is said after the length once it is on", async () => {

@@ -3,10 +3,6 @@ import re
 import pytest
 
 from backend.features.photo_generation.data import prompt_writer
-from backend.features.photo_generation.data.prompt_writer import (
-    AUDIO_INSTRUCTION,
-    AudioPromptWriter,
-)
 
 
 # Madde 400: Queen AI is shown the frame's photo and reads its scenario.
@@ -42,37 +38,14 @@ def _sent(instruction):
 
 
 def test_no_wan_writer_is_left():
-    """Madde 435: H3 is the one video model, so Queen AI is asked for H3's prompt and the sound's --
-    WAN's text and its writer went with WAN."""
+    """Madde 435: H3 is the one video model, so Queen AI is asked for H3's prompt -- WAN's text and
+    its writer went with WAN."""
     assert not hasattr(prompt_writer, "VideoPromptWriter")
     assert not hasattr(prompt_writer, "VIDEO_INSTRUCTION")
 
 
-def test_the_sound_is_written_from_the_video_s_prompt_alone():
-    """The user's words (1 Ekim): "mmaudio da video promptundan alsın". No picture and none of the
-    photo's words: the video's prompt already says what happens."""
-    client = FakeQueenAI(answer="fabric rustling, footsteps on stone")
-
-    written = AudioPromptWriter(client).write({"photo": "kırmızı elbiseli kadın",
-                                              "video": "kadın başını çeviriyor"})
-
-    assert written == "fabric rustling, footsteps on stone"
-    assert client.calls == [(_sent(AUDIO_INSTRUCTION), "Video prompt: kadın başını çeviriyor",
-                             [])]
-
-
-def test_the_sound_text_writes_from_the_video_prompt():
-    assert "The video prompt says what happens in the video." in AUDIO_INSTRUCTION
-    assert "Write only the sounds the video prompt implies." in AUDIO_INSTRUCTION
-
-
-def test_the_sound_instruction_asks_for_the_scenes_own_sounds():
-    assert "No music" in AUDIO_INSTRUCTION
-    assert "No speech" in AUDIO_INSTRUCTION
-
-
 def _h3():
-    """Imported where it is used: a name that is not there would fail collection and take the sound
+    """Imported where it is used: a name that is not there would fail collection and take the
     questions above down with it."""
     from backend.features.photo_generation.data import prompt_writer
     return prompt_writer.H3_VIDEO_INSTRUCTION, prompt_writer.H3VideoPromptWriter
@@ -325,38 +298,15 @@ def test_the_loop_rule_holds_the_camera_still():
     assert "The camera holds a static shot." in rule
 
 
-def test_the_sound_writer_takes_the_mode_and_ignores_it():
-    """One call shape: the loop hands every writer the same arguments, and a sound is laid over the
-    whole of a video however that video was made."""
-    client = FakeQueenAI(answer="fabric rustling")
-
-    written = AudioPromptWriter(client).write({"photo": "a", "video": "b"}, "loop")
-
-    assert written == "fabric rustling"
-    assert "loop" not in client.calls[0][0].lower()
-
-
-def test_the_sound_is_shown_no_picture_whatever_it_is_handed():
-    """The loop hands every writer the same arguments; the sound's takes the video's prompt alone."""
-    client = FakeQueenAI(answer="fabric rustling")
-
-    AudioPromptWriter(client).write({"photo": "kırmızı elbiseli kadın", "video": "kadın dönüyor"},
-                                    "standard", source=("P0_0_V1_0.mp4", b"MP4"), end=NEXT,
-                                    scene=THRONE)
-
-    assert client.calls == [(_sent(AUDIO_INSTRUCTION), "Video prompt: kadın dönüyor", [])]
-
-
 def test_every_writer_s_system_prompt_ends_with_the_suffix():
-    """Madde 407, as its done-sentence says it: whichever prompt Queen AI writes -- H3 or the sound
-    -- and in whichever mode, the system prompt it is handed ends with the suffix."""
+    """Madde 407, as its done-sentence says it: in whichever mode Queen AI writes H3's prompt, the
+    system prompt it is handed ends with the suffix."""
     _instruction, h3 = _h3()
     client = FakeQueenAI()
 
-    for writer in (h3, AudioPromptWriter):
-        for mode in ("standard", "loop", "linked"):
-            writer(client).write({"photo": "kırmızı elbiseli kadın", "video": "kadın dönüyor"},
-                                 mode, source=PHOTO, end=NEXT, scene=THRONE)
+    for mode in ("standard", "loop", "linked"):
+        h3(client).write({"photo": "kırmızı elbiseli kadın", "video": "kadın dönüyor"},
+                         mode, source=PHOTO, end=NEXT, scene=THRONE)
 
     suffix = prompt_writer.SYSTEM_PROMPT_SUFFIX
     for sent, _words, _pictures in client.calls:
@@ -365,11 +315,10 @@ def test_every_writer_s_system_prompt_ends_with_the_suffix():
 
 # --- Madde 416: the box's failure ----------------------------------------------------------------
 
-@pytest.mark.parametrize("kind", ["h3", "sound"])
-def test_a_failed_answer_is_never_a_prompt(kind):
+def test_a_failed_answer_is_never_a_prompt():
     """When the box gave up it says why in its text, and that text goes the way any failure goes --
     raised into the run loop, never written on the card as the prompt."""
-    writer = {"h3": _h3()[1], "sound": AudioPromptWriter}[kind]
+    writer = _h3()[1]
     queen_ai = FakeQueenAI(answer="DeepSeek HTTP 503\nmeşgul", failed=True)
 
     with pytest.raises(RuntimeError) as failed:
@@ -448,11 +397,3 @@ def test_the_happy_ending_says_no_length_and_asks_for_no_trigger_word():
 
     assert LENGTH.findall(rule) == []
     assert "trigger" not in rule.lower()
-
-
-def test_the_sound_writer_takes_a_happy_ending_and_ignores_it():
-    client = FakeQueenAI(answer="fabric rustling")
-
-    AudioPromptWriter(client).write({"video": "kadın dönüyor"}, "standard", happy_ending=True)
-
-    assert client.calls == [(_sent(AUDIO_INSTRUCTION), "Video prompt: kadın dönüyor", [])]

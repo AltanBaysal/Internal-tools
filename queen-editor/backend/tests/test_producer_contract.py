@@ -1,11 +1,12 @@
-"""The contract between the queue and the three real producers.
+"""The contract between the queue and the real producers: the photo's and the video's, the two
+there are since madde 514 took MMAudio out.
 
 Every other test in the suite runs one side of this contract: a producer's own test calls it
 directly, and the queue's tests run against fakes. Both sides can be green while they disagree
 about the call -- which is exactly what shipped. This file runs the real producer classes under
 the real loop, and it is the only place that does.
 
-Fake here is what a test machine cannot have: the ComfyUI server, torch, and ffmpeg. The graphs
+Fake here is what a test machine cannot have: the ComfyUI server. The graphs
 are the shipped ones, because a producer that cannot patch its own graph does not satisfy the
 contract in practice.
 """
@@ -16,7 +17,6 @@ import pytest
 from backend import config
 from backend.features.photo_generation.data.comfy_h3_video_generator import ComfyH3VideoGenerator
 from backend.features.photo_generation.data.comfy_photo_generator import ComfyPhotoGenerator
-from backend.features.photo_generation.data.mmaudio_generator import MMAudioGenerator
 from backend.features.photo_generation.domain import layers
 from backend.features.photo_generation.domain.running_name import RunningName
 from backend.features.photo_generation.domain.run_loop import make_job
@@ -89,35 +89,6 @@ class VideoComfy:
         return b"MP4"
 
 
-class Sampler:
-    """Stands in for torch on the one point that decides this contract: manual_seed takes a long
-    and raises on anything else. A fake that shrugs at the seed is exactly what let a seedless
-    sound job reach Colab."""
-
-    def render(self, video, prompt, negative, seed, duration):
-        assert isinstance(seed, int), f"MMAudio needs an integer seed, got {seed!r}"
-        return b"RIFFwav"
-
-
-class Ffmpeg:
-    """Reads the file it is asked about, so the test can prove which bytes arrived."""
-
-    def __init__(self):
-        self.saw = None
-
-    def duration(self, video):
-        with open(video, "rb") as handle:
-            self.saw = handle.read()
-        return 5.0
-
-    def cut(self, video, start, duration, target):
-        with open(target, "wb") as handle:
-            handle.write(b"piece")
-
-    def join(self, parts, target, fade_ms):
-        raise AssertionError("a five second video is one piece")
-
-
 class Store:
     def __init__(self):
         self.saved = []
@@ -182,18 +153,15 @@ class Runner:
         pass
 
 
-# One frame, all three layers -- so the run also proves the order: the video is made from the
-# photo the same run produced, and the sound from that video.
+# One frame, both layers -- so the run also proves the order: the video is made from the photo the
+# same run produced.
 # The seeds are the queue's own, not this file's invention: a photo job is planned with one and a
 # layer job with none (queue_layer, locked by test_a_layer_job_is_planned_with_no_seed_of_its_own).
-# Writing seeds in by hand here is what kept the sound producer's demand for one out of sight.
 FRAMES = [
     {"id": "P0_0", "type": "photo", "number": 0, "variant": 0,
      "prompt": "kraliçe tahtta", "negative": "blurry", "seed": 1, "model": ""},
     {"id": "P0_0", "type": "video", "number": 0, "variant": 0,
      "prompt": "kamera yaklaşır", "negative": "", "seed": None, "model": ""},
-    {"id": "P0_0", "type": "audio", "number": 0, "variant": 0,
-     "prompt": "dalga sesi", "negative": "", "seed": None, "model": ""},
 ]
 
 
@@ -203,81 +171,64 @@ def h3(video_comfy=None):
                                  config.H3_VIDEO_FIRST_LAST_WORKFLOW_PATH, timeout=60)
 
 
-def producers_over(video_comfy, ffmpeg, tmp_path):
+def producers_over(video_comfy):
     return {
         layers.PHOTO: ComfyPhotoGenerator(PhotoComfy(), PHOTO_GRAPH, timeout=60),
         layers.VIDEO: h3(video_comfy),
-        layers.AUDIO: MMAudioGenerator(Sampler(), ffmpeg, tmp_dir=str(tmp_path)),
     }
 
 
-def test_a_producer_with_no_end_frame_takes_the_argument_anyway(tmp_path):
-    """The queue has one call shape, not three: whatever the loop hands a producer, every producer
-    takes. A photo is made from its words and a sound from the video under it -- neither has an
-    ending picture, and both are still handed the argument."""
-    ffmpeg = Ffmpeg()
-
+def test_a_producer_with_no_end_frame_takes_the_argument_anyway():
+    """The queue has one call shape: whatever the loop hands a producer, every producer takes. A
+    photo is made from its words -- it has no ending picture, and is still handed the argument."""
     photo = ComfyPhotoGenerator(PhotoComfy(), PHOTO_GRAPH, timeout=60).generate(
         "kraliçe tahtta", "blurry", 1, end=("P1_0.png", b"PNG"))
-    # A real seed, because the sound engine no longer invents one: the loop picks it before the
-    # render so the number can also be written on the produced layer's row.
-    sound = MMAudioGenerator(Sampler(), ffmpeg, tmp_dir=str(tmp_path)).generate(
-        "dalga sesi", "", 4242, source=("P0_0_V1_0.mp4", b"MP4"), end=("P1_0.png", b"PNG"))
 
     assert photo == PORTRAIT
-    assert sound == b"RIFFwav"
 
 
-def test_the_queue_runs_the_three_real_producers_end_to_end(tmp_path):
-    store, video_comfy, ffmpeg = Store(), VideoComfy(), Ffmpeg()
+def test_the_queue_runs_the_real_producers_end_to_end():
+    store, video_comfy = Store(), VideoComfy()
 
-    state = make_job(Runner(), store, Record(), Plan(FRAMES),
-                     producers_over(video_comfy, ffmpeg, tmp_path),
+    state = make_job(Runner(), store, Record(), Plan(FRAMES), producers_over(video_comfy),
                      lambda: "2026-08-13T00:00:00+00:00")()
 
     assert state["status"] == "done"
     # The domain names every file; no producer gets a say in it.
-    assert store.saved == ["P0_0.png", "P0_0_V1_0.mp4", "P0_0_V1_0_S1_0.wav"]
+    assert store.saved == ["P0_0.png", "P0_0_V1_0.mp4"]
     # And what landed under each name is what its producer answered -- bytes, not a pair.
     assert store.files["P0_0.png"] == PORTRAIT
     assert store.files["P0_0_V1_0.mp4"] == b"MP4"
-    assert store.files["P0_0_V1_0_S1_0.wav"] == b"RIFFwav"
 
 
-def test_each_layer_is_made_from_the_one_below_it(tmp_path):
-    store, video_comfy, ffmpeg = Store(), VideoComfy(), Ffmpeg()
+def test_each_layer_is_made_from_the_one_below_it():
+    store, video_comfy = Store(), VideoComfy()
 
-    make_job(Runner(), store, Record(), Plan(FRAMES),
-             producers_over(video_comfy, ffmpeg, tmp_path),
+    make_job(Runner(), store, Record(), Plan(FRAMES), producers_over(video_comfy),
              lambda: "2026-08-13T00:00:00+00:00")()
 
     assert video_comfy.uploaded == [("P0_0.png", PORTRAIT)]  # the video hangs on the frame's photo
-    assert ffmpeg.saw == b"MP4"                             # the sound is laid over that video
 
 
-def test_a_producer_that_makes_no_video_takes_a_length_anyway(tmp_path):
+def test_a_producer_that_makes_no_video_takes_a_length_anyway():
     """Madde 422: a video job carries how long it is, and the queue hands it to whichever producer
-    it calls -- one call shape. A photo and a sound take it and ignore it."""
+    it calls -- one call shape. A photo takes it and ignores it."""
     photo = ComfyPhotoGenerator(PhotoComfy(), PHOTO_GRAPH, timeout=60).generate(
         "kraliçe tahtta", "blurry", 1, seconds=8)
-    sound = MMAudioGenerator(Sampler(), Ffmpeg(), tmp_dir=str(tmp_path)).generate(
-        "dalga sesi", "", 4242, source=("P0_0_V1_0.mp4", b"MP4"), seconds=8)
 
     assert photo == PORTRAIT
-    assert sound == b"RIFFwav"
 
 
-def test_the_queue_hands_the_real_producers_a_video_job_that_carries_its_length(tmp_path):
+def test_the_queue_hands_the_real_producers_a_video_job_that_carries_its_length():
     """The real loop, the real producers: H3 takes the job's length, and the run goes through."""
-    store, video_comfy, ffmpeg = Store(), VideoComfy(), Ffmpeg()
+    store, video_comfy = Store(), VideoComfy()
     timed = [{**job, "seconds": 8} if job["type"] == "video" else job for job in FRAMES]
 
-    state = make_job(Runner(), store, Record(), Plan(timed),
-                     producers_over(video_comfy, ffmpeg, tmp_path),
+    state = make_job(Runner(), store, Record(), Plan(timed), producers_over(video_comfy),
                      lambda: "2026-10-06T00:00:00+00:00")()
 
     assert state["status"] == "done"
-    assert store.saved == ["P0_0.png", "P0_0_V1_0.mp4", "P0_0_V1_0_S1_0.wav"]
+    assert store.saved == ["P0_0.png", "P0_0_V1_0.mp4"]
 
 
 class BatchComfy(PhotoComfy):
@@ -359,49 +310,45 @@ def test_a_krea_prompt_goes_through_the_real_photo_producers_on_its_own_graph(tm
 
 # --- Madde 423: a video's row says how long the video that was made runs ---------------------------
 
-def video_row(video, asked, tmp_path):
-    """One frame's three layers under the real loop, its video made by `video` and its job asked at
+def video_row(video, asked):
+    """One frame's layers under the real loop, its video made by `video` and its job asked at
     `asked` seconds (None: asked none) -- the row the video left."""
     record = Record()
     jobs = [{**job, "seconds": asked} if job["type"] == "video" and asked is not None else job
             for job in FRAMES]
-    producers = {**producers_over(VideoComfy(), Ffmpeg(), tmp_path), layers.VIDEO: video}
+    producers = {**producers_over(VideoComfy()), layers.VIDEO: video}
     make_job(Runner(), Store(), record, Plan(jobs), producers,
              lambda: "2026-10-06T00:00:00+00:00")()
     return next(row for row in record.rows if row["layer"] == layers.VIDEO)
 
 
 @pytest.mark.parametrize("asked", [4, 8, 12])
-def test_an_h3_video_says_the_length_it_was_asked(tmp_path, asked):
-    assert video_row(h3(), asked, tmp_path)["seconds"] == asked
+def test_an_h3_video_says_the_length_it_was_asked(asked):
+    assert video_row(h3(), asked)["seconds"] == asked
 
 
-def test_an_h3_video_asked_no_length_says_its_graphs_own(tmp_path):
+def test_an_h3_video_asked_no_length_says_its_graphs_own():
     """Every H3 job queued before madde 422: the Director keeps the graph's 4."""
-    assert video_row(h3(), None, tmp_path)["seconds"] == 4
+    assert video_row(h3(), None)["seconds"] == 4
 
 
 # --- Madde 426: Mutlu son -----------------------------------------------------------------------------
 
-def test_a_producer_that_makes_no_video_takes_a_happy_ending_anyway(tmp_path):
+def test_a_producer_that_makes_no_video_takes_a_happy_ending_anyway():
     """A video job carries whether it ends happily, and the queue hands it to whichever producer it
-    calls -- one call shape. A photo and a sound take it and ignore it."""
+    calls -- one call shape. A photo takes it and ignores it."""
     photo = ComfyPhotoGenerator(PhotoComfy(), PHOTO_GRAPH, timeout=60).generate(
         "kraliçe tahtta", "blurry", 1, happy_ending=True)
-    sound = MMAudioGenerator(Sampler(), Ffmpeg(), tmp_dir=str(tmp_path)).generate(
-        "dalga sesi", "", 4242, source=("P0_0_V1_0.mp4", b"MP4"), happy_ending=True)
 
     assert photo == PORTRAIT
-    assert sound == b"RIFFwav"
 
 
-def test_the_queue_hands_the_real_h3_a_video_job_that_ends_happily(tmp_path):
+def test_the_queue_hands_the_real_h3_a_video_job_that_ends_happily():
     """The real loop, the real producers: H3 takes the job's switch and loads HMCumshot."""
-    store, video_comfy, ffmpeg = Store(), VideoComfy(), Ffmpeg()
+    store, video_comfy = Store(), VideoComfy()
     happy = [{**job, "happyEnding": True} if job["type"] == "video" else job for job in FRAMES]
 
-    state = make_job(Runner(), store, Record(), Plan(happy),
-                     producers_over(video_comfy, ffmpeg, tmp_path),
+    state = make_job(Runner(), store, Record(), Plan(happy), producers_over(video_comfy),
                      lambda: "2026-10-09T00:00:00+00:00")()
 
     assert state["status"] == "done"
@@ -410,11 +357,11 @@ def test_the_queue_hands_the_real_h3_a_video_job_that_ends_happily(tmp_path):
 
 # --- Madde 476: the video follows the shape of its photo ------------------------------------------
 
-def sizes_made(lines, tmp_path):
+def sizes_made(lines):
     """One frame's photo and video under the real loop and the shipped graphs: the size the photo
     graph was asked for, and the size the video graph was."""
     photo_comfy, video_comfy = PhotoComfy(), VideoComfy()
-    producers = {**producers_over(video_comfy, Ffmpeg(), tmp_path),
+    producers = {**producers_over(video_comfy),
                  layers.PHOTO: ComfyPhotoGenerator(photo_comfy, PHOTO_GRAPH, timeout=60)}
     state = make_job(Runner(), Store(), Record(), Plan(lines), producers,
                      lambda: "2026-10-20T00:00:00+00:00")()
@@ -428,14 +375,14 @@ def sizes_made(lines, tmp_path):
     ("yatay", ((1536, 864), (1024, 576))),
     ("dikey", ((1024, 1536), (576, 864))),
 ], ids=["yatay", "dikey"])
-def test_a_frame_s_photo_and_its_video_stand_the_way_the_photo_was_asked(tmp_path, asked, sizes):
+def test_a_frame_s_photo_and_its_video_stand_the_way_the_photo_was_asked(asked, sizes):
     """The item's own sentence, end to end: the photo is made in its orientation, and the video --
     told nothing -- comes out the same shape, read off the picture the photo graph made."""
     lines = [{**job, "orientation": asked} if job["type"] == "photo" else job for job in FRAMES]
 
-    assert sizes_made(lines, tmp_path) == sizes
+    assert sizes_made(lines) == sizes
 
 
-def test_an_old_frame_s_photo_and_video_stay_portrait(tmp_path):
+def test_an_old_frame_s_photo_and_video_stay_portrait():
     """A line planned before madde 476 carries no orientation, and is made as it always was."""
-    assert sizes_made(FRAMES, tmp_path) == ((1024, 1536), (576, 864))
+    assert sizes_made(FRAMES) == ((1024, 1536), (576, 864))

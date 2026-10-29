@@ -9,10 +9,7 @@ already says what the source needs.
 
 Only module level imports count -- `tree.body`, nothing nested. An import inside a function says
 "needed if this path is taken"; an import at the top says "nothing here runs without it", and only
-the second belongs in a file whose job is to make a fresh checkout work. This tool leans on that
-distinction harder than the other one: torch, torchaudio and mmaudio are imported inside
-MMAudioSampler.render, which is why this suite runs on a machine with no GPU and no torch at all.
-Counting them here would put gigabytes of CUDA into every developer's install.
+the second belongs in a file whose job is to make a fresh checkout work.
 
 Word for word the same file as queen-agent's, and deliberately a copy: the two tools are separate
 pytest runs, and a shared helper would tie one tool's suite to the other tool's folder.

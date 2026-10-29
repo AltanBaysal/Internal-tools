@@ -1,9 +1,9 @@
 """What the language model is asked when a job needs a prompt nobody typed.
 
 Every writer asks Queen AI -- DeepSeek -- through the box in services/deepseek/box.py, which sends a
-failed request again (madde 416). H3's writer is shown the frame's photo and reads its scenario
-(madde 400), and the next frame's photo too for a linked video (402); the sound's writer reads the
-video's prompt alone (404). Each prompt is its own ask. This file only decides what to say.
+failed request again (madde 416). H3's writer, the one there is since MMAudio went (madde 514), is
+shown the frame's photo and reads its scenario (madde 400), and the next frame's photo too for a
+linked video (402). Each prompt is its own ask. This file only decides what to say.
 """
 from backend.features.photo_generation.domain import production_mode
 
@@ -109,24 +109,6 @@ This video ends with a cumshot.
 """
 
 
-# Written for MMAudio, which takes a short list of what should be heard. Queen AI reads the video's
-# prompt alone (madde 404): it already says what happens, and the sound is laid over that video.
-AUDIO_INSTRUCTION = """
-You are an expert prompt writer for MMAudio. MMAudio adds sound to a short silent video.
-
-Context
-- The video prompt says what happens in the video.
-
-Rules
-- Write the sounds of the video as a short list, separated by commas, as in fabric rustling, distant traffic, water lapping.
-- Write only the sounds the video prompt implies. Never add an event.
-- No music.
-- No speech, no singing, no voice-over. The lips in the video would not match.
-- Keep the list to one line of about fifteen words.
-- Write only the sound prompt. No list markers, no quotes, no explanations.
-"""
-
-
 # The owner's part, taken from QueenAgent's SYSTEM_PROMPT_SUFFIX (madde 407), last in every writer's
 # system message whatever the mode. The two tools are separate projects and no test ties them
 # together (madde 436): when the owner rewrites QueenAgent's, this copy is changed by hand.
@@ -188,22 +170,3 @@ class H3VideoPromptWriter:
             instruction += HAPPY_ENDING_RULE
         return _prompt(self._queen_ai.ask(instruction + SYSTEM_PROMPT_SUFFIX, _scenario(scene),
                                           pictures))
-
-
-class AudioPromptWriter:
-    def __init__(self, queen_ai):
-        self._queen_ai = queen_ai
-
-    def write(self, prompts, mode=production_mode.STANDARD, source=None, end=None, scene="",
-              happy_ending=False):
-        """A sound is written from its video's prompt alone (madde 404): that prompt says what
-        happens, so neither the photo's words nor a picture are sent. The loop asks only when the
-        video has one (run_loop._has_words).
-
-        `mode` is a video's business -- a sound is laid over the whole of one however it was made.
-        It is taken and ignored, like `source`, `end`, `scene` and `happy_ending` -- a video with
-        Mutlu son already says its ending in its prompt -- because the queue has one call shape for
-        every writer.
-        """
-        return _prompt(self._queen_ai.ask(AUDIO_INSTRUCTION + SYSTEM_PROMPT_SUFFIX,
-                                          f"Video prompt: {prompts.get('video', '')}"))

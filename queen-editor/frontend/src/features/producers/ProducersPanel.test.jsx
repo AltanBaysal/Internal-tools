@@ -4,15 +4,15 @@ import { describe, expect, it, vi } from "vitest";
 import ProducersPanel from "./ProducersPanel.jsx";
 import { COLAB_INSTALL } from "./useProducers.js";
 
-const THREE = [
+// What the server lists since madde 514: photo and video.
+const BOTH = [
   { id: "photo", name: "Fotoğraf üreticisi", installed: true },
   { id: "video", name: "Video üreticisi", installed: false },
-  { id: "audio", name: "Ses üreticisi", installed: false },
 ];
 
 function renderPanel(props) {
   return render(
-    <ProducersPanel producers={THREE} error={null} onInstall={() => {}} {...props} />,
+    <ProducersPanel producers={BOTH} error={null} onInstall={() => {}} {...props} />,
   );
 }
 
@@ -24,14 +24,13 @@ describe("ProducersPanel", () => {
       "Her üretici kendi model grubunu kurar. Kullanmadığın kurulmaz.")).toBeTruthy();
     expect(screen.getByText("Fotoğraf üreticisi")).toBeTruthy();
     expect(screen.getByText("Video üreticisi")).toBeTruthy();
-    expect(screen.getByText("Ses üreticisi")).toBeTruthy();
   });
 
-  it("marks an installed producer and offers the others a way in", () => {
+  it("marks an installed producer and offers the other a way in", () => {
     renderPanel();
 
     expect(screen.getByText("✓ kurulu")).toBeTruthy();
-    expect(screen.getAllByText("Kur")).toHaveLength(2);
+    expect(screen.getAllByText("Kur")).toHaveLength(1);
   });
 
   it("draws no row it cannot vouch for when the answer never came", () => {
@@ -52,11 +51,11 @@ describe("ProducersPanel", () => {
   });
 
   it("shows the row where the install really happens", () => {
-    renderPanel({ producers: THREE.map((producer) => (producer.id === "video"
+    renderPanel({ producers: BOTH.map((producer) => (producer.id === "video"
       ? { ...producer, note: COLAB_INSTALL } : producer)) });
 
     expect(screen.getByText(COLAB_INSTALL)).toBeTruthy();
     // The button stays: pressing it again is how the user asks again.
-    expect(screen.getAllByText("Kur")).toHaveLength(2);
+    expect(screen.getAllByText("Kur")).toHaveLength(1);
   });
 });

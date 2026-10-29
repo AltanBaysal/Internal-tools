@@ -1329,7 +1329,7 @@ def test_the_summary_counts_the_frames_that_have_a_video():
     summary = export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5, "düğün",
                              mutes=NoMutes())
 
-    assert summary == {"videos": 1, "seconds": 5, "silent": 1, "muted": 0, "withoutVideo": 1,
+    assert summary == {"videos": 1, "seconds": 5, "muted": 0, "withoutVideo": 1,
                        "folder": "/fake/queenEditorExport"}
 
 
@@ -1349,7 +1349,7 @@ def test_a_project_with_no_video_exports_nothing():
 
     assert export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5, "düğün",
                           mutes=NoMutes()) == {
-        "videos": 0, "seconds": 0, "silent": 0, "muted": 0, "withoutVideo": 1,
+        "videos": 0, "seconds": 0, "muted": 0, "withoutVideo": 1,
         "folder": "/fake/queenEditorExport"}
 
 
@@ -3765,26 +3765,13 @@ def test_removing_in_a_missing_project_is_rejected():
                       stamped, "yok", ["0_a"])
 
 
-def test_the_summary_counts_the_videos_with_no_sound():
+def test_the_summary_counts_no_video_as_having_no_sound():
+    """Madde 514, the user's word: "Kalksın". The count took every video with no sound layer for
+    one with no sound, but an H3 video carries its own."""
     store, record, plan_store = layered_project(audio=False)
 
-    assert export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5, "düğün",
-                          mutes=NoMutes())["silent"] == 1
-
-
-def test_a_video_with_a_sound_is_not_silent():
-    store, record, plan_store = layered_project()
-
-    assert export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5, "düğün",
-                          mutes=NoMutes())["silent"] == 0
-
-
-def test_a_sound_that_blew_up_leaves_the_video_silent():
-    store, record, plan_store = layered_project(audio=False)
-    record.mark("düğün", "0_a", "audio", "0_a_V1_0_S1_0.wav", "failed", "t", seen=None)
-
-    assert export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5, "düğün",
-                          mutes=NoMutes())["silent"] == 1
+    assert "silent" not in export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5,
+                                          "düğün", mutes=NoMutes())
 
 
 def test_the_summary_counts_the_frames_that_have_no_video():

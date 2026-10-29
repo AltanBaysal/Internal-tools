@@ -60,18 +60,14 @@ never enforced.
 **5. The browser reaches the server through a cloudflared tunnel.**
 Why: Colab has no public ingress; the tunnel gives a shareable URL with zero infrastructure.
 
-**6. ComfyUI is the engine for pictures and video; sound runs in our own process.**
+**6. ComfyUI is the engine for pictures and video.**
 ComfyUI runs headless on the Colab machine as a local API, and we write our own client and job
 handling on top of it — for photos and for videos, each one a graph we ship. We never patch or
-embed ComfyUI itself. Sound is the exception: MMAudio is called as a library inside the Flask
-process, with no graph at all.
+embed ComfyUI itself.
 
-Why one engine for two of the three: the picture and video pipelines (models, custom nodes, graph)
-are proven and not worth rebuilding, while our own code stays testable and swappable. Why not the
-third: the sound pipeline that is proven drives MMAudio directly, and reaching it through ComfyUI
-would have meant building a graph nobody has — a second way of doing something that already works.
-The cost is a second engine to install and a second model on the card; the alternative was untested
-work standing between us and a library call.
+Why: the picture and video pipelines (models, custom nodes, graph) are proven and not worth
+rebuilding, while our own code stays testable and swappable. Nothing makes a sound on its own: H3's
+video carries its own. A sound layer made before stays on its frame.
 
 **7. Google Drive is the only persistent store.**
 Everything that must survive the Colab session — outputs, project data — lives under two Drive
@@ -94,9 +90,9 @@ Why: the tools must be able to evolve and break independently. What is inherited
 is never shared: [CODE-STANDARD.md](CODE-STANDARD.md).
 
 **9. The notebook installs the producers; the app only says what is here.**
-Everything a producer needs — every model file, and for sound the library too — comes down in the
-notebook, before the server starts. Which producers is the user's choice, made in CONFIG's three
-checkboxes: the groups run to ~54 GiB together and no machine needs all of them every session. The
+Everything a producer needs — every model file — comes down in the notebook, before the server
+starts. Which producers is the user's choice, made in CONFIG's two checkboxes: the groups run past
+40 GiB together and no machine needs both of them every session. The
 app downloads nothing: its producers panel reads the disk and reports, and its Kur button says
 where the install happens.
 Why: the download machinery in `collab-toolbox` is proven against these sources and ours was not —

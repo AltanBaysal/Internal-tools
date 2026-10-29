@@ -416,12 +416,62 @@ def test_the_video_prompt_is_queen_ai_s(import_main, monkeypatch):
     assert "DEEPSEEK_API_KEY" in _refusal(main, layers.VIDEO)
 
 
-def test_the_sound_prompt_is_queen_ai_s(import_main, monkeypatch):
-    """Madde 404: the sound is written by Queen AI too."""
-    monkeypatch.setenv("QE_DEEPSEEK_API_KEY", "")
+def test_nothing_makes_a_sound_any_more(import_main):
+    """Madde 514, the user's words: "mmaudio zaten silenecek roadmape ekle sil". No producer and no
+    prompt writer for a sound: the sounds already made stay, and no new one is made."""
     main = import_main()
 
-    assert "DEEPSEEK_API_KEY" in _refusal(main, layers.AUDIO)
+    assert set(main._producers) == {layers.PHOTO, layers.VIDEO}
+    assert set(main._writers) == {layers.VIDEO}
+
+
+class _OwedSound:
+    """A project whose frame has its photo and video, and a sound the queue still owes -- the
+    plan, the record and the runner make_job asks of, and nothing else. A line written is kept, so
+    the test can say none was."""
+
+    def __init__(self):
+        from backend.features.photo_generation.domain.running_name import RunningName
+        self.named = RunningName("düğün")
+        self.written = []
+
+    def read(self, _project):
+        return {"frames": [{"id": "P0_0", "type": "audio", "number": 0, "variant": 0,
+                            "prompt": "", "negative": "", "seed": None, "model": ""}]}
+
+    def slots(self, _project):
+        return {"P0_0": {"photo": {"status": "done", "file": "P0_0.png"},
+                         "video": {"status": "done", "file": "P0_0_V1_0.mp4"}}}
+
+    def append(self, *line):
+        self.written.append(line)
+
+    def mark(self, *line, **_said):
+        self.written.append(line)
+
+    def stop_requested(self):
+        return False
+
+    def report(self, _state):
+        pass
+
+
+def test_a_sound_still_owed_stops_the_queue_and_asks_nobody(import_main, monkeypatch):
+    """Madde 514: a sound queued before MMAudio went waits as any job whose producer is not here --
+    run_loop's own rule, and the ending 509's notification names. Its prompt is not written: no
+    request leaves for DeepSeek, and no line is written, so the job stays owed until the user takes
+    it out (Sesleri sil, or clearing the queue)."""
+    from backend.features.photo_generation.domain.run_loop import make_job
+    monkeypatch.setenv("QE_DEEPSEEK_API_KEY", "k-1")
+    main = import_main()
+    monkeypatch.setattr(requests, "post", lambda *a, **k: pytest.fail("DeepSeek'e istek gitti"))
+    project = _OwedSound()
+
+    state = make_job(project, None, project, project, main._producers, lambda: "now",
+                     writers=main._writers)()
+
+    assert (state["status"], state["waitingFor"]) == ("waiting", layers.AUDIO)
+    assert project.written == []
 
 
 def test_the_deepseek_key_comes_from_the_environment(import_main, monkeypatch):
@@ -435,19 +485,18 @@ def test_the_deepseek_key_comes_from_the_environment(import_main, monkeypatch):
     assert config.DEEPSEEK_URL == "https://api.deepseek.com/chat/completions"
 
 
-@pytest.mark.parametrize("kind", [layers.VIDEO, layers.AUDIO], ids=["video", "sound"])
-def test_every_queen_ai_prompt_goes_through_the_box(import_main, monkeypatch, kind):
-    """Madde 416 and 418: H3's and the sound's writer, as main.py wires them, have a failed
-    request sent again and the answer checked -- four HTTP errors, then the fifth try's answer and
-    the check's approval, and that answer is the prompt. requests.post is the one the client sends
-    with, so no request leaves this machine."""
+def test_every_queen_ai_prompt_goes_through_the_box(import_main, monkeypatch):
+    """Madde 416 and 418: H3's writer, as main.py wires it, has a failed request sent again and the
+    answer checked -- four HTTP errors, then the fifth try's answer and the check's approval, and
+    that answer is the prompt. requests.post is the one the client sends with, so no request leaves
+    this machine."""
     monkeypatch.setenv("QE_DEEPSEEK_API_KEY", "k-1")
     main = import_main()
     http = Answers([FakeResponse(status_code=500, text="iç hata")] * 4
                    + [answering("she turns"), answering("APPROVED")])
     monkeypatch.setattr(requests, "post", http.post)
 
-    written = main._writers[kind].write({"photo": "kırmızı elbiseli kadın",
+    written = main._writers[layers.VIDEO].write({"photo": "kırmızı elbiseli kadın",
                                          "video": "kadın dönüyor"},
                                         "standard", source=PHOTO, scene="")
 

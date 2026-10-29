@@ -348,18 +348,16 @@ def summary(mutes, sound_on):
                           mutes=mutes)
 
 
-def test_the_summary_counts_the_turned_off_sounds_apart_from_the_missing_ones():
+def test_the_summary_counts_the_turned_off_sounds():
     said = summary(FakeMutes(["0_a"]), sound_on=("0_a",))
 
     assert said["muted"] == 1
-    assert said["silent"] == 1           # 1_a, which never had a sound
 
 
 def test_the_summary_counts_no_mark_on_a_video_with_no_sound():
     said = summary(FakeMutes(["1_a"]), sound_on=("0_a",))
 
     assert said["muted"] == 0
-    assert said["silent"] == 1
 
 
 def test_the_summary_reads_the_list_once():

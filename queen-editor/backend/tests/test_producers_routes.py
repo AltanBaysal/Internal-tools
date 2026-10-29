@@ -4,7 +4,7 @@ from backend.features.producers.domain.usecases.list_producers import list_produ
 from backend.features.producers.presentation.routes import make_producers_blueprint
 from backend.web.app import create_app
 
-GROUPS = {"photo": [], "video": [{"folder": "vae", "name": "v.safetensors"}], "audio": []}
+GROUPS = {"photo": [], "video": [{"folder": "vae", "name": "v.safetensors"}]}
 
 
 def make_client(tmp_path):
@@ -18,10 +18,11 @@ def make_client(tmp_path):
     return app.test_client()
 
 
-def test_the_panel_reads_three_rows(tmp_path):
+def test_the_panel_reads_two_rows(tmp_path):
+    """Photo and video: the sound's row went with MMAudio (madde 514)."""
     body = make_client(tmp_path).get("/api/producers").get_json()
 
-    assert [row["id"] for row in body["producers"]] == ["photo", "video", "audio"]
+    assert [row["id"] for row in body["producers"]] == ["photo", "video"]
     assert body["producers"][1]["installed"] is False
 
 

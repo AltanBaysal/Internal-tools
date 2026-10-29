@@ -1,9 +1,9 @@
 # Queen Editor
 
 A web UI for making a sequence of frames. A project holds frames; a frame starts as a photo and can
-carry a video and a sound layer on top of it, and the export joins them into one folder you can hand
-on. Photos and videos are rendered by ComfyUI, sound by MMAudio inside the app's own process, and
-everything lands in Google Drive.
+carry a video on top of it, and the export joins them into one folder you can hand on. Photos and
+videos are rendered by ComfyUI, and everything lands in Google Drive. A sound layer made before
+stays on its frame: it plays, goes into the export and can be deleted.
 
 Runs on Google Colab: `queeneditor.ipynb` mounts Drive, clones this repo, installs the producers,
 starts Flask and prints a cloudflared link. Colab never builds — it only serves.
@@ -19,11 +19,11 @@ set once, nothing to paste again and nothing to commit.
 | `GITHUB_TOKEN` | Cloning this repo. Make it fine-grained, **this repository only, Contents: read-only** — leaked, it can only read this one repo. |
 | `CIVITAI_COOKIE` | The `__Secure-civ-token` cookie from `civitai.red` (log in → F12 → Application → Cookies). A gated file comes from Civitai with this cookie when the Hugging Face mirror does not hold it yet, or when it is on `MIRRORLESS` in [colab/downloads.py](colab/downloads.py) and skips the mirror; a run that fetches no such file needs none. It expires every ~30 days; re-paste it when an install stops with Civitai's own response. |
 | `HF_TOKEN` | Your private Hugging Face repo that mirrors the Civitai files (`HF_MIRROR` in CONFIG), all but those on `MIRRORLESS` in [colab/downloads.py](colab/downloads.py). A file it holds comes from there, fast; a file it lacks comes from Civitai once and is uploaded to it. Make it fine-grained, **that one repo only, read and write**. |
-| `DEEPSEEK_API_KEY` | Every prompt nobody typed is written by DeepSeek as soon as its layer is queued — before anything else is made: a video's, shown the frame's photo, and a sound's, from its video's prompt. The same secret QueenAgent's notebook reads — turn its notebook access on for this notebook too. Without it photos render until a video or a sound is queued; then the run stops with the client's own sentence. |
+| `DEEPSEEK_API_KEY` | Every prompt nobody typed is written by DeepSeek as soon as its layer is queued — before anything else is made: a video's, shown the frame's photo. The same secret QueenAgent's notebook reads — turn its notebook access on for this notebook too. Without it photos render until a video is queued; then the run stops with the client's own sentence. |
 ## Run
 
 In the **CONFIG** cell tick the producers you want — `INSTALL_PHOTO` (~8 GiB), `INSTALL_VIDEO`
-(MiniMax H3, ~37 GiB), `INSTALL_AUDIO` (~9 GiB) — and under them at least one photo model.
+(MiniMax H3, ~37 GiB) — and under them at least one photo model.
 The notebook opens on an A100, because Krea 2 Turbo does not fit a T4. Everything starts off
 and the notebook stops if nothing is chosen, because an app with no producer opens fine and renders
 nothing.

@@ -138,14 +138,15 @@ describe("SidePanel — the icon rail", () => {
       .toBeTruthy();
   });
 
-  it("opens the sound panel from its own wave on the rail", () => {
+  it("has no sound panel on the rail (madde 514)", () => {
+    // MMAudio is gone, so nothing on the rail makes a sound any more.
     renderColumn();
 
-    expect(screen.getByLabelText("Ses üret").querySelector("[data-glyph='sound']")).toBeTruthy();
-    fireEvent.click(screen.getByLabelText("Ses üret"));
-
-    expect(screen.getByRole("heading", { name: "Ses üret" })).toBeTruthy();
-    expect(screen.getByText("MMAudio v2")).toBeTruthy();
+    const rail = [...document.querySelectorAll("button[aria-label]")]
+      .map((button) => button.getAttribute("aria-label"));
+    expect(rail).toEqual(["Fotoğraf üret", "Video üret", "Kuyruğu takip et", "AI agent",
+                          "Üreticiler"]);
+    expect(screen.queryByLabelText("Ses üret")).toBeNull();
   });
 
   it("hands the layer panel what the photo panel already gets", () => {
@@ -196,8 +197,8 @@ describe("SidePanel — the icon rail", () => {
     expect(screen.getByLabelText("Prompt listesi").value).toBe('["gotik kız"]');
   });
 
-  it("opens the video panel on Kareden again after the sound panel", async () => {
-    // Two layers, two panels: the sound one does not inherit the video one's tab and words.
+  it("opens the video panel on Kareden again after another panel", async () => {
+    // A panel opened from the rail starts on Kareden (madde 317).
     vi.stubGlobal("fetch", recordServer());
     renderColumn({ frames: [] });
 
@@ -205,7 +206,7 @@ describe("SidePanel — the icon rail", () => {
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Referanstan" }));
     });
-    fireEvent.click(screen.getByLabelText("Ses üret"));
+    fireEvent.click(screen.getByLabelText("Kuyruğu takip et"));
     fireEvent.click(screen.getByLabelText("Video üret"));
 
     expect(screen.getByRole("button", { name: "Kareden" }).className).toContain("is-on");

@@ -6,7 +6,7 @@ lives in exactly one place (the domain).
 """
 from flask import Blueprint, jsonify, request, send_from_directory
 
-from backend.features.photo_generation.domain import layers, orientation, production_mode, queue
+from backend.features.photo_generation.domain import layers, orientation, production_mode
 from backend.features.photo_generation.export_runner import MODES
 from backend.features.photo_generation.domain.frame_list import InvalidFrames
 from backend.features.photo_generation.domain.orientation import InvalidOrientation
@@ -26,8 +26,12 @@ from backend.features.photo_generation.domain.usecases.start_batch import (
 
 
 # The layers a job can be asked for. A photo is not among them: it is asked for with its own
-# prompts, not by hanging a layer on a frame that already exists.
-QUEUEABLE = (layers.VIDEO, layers.AUDIO)
+# prompts, not by hanging a layer on a frame that already exists. Nor is a sound since MMAudio went
+# (madde 514): nothing would make it.
+QUEUEABLE = (layers.VIDEO,)
+
+# The layers a frame's own can be made again -- not a sound, for the same reason.
+REMAKEABLE = (layers.PHOTO, layers.VIDEO)
 
 # The layers that can be taken off a frame on their own -- the photo among them: a card outlives its
 # picture, and it goes when its last layer does (madde 294). Deleting a whole card in one press is
@@ -182,9 +186,9 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
     def post_regenerate(project):
         body = request.get_json(silent=True) or {}
         layer = body.get("layer")
-        # Every layer can be made again, the photo included: what is asked for here is one named
-        # frame's own layer, not a batch.
-        if layer not in queue.ORDER:
+        # The photo can be made again too: what is asked for here is one named frame's own layer,
+        # not a batch.
+        if layer not in REMAKEABLE:
             return jsonify({"error": f"Böyle bir katman yok: {layer}"}), 404
         prompt = body.get("prompt")
         negative = body.get("negative")

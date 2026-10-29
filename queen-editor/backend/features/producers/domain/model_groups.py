@@ -14,7 +14,6 @@ A row has one of three shapes, and which one says what it is asking:
 The names are inherited from collab-toolbox as knowledge, not as a dependency: they are the names
 the graphs load by, so a rename here has to follow the graph rather than the source.
 """
-HF_MMAUDIO_NSFW = "mmaudio_large_44k_nsfw_gold_8.5k_final_fp16.safetensors"
 
 # What Krea 2 Turbo's graph loads (madde 482), every one by name: the int8 DiT, its Qwen3-VL encoder,
 # Qwen Image's VAE and SNOFS, which the graph switches on -- and Translucent Penetration's Krea
@@ -71,18 +70,5 @@ GROUPS = {
         # says installed only when every video this producer can be handed can be made.
         {"folder": "loras", "name": "HMCumshot_V1.0.safetensors"},
     ],
-    "audio": [
-        # The fine-tune the sampler loads. MMAudio's own vae, synchformer and vocoder come down
-        # with the library, which knows where it keeps them. This one sits in ComfyUI's model tree
-        # although ComfyUI never reads it -- the panel and the sampler both hang off that root, and
-        # a second root for a single file would be the same knowledge written twice.
-        {"folder": "mmaudio", "name": HF_MMAUDIO_NSFW},
-    ],
+    # No sound group: MMAudio went in madde 514, and no producer makes a sound any more.
 }
-
-
-def audio_weights(files):
-    """Where the sound weights sit, built from the row above rather than spelled out a second time:
-    a renamed file then moves the panel and the sampler together."""
-    row = GROUPS["audio"][0]
-    return files.path(row["folder"], row["name"])

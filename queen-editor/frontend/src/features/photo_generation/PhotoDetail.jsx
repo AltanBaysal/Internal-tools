@@ -456,6 +456,9 @@ export default function PhotoDetail({ project, frame: fid }) {
   const openState = stateOf(open);
   // Only a layer that is really there can be made again, and only it can be edited.
   const holds = openState === "done";
+  // A sound is there to play and to delete, not to make again: nothing makes one since MMAudio
+  // went (madde 514).
+  const remakes = holds && open !== "audio";
   // The open layer's own time. The start is the worker's, and only the layer it is on is running.
   const timeShown = productionTime(openState, (frame?.renderSeconds || {})[open], startedAt);
   // Does removing this frame take a file off the disk? Only when the picture is its own: a copy
@@ -601,9 +604,8 @@ export default function PhotoDetail({ project, frame: fid }) {
   function handleRegenerate() {
     setRefusedAct(null);
     const layer = open;
-    // undefined off the video tab: a body with no mode is what the server has always read, and a
-    // mode on a sound would be refused outright. The negative and the orientation travel the other
-    // way round -- only a photo is made from them.
+    // undefined off the video tab: a body with no mode is what the server has always read. The
+    // negative and the orientation travel the other way round -- only a photo is made from them.
     return regenerate(frame.id, layer, typed, layer === "video" ? picked : undefined,
                       layer === "photo" ? typedNegative : undefined,
                       layer === "photo" ? facing : undefined)
@@ -818,7 +820,7 @@ export default function PhotoDetail({ project, frame: fid }) {
               {/* The open layer's own prompt, and nothing under it: what a layer was made from is
                   no longer this page's to show (madde 87). The heading says whose words these are,
                   in the tab's own word so a layer cannot be called two things (Fark 88). */}
-              {holds ? (
+              {remakes ? (
                 <PromptBox label={`${LAYER_LABEL[open]} prompt'u`} value={typed} changed={changed}
                            height={PROMPT_HEIGHT[open]}
                            onChange={(text) => setWords((kept) => ({ ...kept, [open]: text }))} />
@@ -878,7 +880,7 @@ export default function PhotoDetail({ project, frame: fid }) {
                 </div>
               )}
 
-              {holds && (
+              {remakes && (
                 /* Accent whether the prompt was touched or not (madde 78): making the frame again
                    is what this page is for, and a changed prompt only decides the new frame's
                    name. Full size, because the button under it is the way out and the two used to

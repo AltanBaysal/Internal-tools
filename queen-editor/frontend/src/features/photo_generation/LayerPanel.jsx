@@ -4,7 +4,7 @@ import { getReferenceSettings, saveReferenceSettings } from "../../shared/api.js
 import { Mono, Note } from "../../vendor/kit.jsx";
 import { askPermission } from "../notification/notification.js";
 import InstallCard from "../producers/InstallCard.jsx";
-import { SoundGlyph, VideoGlyph } from "./glyphs.jsx";
+import { VideoGlyph } from "./glyphs.jsx";
 import { FIRST_ORIENTATION, OrientationSegment } from "./orientation.jsx";
 import {
   FROM_FRAME,
@@ -41,8 +41,8 @@ const ENDINGS = [
   { on: true, label: "Açık", name: "Mutlu son açık" },
 ];
 
-// What each layer calls itself. The panel is one component because the design asks for one --
-// "video panelinin birebir aynısı" -- so only these words and the scope rule differ between them.
+// What the panel's layer calls itself, by the layer the side panel hands in. The video is the one
+// row: the sound's panel went with MMAudio (madde 514).
 const WORDS = {
   video: {
     // No model name here: the producers row carries it (madde 247), and the box waits for it.
@@ -51,8 +51,7 @@ const WORDS = {
     // build one from the other.
     noun: "video",
     own: "videosunu",
-    // The adjective for a frame that already carries this layer. Only the copy warning needs it,
-    // and the two panels say it differently enough that neither can be built from the other.
+    // The adjective for a frame that already carries this layer. Only the copy warning needs it.
     held: "videolu",
     // Why a press found nothing to do. Three of them, because the panel can be empty for three
     // different reasons and one sentence for all of them is what sent the user here (İstek 4.3).
@@ -61,19 +60,6 @@ const WORDS = {
     chosenNoBase: "Seçili karelerin fotoğrafı henüz üretilmedi.",
     allHeld: "Tüm karelerin videosu var.",
     Glyph: VideoGlyph,
-  },
-  audio: {
-    model: "MMAudio v2",
-    missing: "Videosu olup sesi olmayan kareler",
-    noun: "ses",
-    own: "sesini",
-    held: "sesi olan",
-    // A sound hangs on a video, not on a photo -- so an empty project reads this one here, and it
-    // is the nearer thing that is missing.
-    noBase: "Videosu olan kare yok.",
-    chosenNoBase: "Seçili karelerin videosu henüz üretilmedi.",
-    allHeld: "Tüm karelerin sesi var.",
-    Glyph: SoundGlyph,
   },
 };
 
@@ -88,19 +74,12 @@ const MODE_TAIL = {
   [LINKED]: "her video sıradaki karede biter.",
 };
 
-/** The frames this layer can be hung on.
+/** The frames a video can be hung on: every frame whose photo has landed.
  *
- * The server decides the same way; this is the panel's own count, not a second rule. Sound needs a
- * video under it -- a frame without one is never in its scope (madde 31) -- while a video needs
- * only the photo the frame already is.
+ * The server decides the same way; this is the panel's own count, not a second rule.
  */
-function eligible(frames, layer) {
-  return (frames || []).filter((frame) => {
-    if (frame.status !== "done") return false;
-    const held = frame.layers || {};
-    if (layer === "audio" && (!held.video || (frame.failed || []).includes("video"))) return false;
-    return true;
-  });
+function eligible(frames) {
+  return (frames || []).filter((frame) => frame.status === "done");
 }
 
 /** What the variant box may hold while it is being typed in -- the photo panel's rule, for the same
@@ -111,7 +90,7 @@ function acceptsVariants(text) {
   return Number(text) >= 1 && Number(text) <= MAX_VARIANTS;
 }
 
-// The one reason that belongs to no layer: the box is on both panels and says the same thing.
+// The one reason that belongs to no layer: the box says the same thing on both tabs.
 const NO_VARIANTS = "Varyant sayısı girilmedi — en az 1 yaz.";
 
 // What stops a run from the pool, said before the press (madde 324). The server's own sentence
@@ -160,7 +139,7 @@ function promptCount(text) {
  * videos when what they were missing was pictures (İstek 4.3).
  *
  * No dead branch: for a video `can` is the produced frames themselves, so its noBase is exactly
- * "nothing is produced yet"; for a sound it is the frames holding a video, and its noBase says so.
+ * "nothing is produced yet".
  */
 function refusalOf(words, can, scope, scoped, variants, fromPool) {
   if (variants === "") return NO_VARIANTS;
@@ -266,17 +245,12 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
                                      onInstall }) {
   const words = WORDS[layer];
   const [scope, setScope] = useState("missing");
-  // Kept by both panels though only the video one shows the row: a sound ends nowhere, so it has
-  // nothing to choose -- and one call shape means the server never asks where a request came from.
-  // Which is why the default has to ask the layer (madde 216): loop is what gets asked for of a
-  // video, while a sound carrying any mode but the plain one is refused outright by the server
-  // (production_mode.validate) -- and that refusal never reaches the screen.
-  const [mode, setMode] = useState(layer === "video" ? LOOP : STANDARD);
-  // Where the video's pictures come from. Only the video panel asks (madde 301); a sound is laid
-  // over a video that already exists, so the pool has nothing to do with it.
+  // Loop is what gets asked for of a video (madde 216).
+  const [mode, setMode] = useState(LOOP);
+  // Where the video's pictures come from (madde 301).
   const [source, setSource] = useState(FROM_FRAME);
-  // Referanstan's draft, when this visit left one. Only the video panel keeps one.
-  const kept = layer === "video" ? DRAFTS.get(project) : undefined;
+  // Referanstan's draft, when this visit left one.
+  const kept = DRAFTS.get(project);
   // The words a pool production is made from -- the photo panel's own shape, because that is how
   // the user already writes a batch of prompts.
   const [prompts, setPrompts] = useState(kept?.prompts ?? "");
@@ -294,7 +268,7 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
   const recordAsked = useRef(false);
   // The pool in the middle belongs to this panel's Referanstan tab: when the panel goes -- closed,
   // or another one opened -- the cards come back.
-  useEffect(() => () => { if (layer === "video") onShowPool(false); }, []);
+  useEffect(() => () => onShowPool(false), []);
   const [submitting, setSubmitting] = useState(false);
   // What the queue took and what it was told to make: both from the moment the request went out.
   // The card stands for ten seconds and the mode row is one click away, so reading the live mode
@@ -308,7 +282,7 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
   useEffect(() => () => clearTimeout(fade.current), []);
 
   const chosen = selected || [];
-  const can = eligible(frames, layer);
+  const can = eligible(frames);
   // The scope row's own name decides this: it leaves out the frames that hold this layer already,
   // while picking frames by hand says "these ones" -- and that is how a second one is asked for,
   // since it is born as a copy frame rather than written over the first.
@@ -322,7 +296,7 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
   // saying "these ones", and the radio would be arguing with the user to stay where it was.
   useEffect(() => { setScope(chosen.length ? "selected" : "missing"); }, [chosen.length]);
 
-  const fromPool = layer === "video" && source === FROM_POOL;
+  const fromPool = source === FROM_POOL;
   // The box shows, and the press reads, the open tab's own count.
   const shownVariants = fromPool ? poolVariants : variants;
 
@@ -348,10 +322,10 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
   // Kept only once settled: a panel built and closed without the tab ever opening would otherwise
   // leave an empty draft, and the record would never be asked again this visit.
   useEffect(() => {
-    if (layer === "video" && settled.current) {
+    if (settled.current) {
       DRAFTS.set(project, { prompts, variants: poolVariants, orientation: poolOrientation });
     }
-  }, [layer, project, prompts, poolVariants, poolOrientation]);
+  }, [project, prompts, poolVariants, poolOrientation]);
 
   const listed = promptCount(prompts);
   const counts = { missing: missing.length, selected: inSelection.length };
@@ -385,12 +359,11 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
   const missingLine = fromPool ? poolRefusal(pool) : null;
   // The server's name first -- it names the one video model there is (madde 435). Until it answers
   // the box stays empty rather than guessing.
-  const model = producer?.model || words.model || "";
-  // The project's settings, not this panel's: they are read and written through the project, and
-  // only a video has them -- the sound panel is handed no video row (madde 424, 426).
-  const videoRow = layer === "video" ? producer : null;
-  const { seconds: length, choose: chooseLength } = useVideoLength(project, videoRow);
-  const { on: ending, choose: chooseEnding } = useHappyEnding(project, videoRow);
+  const model = producer?.model || "";
+  // The project's settings, not this panel's: they are read and written through the project
+  // (madde 424, 426).
+  const { seconds: length, choose: chooseLength } = useVideoLength(project, producer);
+  const { on: ending, choose: chooseEnding } = useHappyEnding(project, producer);
   // What a video will be, said once at the end of whichever sentence is on show.
   const settingsSaid = videoSaid(length, ending);
 
@@ -446,19 +419,16 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: 1, minHeight: 0 }}>
       {/* Where the video is made from, as two tabs over the whole panel (madde 317): each tab is a
-          form of its own. Only the video panel has them -- a sound is laid over a video that
-          already exists, and the pool has nothing to give it. */}
-      {layer === "video" && (
-        <div className="wf-segment" style={{ display: "flex" }}>
-          {SOURCES.map((one) => (
-            <button key={one.id} type="button" className={source === one.id ? "is-on" : ""}
-                    style={{ flex: 1 }}
-                    onClick={() => { setSource(one.id); onShowPool(one.id === FROM_POOL); }}>
-              {one.label}
-            </button>
-          ))}
-        </div>
-      )}
+          form of its own. */}
+      <div className="wf-segment" style={{ display: "flex" }}>
+        {SOURCES.map((one) => (
+          <button key={one.id} type="button" className={source === one.id ? "is-on" : ""}
+                  style={{ flex: 1 }}
+                  onClick={() => { setSource(one.id); onShowPool(one.id === FROM_POOL); }}>
+            {one.label}
+          </button>
+        ))}
+      </div>
 
       <InstallCard producer={producer} onInstall={onInstall} />
 
@@ -554,8 +524,8 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
         </div>
       )}
 
-      {/* Only a video ends on a picture, so only the video panel has this to ask. */}
-      {layer === "video" && !fromPool && (
+      {/* How the video ends: on nothing, on its own picture, or on the next frame's. */}
+      {!fromPool && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <Mono size={11} data-label style={LABEL}>Üretim modu</Mono>
           {MODES.map((one) => (

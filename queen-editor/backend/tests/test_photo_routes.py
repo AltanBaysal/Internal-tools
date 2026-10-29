@@ -605,15 +605,18 @@ def test_the_videos_endpoint_refuses_a_mode_nobody_knows(tmp_path):
     assert resp.get_json()["field"] == "mode"
 
 
-def test_a_sound_cannot_be_asked_to_end_anywhere(tmp_path):
-    # Only a video ends on a picture. Letting the word through would hide the mistake behind a
-    # sound that came out fine.
-    client, _ = make_client(tmp_path)
+def test_a_sound_is_no_longer_a_place_to_queue_anything(tmp_path):
+    """Madde 514: the Ses üret panel is gone with MMAudio, and its door with it -- refused the way a
+    layer nobody knows is, before anything is planned."""
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
 
-    resp = client.post("/api/projects/düğün/layers/audio", json={"mode": "loop"})
+    resp = client.post("/api/projects/düğün/layers/audio", json={})
 
-    assert resp.status_code == 400
-    assert resp.get_json()["field"] == "mode"
+    assert resp.status_code == 404
+    assert resp.get_json()["error"] == "Böyle bir katman yok: audio"
+    assert [job["type"] for job in json.loads(
+        (drive / "düğün" / "plan.json").read_text(encoding="utf-8"))["frames"]] == ["photo"]
 
 
 def test_an_unknown_layer_is_not_a_place_to_queue_anything(tmp_path):
@@ -711,13 +714,27 @@ def test_regenerating_a_frame_the_gallery_does_not_know_returns_404(tmp_path):
 
 
 def test_regenerating_a_layer_the_frame_cannot_carry_returns_400(tmp_path):
+    """A frame whose photo never landed has nothing a video could hang on."""
+    runner = PhotoRunner(spawn=lambda fn: fn())
+    client, _ = make_client(tmp_path, generator=StopsAfter(runner, 0), runner=runner)
+    generate(client, prompts='["a"]', variants=1)
+
+    resp = regenerate_request(client, "P0_0", layer="video", prompt="video")
+
+    assert resp.status_code == 400
+    assert resp.get_json()["error"]
+
+
+def test_a_sound_is_no_longer_made_again(tmp_path):
+    """Madde 514: MMAudio is gone, so the sound tab's Yeniden üret is too, and the door refuses a
+    sound the way it refuses a layer nobody knows."""
     client, _ = make_client(tmp_path)
     generate(client, prompts='["a"]', variants=1)
 
     resp = regenerate_request(client, "P0_0", layer="audio", prompt="ses")
 
-    assert resp.status_code == 400
-    assert resp.get_json()["error"]
+    assert resp.status_code == 404
+    assert resp.get_json()["error"] == "Böyle bir katman yok: audio"
 
 
 def test_regenerating_a_layer_that_does_not_exist_returns_404(tmp_path):
@@ -816,6 +833,25 @@ def test_deleting_a_video_leaves_the_frame_in_the_gallery(tmp_path):
     assert not (drive / "düğün" / "P0_0_V1_0.mp4").exists()
     assert files_of(client) == ["P0_0.png"]
     assert (drive / "düğün" / "P0_0.png").exists()
+
+
+def test_a_sound_made_before_mmaudio_went_can_still_be_deleted(tmp_path):
+    """Madde 514: no new sound is made, and the ones already made stay the user's to delete --
+    the video under it stays."""
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+    video = give_it_a_video(drive)
+    sound = "P0_0_V1_0_S1_0.wav"
+    (drive / "düğün" / sound).write_bytes(b"RIFF")
+    DrivePhotoRecord(Storage(str(drive))).append("düğün", {
+        "file": sound, "frame": "P0_0", "layer": "audio", "status": "done", "prompt": "dalga"})
+
+    resp = delete_layer_request(client, ["P0_0"], layer="audio")
+
+    assert resp.status_code == 200
+    assert resp.get_json() == {"deleted": [sound]}
+    assert not (drive / "düğün" / sound).exists()
+    assert (drive / "düğün" / video).exists()
 
 
 def test_the_photo_is_a_layer_that_can_be_deleted(tmp_path):

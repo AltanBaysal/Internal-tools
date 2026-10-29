@@ -398,6 +398,10 @@ MMAudio kutucuğu yok, defter onun dosyalarını indirmiyor, üreticisi ve graph
 **Kullanıcının kararları** *(29 Ekim)*:
 - *"girsin sadece modeli kaldır yeter başka bir şeye karışma"* — eski sesler export'a girmeye devam
   eder; madde yalnız modeli kaldırır.
+- **"N videonun sesi yok" uyarısı kalkar** *(yapılırken, reviewer'ın sorusu üzerine; cevap: "Kalksın")*:
+  uyarı MMAudio sesi olmayan her videoyu sayıyordu, oysa H3 videosu kendi sesini taşır. "N videonun sesi
+  kapalı" kalır.
+- **Eski sırada kalmış ses işi için bir şey yapılmaz** *(cevap: "öyle bir proje yok")*.
 
 <a id="v11-14"></a>
 ### 515 · v11-14 — Ses düğmesi her videoda

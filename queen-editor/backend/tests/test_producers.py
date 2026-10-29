@@ -19,15 +19,11 @@ class FakeFiles:
         # where a file is there and not there at once, and pass a test the real one would fail.
         return any(at == folder and name.endswith(suffix) for at, name in self.present)
 
-    def path(self, folder, name):
-        return f"/models/{folder}/{name}"
-
 
 GROUPS = {
     "photo": [],
     "video": [{"folder": "vae", "name": "video_vae.safetensors"},
               {"folder": "loras", "name": "high.safetensors"}],
-    "audio": [{"folder": "mmaudio", "name": "mm.pth"}],
 }
 
 # A group shaped the way the photo one is since Madde 140: the checkpoint names a kind of file
@@ -36,12 +32,12 @@ PICKED = {"photo": [{"folder": "checkpoints", "suffix": ".safetensors"},
                     {"folder": "loras", "name": "style.safetensors"}]}
 
 
-def test_all_three_are_listed_in_the_order_the_engine_works_in():
+def test_both_are_listed_in_the_order_the_engine_works_in():
+    """Photo, then video: the sound's row went with MMAudio (madde 514)."""
     rows = list_producers(GROUPS, FakeFiles())
 
-    assert [row["id"] for row in rows] == ["photo", "video", "audio"]
-    assert [row["name"] for row in rows] == [
-        "Fotoğraf üreticisi", "Video üreticisi", "Ses üreticisi"]
+    assert [row["id"] for row in rows] == ["photo", "video"]
+    assert [row["name"] for row in rows] == ["Fotoğraf üreticisi", "Video üreticisi"]
 
 
 def test_a_producer_with_a_group_is_installed_when_every_file_of_it_is_here():
@@ -118,17 +114,9 @@ def test_the_photo_group_carries_everything_the_graph_reads():
     ]
 
 
-def test_the_sound_group_names_the_weights_the_sampler_loads():
-    rows = model_groups.GROUPS["audio"]
-
-    assert len(rows) == 1, "Örnekleyici tek ağırlık dosyası yüklüyor"
-    assert rows[0]["name"] == "mmaudio_large_44k_nsfw_gold_8.5k_final_fp16.safetensors"
-
-
-def test_the_weights_path_is_built_from_the_group_row():
-    path = model_groups.audio_weights(FakeFiles())
-
-    assert path == "/models/mmaudio/mmaudio_large_44k_nsfw_gold_8.5k_final_fp16.safetensors"
+def test_no_group_counts_the_sound_s_weights():
+    """Madde 514: MMAudio is gone, so the panel counts no file of it."""
+    assert set(model_groups.GROUPS) == {"photo", "video"}
 
 
 def test_no_group_carries_an_address_the_app_would_have_to_fetch():

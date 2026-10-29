@@ -324,12 +324,12 @@ describe("PhotoDetail — the layer tabs", () => {
     expect(screen.queryByText("Foto negatif prompt'u")).toBeNull();
   });
 
-  it("repeats the skeleton for sound", async () => {
+  it("repeats the skeleton for sound, its words to read rather than to edit (madde 514)", async () => {
     await open("P0_0", { frames: [LAYERED] });
 
     fireEvent.click(tab("Ses"));
 
-    expect(screen.getByDisplayValue("kumaş hışırtısı")).toBeTruthy();
+    expect(screen.getByText("kumaş hışırtısı")).toBeTruthy();
     expect(screen.queryByText("kadın dönüyor")).toBeNull();
     expect(screen.queryByText("P0_0_V1_0_S1_0.wav")).toBeNull();
   });
@@ -1066,6 +1066,32 @@ describe("PhotoDetail — the new mode", () => {
 
     expect(screen.queryByLabelText("Yeni mod")).toBeNull();
     expect(screen.queryByText(/Yeni bir kare açılır/)).toBeNull();
+  });
+});
+
+describe("PhotoDetail — a sound made before MMAudio went (madde 514)", () => {
+  it("plays it and offers its deletion, but never makes it again", async () => {
+    // Nothing makes a new sound: the sound tab keeps what was made -- the player, its words, the
+    // two ways out -- and loses the one button that would ask for another.
+    await open("P0_0", { frames: [LAYERED] });
+
+    fireEvent.click(tab("Ses"));
+
+    expect(document.querySelector("audio").getAttribute("src")).toContain("P0_0_V1_0_S1_0.wav");
+    expect(screen.getByText("kumaş hışırtısı")).toBeTruthy();
+    expect(document.querySelector("textarea")).toBeNull();
+    expect(screen.queryByText("Yeniden üret — yeni kare")).toBeNull();
+    expect(screen.getByText("Sesi sil — video kalır")).toBeTruthy();
+    expect(screen.getByText("Kareyi sil")).toBeTruthy();
+  });
+
+  it("still makes the video again from the video tab", async () => {
+    await open("P0_0", { frames: [LAYERED] });
+
+    fireEvent.click(tab("Video"));
+
+    expect(document.querySelector("textarea")).toBeTruthy();
+    expect(regenButton().disabled).toBe(false);
   });
 });
 

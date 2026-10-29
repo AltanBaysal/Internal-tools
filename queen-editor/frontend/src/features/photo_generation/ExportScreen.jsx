@@ -159,8 +159,8 @@ export default function ExportScreen({ project }) {
   }
 
   const warnings = summary ? [
-    summary.silent && `⚠ ${summary.silent} videonun sesi yok`,
-    // Turned off from the frame page (madde 510): a line of its own, since those have a sound.
+    // Turned off from the frame page (madde 510). No line for a video with no sound layer
+    // (madde 514): an H3 video carries its own sound.
     summary.muted && `⚠ ${summary.muted} videonun sesi kapalı`,
     summary.withoutVideo && `⚠ ${summary.withoutVideo} videosuz kare diziye girmeyecek`,
     !flowing && queuedVideos

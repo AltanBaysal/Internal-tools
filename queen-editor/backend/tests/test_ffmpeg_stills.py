@@ -6,8 +6,8 @@ from backend.features.photo_generation.data.ffmpeg_stills import FfmpegStills
 class FakeRun:
     """ffmpeg, without ffmpeg: keeps the command and writes to the target it was given.
 
-    Written here rather than shared with test_ffmpeg_audio: each file tries one tool, and the fake
-    standing beside the calls it answers is half of what makes either readable.
+    Written here rather than shared with another ffmpeg test: each file tries one tool, and the
+    fake standing beside the calls it answers is half of what makes either readable.
     """
 
     def __init__(self, returncode=0, stderr="", writes=b"PNG"):
