@@ -4,6 +4,11 @@
 510 · v11-9 (yama v11.1) · **Dal:** `feat/queen-editor-v11.1` · **Kurallar:** queen-editor
 [FOUNDATION](../../queen-editor/FOUNDATION.md) · [CODE-STANDARD](../../queen-editor/CODE-STANDARD.md)
 
+> **515'ten sonra** ([spec](2026-10-29-queen-editor-m515-ses-dugmesi-her-videoda-design.md)): düğme
+> MMAudio sesi olsun olmasın videosu inmiş her karede çıkar, ve kapatılan video H3'ün kendi sesini de
+> eski MMAudio sesini de taşımaz. Aşağıda kimin düğme aldığını ve `mute.py`'yi söyleyen yerler bugünkü
+> hali anlatır; kabul koşulu ve kararlar 510'unkidir.
+
 ## Kabul koşulu (maddeden)
 
 - Videonun izlendiği kare sayfasında, sesi olan videonun sağ üstünde bir ses ikonu var. Basınca o
@@ -48,15 +53,11 @@ Yeni bir dosya: projenin klasöründe `muted.json`, `{"frames": ["P0_0", …]}`.
   (Kopyala, `carry_all`), ve kullanıcı tek bir videonun sesini kapatır. Kimlikler hiçbir zaman yeniden
   kullanılmaz (`copy_frame.next_id`), bu yüzden silinmiş bir karenin listede kalan kimliği yeni bir
   kareye geçmez.
-- **Sesi kapalı sayılmak için karenin sesi olmalı:** listede olup MMAudio sesi olmayan (ya da sesi
-  kırmızı olan) kare kapalı sayılmaz. İkon da yalnız sesi olan videoda çıkar, ve export ile kare
-  sayfası aynı kuralı okur.
-- **"Karenin sesi var mı" sunucuda tek yerde, `domain/mute.py`'de:**
-  - `holds_sound(frame)`: galeri satırından. `silenced`, export'un ses seçimi (`_audio_of`) ve
-    özetin `silent` sayısı bunu sorar.
-  - `require_sound(slots, frame)`: aynı soru, kaydın hücresinden, basış için.
-
-  Ekrandaki karşılığı yalnız bir önizlemedir (`PhotoDetail`).
+- **Kapatılabilmek için karenin videosu inmiş olmalı** (515; 510'da "karenin MMAudio sesi olmalı"
+  idi): ikon videosu inmiş her karede çıkar, ses katmanı sorulmaz. Export ve özet zaten yalnız videosu
+  inmiş kareleri okur (`exportable`), onların içinde işaret yalnız kimliğin listede olmasıdır.
+- **Kural sunucuda tek yerde, `domain/mute.py`'de:** `require_video(slots, frame)`, kaydın hücresinden,
+  basış için. Ekrandaki karşılığı yalnız bir önizlemedir (`PhotoDetail`).
 
 ### Sunucu
 
@@ -69,19 +70,17 @@ Yeni bir dosya: projenin klasöründe `muted.json`, `{"frames": ["P0_0", …]}`.
     dosya + `os.replace` kaydı) ve yeni listeyi döner. Geri okumaz. Bir `threading.Lock` altında
     yapılır: aynı anda gelen iki basış birbirinin yazdığını silmesin. Zaten olan durum yeniden
     istenirse liste değişmez ve hiçbir şey yazılmaz.
-- **`domain/mute.py`:**
-  - `holds_sound(frame)`: galeri satırının katmanlarında ses var ve kırmızı değil.
-  - `silenced(frame, muted)`: `holds_sound` ve karenin kimliği listede.
-  - `require_sound(slots, frame)`: kaydın o karedeki ses hücresinin son satırı `done` değilse
-    `NoSound("Bu karenin sesi yok: <kare>")`.
+- **`domain/mute.py`** (515'ten sonraki hali):
+  - `require_video(slots, frame)`: kaydın o karedeki video hücresinin son satırı `done` değilse
+    `NoVideo("Bu karenin videosu yok: <kare>")`.
   - `check(on)`: yalnız `True` ya da `False`. Başka bir değer `InvalidMute("Ses kapalı ya da açık
     olmalı.")` olur.
-  - `NoSound`: kapatılmak istenen karenin sesi yok.
+  - `NoVideo`: kapatılmak istenen karenin videosu yok.
 - **`domain/usecases/mute.py`:**
   - `get_muted(mutes, project)`: proje yoksa `ProjectMissing`, varsa liste.
   - `set_muted(mutes, record, project, frame, on)`:
     1. önce değer bakılır (ucuz ret önce gelir), sonra proje;
-    2. kapatmada `mute.require_sound(record.slots(project), frame)`. Sesi olmayan karede hiçbir
+    2. kapatmada `mute.require_video(record.slots(project), frame)`. Videosu inmemiş karede hiçbir
        şey yazılmaz.
     3. Açmak her zaman kabul edilir: listede kalmış bir kimlik de böyle temizlenebilir.
 
@@ -93,25 +92,24 @@ Yeni bir dosya: projenin klasöründe `muted.json`, `{"frames": ["P0_0", …]}`.
   | `GET /api/projects/<proje>/muted` | `{"frames": […]}` |
   | `PUT /api/projects/<proje>/frames/<kare>/muted`, gövde `{"muted": true\|false}` | `{"frames": […]}`, yeni liste |
   | geçersiz değer | 400 |
-  | kapatmada sesi olmayan kare | 400 |
+  | kapatmada videosu inmemiş kare | 400 |
   | olmayan proje | 404 `{"error": "Proje yok: <proje>"}` |
   | okunamayan dosya | 503 (`OSError`, `web/app.py`'nin tek işleyicisi) |
 
   PUT bir durumu söyler, tersine çevirmez: iki kez gelen aynı istek aynı sonucu bırakır. URL'deki kare
-  kimliği yola dönüşmez, yalnız JSON'a yazılır; kapatmada kayıtta sesi olan bir kare olmalıdır.
+  kimliği yola dönüşmez, yalnız JSON'a yazılır; kapatmada kayıtta videosu inmiş bir kare olmalıdır.
 - **`run_export`:**
   - `start_export` ve `run_export` yeni bir isimli argüman alır, `mutes` (zorunlu: unutulan bağlantı
     sessizce "hiçbiri kapalı değil" olmasın).
   - Liste bir kez, export'un klasörü açılmadan önce okunur. Okunamazsa geride temizlenecek bir şey
     kalmaz.
-  - `silenced` olan karenin videosu `exporter.silent(video, hedef)` ile kesilir: görüntü kopyalanır,
-    ses hiç alınmaz (`-c copy -an`). Öteki kareler bugünkü gibi `exporter.piece` ile.
+  - Kimliği listede olan karenin videosu `exporter.silent(video, hedef)` ile kesilir: görüntü
+    kopyalanır, ses hiç alınmaz (`-c copy -an`). Öteki kareler bugünkü gibi `exporter.piece` ile.
   - Ayrı export'ta parça sessiz bir video olur. Birleşik export'ta öteki sesi olmayan parçalar gibi
     `_evened_out` ona sessizlik yazar, bu yüzden birleşmenin sesi kaymaz.
 - **`export_summary`:**
-  - O da `mutes` alır ve `muted` sayısını ekler: videosu export'a girecek ve `silenced` olan kareler.
-  - `silent` aynı şeyi sayar (sesi olmayanlar), artık `holds_sound`'la. İki sayı ayrık: kapatılan
-    sesi olan bir kare `silent`'e girmez.
+  - O da `mutes` alır ve `muted` sayısını ekler: videosu export'a girecek ve kimliği listede olan
+    kareler. (`silent` sayısı 514'te kalktı.)
 - **`main.py`:**
   - `_mutes = DriveMuteStore(_storage)`;
   - `start_export` ve `export_summary`'ye `mutes=_mutes`;
@@ -143,10 +141,10 @@ Yeni bir dosya: projenin klasöründe `muted.json`, `{"frames": ["P0_0", …]}`.
     - Basış sahnenin oynat/duraklat tıklamasına geçmez.
     - Çizimler `glyphs.jsx`'te: `SpeakerGlyph`, `SpeakerOffGlyph`.
 - **`PhotoDetail`:**
-  - Karenin sesi varsa (katmanlarında ses, kırmızı değil) ve liste okunduysa oynatıcıya `onMute`
-    verilir. Video ve Ses sekmelerinin ikisinde de, çünkü ikisi de aynı videoyu oynatıyor.
-  - `silent` listeden okunur. İkisi de `silenced`'ın kuralının ekrandaki önizlemesidir: kararı
-    export'ta sunucu verir.
+  - Karenin videosu inmişse (`stateOf("video") === "done"`, 515) ve liste okunduysa oynatıcıya
+    `onMute` verilir. Video ve Ses sekmelerinin ikisinde de, çünkü ikisi de aynı videoyu oynatıyor.
+  - `silent` listeden okunur. İkisi de `require_video`'nun kuralının ekrandaki önizlemesidir: kararı
+    sunucu verir.
   - Basış reddedilirse yan sütunda öteki retlerin kartı çıkar: başlık **Ses kapatılamadı** ya da **Ses
     açılamadı**, altında sunucunun sözü. Kart başka kareye geçince gider.
 - **`ExportScreen`:** *⚠ N videonun sesi kapalı*, `summary.muted` sıfırdan büyükse, "sesi yok"
@@ -181,7 +179,7 @@ Her biri proje, sohbet ve dosya sayısından bağımsız, O(1):
 
 - Galerinin kartları değişmez; ikon yalnız kare sayfasında.
 - Kopyala ile doğan ikiz, kaynağının sesi kapalı olsa da açık başlar: kapatılan, o karenin sesi.
-- Ses silinip aynı kareye yeniden üretilirse kapalı kalır; ikon bunu gösterir.
+- Video silinip aynı kareye yeniden üretilirse kapalı kalır; ikon bunu gösterir (515).
 - Liste okunana kadar (kare sayfasının açılışında bir istek süresi) ikon çizilmez ve oynatıcı sesli
   başlar. Video kendiliğinden oynamaz, Oynat'a basılınca başlar.
 - `muted.json` okunamazsa kare sayfasında ikon çizilmez. Export ve özeti de hatayla durur: dosya elle

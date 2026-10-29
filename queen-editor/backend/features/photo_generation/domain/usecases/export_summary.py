@@ -10,7 +10,6 @@ as its graph says. Measuring each file would cost a process and a Drive read per
 the screen asks.
 """
 from backend.features.photo_generation.domain import layers
-from backend.features.photo_generation.domain.mute import silenced
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
 
 def exportable(frames):
@@ -39,12 +38,12 @@ def export_summary(record, store, plan_store, order_store, seconds, project, *, 
     videos = exportable(frames)
     graph = seconds()
     # No count of videos without a sound layer (madde 514): an H3 video carries its own sound, so
-    # one with no layer over it is not a silent one. A sound turned off is counted -- `silenced`
-    # asks for a sound to be there.
+    # one with no layer over it is not a silent one. A sound turned off is counted: any video here
+    # has landed, which is all a mark asks for (madde 515).
     muted = mutes.read(project)
     return {"videos": len(videos),
             "seconds": sum(frame["lengths"].get(layers.VIDEO, graph) for frame in videos),
-            "muted": sum(1 for frame in videos if silenced(frame, muted)),
+            "muted": sum(1 for frame in videos if frame["id"] in muted),
             # What the sequence will not hold: every frame with no video, produced or not.
             "withoutVideo": len(frames) - len(videos),
             # Where an export lands is the store's answer: building a path is not the domain's job.

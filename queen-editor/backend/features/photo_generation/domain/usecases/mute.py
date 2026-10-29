@@ -18,12 +18,13 @@ def set_muted(mutes, record, project, frame, on):
 
     The value is refused before the project is looked for: the cheap refusal comes first. The project
     must already exist -- every folder under the root counts as one. Turning off asks the record
-    whether the frame holds a sound, since only a sound can be turned off; turning on is always
-    taken, so a mark left on a frame whose sound has gone can still be taken off.
+    whether the frame's video has landed, since only a video that is there has a sound to turn off
+    (madde 515); turning on is always taken, so a mark left on a frame whose video has gone can
+    still be taken off.
     """
     mute.check(on)
     if not mutes.project_exists(project):
         raise ProjectMissing(f"Proje yok: {project}")
     if on:
-        mute.require_sound(record.slots(project), frame)
+        mute.require_video(record.slots(project), frame)
     return mutes.put(project, frame, on)

@@ -1,14 +1,15 @@
-"""A video's sound turned off (madde 510): which frames hold a sound, which count as silenced, and
-what a press may say.
+"""A video's sound turned off (madde 510, 515): which frames may be silenced, and what a press may
+say.
 
 The user's words (29 Ekim): "bazen sesin kapatmak istiyoruz spesifik bir videonun export olurken
-yapamıyoruz". The sound is MMAudio's layer; turned off, the video plays and exports with no sound
-at all, and the layer itself stays in the project.
+yapamıyoruz". Turned off, the video plays and exports with no sound at all -- H3's own and an old
+MMAudio layer's, if it has one -- and the layer itself stays in the project.
 
-"Does this frame hold a sound" is answered here and nowhere else in the backend: by a gallery row
-(`holds_sound`) for the export and its summary, and by the record's cell (`require_sound`) for a
-press. A mark counts only while the frame holds a sound -- the frame page draws the icon on no other
-video -- so a mark left on a frame whose sound has gone changes nothing anywhere.
+Every video whose file has landed can be turned off (madde 515, "evet lütfen"): H3's video carries
+a sound of its own, so whether a sound layer lies over it is not asked. That is answered here, from
+the record's cell, for a press (`require_video`). The export needs no second copy of it: it takes
+only the frames whose video has landed (`export_summary.exportable`), and among those a mark is
+simply the frame's identity in the list.
 """
 from backend.features.photo_generation.domain import layers
 
@@ -17,8 +18,8 @@ class InvalidMute(Exception):
     """A value a press cannot carry (message is user-facing)."""
 
 
-class NoSound(Exception):
-    """The frame asked to be silenced has no sound to turn off (message is user-facing)."""
+class NoVideo(Exception):
+    """The frame asked to be silenced has no video to turn off (message is user-facing)."""
 
 
 def check(on):
@@ -27,21 +28,10 @@ def check(on):
         raise InvalidMute("Ses kapalı ya da açık olmalı.")
 
 
-def holds_sound(frame):
-    """Does this gallery row carry a sound? One that blew up names a file but is not there."""
-    return (bool(frame.get("layers", {}).get(layers.AUDIO))
-            and layers.AUDIO not in frame.get("failed", []))
-
-
-def silenced(frame, muted):
-    """Is this gallery row's sound turned off? `muted` is the project's list of frame identities."""
-    return holds_sound(frame) and frame["id"] in muted
-
-
-def require_sound(slots, frame):
-    """NoSound unless the frame's sound has landed. `slots` is the record's fold for the project:
-    {frame: {slot: {"status", "file", ...}}} -- the same answer holds_sound reads from a row, asked
-    of the record because a press has no gallery row in hand."""
-    cell = slots.get(frame, {}).get(layers.AUDIO)
+def require_video(slots, frame):
+    """NoVideo unless the frame's video has landed. `slots` is the record's fold for the project:
+    {frame: {slot: {"status", "file", ...}}} -- asked of the record because a press has no gallery
+    row in hand. A video that blew up or is back in line is not there to be heard."""
+    cell = slots.get(frame, {}).get(layers.VIDEO)
     if not cell or cell["status"] != layers.DONE:
-        raise NoSound(f"Bu karenin sesi yok: {frame}")
+        raise NoVideo(f"Bu karenin videosu yok: {frame}")

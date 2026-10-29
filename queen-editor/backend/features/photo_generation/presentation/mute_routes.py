@@ -6,7 +6,7 @@ and written into the list.
 """
 from flask import Blueprint, jsonify, request
 
-from backend.features.photo_generation.domain.mute import InvalidMute, NoSound
+from backend.features.photo_generation.domain.mute import InvalidMute, NoVideo
 from backend.features.photo_generation.domain.usecases.start_batch import ProjectMissing
 
 
@@ -27,7 +27,7 @@ def make_mute_blueprint(get_muted, set_muted):
         body = request.get_json(silent=True) or {}
         try:
             return jsonify({"frames": set_muted(project, frame, body.get("muted"))})
-        except (InvalidMute, NoSound) as exc:
+        except (InvalidMute, NoVideo) as exc:
             return jsonify({"error": str(exc)}), 400
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404

@@ -92,7 +92,7 @@ function useWaveform(audioUrl) {
 // `silent` plays the video with no sound at all -- the layer's nor the video's own -- because its
 // sound is turned off (madde 510); the wav and its waveform stay, the sound is still the project's.
 // `onMute` is the press on the switch, and the switch is drawn only when the page hands one: the
-// page knows whether this video has a sound to turn off.
+// page knows whether this video may be silenced.
 export default function LayerPlayer({ videoUrl, audioUrl, silent = false, onMute, onReady, onFail,
                                       children }) {
   const video = useRef(null);

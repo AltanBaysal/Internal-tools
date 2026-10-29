@@ -339,7 +339,7 @@ _happy_ending_bp = make_happy_ending_blueprint(
     get_happy_ending=_happy_ending,
     save_happy_ending=partial(save_happy_ending, _happy_endings))
 # A video's sound turned off from its frame page (madde 510). Turning off asks the record whether
-# the frame has a sound to turn off.
+# the frame's video has landed (madde 515).
 _mute_bp = make_mute_blueprint(get_muted=partial(get_muted, _mutes),
                                set_muted=partial(set_muted, _mutes, _photo_record))
 

@@ -15,7 +15,6 @@ to take (madde 474).
 from functools import partial
 
 from backend.features.photo_generation.domain import layers
-from backend.features.photo_generation.domain.mute import holds_sound, silenced
 from backend.features.photo_generation.domain.usecases.export_summary import exportable
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
 from backend.features.photo_generation.domain.usecases.start_batch import ProjectMissing
@@ -60,7 +59,9 @@ def _extension(filename):
 
 def _audio_of(frame):
     """The sound laid over this frame's video, or None -- a failed one is not there."""
-    return frame["layers"][layers.AUDIO] if holds_sound(frame) else None
+    if layers.AUDIO in frame.get("failed", []):
+        return None
+    return frame.get("layers", {}).get(layers.AUDIO)
 
 
 def run_export(runner, store, record, plan_store, order_store, exporter, now, project, mode, *,
@@ -130,7 +131,8 @@ def _write(runner, store, exporter, frames, muted, project, stamp, pieces_dir, m
         name = f"{index:02d}.mp4"
         piece = store.piece_path(pieces_dir, name)
         video = store.file_path(project, frame["layers"][layers.VIDEO])
-        if silenced(frame, muted):
+        # Every frame here has a video that landed, which is all a mark asks for (madde 515).
+        if frame["id"] in muted:
             # No sound at all, the video's own included: an H3 video carries one, and a plain copy
             # would keep it (madde 510). A merged export writes silence into it like any other
             # soundless piece.

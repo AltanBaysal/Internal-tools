@@ -528,11 +528,11 @@ export default function PhotoDetail({ project, frame: fid }) {
   // Was this layer already sent, and was any of the presses a retry? The corner says which.
   const wasSent = (layer) => sent.some((one) => one.layer === layer);
   const retried = sent.some((one) => one.retry);
-  // Does the video on the stage have a sound to turn off, and is it off? A preview of the server's
-  // rule (domain/mute.holds_sound, silenced): only a sound that is there counts, not one that blew
-  // up.
-  const sounded = Boolean(frame?.layers?.audio) && !(frame?.failed || []).includes("audio");
-  const silent = sounded && (muted || []).includes(frame.id);
+  // May the video on the stage be silenced, and is it? A preview of the server's rule
+  // (domain/mute.require_video): every video that has landed, with or without a sound layer over
+  // it, since H3's video carries its own (madde 515). One that blew up or is still coming has none.
+  const landed = stateOf("video") === "done";
+  const silent = landed && (muted || []).includes(frame.id);
   // What the stage's media belongs to. A new frame or tab builds new media under it, so nothing of
   // the one before can stay on screen while the next file is on its way (madde 232).
   const stageKey = `${fid}/${open}`;
@@ -707,7 +707,7 @@ export default function PhotoDetail({ project, frame: fid }) {
                                /* On both tabs: both play this video. No switch until the list
                                   is read -- one drawn before would be a guess at its state. */
                                silent={silent}
-                               onMute={sounded && muted !== null ? handleMute : undefined}
+                               onMute={landed && muted !== null ? handleMute : undefined}
                                onReady={onReady} onFail={onFail}>
                     {scenarioCard(true)}
                   </LayerPlayer>

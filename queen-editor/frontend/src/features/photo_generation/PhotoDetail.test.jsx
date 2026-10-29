@@ -2322,12 +2322,13 @@ describe("PhotoDetail — the orientation of a photo made again", () => {
 });
 
 // Madde 510: the sound of the video being watched is turned off from its page -- top right of the
-// video, only where the video has a sound -- and it plays silent there, as it will export.
-describe("PhotoDetail — the sound turned off (madde 510)", () => {
+// video -- and it plays silent there, as it will export. Madde 515: on every video that has landed,
+// with or without an old sound over it, since H3's video carries its own.
+describe("PhotoDetail — the sound turned off (madde 510, 515)", () => {
   const offSwitch = () => screen.queryByRole("button", { name: "Sesi kapat" });
   const onSwitch = () => screen.queryByRole("button", { name: "Sesi aç" });
 
-  it.each(["Video", "Ses"])("offers the switch on the %s tab of a video with a sound",
+  it.each(["Video", "Ses"])("offers the switch on the %s tab of a video with an old sound",
                             async (name) => {
     await open("P0_0", { frames: [LAYERED] });
 
@@ -2337,17 +2338,38 @@ describe("PhotoDetail — the sound turned off (madde 510)", () => {
     expect(getMuted).toHaveBeenCalledWith("düğün");
   });
 
-  it("offers none on a video with no sound", async () => {
+  it("offers it on a video with no sound layer, and plays that video silent", async () => {
+    saveMuted.mockResolvedValueOnce(["P1_0"]).mockResolvedValueOnce([]);
     await open("P1_0", { frames: [SECOND_VIDEO] });
     fireEvent.click(tab("Video"));
-    expect(offSwitch()).toBeNull();
+
+    fireEvent.click(offSwitch());
+    await settle();
+
+    expect(saveMuted).toHaveBeenCalledWith("düğün", "P1_0", true);
+    expect(onSwitch()).toBeTruthy();
+    expect(document.querySelector("video").muted).toBe(true);
+
+    fireEvent.click(onSwitch());
+    await settle();
+
+    expect(saveMuted).toHaveBeenLastCalledWith("düğün", "P1_0", false);
+    expect(document.querySelector("video").muted).toBe(false);
   });
 
-  it("offers none on a video whose sound blew up", async () => {
+  it("offers it on a video whose old sound blew up", async () => {
     await open("P0_0", { frames: [{ ...LAYERED, failed: ["audio"],
                                     errors: { audio: "ComfyUI 500 — 3 kez denendi" } }] });
     fireEvent.click(tab("Video"));
+    expect(offSwitch()).toBeTruthy();
+  });
+
+  it("offers none on a frame whose video blew up", async () => {
+    await open("P1_0", { frames: [{ ...SECOND_VIDEO, failed: ["video"],
+                                    errors: { video: "ComfyUI 500 — 3 kez denendi" } }] });
+    fireEvent.click(tab("Video"));
     expect(offSwitch()).toBeNull();
+    expect(onSwitch()).toBeNull();
   });
 
   it("turns the sound off and plays the video silent, then back on", async () => {
@@ -2371,10 +2393,11 @@ describe("PhotoDetail — the sound turned off (madde 510)", () => {
     expect(document.querySelector("audio").muted).toBe(false);
   });
 
-  it("opens a frame whose sound was turned off before as silent", async () => {
+  it.each([["with an old sound", LAYERED], ["with no sound layer", SECOND_VIDEO]])(
+    "opens a video %s whose sound was turned off before as silent", async (_name, frame) => {
     // "kapatılan ses, yeniden açılana kadar kapalı kalır".
-    getMuted.mockResolvedValue(["P0_0"]);
-    await open("P0_0", { frames: [LAYERED] });
+    getMuted.mockResolvedValue([frame.id]);
+    await open(frame.id, { frames: [frame] });
 
     fireEvent.click(tab("Video"));
 
