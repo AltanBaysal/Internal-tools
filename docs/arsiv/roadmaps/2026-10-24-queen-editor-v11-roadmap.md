@@ -2,9 +2,9 @@
 
 **Tarih:** 2026-10-24 · **Koşu dalı:** `feat/queen-editor-v11` · **Durum:** 7/7 · bitti; kullanıcı 28 Ekim'de denedi *(kullanıcı, 28 Ekim — "ve gerisi düzgün queen agnetı ve editoru maine mergelyebilrisn")*
 
-**Yama v11.1:** 2026-10-29 · **Koşu dalı:** `feat/queen-editor-v11.1` · **Durum:** 1/2 *(kullanıcı, 29 Ekim —
+**Yama v11.1:** 2026-10-29 · **Koşu dalı:** `feat/queen-editor-v11.1` · **Durum:** 1/3 *(kullanıcı, 29 Ekim —
 "patch gibi düşün ubnları"; "queen editorun son roadmpine ekle zaten var v11.1 yap direkt sonuna ekle işte
-ynei madde olarak")*. 509 · v11-8 ve 510 · v11-9 bu yamanın maddeleri; yine tek tek yürürler. Ekrandaki sürüm V11
+ynei madde olarak")*. 509 · v11-8, 510 · v11-9 ve 511 · v11-10 bu yamanın maddeleri; yine tek tek yürürler. Ekrandaki sürüm V11
 kalır, yama onu artırmaz *(kullanıcı, 29 Ekim — "ekran sürümü değişmesin")*.
 
 **Önceki sürüm:** [v10](2026-10-20-queen-editor-v10-roadmap.md) — bitti.
@@ -23,7 +23,8 @@ ana klasörde koşunun dalında yürür.
    olcak")*. Bitince kullanıcıya haber verilir, sonra QueenAgent v12'ye geçilir.
 7. **508 · v11-7** — Qwen kalkar; kullanıcının sondaki denemesinden çıktı.
 8. **509 · v11-8** — "orada mısın?" kalkar, üretim bitince bildirim gelir.
-9. **510 · v11-9** — videonun sesi kartından kapatılabilir.
+9. **510 · v11-9** — videonun sesi kare sayfasından kapatılabilir.
+10. **511 · v11-10** — sıra kapanırken eklenen iş de başlar; 509'un reviewer'ının bulduğu.
 
 ---
 
@@ -37,7 +38,8 @@ ana klasörde koşunun dalında yürür.
 | 496 · [v11-6](#v11-6) | Sürüm V11 | ✅ · `ALIGNED` |
 | 508 · [v11-7](#v11-7) | Qwen kalkar | ✅ · `ALIGNED` |
 | 509 · [v11-8](#v11-8) | "Orada mısın?" kalkar, üretim bitince bildirim gelir | ✅ *(tünelden gelen işletim sistemi bildirimi ve ona tıklayınca sekmenin öne gelmesi kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
-| 510 · [v11-9](#v11-9) | Videonun sesi kartından kapatılabilir | `ALIGNED` |
+| 510 · [v11-9](#v11-9) | Videonun sesi kare sayfasından kapatılabilir | `ALIGNED` |
+| 511 · [v11-10](#v11-10) | Sıra kapanırken eklenen iş de başlar | `ALIGNED` |
 
 ---
 
@@ -279,14 +281,18 @@ kullanıcıyı görmüyor, ve cümlesi her oturumda "A100" diyor.
 - **A100:** *"sürekli a100 diyor ama hep a100 kualnımıyor garip oluyor"*.
 
 <a id="v11-9"></a>
-### 510 · v11-9 — Videonun sesi kartından kapatılabilir
+### 510 · v11-9 — Videonun sesi kare sayfasından kapatılabilir
 
 *(Kullanıcı, 29 Ekim — "bir m3 sesli video üretebiliyor ama bzen sesin kapatmak istiyourz spefisfik bir
 videonun exportt olurken yapamıyoruz".)*
 
-**Kabul koşulu:** Yandaki video ekranında, sesi olan her videonun kartının sağ üstünde bir ses ikonu
-var; basınca o videonun sesi kapanıyor, bir daha basınca açılıyor. Sesi kapalı video export'ta sessiz,
-öteki videolar sesli çıkıyor. Ses projede durmaya devam ediyor; yalnız kapalıyken export'a girmiyor.
+**Kabul koşulu:**
+- Videonun izlendiği kare sayfasında, sesi olan videonun sağ üstünde bir ses ikonu var. Basınca o
+  videonun sesi kapanıyor, bir daha basınca açılıyor.
+- Sesi kapalı video kare sayfasında sessiz oynuyor ve export'ta sessiz çıkıyor; öteki videolar sesli.
+  Sessiz, hiç ses yok demek: H3 videosunun kendi sesi de girmiyor.
+- Export ekranı, bugünkü "N videonun sesi yok" uyarısının yanında "N videonun sesi kapalı" diyor.
+- Ses projede durmaya devam ediyor; yeniden açılınca geri geliyor.
 
 **Bugün:** export her karenin videosuna, varsa o karenin MMAudio sesini ekliyor. Tek bir kare için sesi
 atlamanın yolu yok.
@@ -296,3 +302,29 @@ atlamanın yolu yok.
 - **Nereden:** *"export erkanında değil cardlarlar sesi olan video sesini kaptma özelliğ olursa daha güzel
   olur"*; *"yan vidoe ekranınd acardda sağ üste fala nses ikonu aç kapa yapıyor gibi düşün"*.
 - **Kalıcı:** kapatılan ses, yeniden açılana kadar kapalı kalır.
+- **Kart değil, kare sayfası** *(yapılırken, coder'ın sorusu üzerine)*: *"abi card a değil detay sayfaına
+  gelecek detay sayfaında viideo izliyoruz ya oraya"*. Galerinin kartları video oynatmıyor, ve sağ üst
+  köşelerinde sıra numarası duruyor.
+- **Kare sayfasında da sessiz:** *"hayır kare sayfasındada kapatılır es"*.
+- **Export ekranındaki uyarı:** "N videonun sesi kapalı" ayrı bir satır *(cevap: "Mantıklı")*.
+- **Sessiz, hiç ses yok demek** *(Claude'un önerisi; kullanıcı itiraz etmedi)*: bugün sesi olmayan bir
+  video H3'ün kendi sesiyle kesiliyor; sesi kapatılan video onu da taşımaz.
+
+<a id="v11-10"></a>
+### 511 · v11-10 — Sıra kapanırken eklenen iş de başlar
+
+*(Kullanıcı, 29 Ekim — "eklediğim video niye başlamıyor abi"; "abi kesinlik lütfen düzeltelim".)*
+
+**Kabul koşulu:** Kuyruğa ne zaman bir iş eklenirse eklensin, sıra kapanırken eklense bile, o iş
+başlıyor; hiçbir iş sırada başlamadan kalmıyor. İş varken "Sıradaki bütün fotoğraf ve videolar bitti."
+bildirimi gelmiyor.
+
+**Ne oluyor** *(509'un reviewer'ı, 29 Ekim)*: sıra son işi bitirip yapacak bir şey kalmadığını görünce
+kapanmaya başlıyor, ama bir iki saniye daha "çalışıyor" görünüyor. O arada Kuyruğa ekle'ye basılırsa,
+Kuyruğa ekle sıranın çalıştığını görüp onu yeniden başlatmıyor; sıra da yeni işi görmeden kapanıyor.
+Hata 509'dan eski; 509 yalnız ona yanlış bir bildirim ekledi.
+
+**Kullanıcının kararları** *(29 Ekim)*:
+- **Bildirim sırayı etkilemez:** *"bildirim ile sırasını nnasıl çalıştığını asla etkilememli öyle bir şey
+  yok"*; *"bildirim tamamne ayrı bir şey sıra mantığın ıdeğiştiremez"*.
+- **Bu yamada düzelir** *(cevap: "Bu yamaya madde olarak ekleyip düzeltelim")*.
