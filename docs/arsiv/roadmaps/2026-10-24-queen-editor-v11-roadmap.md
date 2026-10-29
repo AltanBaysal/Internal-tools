@@ -2,6 +2,11 @@
 
 **Tarih:** 2026-10-24 · **Koşu dalı:** `feat/queen-editor-v11` · **Durum:** 7/7 · bitti; kullanıcı 28 Ekim'de denedi *(kullanıcı, 28 Ekim — "ve gerisi düzgün queen agnetı ve editoru maine mergelyebilrisn")*
 
+**Yama v11.1:** 2026-10-29 · **Koşu dalı:** `feat/queen-editor-v11.1` · **Durum:** 0/2 *(kullanıcı, 29 Ekim —
+"patch gibi düşün ubnları"; "queen editorun son roadmpine ekle zaten var v11.1 yap direkt sonuna ekle işte
+ynei madde olarak")*. 509 · v11-8 ve 510 · v11-9 bu yamanın maddeleri; yine tek tek yürürler. Ekrandaki sürüm V11
+kalır, yama onu artırmaz *(kullanıcı, 29 Ekim — "ekran sürümü değişmesin")*.
+
 **Önceki sürüm:** [v10](2026-10-20-queen-editor-v10-roadmap.md) — bitti.
 
 **Sıra: tek tek, dalga yok** *(kullanıcı, 27 Ekim — "ilk queen ediytor tasklarını yapıcaz bitincebana
@@ -17,6 +22,8 @@ ana klasörde koşunun dalında yürür.
 6. **501 · v11-4** — femboy ve futa LoRA'ları, kullanıcıyla, en sonda *("bir femboy taskını son al çünkü ban ihtiaçın
    olcak")*. Bitince kullanıcıya haber verilir, sonra QueenAgent v12'ye geçilir.
 7. **508 · v11-7** — Qwen kalkar; kullanıcının sondaki denemesinden çıktı.
+8. **509 · v11-8** — "orada mısın?" kalkar, üretim bitince bildirim gelir.
+9. **510 · v11-9** — videonun sesi kartından kapatılabilir.
 
 ---
 
@@ -29,6 +36,8 @@ ana klasörde koşunun dalında yürür.
 | 500 · [v11-5](#v11-5) | Eski belgeler ve roadmap'ler arşive | ✅ · `ALIGNED` |
 | 496 · [v11-6](#v11-6) | Sürüm V11 | ✅ · `ALIGNED` |
 | 508 · [v11-7](#v11-7) | Qwen kalkar | ✅ · `ALIGNED` |
+| 509 · [v11-8](#v11-8) | "Orada mısın?" kalkar, üretim bitince bildirim gelir | `ALIGNED` |
+| 510 · [v11-9](#v11-9) | Videonun sesi kartından kapatılabilir | `ALIGNED` |
 
 ---
 
@@ -243,3 +252,44 @@ gereksiz kalabalık".)*
 defterin CONFIG'inde görünmüyor, defter onun dosyalarını indirmiyor. 499'un Qwen'le gelen her parçası
 — graph'ı, üreticisi, LoRA satırı, testleri — gider; Krea'nın SNOFS + Slime'ı ve Boş'u kalır. Daha önce
 Qwen'le çizilmiş fotoğraflar Drive'da durur.
+
+<a id="v11-8"></a>
+### 509 · v11-8 — "Orada mısın?" kalkar, üretim bitince bildirim gelir
+
+*(Kullanıcı, 29 Ekim — "10 dk sorma olayında kullanıc aktif olsada videoları inceleip silsede orda mısın
+diye soruyo".)*
+
+**Kabul koşulu:**
+- 10 dk'lık geri sayım ve "orada mısın?" kutusu yok; kullanıcı ne yaparsa yapsın çıkmıyor.
+- Sıra boşalınca, yani sıradaki bütün fotoğraf ve videolar bitince, bir kez tarayıcı bildirimi
+  geliyor. Bildirim A100 demiyor.
+
+**Bugün:** [498](#v11-2) sıra boş kaldıkça her 10 dk'da bir kutu ve bildirim çıkarıyor; ekranda çalışan
+kullanıcıyı görmüyor, ve cümlesi her oturumda "A100" diyor.
+
+**Kullanıcının kararları** *(29 Ekim)*:
+- **Basit olsun:** *"bu özelliği kaldır üretim bitince bildirim atsın yeter bu kadar basit yapalım"*.
+  Önce etkileşimi de sayan bir kural konuşuldu (*"10 dakikadır üretim yoksa && 10 dakikadır etkileşim
+  yoksa"*); kullanıcı onu karışık bulup bıraktı.
+- **"Üretim bitti" ne demek** *(cevap: "Sıra boşalınca: sıradaki bütün fotoğraf ve videolar bitince")*:
+  export'un bitişi bildirim getirmez.
+- **A100:** *"sürekli a100 diyor ama hep a100 kualnımıyor garip oluyor"*.
+
+<a id="v11-9"></a>
+### 510 · v11-9 — Videonun sesi kartından kapatılabilir
+
+*(Kullanıcı, 29 Ekim — "bir m3 sesli video üretebiliyor ama bzen sesin kapatmak istiyourz spefisfik bir
+videonun exportt olurken yapamıyoruz".)*
+
+**Kabul koşulu:** Yandaki video ekranında, sesi olan her videonun kartının sağ üstünde bir ses ikonu
+var; basınca o videonun sesi kapanıyor, bir daha basınca açılıyor. Sesi kapalı video export'ta sessiz,
+öteki videolar sesli çıkıyor. Ses projede durmaya devam ediyor; yalnız kapalıyken export'a girmiyor.
+
+**Bugün:** export her karenin videosuna, varsa o karenin MMAudio sesini ekliyor. Tek bir kare için sesi
+atlamanın yolu yok.
+
+**Kullanıcının kararları** *(29 Ekim)*:
+- **Hangi ses:** MMAudio'nun sesi; Queen Editor'de videoya ses ekleyen tek model o.
+- **Nereden:** *"export erkanında değil cardlarlar sesi olan video sesini kaptma özelliğ olursa daha güzel
+  olur"*; *"yan vidoe ekranınd acardda sağ üste fala nses ikonu aç kapa yapıyor gibi düşün"*.
+- **Kalıcı:** kapatılan ses, yeniden açılana kadar kapalı kalır.
