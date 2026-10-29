@@ -2,9 +2,9 @@
 
 **Tarih:** 2026-10-24 · **Koşu dalı:** `feat/queen-editor-v11` · **Durum:** 7/7 · bitti; kullanıcı 28 Ekim'de denedi *(kullanıcı, 28 Ekim — "ve gerisi düzgün queen agnetı ve editoru maine mergelyebilrisn")*
 
-**Yama v11.1:** 2026-10-29 · **Koşu dalı:** `feat/queen-editor-v11.1` · **Durum:** 3/6 *(kullanıcı, 29 Ekim —
+**Yama v11.1:** 2026-10-29 · **Koşu dalı:** `feat/queen-editor-v11.1` · **Durum:** 3/7 *(kullanıcı, 29 Ekim —
 "patch gibi düşün ubnları"; "queen editorun son roadmpine ekle zaten var v11.1 yap direkt sonuna ekle işte
-ynei madde olarak")*. 509 · v11-8'den 514 · v11-13'e altı madde bu yamanın; yine tek tek yürürler. Ekrandaki sürüm V11
+ynei madde olarak")*. 509 · v11-8'den 515 · v11-14'e yedi madde bu yamanın; yine tek tek yürürler. Ekrandaki sürüm V11
 kalır, yama onu artırmaz *(kullanıcı, 29 Ekim — "ekran sürümü değişmesin")*.
 
 **Önceki sürüm:** [v10](2026-10-20-queen-editor-v10-roadmap.md) — bitti.
@@ -28,6 +28,7 @@ ana klasörde koşunun dalında yürür.
 11. **512 · v11-11** — aynı anda basılan iki Kuyruğa ekle'nin ikisi de sırada kalır; 511'in QA'sının bulduğu.
 12. **513 · v11-12** — yeniden adlandırma bitmiş bir fotoğrafı yeniden çizdirmez; 511'in QA'sının bulduğu.
 13. **514 · v11-13** — MMAudio kalkar.
+14. **515 · v11-14** — ses düğmesi her videoda; 514'ten çıktı.
 
 ---
 
@@ -44,7 +45,8 @@ ana klasörde koşunun dalında yürür.
 | 510 · [v11-9](#v11-9) | Videonun sesi kare sayfasından kapatılabilir | ✅ *(gerçek H3 + MMAudio videosunun sessiz oynaması, iki export ve işaretin Colab yeniden açılınca durması kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
 | 512 · [v11-11](#v11-11) | Aynı anda basılan iki Kuyruğa ekle'nin ikisi de sırada kalır | `ALIGNED` |
 | 513 · [v11-12](#v11-12) | Yeniden adlandırma bitmiş bir fotoğrafı yeniden çizdirmez | `ALIGNED` |
-| 514 · [v11-13](#v11-13) | MMAudio kalkar | `UNALIGNED` |
+| 514 · [v11-13](#v11-13) | MMAudio kalkar | `ALIGNED` |
+| 515 · [v11-14](#v11-14) | Ses düğmesi her videoda | `ALIGNED` |
 | 511 · [v11-10](#v11-10) | Sıra kapanırken eklenen iş de başlar | ✅ *(gerçek Drive gecikmesinde son iş biterken Kuyruğa ekle kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
 
 ---
@@ -377,13 +379,24 @@ eski.
 
 *(Kullanıcı, 29 Ekim — "mmaudio zaten silenecek roadmape ekle sil".)*
 
-**Kabul koşulu:** Queen Editor'de MMAudio yok: yan paneldeki "Ses üret" sekmesi, kare sayfasındaki Ses
-sekmesi ve defterin MMAudio kutucuğu görünmüyor, defter onun dosyalarını indirmiyor. MMAudio'yla gelen
-her parça — üreticisi, graph'ı, ses katmanı, testleri — gider. Daha önce üretilmiş sesler Drive'da
-durur.
+**Kabul koşulu:** MMAudio'yla yeni ses üretilemiyor: yan paneldeki "Ses üret" sekmesi ve defterin
+MMAudio kutucuğu yok, defter onun dosyalarını indirmiyor, üreticisi ve graph'ı gitti. Daha önce
+üretilmiş sesler olduğu gibi kalıyor: kare sayfasında çalıyor, export'a giriyor, silinebiliyor.
 
-**Açık sorular:**
-- 510'un ses düğmesi bugün yalnız MMAudio sesi olan videoda çıkıyor; MMAudio gidince hiçbir videoda
-  çıkmaz. Düğme H3 videosunun kendi sesini kapatan bir düğme olarak her videoda mı kalsın?
-- Eski projelerdeki MMAudio sesleri export'a girmeye devam etsin mi, yoksa export yalnız H3'ün kendi
-  sesini mi kullansın?
+**Kullanıcının kararları** *(29 Ekim)*:
+- *"girsin sadece modeli kaldır yeter başka bir şeye karışma"* — eski sesler export'a girmeye devam
+  eder; madde yalnız modeli kaldırır.
+
+<a id="v11-14"></a>
+### 515 · v11-14 — Ses düğmesi her videoda
+
+*(Kullanıcı, 29 Ekim — 510'un düğmesi her videoda çıksın ve H3'ün kendi sesini kapatsın mı sorusuna:
+"evet lütfen".)*
+
+**Kabul koşulu:** Kare sayfasında 510'un ses düğmesi, MMAudio sesi olsun olmasın her videoda var.
+Basınca video kare sayfasında sessiz oynuyor ve export'ta hiç sesiz çıkıyor: H3'ün kendi sesi de, varsa
+eski MMAudio sesi de girmiyor. Bir daha basınca ikisi de geri geliyor.
+
+**Neden:** kullanıcının ilk mesajındaki "m3" büyük ihtimalle H3'tü, kendi sesiyle video üreten model.
+510 onu MMAudio sanılarak kuruldu, ve düğme yalnız MMAudio sesi olan videoda çıkıyor; 514'ten sonra
+yeni hiçbir videoda çıkmazdı.
