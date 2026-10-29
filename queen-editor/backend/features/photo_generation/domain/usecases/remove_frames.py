@@ -34,38 +34,45 @@ from backend.features.photo_generation.domain.usecases.list_frames import list_f
 
 def remove_frames(record, store, plan_store, order_store, now, project, frames):
     checked(frames, "Silinecek")
-    # Raises ProjectMissing when there is no such project.
-    gallery = {frame["id"]: frame
-               for frame in list_frames(record, store, plan_store, order_store, project)}
-    slots = record.slots(project)
+    # Held from the slots read to the order written: which files no other frame holds is decided
+    # before they are unlinked, and a copy born in between -- its rows pointing at those files --
+    # would be left standing on a deleted picture (madde 512).
+    with plan_store.held(project):
+        # Raises ProjectMissing when there is no such project.
+        gallery = {frame["id"]: frame
+                   for frame in list_frames(record, store, plan_store, order_store, project)}
+        slots = record.slots(project)
 
-    # The whole deletion is decided first: which slots close, and which files that leaves unheld.
-    deleted, removed, closing = [], [], set()
-    for fid in frames:
-        frame = gallery.get(fid)
-        if frame is None:
-            continue
-        if frame["status"] == queue.DONE:
-            cells = slots.get(fid, {})
-            closing |= {(fid, slot) for slot, cell in cells.items()
-                        if layers.is_taken(cell["status"])}
-            deleted.append(fid)
-        else:
-            removed.append(fid)
+        # The whole deletion is decided first: which slots close, and which files that leaves
+        # unheld.
+        deleted, removed, closing = [], [], set()
+        for fid in frames:
+            frame = gallery.get(fid)
+            if frame is None:
+                continue
+            if frame["status"] == queue.DONE:
+                cells = slots.get(fid, {})
+                closing |= {(fid, slot) for slot, cell in cells.items()
+                            if layers.is_taken(cell["status"])}
+                deleted.append(fid)
+            else:
+                removed.append(fid)
 
-    for file in sorted(layers.files_to_unlink(slots, closing)):
-        store.delete(project, file)
-    for fid, slot in sorted(closing):
-        record.mark(project, fid, slot, slots[fid][slot]["file"], queue.DELETED, now())
-    for fid in removed:
-        # The name each job was planned to take: nothing was ever produced under it, and a line
-        # still has to say which file it was about. A card owed nothing at all is closed on its
-        # photo slot, so that "never produced" is written down rather than left as a silence.
-        video = (slots.get(fid, {}).get(layers.VIDEO) or {}).get("file")
-        for slot in gallery[fid].get("owed") or (layers.PHOTO,):
-            record.mark(project, fid, slot, layer_file(slot, fid, video), queue.REMOVED, now())
+        for file in sorted(layers.files_to_unlink(slots, closing)):
+            store.delete(project, file)
+        for fid, slot in sorted(closing):
+            record.mark(project, fid, slot, slots[fid][slot]["file"], queue.DELETED, now())
+        for fid in removed:
+            # The name each job was planned to take: nothing was ever produced under it, and a line
+            # still has to say which file it was about. A card owed nothing at all is closed on its
+            # photo slot, so that "never produced" is written down rather than left as a silence.
+            video = (slots.get(fid, {}).get(layers.VIDEO) or {}).get("file")
+            for slot in gallery[fid].get("owed") or (layers.PHOTO,):
+                record.mark(project, fid, slot, layer_file(slot, fid, video), queue.REMOVED,
+                            now())
 
-    gone = set(deleted + removed)
-    if gone:
-        order_store.write(project, [fid for fid in order_store.read(project) if fid not in gone])
+        gone = set(deleted + removed)
+        if gone:
+            order_store.write(project,
+                              [fid for fid in order_store.read(project) if fid not in gone])
     return {"deleted": deleted, "removed": removed}

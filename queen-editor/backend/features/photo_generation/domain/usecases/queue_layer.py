@@ -117,60 +117,63 @@ def queue_layer(runner, store, record, plan_store, order_store, producers, now, 
     if isinstance(variants, bool) or not isinstance(variants, int) \
             or not 1 <= variants <= MAX_VARIANTS:
         raise InvalidVariants(f"Varyant sayısı 1-{MAX_VARIANTS} arası bir tam sayı olmalı.")
-    gallery = list_frames(record, store, plan_store, order_store, project)
-    scope = frames_in_scope(gallery, kind, files)
-    if not scope:
-        # Nothing owed and nothing started: an empty scope is a result, not a failure.
-        return 0
+    # Held from the gallery read to the jobs written: a press at the same moment would otherwise
+    # read the same names and give its copies the same ones (madde 512).
+    with plan_store.held(project):
+        gallery = list_frames(record, store, plan_store, order_store, project)
+        scope = frames_in_scope(gallery, kind, files)
+        if not scope:
+            # Nothing owed and nothing started: an empty scope is a result, not a failure.
+            return 0
 
-    # Asked once per press, and only of a video: every job this press puts in the queue carries the
-    # length and the switch of this moment (madde 422, 426).
-    timed = video_settings.carried(length, ending, project) if kind == layers.VIDEO else {}
-    taken = known_ids(record, plan_store, project)
-    # What the log last said about each slot. Read once: the only cells consulted below belong to
-    # frames that already exist, and the rows written during the loop are about other slots.
-    slots = record.slots(project)
-    jobs, born = [], {}
-    # Written oldest first, the direction the engine works in: the gallery is newest-first and its
-    # foot is what gets made first, so a plan written the way it reads would run backwards wherever
-    # the gallery's own order file has nothing to say.
-    for frame in reversed(scope):
-        fid = frame["id"]
-        mark = _mark(kind, mode, gallery, fid)
-        if mark is None:
-            continue
-        mark = {**mark, **timed}
-        number, variant = family(frame)
-        held = frame.get("layers", {})
-        owed = variants
-        if kind not in held:
-            settled = slots.get(fid, {}).get(kind)
-            if settled:
-                # Free is not the same as never written about: emptying the queue writes removed and
-                # deleting a layer writes deleted, and both close the job for good. queued is the one
-                # line that reopens it -- the same line Tekrar dene writes, with the slot's own file
-                # name -- and without it the job appended below lands in a plan the queue cannot see
-                # it in. Reported 2026-08-14: after emptying the queue, sound could never be queued
-                # again.
-                record.mark(project, fid, kind, settled["file"], queue.QUEUED, now())
-            jobs.append(_job(kind, fid, number, variant, mark))
-            owed -= 1
-        for _ in range(owed):
-            copy = next_id(taken, number)
-            taken.add(copy)
-            # A real frame, born holding everything below the layer being made. No flag and no
-            # field -- the gallery draws it, deletes it and orders it by the rules it has.
-            carry_layers(record, project, copy, frame, kind, now)
-            born.setdefault(fid, []).append(copy)
-            jobs.append(_job(kind, copy, number, variant_of(copy), mark))
+        # Asked once per press, and only of a video: every job this press puts in the queue carries
+        # the length and the switch of this moment (madde 422, 426).
+        timed = video_settings.carried(length, ending, project) if kind == layers.VIDEO else {}
+        taken = known_ids(record, plan_store, project)
+        # What the log last said about each slot. Read once: the only cells consulted below belong
+        # to frames that already exist, and the rows written during the loop are about other slots.
+        slots = record.slots(project)
+        jobs, born = [], {}
+        # Written oldest first, the direction the engine works in: the gallery is newest-first and
+        # its foot is what gets made first, so a plan written the way it reads would run backwards
+        # wherever the gallery's own order file has nothing to say.
+        for frame in reversed(scope):
+            fid = frame["id"]
+            mark = _mark(kind, mode, gallery, fid)
+            if mark is None:
+                continue
+            mark = {**mark, **timed}
+            number, variant = family(frame)
+            held = frame.get("layers", {})
+            owed = variants
+            if kind not in held:
+                settled = slots.get(fid, {}).get(kind)
+                if settled:
+                    # Free is not the same as never written about: emptying the queue writes removed
+                    # and deleting a layer writes deleted, and both close the job for good. queued
+                    # is the one line that reopens it -- the same line Tekrar dene writes, with the
+                    # slot's own file name -- and without it the job appended below lands in a plan
+                    # the queue cannot see it in. Reported 2026-08-14: after emptying the queue,
+                    # sound could never be queued again.
+                    record.mark(project, fid, kind, settled["file"], queue.QUEUED, now())
+                jobs.append(_job(kind, fid, number, variant, mark))
+                owed -= 1
+            for _ in range(owed):
+                copy = next_id(taken, number)
+                taken.add(copy)
+                # A real frame, born holding everything below the layer being made. No flag and no
+                # field -- the gallery draws it, deletes it and orders it by the rules it has.
+                carry_layers(record, project, copy, frame, kind, now)
+                born.setdefault(fid, []).append(copy)
+                jobs.append(_job(kind, copy, number, variant_of(copy), mark))
 
-    if not jobs:
-        # Every frame in scope was dropped for want of something to end on. Nothing owed and nothing
-        # started, exactly as an empty scope already is.
-        return 0
-    if born:
-        order_store.write(project, placed([frame["id"] for frame in gallery], born))
-    plan_store.append(project, jobs)
+        if not jobs:
+            # Every frame in scope was dropped for want of something to end on. Nothing owed and
+            # nothing started, exactly as an empty scope already is.
+            return 0
+        if born:
+            order_store.write(project, placed([frame["id"] for frame in gallery], born))
+        plan_store.append(project, jobs)
     run_queue(runner, store, record, plan_store, producers, now, project, log,
               order_store=order_store, writers=writers, stills=stills,
               references=references)

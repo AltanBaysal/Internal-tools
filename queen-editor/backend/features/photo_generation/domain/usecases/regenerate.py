@@ -79,58 +79,64 @@ def regenerate(runner, store, record, plan_store, order_store, producers, new_se
     production_mode.validate(mode, kind)
     if kind == layers.PHOTO:
         orientations.validate(orientation)
-    gallery = list_frames(record, store, plan_store, order_store, project)
-    source = next((frame for frame in gallery if frame["id"] == fid), None)
-    if source is None:
-        raise FrameMissing(f"Bu kare galeride yok: {fid}")
-    under = queue.ORDER[:queue.ORDER.index(kind)]
-    if source["status"] != queue.DONE or any(slot not in source.get("layers", {})
-                                             for slot in under):
-        raise LayerMissing(f"Bu karede {kind} üretilemez: altındaki katman yok.")
+    # Held from the gallery read to the order written: a press at the same moment would otherwise
+    # read the same names and take the same one (madde 512).
+    with plan_store.held(project):
+        gallery = list_frames(record, store, plan_store, order_store, project)
+        source = next((frame for frame in gallery if frame["id"] == fid), None)
+        if source is None:
+            raise FrameMissing(f"Bu kare galeride yok: {fid}")
+        under = queue.ORDER[:queue.ORDER.index(kind)]
+        if source["status"] != queue.DONE or any(slot not in source.get("layers", {})
+                                                 for slot in under):
+            raise LayerMissing(f"Bu karede {kind} üretilemez: altındaki katman yok.")
 
-    number, _variant = family(source)
-    said = (source.get("prompts", {}).get(kind) or "").strip()
-    if prompt.strip() == said:
-        # The same words: another variant of the same prompt's family.
-        born = next_id(known_ids(record, plan_store, project), number)
-    else:
-        # New words are a new prompt: it takes the next number and starts its own family.
-        born = frame_id(next_number(store, plan_store, record, project), 0)
+        number, _variant = family(source)
+        said = (source.get("prompts", {}).get(kind) or "").strip()
+        if prompt.strip() == said:
+            # The same words: another variant of the same prompt's family.
+            born = next_id(known_ids(record, plan_store, project), number)
+        else:
+            # New words are a new prompt: it takes the next number and starts its own family.
+            born = frame_id(next_number(store, plan_store, record, project), 0)
 
-    # Nothing at all for the plain mode: every caller before this madde named none, and the plan has
-    # to keep reading back exactly the same way.
-    mark = {} if mode == production_mode.STANDARD else {"mode": mode}
-    if mode == production_mode.LINKED:
-        target = production_mode.frame_after(gallery, fid)
-        if target is None:
-            # Named rather than planned with nothing: a job carrying no target reaches the render
-            # and fails there on a frame it cannot even name.
-            raise NoNextFrame("Bu son kare — bağlanacak sonraki kare yok.")
-        mark["linkedTo"] = target
+        # Nothing at all for the plain mode: every caller before this madde named none, and the plan
+        # has to keep reading back exactly the same way.
+        mark = {} if mode == production_mode.STANDARD else {"mode": mode}
+        if mode == production_mode.LINKED:
+            target = production_mode.frame_after(gallery, fid)
+            if target is None:
+                # Named rather than planned with nothing: a job carrying no target reaches the
+                # render and fails there on a frame it cannot even name.
+                raise NoNextFrame("Bu son kare — bağlanacak sonraki kare yok.")
+            mark["linkedTo"] = target
 
-    # The lora goes with the model: dropping it would hand back a plain Nova where the user had
-    # Slime, with nothing on the page saying it changed (madde 237). Both are what the model is
-    # drawn with -- a Krea photo's are its own box's pick and no negative (madde 486, 499).
-    lora, negative = catalog.drawn_with(source.get("model", ""), source.get("lora", ""), negative)
-    carry_layers(record, project, born, source, kind, now)
-    plan_store.append(project, [{
-        "id": born, "type": kind, "number": number_of(born), "variant": variant_of(born),
-        "prompt": prompt,
-        # Only a photo is made from a prompt, a negative and a seed of its own; the layers above it
-        # are made from what is under them, and the model that renders them is not the user's to
-        # pick.
-        "negative": negative if kind == layers.PHOTO else "",
-        "seed": new_seed() if kind == layers.PHOTO else None,
-        "model": source.get("model", "") if kind == layers.PHOTO else "",
-        "lora": lora if kind == layers.PHOTO else "",
-        **({orientations.FIELD: orientation} if kind == layers.PHOTO else {}),
-        **mark,
-        **(video_settings.carried(length, ending, project) if kind == layers.VIDEO else {}),
-        # The scene stays with the picture (madde 397). New words start a new prompt's family, and
-        # the gallery finds a scene by the family's number -- so the line that opens it says it.
-        **({"scene": source["scene"]} if source["scene"] else {}),
-    }])
-    order_store.write(project, placed([frame["id"] for frame in gallery], {source["id"]: [born]}))
+        # The lora goes with the model: dropping it would hand back a plain Nova where the user had
+        # Slime, with nothing on the page saying it changed (madde 237). Both are what the model is
+        # drawn with -- a Krea photo's are its own box's pick and no negative (madde 486, 499).
+        lora, negative = catalog.drawn_with(source.get("model", ""), source.get("lora", ""),
+                                            negative)
+        carry_layers(record, project, born, source, kind, now)
+        plan_store.append(project, [{
+            "id": born, "type": kind, "number": number_of(born), "variant": variant_of(born),
+            "prompt": prompt,
+            # Only a photo is made from a prompt, a negative and a seed of its own; the layers above
+            # it are made from what is under them, and the model that renders them is not the
+            # user's to pick.
+            "negative": negative if kind == layers.PHOTO else "",
+            "seed": new_seed() if kind == layers.PHOTO else None,
+            "model": source.get("model", "") if kind == layers.PHOTO else "",
+            "lora": lora if kind == layers.PHOTO else "",
+            **({orientations.FIELD: orientation} if kind == layers.PHOTO else {}),
+            **mark,
+            **(video_settings.carried(length, ending, project) if kind == layers.VIDEO else {}),
+            # The scene stays with the picture (madde 397). New words start a new prompt's family,
+            # and the gallery finds a scene by the family's number -- so the line that opens it
+            # says it.
+            **({"scene": source["scene"]} if source["scene"] else {}),
+        }])
+        order_store.write(project, placed([frame["id"] for frame in gallery],
+                                          {source["id"]: [born]}))
     run_queue(runner, store, record, plan_store, producers, now, project, log,
               order_store=order_store, writers=writers, stills=stills,
               references=references)

@@ -1,3 +1,4 @@
+import threading
 from contextlib import contextmanager
 
 import pytest
@@ -156,6 +157,13 @@ class FakePlanStore:
         self.frames = list(frames or [])
         self.negative = negative          # the pre-per-frame field older plans still carry
         self.read_for = None              # the project name the last read was made under
+        # A real lock, as DrivePlanStore's: madde 512's tests run two presses in two threads.
+        self.lock = threading.RLock()
+
+    @contextmanager
+    def held(self, project):
+        with self.lock:
+            yield
 
     def append(self, project, frames):
         self.appended.append(frames)

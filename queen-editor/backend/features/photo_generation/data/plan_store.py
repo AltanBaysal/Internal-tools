@@ -8,8 +8,17 @@ mid-write would otherwise take the entire queue with it.
 
 A frame carries its identity, not a file name: which file a layer lands in is the naming scheme's
 answer, and repeating it here would give it a second owner.
+
+Rewriting the whole file means an append reads it first, so two at once would each write back the
+plan they read and the later would drop the earlier's jobs. So each project has a lock here, held by
+every append (madde 512). It is more than the plan's: it is the project's write gate for the doors
+that name or close frames, which read the plan, the record and the order and write them back
+together, and hold it from the first read to the last write (PlanStore.held says why). The loop
+writes the record outside it. One process serves every press, so a lock in memory is enough.
 """
 import json
+import threading
+from contextlib import contextmanager
 
 from backend.features.photo_generation.domain import layers
 from backend.features.photo_generation.domain.photo_name import legacy_frame_id
@@ -69,6 +78,22 @@ def _plan(data):
 class DrivePlanStore:
     def __init__(self, storage):
         self._storage = storage
+        # One per project name, made on its first hold: a press on one project never waits for
+        # another's.
+        self._locks = {}
+        self._made = threading.Lock()
+
+    @contextmanager
+    def held(self, project):
+        """The project's write gate: no other append, and no other door that names or closes
+        frames, gets in for as long as the caller holds it.
+
+        Re-entrant: a door that holds it appends inside it.
+        """
+        with self._made:
+            lock = self._locks.setdefault(project, threading.RLock())
+        with lock:
+            yield
 
     def read(self, project):
         """The queue as stored; see _plan for its shape."""
@@ -90,11 +115,12 @@ class DrivePlanStore:
         would be the new frames alone -- every frame queued before them gone. So the append stops
         with the reason, and the file stays as it is.
         """
-        try:
-            held = _plan(_parse(self._storage.read_text(project, FILE)))
-        except ValueError as exc:
-            raise OSError(f"{project}/{FILE} okunamıyor, üstüne yazılmadı: {exc}") from exc
-        self._write(project, held["frames"] + frames)
+        with self.held(project):
+            try:
+                queued = _plan(_parse(self._storage.read_text(project, FILE)))
+            except ValueError as exc:
+                raise OSError(f"{project}/{FILE} okunamıyor, üstüne yazılmadı: {exc}") from exc
+            self._write(project, queued["frames"] + frames)
 
     def max_number(self, project):
         """Highest number this plan reserved, or None when there is no plan to honour."""

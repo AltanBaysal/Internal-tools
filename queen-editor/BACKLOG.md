@@ -83,6 +83,30 @@ okur, borç bulmaz ve `done` yayımlar — iş `Q`'da borçlu kalır. İki sekme
 adlandırma sürerken basan ajan gerekir. Düzeltme, işçiyi almakla yeniden adlandırmanın adı kimin
 tuttuğunda anlaşmasını ister (ör. `start` artık var olmayan bir adı reddeder).
 
+### Referans sırası ve arşiv işaretleri aynı anda iki yazmada birini kaybedebilir
+
+*(512'nin coder'ı buldu, 29 Ekim; denenmedi.)* 512 projenin planını, kaydını ve galeri sırasını yazan
+kapıları tek kilide aldı. Okunup bütün yeniden yazılan iki dosya hâlâ kilitsiz, aynı anda iki yazmada
+sonra yazan öncekininkini siliyor:
+- referans havuzunun sırası (`add_references`, `remove_reference`, `save_reference_order`);
+- arşiv işaretleri (`arsiv.json`, `DriveProjectStore`): aynı anda iki arşive kaldırma birini kaybeder.
+
+Düzeltme `DriveMuteStore`'un yolu: okuma ve yazma tek kilitte.
+
+### Fotoğraf kaydına aynı anda iki satır yazılabilir
+
+*(512'nin reviewer'ı buldu, 29 Ekim; Colab'da denenmedi.)* `DrivePhotoRecord.append` `photos.jsonl`'e
+kilitsiz ekliyor; sıra (biten katmanın satırı) ve kapılar (kopya karenin satırları, işaretler) aynı
+anda ekleyebiliyor. Yerel Linux'ta tek bir `O_APPEND` yazması ötekine karışmaz; Drive'ın FUSE bağlamasının
+bunu koruyup korumadığı bilinmiyor. `chat_record` aynı yazmayı bu yüzden kilitliyor. Colab'da denenecek:
+aynı anda çok sayıda satır ekleyip dosyada yarım ya da kayıp satır var mı.
+
+### Windows'ta okunan bir dosyanın üstüne kayıt düşebilir
+
+*(512'nin coder'ı buldu, 29 Ekim; yalnız yerelde.)* Windows açık bir dosyanın üstüne `os.replace`'e izin
+vermiyor (`[WinError 5] Access is denied`). Döngü ya da galeri bir dosyayı okurken onun kaydı gelirse
+kayıt düşer ve ekran hatayı gösterir; hiçbir şey kaybolmaz. Colab Linux olduğu için orada olmaz.
+
 ### Kendi kutusu olan modelde bilinmeyen LoRA çizimi durdurmuyor
 
 *(501'in reviewer'ı buldu, 28 Ekim.)* Madde 238'in kuralı: kutunun bilmediği bir LoRA çizimi durdurur,

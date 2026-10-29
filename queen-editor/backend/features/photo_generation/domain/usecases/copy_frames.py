@@ -26,26 +26,30 @@ from backend.features.photo_generation.domain.usecases.list_frames import list_f
 
 def copy_frames(record, store, plan_store, order_store, now, project, frames):
     checked(frames, "Kopyalanacak")
-    # Raises ProjectMissing when there is no such project.
-    gallery = list_frames(record, store, plan_store, order_store, project)
-    by_id = {frame["id"]: frame for frame in gallery}
+    # Nothing goes in the plan, but a twin's name is the plan's and the record's answer together, so
+    # the plan is held from the names read to the twins written: two presses at once would otherwise
+    # give two twins one name (madde 512).
+    with plan_store.held(project):
+        # Raises ProjectMissing when there is no such project.
+        gallery = list_frames(record, store, plan_store, order_store, project)
+        by_id = {frame["id"]: frame for frame in gallery}
 
-    # Every name the project has ever used, growing as the twins are born: two copies of one source
-    # in a single press must not be handed the same name.
-    ids = known_ids(record, plan_store, project)
-    born, copies = {}, []
-    for fid in frames:
-        frame = by_id.get(fid)
-        if frame is None or frame["status"] != queue.DONE:
-            continue
-        twin = next_copy_id(ids, fid)
-        ids.add(twin)
-        carry_all(record, project, twin, frame, now)
-        born.setdefault(fid, []).append(twin)
-        copies.append(twin)
+        # Every name the project has ever used, growing as the twins are born: two copies of one
+        # source in a single press must not be handed the same name.
+        ids = known_ids(record, plan_store, project)
+        born, copies = {}, []
+        for fid in frames:
+            frame = by_id.get(fid)
+            if frame is None or frame["status"] != queue.DONE:
+                continue
+            twin = next_copy_id(ids, fid)
+            ids.add(twin)
+            carry_all(record, project, twin, frame, now)
+            born.setdefault(fid, []).append(twin)
+            copies.append(twin)
 
-    if copies:
-        # Written once at the end rather than per twin: it is a single small document, and one write
-        # is one chance to be interrupted instead of N.
-        order_store.write(project, placed([frame["id"] for frame in gallery], born))
+        if copies:
+            # Written once at the end rather than per twin: it is a single small document, and one
+            # write is one chance to be interrupted instead of N.
+            order_store.write(project, placed([frame["id"] for frame in gallery], born))
     return {"copies": copies}

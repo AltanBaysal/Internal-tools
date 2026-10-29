@@ -21,9 +21,13 @@ class InvalidOrder(Exception):
 def save_order(record, store, plan_store, order_store, project, order):
     if not isinstance(order, list) or any(not isinstance(fid, str) for fid in order):
         raise InvalidOrder("Sıra listesi metin dizisi olmalı.")
-    # Raises ProjectMissing when there is no such project.
-    known = {frame["id"] for frame in list_frames(record, store, plan_store, order_store, project)}
-    # dict.fromkeys keeps the first of any repeated identity, and the order they came in.
-    cleaned = [fid for fid in dict.fromkeys(order) if fid in known]
-    order_store.write(project, cleaned)
+    # Held from the gallery read to the order written, as every other writer of the order holds
+    # it: a copy placed in between would otherwise lose its place to this list (madde 512).
+    with plan_store.held(project):
+        # Raises ProjectMissing when there is no such project.
+        known = {frame["id"]
+                 for frame in list_frames(record, store, plan_store, order_store, project)}
+        # dict.fromkeys keeps the first of any repeated identity, and the order they came in.
+        cleaned = [fid for fid in dict.fromkeys(order) if fid in known]
+        order_store.write(project, cleaned)
     return cleaned

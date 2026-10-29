@@ -1,5 +1,5 @@
 """Ports this feature needs. Implemented in data/, faked in tests -- domain stays pure."""
-from typing import Protocol
+from typing import ContextManager, Protocol
 
 
 class PhotoGenerator(Protocol):
@@ -160,6 +160,17 @@ class PhotoStore(Protocol):
 
 
 class PlanStore(Protocol):
+    def held(self, project: str) -> ContextManager[None]:
+        """The project's write gate (madde 512), kept here because the plan is what it began with.
+
+        Every door that names frames or closes them holds it from what it reads -- plan, record and
+        order together -- to the last of them it writes: two presses at once then never take one
+        name, drop each other's jobs or order, or unlink a file a frame born in between stands on.
+        append holds it too, so the plan file never loses a write. The loop writes the record
+        outside it: a landed layer's row names its own slot, and the latest row about a slot wins.
+        Re-entrant: append inside it."""
+        ...
+
     def read(self, project: str) -> dict:
         """{"negative", "frames"} -- the queue as stored, every frame carrying its identity and its
         negative."""

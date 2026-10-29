@@ -33,33 +33,37 @@ def remove_layer(record, store, plan_store, order_store, now, project, frames, k
     its video.
     """
     checked(frames, "Katmanı silinecek")
-    # Raises ProjectMissing when there is no such project.
-    gallery = {frame["id"]: frame
-               for frame in list_frames(record, store, plan_store, order_store, project)}
-    slots = record.slots(project)
-    over = layers.falls_with(kind)      # the layer itself and whatever hangs on it
+    # Held from the slots read to the last line written, remove_frames' way: a copy born in between
+    # would be left standing on a file this press decided nobody else held (madde 512).
+    with plan_store.held(project):
+        # Raises ProjectMissing when there is no such project.
+        gallery = {frame["id"]: frame
+                   for frame in list_frames(record, store, plan_store, order_store, project)}
+        slots = record.slots(project)
+        over = layers.falls_with(kind)      # the layer itself and whatever hangs on it
 
-    # Which slots close, and which jobs hanging on them never get to be made -- both for the whole
-    # press, before anything is written.
-    closing, dropping = set(), []
-    for fid in frames:
-        frame = gallery.get(fid)
-        if frame is None:
-            continue
-        cells = slots.get(fid, {})
-        closing |= {(fid, slot) for slot in over
-                    if layers.is_taken((cells.get(slot) or {}).get("status"))}
-        # A job the queue still owes on a closed layer would go looking for a video that is no
-        # longer there. The name written down is the one it would have taken -- worked out here,
-        # while the video's own row is still readable.
-        dropping += [(fid, slot, layer_file(slot, fid, (cells.get(layers.VIDEO) or {}).get("file")))
-                     for slot in over if slot in frame.get("owed", [])]
+        # Which slots close, and which jobs hanging on them never get to be made -- both for the
+        # whole press, before anything is written.
+        closing, dropping = set(), []
+        for fid in frames:
+            frame = gallery.get(fid)
+            if frame is None:
+                continue
+            cells = slots.get(fid, {})
+            closing |= {(fid, slot) for slot in over
+                        if layers.is_taken((cells.get(slot) or {}).get("status"))}
+            # A job the queue still owes on a closed layer would go looking for a video that is no
+            # longer there. The name written down is the one it would have taken -- worked out
+            # here, while the video's own row is still readable.
+            video = (cells.get(layers.VIDEO) or {}).get("file")
+            dropping += [(fid, slot, layer_file(slot, fid, video))
+                         for slot in over if slot in frame.get("owed", [])]
 
-    deleted = sorted(layers.files_to_unlink(slots, closing))
-    for name in deleted:
-        store.delete(project, name)
-    for fid, slot in sorted(closing):
-        record.mark(project, fid, slot, slots[fid][slot]["file"], queue.DELETED, now())
-    for fid, slot, name in dropping:
-        record.mark(project, fid, slot, name, queue.REMOVED, now())
+        deleted = sorted(layers.files_to_unlink(slots, closing))
+        for name in deleted:
+            store.delete(project, name)
+        for fid, slot in sorted(closing):
+            record.mark(project, fid, slot, slots[fid][slot]["file"], queue.DELETED, now())
+        for fid, slot, name in dropping:
+            record.mark(project, fid, slot, name, queue.REMOVED, now())
     return {"deleted": deleted}

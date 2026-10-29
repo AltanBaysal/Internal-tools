@@ -79,13 +79,15 @@ def queue_references(runner, store, record, plan_store, order_store, pool, order
     # Every card is an H3 video, made at the project's length and with its switch of this moment
     # (madde 422, 426).
     timed = video_settings.carried(length, ending, project)
-    cards = [{**card, **timed}
-             for card in plan_reference_cards(next_number(store, plan_store, record, project),
-                                              written, variants, new_seed, orientation)]
-    # Appended before the worker is asked to run, the way a photo batch does it: a run that dies
-    # leaves behind what it meant to make, and a loop already in flight finds the cards on its next
-    # turn.
-    plan_store.append(project, cards)
+    # Held from the number read to the cards written, start_batch's way (madde 512).
+    with plan_store.held(project):
+        cards = [{**card, **timed}
+                 for card in plan_reference_cards(next_number(store, plan_store, record, project),
+                                                  written, variants, new_seed, orientation)]
+        # Appended before the worker is asked to run, the way a photo batch does it: a run that
+        # dies leaves behind what it meant to make, and a loop already in flight finds the cards on
+        # its next turn.
+        plan_store.append(project, cards)
     run_queue(runner, store, record, plan_store, producers, now, project, log,
               order_store=order_store, writers=writers, stills=stills,
               # The pool is read at each job's turn, not now: it is the user's to change while the

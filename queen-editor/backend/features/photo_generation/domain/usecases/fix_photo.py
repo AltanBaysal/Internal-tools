@@ -68,50 +68,55 @@ def fix_photo(runner, store, record, plan_store, order_store, producers, now, pr
     it has a photo and no video, made or coming. Only the photo and the frame's red slots close
     here, so a video is never deleted even if one were ever asked about.
     """
-    try:
-        gallery = list_frames(record, store, plan_store, order_store, project)
-    except ProjectMissing:
-        return CHANGED
-    frame = next((card for card in gallery if card["id"] == seen.get("id")), None)
-    if frame is None or any(frame.get(key) != seen.get(key) for key in WATCHED):
-        return CHANGED
+    # Held from the look at the frame to the old photo's lines: a second fix at the same moment then
+    # finds the frame changed rather than making it again under the same new name (madde 512).
+    with plan_store.held(project):
+        try:
+            gallery = list_frames(record, store, plan_store, order_store, project)
+        except ProjectMissing:
+            return CHANGED
+        frame = next((card for card in gallery if card["id"] == seen.get("id")), None)
+        if frame is None or any(frame.get(key) != seen.get(key) for key in WATCHED):
+            return CHANGED
 
-    fid = frame["id"]
-    plan = plan_store.read(project)["frames"]
-    slots = record.slots(project)
-    # A linked video still owed arrives at this frame's photo when its turn comes (madde 402): with
-    # the photo deleted it would fail on a frame it can no longer find. Read off the open jobs, which
-    # are the queue's own answer; a video already made arrived at the picture it was handed.
-    if any(job.get("linkedTo") == fid for job in queue.open_jobs(plan, slots)):
-        return LINKED
+        fid = frame["id"]
+        plan = plan_store.read(project)["frames"]
+        slots = record.slots(project)
+        # A linked video still owed arrives at this frame's photo when its turn comes (madde 402):
+        # with the photo deleted it would fail on a frame it can no longer find. Read off the open
+        # jobs, which are the queue's own answer; a video already made arrived at the picture it was
+        # handed.
+        if any(job.get("linkedTo") == fid for job in queue.open_jobs(plan, slots)):
+            return LINKED
 
-    line = made_by(plan, frame)
-    born = _born(store, record, plan_store, project, frame, prompt)
-    # What the model is drawn with: a Krea photo's are its own box's pick and no negative (madde
-    # 486, 499).
-    lora, negative = catalog.drawn_with(line.get("model", ""), line.get("lora", ""), negative)
-    plan_store.append(project, [{
-        "id": born, "type": layers.PHOTO, "number": number_of(born), "variant": variant_of(born),
-        "prompt": prompt, "negative": negative,
-        # The card's seed: its line's, or for a copy frame its source's row's.
-        "seed": frame.get("seed"),
-        "model": line.get("model", ""), "lora": lora,
-        orientations.FIELD: orientations.of(line),
-        # The gallery finds a scene by the family's number, so a new number's line says it.
-        **({"scene": frame["scene"]} if frame["scene"] else {}),
-    }])
-    order_store.write(project, [born if card["id"] == fid else card["id"] for card in gallery])
+        line = made_by(plan, frame)
+        born = _born(store, record, plan_store, project, frame, prompt)
+        # What the model is drawn with: a Krea photo's are its own box's pick and no negative (madde
+        # 486, 499).
+        lora, negative = catalog.drawn_with(line.get("model", ""), line.get("lora", ""), negative)
+        plan_store.append(project, [{
+            "id": born, "type": layers.PHOTO, "number": number_of(born),
+            "variant": variant_of(born), "prompt": prompt, "negative": negative,
+            # The card's seed: its line's, or for a copy frame its source's row's.
+            "seed": frame.get("seed"),
+            "model": line.get("model", ""), "lora": lora,
+            orientations.FIELD: orientations.of(line),
+            # The gallery finds a scene by the family's number, so a new number's line says it.
+            **({"scene": frame["scene"]} if frame["scene"] else {}),
+        }])
+        order_store.write(project, [born if card["id"] == fid else card["id"] for card in gallery])
 
-    # The slots read above still hold: the plan and the order were written since, the record was not.
-    closing = {(fid, slot) for slot, cell in slots.get(fid, {}).items()
-               if (slot == layers.PHOTO and layers.is_taken(cell["status"]))
-               or cell["status"] == queue.FAILED}
-    # A file another frame still holds stays (madde 101); the disk first, so a failed delete leaves
-    # the record saying what is still there (remove_frames' order).
-    for file in sorted(layers.files_to_unlink(slots, closing)):
-        store.delete(project, file)
-    for _fid, slot in sorted(closing):
-        record.mark(project, fid, slot, slots[fid][slot]["file"], queue.DELETED, now())
+        # The slots read above still hold: the plan and the order were written since, the record
+        # was not.
+        closing = {(fid, slot) for slot, cell in slots.get(fid, {}).items()
+                   if (slot == layers.PHOTO and layers.is_taken(cell["status"]))
+                   or cell["status"] == queue.FAILED}
+        # A file another frame still holds stays (madde 101); the disk first, so a failed delete
+        # leaves the record saying what is still there (remove_frames' order).
+        for file in sorted(layers.files_to_unlink(slots, closing)):
+            store.delete(project, file)
+        for _fid, slot in sorted(closing):
+            record.mark(project, fid, slot, slots[fid][slot]["file"], queue.DELETED, now())
 
     try:
         run_queue(runner, store, record, plan_store, producers, now, project, log,

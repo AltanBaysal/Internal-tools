@@ -106,11 +106,14 @@ def start_batch(runner, store, record, plan_store, producers, new_seed, now,
 
     # Neither the model nor the lora is checked against what is installed: whether they can be
     # loaded is the renderer's answer to give, at render time, in its own words (Madde 8's rule).
-    frames = plan_frames(next_number(store, plan_store, record, project), entries, negative,
-                         variants, new_seed, model, lora, orientation)
-    # Appended before the worker is asked to run: a run that dies leaves behind what it meant to
-    # make, and a loop already in flight finds the frames on its next turn.
-    plan_store.append(project, frames)
+    # Held from the number read to the frames written, so a press at the same moment numbers after
+    # these rather than beside them (madde 512).
+    with plan_store.held(project):
+        frames = plan_frames(next_number(store, plan_store, record, project), entries, negative,
+                             variants, new_seed, model, lora, orientation)
+        # Appended before the worker is asked to run: a run that dies leaves behind what it meant
+        # to make, and a loop already in flight finds the frames on its next turn.
+        plan_store.append(project, frames)
     run_queue(runner, store, record, plan_store, producers, now, project, log,
               order_store=order_store, writers=writers, stills=stills,
               references=references)
