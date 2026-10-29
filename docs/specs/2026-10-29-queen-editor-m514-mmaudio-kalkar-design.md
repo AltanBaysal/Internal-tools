@@ -96,10 +96,10 @@ satır yazılmaz; iş borçlu kalır.
 
 - **Bildirim:** 509'un bekleme cümlesi gelir, *"Sıra durdu: ses üreticisi kurulu değil."*
 - **Kuyruk paneli:** "Bekliyor — üretici kurulu değil", altında "N ses". Üreticiler listesinde ses satırı
-  hiç dönmediği için **Kaldığı yerden devam et** çıkmaz; **Kuyruğu temizle** açıktır.
-- **Kullanıcının çıkış yolu:** kareyi seçip **Sesleri sil**. `remove_layer` borçlu sesi `removed`'la
-  sıradan çıkarır, kare ve videosu kalır; sonra Devam et ya da yeni bir Kuyruğa ekle sırayı sürdürür.
-  Ya da **Kuyruğu temizle** (borçlu bütün işler çıkar).
+  hiç dönmediği için **Kaldığı yerden devam et** çıkmaz; **Kuyruğu boşalt** açıktır.
+- **Kullanıcının çıkış yolu:** **Kuyruğu boşalt** — borçlu bütün işler `removed`'la sıradan çıkar,
+  üretilmiş kareler, videolar ve sesler kalır. Seçim çubuğunun **Sesleri sil**'i burada yol değil: yalnız
+  bitmiş sesi olan karede çıkar.
 
 Kuyruk panelinin, bildirimin ve kare sayfasının cümleleri ve Tekrar dene kapıları bunun için değişmez:
 böyle bir proje yok *(kullanıcı, 29 Ekim — "öyle bir proje yok")*. Yukarısı, kodun bugünkü kurallarıyla ne
