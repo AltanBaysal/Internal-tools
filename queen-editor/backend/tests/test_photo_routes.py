@@ -19,6 +19,7 @@ from backend.features.photo_generation.domain.usecases.list_models import list_l
 from backend.features.photo_generation.domain.usecases.queue_layer import queue_layer
 from backend.features.photo_generation.domain.usecases.regenerate import regenerate
 from backend.features.photo_generation.domain.usecases.remove_layer import remove_layer
+from backend.features.photo_generation.domain.usecases.dequeue_layer import dequeue_layer
 from backend.features.photo_generation.domain.usecases.retry_failed import retry_failed
 from backend.features.photo_generation.domain.usecases.retry_frame import retry_frame
 from backend.features.photo_generation.domain.usecases.resume_batch import resume_batch
@@ -126,6 +127,8 @@ def make_client(tmp_path, generator=None, runner=None):
                            producers, lambda: 42, lambda: "2026-08-03T14:32:11+00:00"),
         remove_layer=partial(remove_layer, record, store, plan_store, order_store,
                              lambda: "2026-08-05T10:00:00+00:00"),
+        dequeue_layer=partial(dequeue_layer, record, store, plan_store, order_store,
+                              lambda: "2026-08-05T10:00:00+00:00"),
         list_frames=partial(list_frames, record, store, plan_store, order_store),
         # No model ids: a notebook that installed no photo, which is the case madde 229 is about.
         list_models=partial(list_models, []),
@@ -896,6 +899,70 @@ def test_deleting_one_layer_off_many_frames_in_one_press(tmp_path):
     gallery = client.get("/api/projects/düğün/frames").get_json()["frames"]
     assert [frame["layers"] for frame in gallery] == [{"photo": "P1_0.png"},
                                                       {"photo": "P0_0.png"}]
+
+
+def dequeue_request(client, frames, layer="video", project="düğün"):
+    return client.post(f"/api/projects/{project}/layers/{layer}/dequeue", json={"frames": frames})
+
+
+def test_a_queued_video_comes_out_and_the_frame_stays(tmp_path):
+    """Madde 516: the dequeue door takes out the job the queue still owes, and only that."""
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+    client.post("/api/projects/düğün/layers/video", json={})
+    assert client.get("/api/projects/düğün/frames").get_json()["frames"][0]["owed"] == ["video"]
+
+    resp = dequeue_request(client, ["P0_0"])
+
+    assert resp.status_code == 200
+    assert resp.get_json() == {"removed": ["P0_0_V1_0.mp4"]}
+    assert (drive / "düğün" / "P0_0.png").exists()
+    gallery = client.get("/api/projects/düğün/frames").get_json()["frames"]
+    assert [(f["id"], f["status"], f["layers"], f["owed"]) for f in gallery] == [
+        ("P0_0", "done", {"photo": "P0_0.png"}, [])]
+
+
+def test_a_queue_removal_leaves_a_video_that_has_landed(tmp_path):
+    # Queued, and landed before the press: the screen still drew it as waiting.
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+    client.post("/api/projects/düğün/layers/video", json={})
+    video = give_it_a_video(drive)
+
+    resp = dequeue_request(client, ["P0_0"])
+
+    assert resp.status_code == 200
+    assert resp.get_json() == {"removed": []}
+    assert (drive / "düğün" / video).exists()
+    gallery = client.get("/api/projects/düğün/frames").get_json()["frames"]
+    assert gallery[0]["layers"] == {"photo": "P0_0.png", "video": video}
+
+
+def test_a_photo_is_not_taken_out_of_the_queue_on_its_own(tmp_path):
+    # A frame waiting for its photo is that job: it leaves through the frame's own door.
+    client, _ = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+
+    resp = dequeue_request(client, ["P0_0"], layer="photo")
+
+    assert resp.status_code == 404
+    assert resp.get_json() == {"error": "Kuyruktan çıkarılabilir bir katman değil: photo"}
+
+
+def test_a_queue_removal_body_that_is_not_a_list_of_identities_is_refused(tmp_path):
+    client, _ = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+
+    resp = dequeue_request(client, "P0_0")
+
+    assert resp.status_code == 400
+    assert "metin dizisi" in resp.get_json()["error"]
+
+
+def test_a_queue_removal_in_a_project_that_is_not_there_is_404(tmp_path):
+    client, _ = make_client(tmp_path)
+
+    assert dequeue_request(client, ["P0_0"], project="yok").status_code == 404
 
 
 def test_a_layer_delete_body_that_is_not_a_list_of_identities_is_refused(tmp_path):

@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  dequeueLayer,
   getHappyEnding,
   getMuted,
   getStatus,
@@ -21,6 +22,7 @@ import PhotoDetail from "./PhotoDetail.jsx";
 
 vi.mock("../../shared/api.js", () => ({
   cancelGeneration: vi.fn(),
+  dequeueLayer: vi.fn(),
   generateBatch: vi.fn(),
   getHappyEnding: vi.fn(),
   getMuted: vi.fn(),
@@ -1525,8 +1527,7 @@ describe("PhotoDetail — what the page says it did", () => {
     fireEvent.click(tab("Video"));
 
     // Fark 99: the button lived on the photo tab alone, which is not the tab the user is on when
-    // they are looking at what they are waiting for. The words are the photo tab's own -- the
-    // queue takes frames out, not layers (karar 38).
+    // they are looking at what they are waiting for.
     expect(screen.getByText("Kuyruktan çıkar")).toBeTruthy();
   });
 
@@ -1670,6 +1671,53 @@ describe("PhotoDetail — what each tab offers to destroy", () => {
     fireEvent.click(tab("Video"));
     expect(screen.getByText("Videoyu sil — kare kalır").closest("button").style.background)
       .toBe("none");
+  });
+});
+
+// Madde 516: Kuyruktan çıkar on a waiting layer's tab takes out that job alone. It used to take the
+// whole frame, its finished photo with it, and asked nothing.
+describe("PhotoDetail — a layer waiting in the queue", () => {
+  // A frame whose own photo landed and whose video is still coming, with nobody working on it.
+  const WAITING_VIDEO = RENDERING;
+
+  it("takes out only the job, without asking, and stays on the frame", async () => {
+    dequeueLayer.mockResolvedValue({ removed: ["P0_0_V1_0.mp4"] });
+    await open("P0_0", { frames: [WAITING_VIDEO] });
+
+    fireEvent.click(tab("Video"));
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruktan çıkar")); });
+
+    expect(dequeueLayer).toHaveBeenCalledWith("düğün", ["P0_0"], "video");
+    // Neither of the doors that delete.
+    expect(removeLayer).not.toHaveBeenCalled();
+    expect(removeFrames).not.toHaveBeenCalled();
+    expect(screen.queryByText("1 kare silinsin mi?")).toBeNull();
+    // The frame is still the gallery's, with its photo: the page stays and shows it.
+    expect(navigate).not.toHaveBeenCalled();
+    expect(tab("Foto").getAttribute("aria-current")).toBe("page");
+  });
+
+  it("says the job could not be taken out when the server refuses", async () => {
+    dequeueLayer.mockRejectedValue(new Error("Proje yok: düğün"));
+    await open("P0_0", { frames: [WAITING_VIDEO] });
+
+    fireEvent.click(tab("Video"));
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruktan çıkar")); });
+
+    expect(screen.getByText("Video kuyruktan çıkarılamadı")).toBeTruthy();
+    expect(screen.getByText(/Proje yok/)).toBeTruthy();
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("takes out a copy frame's video by the copy's own identity", async () => {
+    dequeueLayer.mockResolvedValue({ removed: ["P0_1_V1_0.mp4"] });
+    await open("P0_1", { frames: [QUEUED_COPY] });
+
+    fireEvent.click(tab("Video"));
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruktan çıkar")); });
+
+    expect(dequeueLayer).toHaveBeenCalledWith("düğün", ["P0_1"], "video");
+    expect(removeFrames).not.toHaveBeenCalled();
   });
 });
 

@@ -35,6 +35,7 @@ vi.mock("./shared/api.js", () => ({
   regenerateFrame: vi.fn(),
   removeFrames: vi.fn(),
   removeLayer: vi.fn(),
+  dequeueLayer: vi.fn(),
   renameProject: vi.fn(),
   resumeBatch: vi.fn(),
   retryFailed: vi.fn(),

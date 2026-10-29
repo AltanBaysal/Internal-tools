@@ -195,6 +195,19 @@ describe("api.request", () => {
     expect(JSON.parse(options.body)).toEqual({ files: ["0_a.png"], variants: 2, mode: "loop" });
   });
 
+  it("takes a layer's waiting job out at a door of its own, never the delete's (madde 516)",
+     async () => {
+       const fetchMock = vi.fn().mockResolvedValue(okResponse({ removed: [] }));
+       vi.stubGlobal("fetch", fetchMock);
+
+       await api.dequeueLayer("düğün", ["P0_0"], "video");
+
+       const [url, options] = fetchMock.mock.calls[0];
+       expect(url).toBe(`/api/projects/${encodeURIComponent("düğün")}/layers/video/dequeue`);
+       expect(options.method).toBe("POST");
+       expect(JSON.parse(options.body)).toEqual({ frames: ["P0_0"] });
+     });
+
   it("reads and writes Referanstan's record at the project's own address", async () => {
     const fetchMock = vi.fn().mockResolvedValue(okResponse({ prompts: "", variants: null }));
     vi.stubGlobal("fetch", fetchMock);

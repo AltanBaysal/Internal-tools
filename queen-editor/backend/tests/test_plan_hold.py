@@ -13,6 +13,7 @@ import threading
 from backend.features.photo_generation.data.plan_store import DrivePlanStore
 from backend.features.photo_generation.domain import layers
 from backend.features.photo_generation.domain.usecases.copy_frames import copy_frames
+from backend.features.photo_generation.domain.usecases.dequeue_layer import dequeue_layer
 from backend.features.photo_generation.domain.usecases.queue_layer import queue_layer
 from backend.features.photo_generation.domain.usecases.queue_references import queue_references
 from backend.features.photo_generation.domain.usecases.regenerate import regenerate
@@ -280,6 +281,25 @@ def test_a_layer_taken_off_never_takes_the_photo_a_video_queued_at_the_same_mome
     # The photo went first, so the frame had nothing a video could hang on.
     assert other.done() == 0
     assert planned(plan_store) == []
+
+
+def test_a_video_queued_while_its_job_is_taken_out_stays_in_line():
+    """Madde 516 under 512's gate: a Kuyruğa ekle that read the job as still in line would add
+    nothing, and the job it counted on is then taken out -- "Eklendi denen hiçbir iş kaybolmuyor"."""
+    store, record, plan_store = video_project((0, "a"))
+    plan_store.append("düğün", [{"id": "0_a", "type": "video", "number": 0, "variant": 0,
+                                 "prompt": "", "negative": "", "seed": None, "model": ""}])
+    order, runner = FakeOrderStore(["0_a"]), idle_runner()
+
+    other = Contention(
+        lambda: queue_layer(runner, store, record, plan_store, order, {}, lambda: "t", "düğün",
+                            layers.VIDEO, files=["0_a.png"]),
+        *every_write(record, plan_store, order))
+    dequeue_layer(record, store, plan_store, order, lambda: "t", "düğün", ["0_a"], layers.VIDEO)
+
+    # Taken out first, then asked for again: the second press puts it back in line.
+    assert other.done() == 1
+    assert record.slots("düğün")["0_a"]["video"]["status"] == "queued"
 
 
 def test_a_drag_never_drops_the_place_of_a_copy_made_at_the_same_moment():

@@ -21,7 +21,7 @@ while the confirm sits open, and one gone name must not undo the rest.
 """
 from backend.features.photo_generation.domain import layers, queue
 from backend.features.photo_generation.domain.frame_list import checked
-from backend.features.photo_generation.domain.photo_name import layer_file
+from backend.features.photo_generation.domain.usecases.dequeue_layer import owed_on
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
 
 
@@ -53,15 +53,11 @@ def remove_layer(record, store, plan_store, order_store, now, project, frames, k
             closing |= {(fid, slot) for slot in over
                         if layers.is_taken((cells.get(slot) or {}).get("status"))}
             # A job the queue still owes on a closed layer would go looking for a video that is no
-            # longer there. The name written down is the one it would have taken -- worked out
-            # here, while the video's own row is still readable. A slot read as taken landed since
-            # the gallery was read: it is closing above, and its deleted line is all it needs
-            # (madde 513).
-            video = (cells.get(layers.VIDEO) or {}).get("file")
-            dropping += [(fid, slot, layer_file(slot, fid, video),
-                          (cells.get(slot) or {}).get("status"))
-                         for slot in over if slot in frame.get("owed", [])
-                         and (fid, slot) not in closing]
+            # longer there -- the same jobs Kuyruktan çıkar takes out, so the same answer (madde
+            # 516). A slot read as taken landed since the gallery was read: it is closing above,
+            # and its deleted line is all it needs (madde 513).
+            dropping += [(fid, slot, name, status)
+                         for slot, name, status in owed_on(frame, cells, kind)]
 
         deleted = sorted(layers.files_to_unlink(slots, closing))
         for name in deleted:

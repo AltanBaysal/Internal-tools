@@ -217,6 +217,17 @@ export async function removeLayer(project, frames, kind) {
   });
 }
 
+// Take a layer's waiting job out of the queue (madde 516). The frame stays with everything it holds,
+// and a layer that has landed meanwhile stays too. A door of its own, never a mode of removeLayer:
+// that one deletes. The answer names the jobs really taken out.
+export async function dequeueLayer(project, frames, kind) {
+  return request(`/api/projects/${encodeURIComponent(project)}/layers/${kind}/dequeue`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ frames }),
+  });
+}
+
 // Which producers this machine has, and which of them are installed. Not a project's question --
 // the models live next to the renderer, not in a project folder.
 export async function listProducers() {

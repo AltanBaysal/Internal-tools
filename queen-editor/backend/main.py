@@ -61,6 +61,7 @@ from backend.features.photo_generation.domain.usecases.halt_project import halt_
 from backend.features.photo_generation.domain.usecases.queue_layer import queue_layer
 from backend.features.photo_generation.domain.usecases.regenerate import regenerate
 from backend.features.photo_generation.domain.usecases.remove_layer import remove_layer
+from backend.features.photo_generation.domain.usecases.dequeue_layer import dequeue_layer
 from backend.features.photo_generation.domain.usecases.retry_failed import retry_failed
 from backend.features.photo_generation.domain.usecases.retry_frame import retry_frame
 from backend.features.photo_generation.domain.usecases.resume_batch import resume_batch
@@ -293,6 +294,8 @@ _photo_bp = make_photo_generation_blueprint(
                        ending=_happy_ending),
     remove_layer=partial(remove_layer, _photo_record, _photo_store, _plan_store, _order_store,
                          lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
+    dequeue_layer=partial(dequeue_layer, _photo_record, _photo_store, _plan_store, _order_store,
+                          lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
     list_frames=partial(list_frames, _photo_record, _photo_store, _plan_store, _order_store),
     list_models=partial(list_models, config.PHOTO_MODELS),
     list_loras=list_loras,

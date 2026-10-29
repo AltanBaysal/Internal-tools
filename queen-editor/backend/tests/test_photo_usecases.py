@@ -35,6 +35,7 @@ from backend.features.photo_generation.domain.usecases.regenerate import (
     regenerate,
 )
 from backend.features.photo_generation.domain.usecases.remove_layer import remove_layer
+from backend.features.photo_generation.domain.usecases.dequeue_layer import dequeue_layer
 from backend.features.photo_generation.domain.usecases.retry_failed import retry_failed
 from backend.features.photo_generation.domain.usecases.retry_frame import retry_frame
 from backend.features.photo_generation.domain.usecases.run_queue import Busy
@@ -3501,6 +3502,89 @@ def test_the_gallery_stops_reporting_a_deleted_layer():
     frame = list_frames(record, store, plan_store, FakeOrderStore(), "düğün")[0]
     assert frame["layers"] == {"photo": "0_a.png"}
     assert frame["status"] == "done"
+
+
+def video_owed(store, record, plan_store, fid="0_a", number=0):
+    """Put a video job in the queue for a frame, planned and not yet made."""
+    plan_store.append("düğün", [{"id": fid, "type": "video", "number": number, "variant": 0,
+                                 "prompt": "", "negative": "", "seed": None, "model": ""}])
+    return store, record, plan_store
+
+
+def dequeue(record, store, plan_store, frames, kind=layers.VIDEO):
+    return dequeue_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
+                         "düğün", frames, kind)
+
+
+def test_taking_a_queued_video_out_leaves_the_frame_and_its_photo():
+    """Madde 516: Kuyruktan çıkar on the video tab takes out the job alone -- the frame, its photo
+    and its place in the gallery stay, and nothing leaves the disk."""
+    store, record, plan_store = video_owed(*video_project((0, "a")))
+
+    assert dequeue(record, store, plan_store, ["0_a"]) == {"removed": ["0_a_V1_0.mp4"]}
+
+    assert store.deleted == []
+    assert record.slots("düğün")["0_a"]["video"]["status"] == "removed"
+    assert owed_files(record, plan_store) == []
+    frame = list_frames(record, store, plan_store, FakeOrderStore(), "düğün")[0]
+    assert (frame["id"], frame["status"], frame["layers"], frame["owed"]) == (
+        "0_a", "done", {"photo": "0_a.png"}, [])
+
+
+def test_a_video_that_landed_before_the_press_is_not_taken_by_it():
+    """Madde 516: the screen still drew the video as waiting, but it had landed -- a page polled
+    late, a tab in the background. The press meant the job, so the finished video stays."""
+    store, record, plan_store = video_owed(*video_project((0, "a")))
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done", "prompt": "kadın dönüyor"})
+
+    assert dequeue(record, store, plan_store, ["0_a"]) == {"removed": []}
+
+    assert store.deleted == []
+    assert record.slots("düğün")["0_a"]["video"]["status"] == "done"
+
+
+def test_a_sound_waiting_on_the_queued_video_comes_out_with_it():
+    # It would be mixed over a video that is never coming (layers.NEEDS).
+    store, record, plan_store = video_owed(*video_project((0, "a")))
+    plan_store.append("düğün", [{"id": "0_a", "type": "audio", "number": 0, "variant": 0,
+                                 "prompt": "", "negative": "", "seed": None, "model": ""}])
+
+    gone = dequeue(record, store, plan_store, ["0_a"])
+
+    # The sound's name is built on its video's, and with no video yet on the frame's (layer_file).
+    assert gone == {"removed": ["0_a_V1_0.mp4", "0_a_S1_0.wav"]}
+    assert owed_files(record, plan_store) == []
+
+
+def test_a_queue_removal_on_a_copy_frame_leaves_the_card_and_its_sources_picture():
+    # The copy holds its source's picture; only the video it was opened for is taken out.
+    store, record, plan_store = video_project((0, "a"))
+    record.append("düğün", {"file": "0_a.png", "frame": "P0_1", "layer": "photo",
+                            "status": "done", "prompt": "p"})
+    video_owed(store, record, plan_store, fid="P0_1")
+
+    assert dequeue(record, store, plan_store, ["P0_1"]) == {"removed": ["P0_1_V1_0.mp4"]}
+
+    assert store.deleted == []
+    assert record.slots("düğün")["P0_1"]["video"]["status"] == "removed"
+    assert record.slots("düğün")["P0_1"]["photo"]["status"] == "done"
+    assert "video" not in record.slots("düğün")["0_a"]
+
+
+def test_a_queue_removal_skips_an_identity_the_gallery_does_not_know():
+    store, record, plan_store = video_owed(*video_project((0, "a")))
+
+    assert dequeue(record, store, plan_store, ["yok", "0_a", "0_a"]) == {
+        "removed": ["0_a_V1_0.mp4"]}
+
+
+@pytest.mark.parametrize("names", ["0_a", [7], None])
+def test_a_queue_removal_needs_a_list_of_identities(names):
+    store, record, plan_store = video_owed(*video_project((0, "a")))
+
+    with pytest.raises(InvalidFrames):
+        dequeue(record, store, plan_store, names)
 
 
 def test_resume_refuses_when_nothing_is_left():

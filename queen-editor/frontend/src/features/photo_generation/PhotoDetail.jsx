@@ -358,7 +358,7 @@ function PromptBox({ label, value, changed, height, onChange }) {
 // worker is holding turns into its photo without a reload.
 export default function PhotoDetail({ project, frame: fid }) {
   const { frames, current, batch, currentLayer, startedAt, error, removePhotos, removeLayer,
-          regenerate, retry } = useGeneration(project);
+          dequeueLayer, regenerate, retry } = useGeneration(project);
   // The rows the renderer offers, for two lines in the column on the right: a frame stores its
   // model and its lora as ids -- the names they were picked by are in these lists and nowhere else.
   // The hook remembers the answer for the visit, so opening frames costs nothing.
@@ -647,6 +647,20 @@ export default function PhotoDetail({ project, frame: fid }) {
     });
   }
 
+  // The open layer's waiting job out of the queue, and nothing that has landed (madde 516): nothing
+  // finished goes, so it asks nothing. The frame stays in the gallery with its photo, so the page
+  // stays on it and the tab falls back to the photo, as when a layer comes off.
+  function handleDequeue() {
+    setBusy(true);
+    setRefusedAct(null);
+    const layer = open;
+    return dequeueLayer([frame.id], layer).then((body) => {
+      setBusy(false);
+      if (!body) return setRefusedAct(`${LAYER_LABEL[layer]} kuyruktan çıkarılamadı`);
+      setOpen("photo");
+    });
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       <div style={HEADER}>
@@ -925,10 +939,10 @@ export default function PhotoDetail({ project, frame: fid }) {
               )}
 
               {/* What each tab offers to destroy, and what it says is what the press costs. Only a
-                  frame whose picture is its own loses a file, and only that one asks first. Every
-                  branch but the layer's own takes the FRAME rather than the layer: the queue
-                  removes frames and not layers, so there is no press behind a button that would
-                  leave one (karar 38). */}
+                  frame whose picture is its own loses a file, and only that one asks first. A
+                  waiting layer's tab takes out that layer's job alone (madde 516). The photo tab
+                  and a red layer's tab take the frame -- on a frame still waiting for its photo,
+                  that is the job itself. */}
               {open === "photo" ? (
                 <Btn sm disabled={busy || state === "running"}
                      onClick={ownsItsPhoto ? () => setAsking("frame") : handleRemove}
@@ -952,8 +966,9 @@ export default function PhotoDetail({ project, frame: fid }) {
                 </>
               ) : openState === "pending" ? (
                 /* Fark 99: the button lived on the photo tab alone, which is not the tab the user
-                   is on while they wait for what it shows. */
-                <Btn sm disabled={busy} onClick={handleRemove} style={bin(busy)}>
+                   is on while they wait for what it shows. The job alone, never what has landed:
+                   the frame and its photo stay (madde 516). */
+                <Btn sm disabled={busy} onClick={handleDequeue} style={bin(busy)}>
                   <Icon.Trash /> Kuyruktan çıkar
                 </Btn>
               ) : openState === "failed" ? (

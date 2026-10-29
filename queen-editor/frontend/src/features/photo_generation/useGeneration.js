@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   cancelGeneration,
   copyFrames,
+  dequeueLayer as takeOutLayer,
   generateBatch,
   getStatus,
   listFrames,
@@ -257,6 +258,22 @@ export function useGeneration(project) {
       })
   ), [project, poll]);
 
+  // A layer's waiting job out of the queue, and nothing else (madde 516). Nothing starts running,
+  // so the screen reads the gallery again, as after a layer comes off.
+  const dequeueLayer = useCallback((frames, kind) => (
+    takeOutLayer(project, frames, kind)
+      .then((body) => {
+        if (!alive.current) return null;
+        poll();
+        return body;
+      })
+      .catch((err) => {
+        if (!alive.current) return null;
+        setError(failureText(err));
+        return null;
+      })
+  ), [project, poll]);
+
   // Every red job at once. Same endpoint as one frame's Tekrar dene, with no frame named.
   const retryAll = useCallback(() => (
     retryFailed(project)
@@ -388,6 +405,6 @@ export function useGeneration(project) {
 
   return { job: told, known, frames, framesError, error, errorField, stopping, queue, failures,
            current, currentLayer, startedAt, batch, follow,
-           retryAll, queueLayer, regenerate, removeLayer,
+           retryAll, queueLayer, regenerate, removeLayer, dequeueLayer,
            generate, stop, resume, cancel, retry, clearError, reorder, removePhotos, copyPhotos };
 }

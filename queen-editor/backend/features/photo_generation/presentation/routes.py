@@ -38,10 +38,16 @@ REMAKEABLE = (layers.PHOTO, layers.VIDEO)
 # still its own door (POST …/frames/delete).
 REMOVABLE = (layers.PHOTO, layers.VIDEO, layers.AUDIO)
 
+# The layers whose waiting job can be taken out of the queue on its own, leaving the frame (madde
+# 516). Not the photo: a frame still waiting for its photo is that job, and it leaves through POST
+# …/frames/delete.
+DEQUEUEABLE = (layers.VIDEO, layers.AUDIO)
+
 
 def make_photo_generation_blueprint(start_batch, get_status, stop_generation, resume_batch,
                                     cancel_generation, retry_frame, retry_failed, queue_layer,
-                                    regenerate, remove_layer, list_frames, list_models, list_loras,
+                                    regenerate, remove_layer, dequeue_layer, list_frames,
+                                    list_models, list_loras,
                                     save_order,
                                     export_summary, export_state, run_export, cancel_export,
                                     remove_frames, copy_frames, photo_dir):
@@ -177,6 +183,20 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
             # What really left the disk goes back: a layer a frame did not carry costs nothing and
             # is not an error, and neither is a name the gallery no longer knows.
             return jsonify(remove_layer(project, body.get("frames"), kind))
+        except InvalidFrames as exc:
+            return jsonify({"error": str(exc)}), 400
+        except ProjectMissing as exc:
+            return jsonify({"error": str(exc)}), 404
+
+    @bp.post("/api/projects/<project>/layers/<kind>/dequeue")
+    def dequeue(project, kind):
+        if kind not in DEQUEUEABLE:
+            return jsonify({"error": f"Kuyruktan çıkarılabilir bir katman değil: {kind}"}), 404
+        body = request.get_json(silent=True) or {}
+        try:
+            # The jobs really taken out go back; a job that landed or was never asked for is no
+            # error, and neither is a name the gallery no longer knows.
+            return jsonify(dequeue_layer(project, body.get("frames"), kind))
         except InvalidFrames as exc:
             return jsonify({"error": str(exc)}), 400
         except ProjectMissing as exc:
