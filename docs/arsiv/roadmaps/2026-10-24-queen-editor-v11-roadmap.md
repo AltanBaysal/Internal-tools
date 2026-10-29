@@ -2,9 +2,9 @@
 
 **Tarih:** 2026-10-24 · **Koşu dalı:** `feat/queen-editor-v11` · **Durum:** 7/7 · bitti; kullanıcı 28 Ekim'de denedi *(kullanıcı, 28 Ekim — "ve gerisi düzgün queen agnetı ve editoru maine mergelyebilrisn")*
 
-**Yama v11.1:** 2026-10-29 · **Koşu dalı:** `feat/queen-editor-v11.1` · **Durum:** 3/3 *(kullanıcı, 29 Ekim —
+**Yama v11.1:** 2026-10-29 · **Koşu dalı:** `feat/queen-editor-v11.1` · **Durum:** 3/6 *(kullanıcı, 29 Ekim —
 "patch gibi düşün ubnları"; "queen editorun son roadmpine ekle zaten var v11.1 yap direkt sonuna ekle işte
-ynei madde olarak")*. 509 · v11-8, 510 · v11-9 ve 511 · v11-10 bu yamanın maddeleri; yine tek tek yürürler. Ekrandaki sürüm V11
+ynei madde olarak")*. 509 · v11-8'den 514 · v11-13'e altı madde bu yamanın; yine tek tek yürürler. Ekrandaki sürüm V11
 kalır, yama onu artırmaz *(kullanıcı, 29 Ekim — "ekran sürümü değişmesin")*.
 
 **Önceki sürüm:** [v10](2026-10-20-queen-editor-v10-roadmap.md) — bitti.
@@ -25,6 +25,9 @@ ana klasörde koşunun dalında yürür.
 8. **509 · v11-8** — "orada mısın?" kalkar, üretim bitince bildirim gelir.
 9. **510 · v11-9** — videonun sesi kare sayfasından kapatılabilir.
 10. **511 · v11-10** — sıra kapanırken eklenen iş de başlar; 509'un reviewer'ının bulduğu.
+11. **512 · v11-11** — aynı anda basılan iki Kuyruğa ekle'nin ikisi de sırada kalır; 511'in QA'sının bulduğu.
+12. **513 · v11-12** — yeniden adlandırma bitmiş bir fotoğrafı yeniden çizdirmez; 511'in QA'sının bulduğu.
+13. **514 · v11-13** — MMAudio kalkar.
 
 ---
 
@@ -39,6 +42,9 @@ ana klasörde koşunun dalında yürür.
 | 508 · [v11-7](#v11-7) | Qwen kalkar | ✅ · `ALIGNED` |
 | 509 · [v11-8](#v11-8) | "Orada mısın?" kalkar, üretim bitince bildirim gelir | ✅ *(tünelden gelen işletim sistemi bildirimi ve ona tıklayınca sekmenin öne gelmesi kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
 | 510 · [v11-9](#v11-9) | Videonun sesi kare sayfasından kapatılabilir | ✅ *(gerçek H3 + MMAudio videosunun sessiz oynaması, iki export ve işaretin Colab yeniden açılınca durması kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
+| 512 · [v11-11](#v11-11) | Aynı anda basılan iki Kuyruğa ekle'nin ikisi de sırada kalır | `ALIGNED` |
+| 513 · [v11-12](#v11-12) | Yeniden adlandırma bitmiş bir fotoğrafı yeniden çizdirmez | `ALIGNED` |
+| 514 · [v11-13](#v11-13) | MMAudio kalkar | `UNALIGNED` |
 | 511 · [v11-10](#v11-10) | Sıra kapanırken eklenen iş de başlar | ✅ *(gerçek Drive gecikmesinde son iş biterken Kuyruğa ekle kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
 
 ---
@@ -307,8 +313,8 @@ atlamanın yolu yok.
   köşelerinde sıra numarası duruyor.
 - **Kare sayfasında da sessiz:** *"hayır kare sayfasındada kapatılır es"*.
 - **Export ekranındaki uyarı:** "N videonun sesi kapalı" ayrı bir satır *(cevap: "Mantıklı")*.
-- **Sessiz, hiç ses yok demek** *(Claude'un önerisi; kullanıcı itiraz etmedi)*: bugün sesi olmayan bir
-  video H3'ün kendi sesiyle kesiliyor; sesi kapatılan video onu da taşımaz.
+- **Sessiz, hiç ses yok demek** *(Claude'un önerisi; kullanıcı, 29 Ekim — "böyle olsun")*: bugün sesi
+  olmayan bir video H3'ün kendi sesiyle kesiliyor; sesi kapatılan video onu da taşımaz.
 
 <a id="v11-10"></a>
 ### 511 · v11-10 — Sıra kapanırken eklenen iş de başlar
@@ -337,3 +343,47 @@ Hata 509'dan eski; 509 yalnız ona yanlış bir bildirim ekledi.
     Durdur yine durdurur.
   - Sıra çalışırken proje yeniden adlandırılırsa, sıranın sonu yeni adla yazılır; yoksa ekran biten
     sırayı kendi sırası olarak tanımıyor.
+
+<a id="v11-11"></a>
+### 512 · v11-11 — Aynı anda basılan iki Kuyruğa ekle'nin ikisi de sırada kalır
+
+*(Kullanıcı, 29 Ekim — cevap: "İkisini de bu yamaya madde olarak (512 ve 513) ekleyip düzeltelim".)*
+
+**Kabul koşulu:** Aynı projeye aynı anda iki iş eklenince, örneğin çift tıklamada ya da kullanıcı ve
+ajan birlikte eklerken, ikisi de sıraya giriyor ve ikisi de üretiliyor. "Eklendi" denen hiçbir iş
+kaybolmuyor; bir iş eklenemezse ekran bunu sistemin kendi sözüyle söylüyor.
+
+**Ne oluyor** *(511'in QA'sı, 29 Ekim)*: iki basış da "eklendi" dedi, ama sıraya yalnız biri girdi: 15
+basıştan 8'i. Sıra dosyası okunup bir satır eklenip yeniden yazılıyor, ve aynı anda gelen iki basış
+aynı numarayı alıyor; sonra yazan öncekini siliyor. Bir turda Windows'ta dosya yerine konurken
+"Access is denied" hatası da çıktı. Hata 511'den eski.
+
+<a id="v11-12"></a>
+### 513 · v11-12 — Yeniden adlandırma bitmiş bir fotoğrafı yeniden çizdirmez
+
+*(Kullanıcı, 29 Ekim — cevap: "İkisini de bu yamaya madde olarak (512 ve 513) ekleyip düzeltelim".)*
+
+**Kabul koşulu:** Sıra çalışırken proje yeniden adlandırılınca, bitmiş hiçbir kare yeniden üretilmiyor
+ve hiçbir dosyanın üstüne yazılmıyor. Sıra kaldığı yerden, yeni addaki klasörde sürüyor.
+
+**Ne oluyor** *(511'in QA'sı, 29 Ekim)*: sıra her turda önce planı eski adla okuyor; tam o arada
+klasör yeni ada taşınınca, kayıtları eski adla okuyunca boş buluyor. Bu yüzden bütün planlı işler
+yapılmamış görünüyor, ve ilki yeniden çizilip yeni klasördeki dosyanın üstüne yazılıyor. QA bunu
+ekranda da gördü: dakikalar önce bitmiş bir kare, adlandırmadan sonra yeniden üretildi. Hata 511'den
+eski.
+
+<a id="v11-13"></a>
+### 514 · v11-13 — MMAudio kalkar
+
+*(Kullanıcı, 29 Ekim — "mmaudio zaten silenecek roadmape ekle sil".)*
+
+**Kabul koşulu:** Queen Editor'de MMAudio yok: yan paneldeki "Ses üret" sekmesi, kare sayfasındaki Ses
+sekmesi ve defterin MMAudio kutucuğu görünmüyor, defter onun dosyalarını indirmiyor. MMAudio'yla gelen
+her parça — üreticisi, graph'ı, ses katmanı, testleri — gider. Daha önce üretilmiş sesler Drive'da
+durur.
+
+**Açık sorular:**
+- 510'un ses düğmesi bugün yalnız MMAudio sesi olan videoda çıkıyor; MMAudio gidince hiçbir videoda
+  çıkmaz. Düğme H3 videosunun kendi sesini kapatan bir düğme olarak her videoda mı kalsın?
+- Eski projelerdeki MMAudio sesleri export'a girmeye devam etsin mi, yoksa export yalnız H3'ün kendi
+  sesini mi kullansın?
