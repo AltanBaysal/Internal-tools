@@ -125,8 +125,11 @@ Drive'a gidiş yok.
 - **Resminden uzun ses birleşik export'ta kısalır.** Bir parçanın sesi son karesinden sonra da sürüyorsa
   o kuyruk birleşik dosyada yok, ayrı export'ta duruyor. Kabul koşulunun istediği bu: ses kendi parçasında
   bitiyor.
-- **Süresiz bir resim birleşimi durdurmaz;** o parçanın sesi kesilmeden girer, 521'den önceki gibi en çok
-  dolgusu kadar taşabilir. Bizim mp4'lerimizde olmuyor.
+- **Süresiz bir resim birleşimi durdurmaz;** o parçanın sesi kesilmeden girer, ve 521'den önceki taşma o
+  parça için geri gelir. Taşma dolguyla sınırlı değil, sesin resmini aştığı kadar: H3 gibi resmini aşan bir
+  seste (5.04 s resim, 5.1 s ses) QA +59 ms taşma ve bir tekrarlanan kare ölçtü, ve gecikme sonraki her
+  parçaya geçti (+66…+85 ms). Bu 521'den önceki davranış; hiç export olmamasından küçük zarar olduğu için
+  geri dönüş olarak seçildi. Bizim mp4'lerimizde resmin süresi hep var, bu yüzden olmuyor.
 - **JSON olmayan bir cevap birleşimi durdurur,** dosyanın adı ve ffprobe'un yazdığıyla; hiçbir ffmpeg
   çağrısı yapılmaz, yarım dosya yazılmaz.
 
@@ -152,6 +155,11 @@ Her birinde: JSON'un biçimi kodun okuduğu gibi mi (`streams` dizisi, `codec_ty
 sesin `sample_rate`'i ve `channel_layout`'u), ve resim akışının `duration`'ı resmin gerçek süresine (kare
 sayısı / fps) eşit mi. Bir edit list ffprobe'un akış süresini `mdhd`'dekinden farklı yapabilir; burada
 ölçüm `mdhd`'yi okudu. Eşit değilse ses o farkla yanlış yerden kesilir.
+
+**ffmpeg'in sürümü.** Bu spec'teki bütün ölçümler ffmpeg 7.1'le yapıldı (imageio-ffmpeg'in ikilisi).
+Defter ffmpeg'i apt'la kuruyor; Colab'da büyük ihtimalle daha eski bir sürüm geliyor. aac'ın dolgusu,
+concat'in parça süresini nasıl saydığı ve `atrim`'in kesimi o sürümde denenmedi. Colab denemesinde bir
+birleşik export'ta sessiz parçaya ses taşmadığı ve kare tekrarlanmadığı görülür.
 
 ## Ölçüm: önce (kırmızı) ve sonra (yeşil)
 
