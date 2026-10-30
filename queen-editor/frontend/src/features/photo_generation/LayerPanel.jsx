@@ -74,12 +74,20 @@ const MODE_TAIL = {
   [LINKED]: "her video sıradaki karede biter.",
 };
 
-/** The frames a video can be hung on: every frame whose photo has landed.
+/** The frames a video can be hung on: every frame that has settled -- done, and the layer that
+ * opened it neither still coming nor red. That opening layer is the row's `type`, the plan job it
+ * is read from; a row without one was opened by its photo. A copy is done once its carried picture
+ * is there, while the video it was born for may still be coming (madde 519).
  *
- * The server decides the same way; this is the panel's own count, not a second rule.
+ * The server decides the same way (queue_layer.frames_in_scope); this is the panel's own count, not
+ * a second rule.
  */
 function eligible(frames) {
-  return (frames || []).filter((frame) => frame.status === "done");
+  return (frames || []).filter((frame) => {
+    const opening = frame.type || "photo";
+    return frame.status === "done" && !(frame.owed || []).includes(opening)
+      && !(frame.failed || []).includes(opening);
+  });
 }
 
 /** What the variant box may hold while it is being typed in -- the photo panel's rule, for the same

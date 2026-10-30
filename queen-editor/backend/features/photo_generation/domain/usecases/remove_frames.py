@@ -5,9 +5,12 @@ is a single window over a mixed selection, so the request behind it is a single 
 costs is decided here, from its own state:
 
   produced  -> every layer it owns leaves the disk and the log says deleted
-  not yet   -> nothing to delete; the log says removed on every layer the queue still owes it, and
-               those jobs are skipped. Every one of them, because an open job is what keeps a card
-               in the gallery (madde 294) -- one left behind would bring the card straight back.
+  not yet   -> nothing to delete
+
+Either way the log says removed on every layer the queue still owes it, and those jobs are skipped.
+Every one of them, because an open job is what keeps a card in the gallery (madde 294) -- one left
+behind would bring the card straight back, a produced one waiting for a video of a picture that is
+gone (madde 519).
 
 Which files really go is decided before a single line is written: a picture two frames share stays
 where it is until the last of them lets go (design v3, madde 101). The disk is touched first, so a
@@ -63,17 +66,19 @@ def remove_frames(record, store, plan_store, order_store, now, project, frames):
         for fid, slot in sorted(closing):
             record.mark(project, fid, slot, slots[fid][slot]["file"], queue.DELETED, now(),
                         seen=slots[fid][slot]["status"])
-        for fid in removed:
+        for fid in deleted + removed:
             # The name each job was planned to take: nothing was ever produced under it, and a line
-            # still has to say which file it was about. A card owed nothing at all is closed on its
-            # photo slot, so that "never produced" is written down rather than left as a silence.
+            # still has to say which file it was about. A card never produced and owed nothing at
+            # all is closed on its photo slot, so that "never produced" is written down rather than
+            # left as a silence.
             cells = slots.get(fid, {})
             video = (cells.get(layers.VIDEO) or {}).get("file")
-            for slot in gallery[fid].get("owed") or (layers.PHOTO,):
+            for slot in gallery[fid].get("owed") or (() if fid in deleted else (layers.PHOTO,)):
                 status = (cells.get(slot) or {}).get("status")
-                if status == queue.DONE:
+                if status == queue.DONE or (fid, slot) in closing:
                     # Landed since the gallery was read: the render wins, as above, and a removed
-                    # line over it would leave its file under a free slot (madde 513).
+                    # line over it would leave its file under a free slot (madde 513). On a produced
+                    # frame it is closing with the rest, and its deleted line is written above.
                     continue
                 # Over the status it was read in, so a layer landing after this look keeps it.
                 record.mark(project, fid, slot, layer_file(slot, fid, video), queue.REMOVED,

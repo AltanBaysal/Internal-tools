@@ -127,6 +127,7 @@ const BROKEN = { id: "P0_0", file: "P0_0.png", status: "failed", prompt: "kırm�
                  errors: { photo: "CUDA out of memory — 3 kez denendi" } };
 
 // A copy frame waiting for its video: it holds its source's picture and owns no file of its own.
+// Done, as the server answers since madde 519: the card is done once its picture is there.
 const QUEUED_COPY = { id: "P0_1", file: "P0_0.png", status: "done", prompt: "kırmızı elbise",
                       negative: "", layers: { photo: "P0_0.png" }, failed: [], owed: ["video"],
                       prompts: { photo: "kırmızı elbise" }, errors: {} };
@@ -1798,15 +1799,40 @@ describe("PhotoDetail — a copy frame waiting in the queue", () => {
     expect(screen.queryByText("Prompt yok — üretimden önce yazılacak.")).toBeNull();
   });
 
-  it("takes it out of the queue without asking", async () => {
-    removeFrames.mockResolvedValue({ deleted: [], removed: ["P0_1"] });
+  it("takes its video out of the queue from the photo tab and stays on it", async () => {
+    // Madde 519: the copy stays a twin holding its source's picture, where it stood. Taking the
+    // whole frame out of the gallery brought it straight back, at the top.
+    dequeueLayer.mockResolvedValue({ removed: ["P0_1_V1_0.mp4"] });
     await open("P0_1", { frames: [QUEUED_COPY] });
 
     await act(async () => { fireEvent.click(screen.getByText("Kuyruktan çıkar")); });
 
     // Its identity, not the picture it shares with its source.
-    expect(removeFrames).toHaveBeenCalledWith("düğün", ["P0_1"]);
+    expect(dequeueLayer).toHaveBeenCalledWith("düğün", ["P0_1"], "video");
+    expect(removeFrames).not.toHaveBeenCalled();
     expect(screen.queryByText("1 kare silinsin mi?")).toBeNull();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(tab("Foto").getAttribute("aria-current")).toBe("page");
+  });
+
+  it("offers no way out of the queue while its video is being made", async () => {
+    // The job is no longer waiting: the video tab shows it being made and offers nothing, and the
+    // photo tab's press could only write a line the landing video overrides (madde 516's limit).
+    await open("P0_1", { frames: [QUEUED_COPY],
+                         status: { status: "running", project: "düğün",
+                                   current: { id: "P0_1", type: "video" } } });
+
+    expect(screen.getByText("Kuyruktan çıkar").closest("button").disabled).toBe(true);
+  });
+
+  it("says why when taking its video out is refused", async () => {
+    dequeueLayer.mockRejectedValue(new Error("Proje yok: düğün"));
+    await open("P0_1", { frames: [QUEUED_COPY] });
+
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruktan çıkar")); });
+
+    expect(screen.getByText("Video kuyruktan çıkarılamadı")).toBeTruthy();
+    expect(screen.getByText(/Proje yok/)).toBeTruthy();
   });
 });
 

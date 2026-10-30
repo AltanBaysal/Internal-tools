@@ -88,6 +88,23 @@ describe("LayerPanel — the scope", () => {
     expect(screen.getByText("Seçili kareler").closest("button").disabled).toBe(true);
   });
 
+  it("leaves out a copy still waiting for, or red on, the layer it was born for", () => {
+    // Madde 519: such a copy is done -- its carried picture is there -- but the server gives it no
+    // job until the video it was opened by lands (queue_layer.frames_in_scope). The row's `type` is
+    // that opening job's; a row without one was opened by its photo.
+    const waiting = { id: "P0_1", file: "0_a.png", type: "video", status: "done",
+                      layers: { photo: "0_a.png" }, owed: ["video"], failed: [] };
+    const red = { id: "P0_2", file: "0_a.png", type: "video", status: "done",
+                  layers: { photo: "0_a.png", video: "P0_2_V1_0.mp4" }, owed: [],
+                  failed: ["video"] };
+
+    renderPanel({ frames: [...FRAMES, waiting, red], selected: ["P0_1", "P0_2"] });
+
+    expect(screen.getByText("Videosu olmayan kareler").closest("button").textContent)
+      .toContain("2");
+    expect(screen.getByText("Seçili kareler").closest("button").textContent).toContain("0");
+  });
+
 });
 
 describe("LayerPanel — variants", () => {

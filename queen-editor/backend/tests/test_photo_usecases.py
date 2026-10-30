@@ -3572,6 +3572,98 @@ def test_a_queue_removal_on_a_copy_frame_leaves_the_card_and_its_sources_picture
     assert "video" not in record.slots("düğün")["0_a"]
 
 
+def copy_waiting_for_its_video():
+    """0_a with its photo, and its copy P0_1 holding that picture with its own video still owed --
+    what a second video variant leaves (queue_layer)."""
+    store, record, plan_store = video_project((0, "a"))
+    record.append("düğün", {"file": "0_a.png", "frame": "P0_1", "layer": "photo",
+                            "status": "done", "prompt": "p"})
+    return video_owed(store, record, plan_store, fid="P0_1")
+
+
+def test_a_copy_waiting_for_its_video_is_drawn_with_the_picture_it_holds():
+    """Madde 519: the copy's picture was carried, never planned, so the job that opens its card in
+    the plan is the video it waits for. Its picture is there all the same, and the card is done."""
+    store, record, plan_store = copy_waiting_for_its_video()
+
+    copy = list_frames(record, store, plan_store, FakeOrderStore(), "düğün")[0]
+
+    assert (copy["id"], copy["status"], copy["file"], copy["layers"], copy["owed"]) == (
+        "P0_1", "done", "0_a.png", {"photo": "0_a.png"}, ["video"])
+
+
+def test_a_copy_whose_video_blew_up_is_still_drawn_with_its_picture():
+    # A red layer over a picture, as on a frame whose picture is its own: done, with the video red.
+    store, record, plan_store = copy_waiting_for_its_video()
+    record.mark("düğün", "P0_1", "video", "P0_1_V1_0.mp4", "failed", "t1", seen=None,
+                error="ComfyUI 500")
+
+    copy = list_frames(record, store, plan_store, FakeOrderStore(), "düğün")[0]
+
+    assert (copy["status"], copy["failed"]) == ("done", ["video"])
+
+
+def test_a_waiting_copy_takes_no_variants_of_its_own():
+    """Done is not settled: the copy waits for the video it was born for (madde 292), so a second
+    press of two variants copies its source alone, as before madde 519."""
+    store, record, plan_store = copy_waiting_for_its_video()
+
+    added = queue_layer(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                        {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.VIDEO,
+                        variants=2)
+
+    # 0_a's own video and one copy of it; the waiting copy would have added a copy of its own.
+    assert added == 2
+    assert [job["id"] for job in plan_store.appended[-1]] == ["0_a", "P0_2"]
+
+
+def test_a_kopyala_twin_with_nothing_planned_is_in_scope():
+    """A Kopyala twin is read from the record, with no plan job to open it: its row has no `type`
+    and reads as opened by its photo, so a video press reaches it as it reaches its source (madde
+    519)."""
+    store, record, plan_store = video_project((0, "a"))
+    order = FakeOrderStore()
+    twin = copy_frames(record, store, plan_store, order, lambda: "t", "düğün", ["0_a"])["copies"][0]
+
+    added = queue_layer(sync_runner(), store, record, plan_store, order,
+                        {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.VIDEO)
+
+    assert added == 2
+    assert sorted(job["id"] for job in plan_store.appended[-1]) == sorted(["0_a", twin])
+
+
+def test_a_kopyala_twin_waiting_for_its_video_takes_no_variants_of_its_own():
+    # Once its video is planned, that job opens it -- the shape of a variant's copy, and as before
+    # madde 519: a second press of two variants copies the frame whose picture is its own alone.
+    store, record, plan_store = video_project((0, "a"))
+    order = FakeOrderStore()
+    twin = copy_frames(record, store, plan_store, order, lambda: "t", "düğün", ["0_a"])["copies"][0]
+
+    def press():
+        return queue_layer(sync_runner(), store, record, plan_store, order,
+                           {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.VIDEO,
+                           variants=2)
+
+    press()
+
+    assert press() == 1
+    assert twin not in [job["id"] for job in plan_store.appended[-1]]
+
+
+def test_a_copy_whose_waiting_video_is_taken_out_keeps_its_place():
+    """Madde 519: the photo tab's Kuyruktan çıkar on such a copy takes the video out and nothing else
+    -- the copy stays a twin holding its source's picture, where it stood in the gallery."""
+    store, record, plan_store = copy_waiting_for_its_video()
+    order = FakeOrderStore(["P0_1", "0_a"])
+
+    dequeue_layer(record, store, plan_store, order, lambda: "t", "düğün", ["P0_1"], layers.VIDEO)
+
+    assert order.order == ["P0_1", "0_a"]
+    copy = list_frames(record, store, plan_store, order, "düğün")[0]
+    assert (copy["id"], copy["status"], copy["layers"], copy["owed"]) == (
+        "P0_1", "done", {"photo": "0_a.png"}, [])
+
+
 def test_a_queue_removal_skips_an_identity_the_gallery_does_not_know():
     store, record, plan_store = video_owed(*video_project((0, "a")))
 
@@ -3835,6 +3927,36 @@ def test_removing_takes_the_named_frame_not_the_one_sharing_its_picture():
     assert store.deleted == []
     assert record.slots("düğün")["0_a"]["photo"]["status"] == "done"
     assert record.slots("düğün")["P0_1"]["photo"]["status"] == "deleted"
+
+
+def test_deleting_a_frame_takes_the_jobs_still_coming_for_it():
+    """Madde 519, madde 295's rule for a produced frame: an open job keeps a card in the gallery
+    (madde 294), so a frame deleted with its video still coming came back at the top, waiting for a
+    video of a picture that was gone."""
+    store, record, plan_store = video_owed(*video_project((0, "a"), (1, "a")))
+    order = FakeOrderStore(["1_a", "0_a"])
+
+    gone = remove_frames(record, store, plan_store, order, stamped, "düğün", ["0_a"])
+
+    assert gone == {"deleted": ["0_a"], "removed": []}
+    assert store.deleted == ["0_a.png"]
+    assert {slot: cell["status"] for slot, cell in record.slots("düğün")["0_a"].items()} == {
+        "photo": "deleted", "video": "removed"}
+    assert owed_files(record, plan_store) == []
+    assert [f["id"] for f in list_frames(record, store, plan_store, order, "düğün")] == ["1_a"]
+
+
+def test_deleting_a_copy_waiting_for_its_video_takes_it_for_good():
+    # The selection bar's Sil: the copy goes and its video with it; the picture is its source's.
+    store, record, plan_store = copy_waiting_for_its_video()
+    order = FakeOrderStore(["P0_1", "0_a"])
+
+    gone = remove_frames(record, store, plan_store, order, stamped, "düğün", ["P0_1"])
+
+    assert gone == {"deleted": ["P0_1"], "removed": []}
+    assert store.deleted == []
+    assert record.slots("düğün")["P0_1"]["video"]["status"] == "removed"
+    assert [f["id"] for f in list_frames(record, store, plan_store, order, "düğün")] == ["0_a"]
 
 
 def test_a_body_that_is_not_a_list_of_names_is_rejected():

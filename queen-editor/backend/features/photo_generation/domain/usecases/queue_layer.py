@@ -52,9 +52,18 @@ def frames_in_scope(gallery, kind, files=None):
         if chosen is not None and frame["file"] not in chosen:
             continue
         # Only a card that has settled can carry anything -- the layer that opened it landed (madde
-        # 292). A name that claims no number cannot be planned at all: the plan keeps a number per
-        # job and reads back only the jobs that have one.
-        if frame["status"] != "done" or family(frame)[0] is None:
+        # 292). Done alone no longer says so: a copy is done once the picture it carries is there,
+        # while the layer it was born for may still be coming or red (madde 519) -- so that opening
+        # layer, the plan job the row is read from, is asked too. A name that claims no number
+        # cannot be planned at all: the plan keeps a number per job and reads back only the jobs
+        # that have one.
+        # The row's `type` is its opening plan job's, spread into the row by list_frames' card(); a
+        # row without one -- an old photo job, or a Kopyala twin read from the record with nothing
+        # planned for it yet -- reads as opened by its photo. Once a layer is planned for a twin,
+        # that job opens it, as it opens a variant's copy.
+        opening = queue.type_of(frame)
+        if frame["status"] != "done" or opening in frame.get("owed", ()) \
+                or opening in frame.get("failed", ()) or family(frame)[0] is None:
             continue
         held, broken = frame.get("layers", {}), frame.get("failed", [])
         # What this layer hangs on has to be there and has to be sound: a frame without it -- or

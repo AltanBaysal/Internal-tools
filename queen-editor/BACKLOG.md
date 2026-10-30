@@ -87,23 +87,14 @@ parçanın sesi bir sonraki parçanın içine ~50 ms taşıyor: 440 Hz'lik bir p
 sesi kapalı parçada 11.00–11.05 s arasında duyuldu. Büyük ihtimalle AAC'nin her parçaya eklediği dolgu,
 birleşim yerlerinde birikiyor. Şimdilik düzeltilmiyor.
 
-### Sıradaki kopya kare kaynağının fotoğrafı yerine "bekliyor" gösteriyor
+### Aynı kimlik iki kez gelince kare iki kez sayılıyor
 
-*(516'nın coder'ı buldu, 29 Ekim; bu koşudan eski.)* Videosunu bekleyen bir kopya karenin galeri
-satırında durum `pending`: kartı açan iş video işi, çünkü fotoğraf kaynaktan taşınıyor ve planlanmıyor
-(`list_frames`). Kare sayfası fotoğrafın durumunu karenin durumundan okuyor (`PhotoDetail`'in
-`produced`'ı). Bu yüzden ekranda kaynağın resmi yerine "bekliyor" kutusu çıkıyor, ve "kaynak foto · kopya
-kare" etiketi hiç görünmüyor. Ekranın testleri kopya kareyi `done` sayıyor (`QUEUED_COPY`), sunucuyla
-uyuşmuyor.
-
-### Sıradaki kopya kare "Kuyruktan çıkar"dan sonra geri geliyor
-
-*(516'nın coder'ı buldu, 29 Ekim; bu koşudan eski; hiçbir dosya kaybolmuyor.)* Videosunu bekleyen bir
-kopya karede fotoğraf sekmesinin, ya da galerinin seçim çubuğunun "Kuyruktan çıkar"ı `remove_frames`'e
-gidiyor. Bu, video işine `removed` yazıyor ve kareyi galeri sırasından çıkarıyor. Ama kopya kare
-kaynağın taşınmış fotoğrafını hâlâ tuttuğu için `list_frames`'in "tutulan" kuralı onu bir sonraki
-okumada bitmiş bir ikiz olarak geri getiriyor; sırada yeri olmadığı için galerinin en üstüne çıkıyor
-(`apply_order`).
+*(519'un coder'ı ve reviewer'ı buldu, 30 Ekim; denenmedi, bu koşudan eski.)* Kare listesi taşıyan
+kapıların ortak denetimi `checked` (`domain/frame_list.py`) yalnız listenin metin dizisi olduğuna bakıyor,
+aynı kimliğin iki kez gelmesine bakmıyor. `remove_frames` böyle bir kareyi cevabında iki kez sayıyor
+(`deleted` ya da `removed`), `copy_frames` aynı kareye iki ikiz yapar. `dequeue_layer` bunu kendi içinde
+ayıklıyor (`dict.fromkeys`). Düzeltme `checked`'te, bütün çağıranlar için: tekrar eden kimlik bir kez
+sayılır.
 
 ### Aynı anda gelen kuyruk basışı ve yeniden adlandırma bir işi bekletebilir
 

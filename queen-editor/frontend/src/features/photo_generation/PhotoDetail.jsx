@@ -466,6 +466,12 @@ export default function PhotoDetail({ project, frame: fid }) {
   // Which layer that is: the one the worker is on, or the first one still owed. The frame's own
   // answer rather than the open tab's, because it is the frame that is waiting.
   const coming = running || (frame?.owed || [])[0] || null;
+  // Does the photo tab's bin take the frame's waiting jobs out rather than the frame? On a copy
+  // waiting over its source's picture (madde 519). Not while one of those jobs is being made: it is
+  // no longer waiting, the layer's own tab shows it being made and offers nothing, and a press
+  // could only write a line the landing layer overrides.
+  const dequeues = produced && !ownsItsPhoto && awaited;
+  const photoBinOff = busy || state === "running" || (dequeues && running !== null);
   // What the layer was made from -- the frame's own words until the user types over them.
   const said = (frame?.prompts || {})[open] ?? (open === "photo" ? frame?.prompt : "") ?? "";
   const typed = words[open] ?? said;
@@ -662,13 +668,12 @@ export default function PhotoDetail({ project, frame: fid }) {
     });
   }
 
-  // The open layer's waiting job out of the queue, and nothing that has landed (madde 516): nothing
+  // A layer's waiting job out of the queue, and nothing that has landed (madde 516): nothing
   // finished goes, so it asks nothing. The frame stays in the gallery with its photo, so the page
   // stays on it and the tab falls back to the photo, as when a layer comes off.
-  function handleDequeue() {
+  function handleDequeue(layer) {
     setBusy(true);
     unrefuse(fid);
-    const layer = open;
     return dequeueLayer([frame.id], layer).then((body) => {
       if (!body) return;                         // the page was left meanwhile
       if (body.error) refuse(fid, `${LAYER_LABEL[layer]} kuyruktan çıkarılamadı`, body.error);
@@ -952,13 +957,17 @@ export default function PhotoDetail({ project, frame: fid }) {
 
               {/* What each tab offers to destroy, and what it says is what the press costs. Only a
                   frame whose picture is its own loses a file, and only that one asks first. A
-                  waiting layer's tab takes out that layer's job alone (madde 516). The photo tab
-                  and a red layer's tab take the frame -- on a frame still waiting for its photo,
-                  that is the job itself. */}
+                  waiting layer's tab takes out that layer's job alone (madde 516), and so does the
+                  photo tab of a copy waiting over its source's picture -- its first waiting layer,
+                  and what hangs on that goes with it -- so the copy stays where it stands (madde
+                  519). Otherwise the photo tab and a red layer's tab take the frame -- on a frame
+                  still waiting for its photo, that is the job itself. */}
               {open === "photo" ? (
-                <Btn sm disabled={busy || state === "running"}
-                     onClick={ownsItsPhoto ? () => setAsking("frame") : handleRemove}
-                     style={bin(busy || state === "running")}>
+                <Btn sm disabled={photoBinOff}
+                     onClick={ownsItsPhoto ? () => setAsking("frame")
+                       : dequeues ? () => handleDequeue(frame.owed[0])
+                         : handleRemove}
+                     style={bin(photoBinOff)}>
                   <Icon.Trash /> {ownsItsPhoto
                     ? "Sil"
                     : (awaited ? "Kuyruktan çıkar" : "Kareyi sil")}
@@ -980,7 +989,7 @@ export default function PhotoDetail({ project, frame: fid }) {
                 /* Fark 99: the button lived on the photo tab alone, which is not the tab the user
                    is on while they wait for what it shows. The job alone, never what has landed:
                    the frame and its photo stay (madde 516). */
-                <Btn sm disabled={busy} onClick={handleDequeue} style={bin(busy)}>
+                <Btn sm disabled={busy} onClick={() => handleDequeue(open)} style={bin(busy)}>
                   <Icon.Trash /> Kuyruktan çıkar
                 </Btn>
               ) : openState === "failed" ? (

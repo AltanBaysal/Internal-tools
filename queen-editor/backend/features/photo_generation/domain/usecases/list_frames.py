@@ -13,7 +13,8 @@ something was planned for it, and the first thing planned that is still there is
 read from (madde 292, 294). Nothing about the photo is special any more -- a card opened by a video
 is a card, a card whose picture was deleted is still a card, and the jobs that come after the
 opening one are that card's layers rather than cards of their own. A card with no layer left to
-speak for it is not drawn: boş kutu yaşamaz.
+speak for it is not drawn: boş kutu yaşamaz. The one thing the picture still decides is the card's
+state: a card holding a landed picture is done, whatever its opening job (madde 519).
 """
 from backend.features.photo_generation.domain import layers, queue, scene
 from backend.features.photo_generation.domain.gallery_order import apply_order
@@ -153,8 +154,12 @@ def list_frames(record, store, plan_store, order_store, project):
             # place here at all. Read as a row of its own a layer would draw the card twice.
             continue
         # The card's own state is its opening layer's: a card born from a video is done when that
-        # video landed, exactly as a card born from a photo is done when the photo did.
-        status = _status(slots, frame)
+        # video landed, exactly as a card born from a photo is done when the photo did. A copy is
+        # born holding its source's picture, carried rather than planned (copy_frame), so the job
+        # that opens it here is the layer it waits for -- yet its first layer is that picture, and
+        # it is done from birth (madde 519).
+        picture = (slots.get(fid, {}).get(layers.PHOTO) or {}).get("status")
+        status = queue.DONE if picture == queue.DONE else _status(slots, frame)
         frames.append(card(frame, fid, queue.type_of(frame),
                            status if status in SHOWN else "pending"))
 
