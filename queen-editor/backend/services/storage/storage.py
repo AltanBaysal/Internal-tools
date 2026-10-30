@@ -33,6 +33,7 @@ import os
 import shutil
 import stat
 import tempfile
+import time
 
 # What a save writes before it moves into place. Listings skip it: a session that dies mid-save leaves
 # one behind, and it is nobody's file.
@@ -305,28 +306,79 @@ class Storage:
         except FileNotFoundError:
             pass
 
+    def stage_bytes(self, folder, data):
+        """Write `data` under a hidden name in the folder and return that name -- for a caller that
+        writes the bytes first and learns the name they will carry later (madde 523: a reference
+        upload, whose free name is chosen under the project's gate, while the bytes go to Drive
+        before it). Listings skip the name; rename_file moves it into place, delete_file takes it
+        away. Written, flushed and opened in the folder as a save is.
+        """
+        parts = _parts(folder)
+        directory = self._folder(parts)
+        return os.path.basename(self._staged(parts, directory, len(data),
+                                             lambda opened: opened.write(data)))
+
+    def rename_file(self, folder, old, new):
+        """Give a file in the folder another name there, in one step. Over whatever is under the new
+        name, as a save is: the caller chooses a name that is free."""
+        os.replace(self._file(folder, old), self._file(folder, new))
+
+    def sweep_staged(self, folder, age):
+        """Remove the hidden files in the folder last written more than `age` seconds ago: staged
+        bytes nobody will place -- their folder was renamed from under them, or the server died --
+        and half saves. Hidden from every listing, but each holds its bytes of Drive. A younger one
+        may be a write still on its way, so it stays. A folder that is not there has none; a file
+        that cannot be removed stays, hidden, as _discard leaves it.
+
+        One listing of the folder, and a stat of each hidden file only.
+        """
+        path = self._folder(folder)
+        oldest = time.time() - age
+        try:
+            with os.scandir(path) as entries:
+                left = [entry.path for entry in entries
+                        if entry.name.startswith(TEMP_PREFIX) and entry.is_file()
+                        and entry.stat().st_mtime < oldest]
+        except FileNotFoundError:
+            return
+        for leftover in left:
+            _discard(leftover)
+
     def _save(self, folder, name, size, write):
         """Write `size` bytes through a temporary file beside the target, flush it to the mount, then
         move it over the target in one step: a reader sees the old file or the new one, never half of
         it. The room for them is asked first, so a save that cannot fit leaves nothing behind.
 
         os.replace rather than os.rename: on Windows rename refuses a target that is already there.
-
-        The temporary file opens in the target's folder or not at all. A folder is opened only when
-        that is why it failed, and only below the folder directly under the root: the root and that
-        folder are never opened by a write, so one that is not there stays an error.
         """
         parts = _parts(folder)
         target = self._file(parts, name)
-        self._room(size, target)
-        directory = os.path.dirname(target)
+        temporary = self._staged(parts, target, size, write)
+        try:
+            os.replace(temporary, target)
+        except BaseException:
+            _discard(temporary)
+            raise
+
+    def _staged(self, parts, said, size, write):
+        """The path of a hidden file in the folder of `parts`, holding `size` bytes `write` put in it
+        and flushed to the mount. `said` is the path the errors name: the save's target, or the
+        folder itself. The room for them is asked first, so a write that cannot fit leaves nothing
+        behind, and neither does one that fails.
+
+        The temporary file opens in its folder or not at all. A folder is opened only when that is
+        why it failed, and only below the folder directly under the root: the root and that folder
+        are never opened by a write, so one that is not there stays an error.
+        """
+        self._room(size, said)
+        directory = os.path.join(self._root, *parts)
         try:
             handle, temporary = tempfile.mkstemp(prefix=TEMP_PREFIX, dir=directory)
         except FileNotFoundError as missing:
             if len(parts) < 2:
                 # mkstemp names the temporary file it could not open; the screen prints the error
-                # as it is, so it names the file the save was for.
-                raise FileNotFoundError(missing.errno, missing.strerror, target) from missing
+                # as it is, so it names the file the write was for.
+                raise FileNotFoundError(missing.errno, missing.strerror, said) from missing
             self._open_inside(parts)
             handle, temporary = tempfile.mkstemp(prefix=TEMP_PREFIX, dir=directory)
         try:
@@ -334,10 +386,10 @@ class Storage:
                 write(opened)
                 opened.flush()
                 os.fsync(opened.fileno())
-            os.replace(temporary, target)
         except BaseException:
             _discard(temporary)
             raise
+        return temporary
 
     def _room(self, size, target):
         """Stop unless the mount has `size` bytes free, before anything of `target` is written. The

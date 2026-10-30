@@ -166,9 +166,10 @@ class PlanStore(Protocol):
         Every door that names frames or closes them holds it from what it reads -- plan, record and
         order together -- to the last of them it writes: two presses at once then never take one
         name, drop each other's jobs or order, or unlink a file a frame born in between stands on.
-        append holds it too, so the plan file never loses a write. The loop writes the record
-        outside it: a landed layer's row names its own slot, and the latest row about a slot wins.
-        Re-entrant: append inside it."""
+        append holds it too, so the plan file never loses a write. The reference pool's three
+        writers hold it for the pool's order, and a delete around the halt and the removal
+        (madde 523). The loop writes the record outside it: a landed layer's row names its own
+        slot, and the latest row about a slot wins. Re-entrant: append inside it."""
         ...
 
     def read(self, project: str) -> dict:

@@ -21,8 +21,8 @@ from backend.web.app import create_app
 def client_for(drive_root, dist_dir, halted=None):
     """Wire the feature by hand -- the same wiring main.py does, but over a temp folder.
 
-    The halt port stands in for the photo worker: this feature never knows what is behind it, so a
-    list that writes down the name is the whole of it here.
+    The delete's port stands in for the photo worker: this feature never knows what is behind it, so
+    a list that writes down the name, and the removal it was handed run, are the whole of it here.
     """
     # Imported here rather than at the top: the module does not exist yet in the test tour, and an
     # import up there would fail collection and take this whole file's questions with it.
@@ -39,10 +39,11 @@ def client_for(drive_root, dist_dir, halted=None):
         create_project=partial(create_project, store),
         check_name=check_name,
         delete_project=partial(delete_project, store,
-                               lambda project: (halted if halted is not None else []).append(
-                                   project)),
-        # The move port stands in for the photo worker the same way halt does: here it only has to
-        # run what it was handed.
+                               lambda project, remove: (
+                                   (halted if halted is not None else []).append(project),
+                                   remove())[1]),
+        # The move port stands in for the photo worker the same way the delete's does: here it only
+        # has to run what it was handed.
         rename_project=partial(rename_project, store, lambda old, new, do: do()),
         get_settings=partial(get_settings, settings_store),
         save_settings=partial(save_settings, settings_store),

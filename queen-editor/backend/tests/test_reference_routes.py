@@ -59,10 +59,10 @@ def client_over(drive, dist, clips=None):
     pool = DriveReferenceStore(storage, clips)
     orders = DriveReferenceOrderStore(storage)
     blueprint = make_reference_blueprint(
-        add_references=partial(add_references, store, pool, orders, clips),
+        add_references=partial(add_references, store, pool, orders, clips, plan_store),
         list_references=partial(list_references, store, pool, orders),
-        remove_reference=partial(remove_reference, store, pool, orders),
-        save_reference_order=partial(save_reference_order, store, pool, orders),
+        remove_reference=partial(remove_reference, store, pool, orders, plan_store),
+        save_reference_order=partial(save_reference_order, store, pool, orders, plan_store),
         queue_references=partial(queue_references, runner, store, record, plan_store, gallery,
                                  pool, orders, {layers.VIDEO: FakeGenerator()}, lambda: 7,
                                  lambda: "t"),

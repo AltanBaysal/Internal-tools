@@ -18,6 +18,7 @@ from backend.features.photo_generation.domain.usecases.start_batch import (
     ProjectMissing,
 )
 from backend.tests.test_photo_usecases import FakePlanStore
+from backend.tests.test_rename_under_queue import Gate
 
 
 class FakeStore:
@@ -60,10 +61,29 @@ class FakeReferenceStore:
 
     def __init__(self, clips=None):
         self.pools = {}
+        self.staged = {}            # hidden name -> bytes, as an upload writes them before naming
+        self.written = 0
         self._clips = clips
 
     def save(self, project, name, data):
+        """A file put in the pool by the test itself -- from Drive, as far as the pool can tell."""
         self.pools.setdefault(project, {})[name] = data
+
+    def stage(self, project, data):
+        self.written += 1
+        hidden = f".staged-{self.written}"
+        self.staged[hidden] = data
+        return hidden
+
+    def place(self, project, staged, name):
+        self.save(project, name, self.staged.pop(staged))
+
+    def discard(self, project, staged):
+        self.staged.pop(staged, None)
+
+    def sweep(self, project):
+        """Nothing is ever left over here: the staged files that outlive an upload are the real
+        folder's (test_written_at_once)."""
 
     def items(self, project):
         return [(name, self._length(name, data))
@@ -97,8 +117,9 @@ def pool_of(store, references_store, orders=None, project="düğün"):
 
 
 def added(store, pool, files, clips=None, orders=None, project="düğün"):
+    """An upload. The plan store is there for its gate alone (madde 523)."""
     return add_references(store, pool, orders or FakeOrderStore(), clips or FakeClips(),
-                          project, files)
+                          FakePlanStore(), project, files)
 
 
 def picture(name="kedi.png", slot=1):
@@ -137,7 +158,7 @@ def test_a_file_of_another_kind_is_refused_by_the_row_it_was_picked_into():
     store, pool = FakeStore(), FakeReferenceStore()
 
     with pytest.raises(UnknownReference) as exc:
-        add_references(store, pool, FakeOrderStore(), FakeClips(), "düğün",
+        add_references(store, pool, FakeOrderStore(), FakeClips(), FakePlanStore(), "düğün",
                        [("kisa-2.wav", b"WAV")], row=references.PICTURE)
 
     assert str(exc.value) == "kisa-2.wav fotoğraf yuvasına giremez — bu dosya ses."
@@ -147,7 +168,7 @@ def test_a_file_of_another_kind_is_refused_by_the_row_it_was_picked_into():
 def test_a_file_of_its_rows_kind_goes_into_that_row():
     store, pool = FakeStore(), FakeReferenceStore()
 
-    answer = add_references(store, pool, FakeOrderStore(), FakeClips(), "düğün",
+    answer = add_references(store, pool, FakeOrderStore(), FakeClips(), FakePlanStore(), "düğün",
                             [("kedi.png", b"PNG")], row=references.PICTURE)
 
     assert answer == [picture()]
@@ -245,12 +266,80 @@ def test_two_files_with_one_name_in_one_press_both_land():
     assert list(pool.pools["düğün"]) == ["kedi.png", "kedi-2.png"]
 
 
+class GatedClips(FakeClips):
+    """Writes down, each time a length is asked, whether the project's gate was held."""
+
+    def __init__(self, gate):
+        super().__init__()
+        self.gate = gate
+        self.under_gate = []
+
+    def seconds(self, data):
+        self.under_gate.append(self.gate.depth > 0)
+        return super().seconds(data)
+
+
+class GatedPool(FakeReferenceStore):
+    """Writes down each write of an upload's bytes, and each naming, with whether the gate was held."""
+
+    def __init__(self, gate):
+        super().__init__()
+        self.gate = gate
+        self.writes = []
+
+    def save(self, project, name, data):
+        self.writes.append(("bytes", self.gate.depth > 0))
+        super().save(project, name, data)
+
+    def stage(self, project, data):
+        self.writes.append(("bytes", self.gate.depth > 0))
+        return super().stage(project, data)
+
+    def place(self, project, staged, name):
+        self.writes.append(("name", self.gate.depth > 0))
+        self.pools.setdefault(project, {})[name] = self.staged.pop(staged)
+
+    def sweep(self, project):
+        self.writes.append(("sweep", self.gate.depth > 0))
+
+
+def test_an_upload_reads_its_lengths_and_writes_its_bytes_before_the_gate():
+    """Reviewer, madde 523: held across ffprobe and tens of megabytes to Drive, the gate kept every
+    press on the project waiting, and the screen's timeout could say Zaman aşımı for a job that was
+    still added. Only the names and the order are decided under it -- and what earlier uploads left
+    staged is swept there."""
+    gate = Gate()
+    clips, pool = GatedClips(gate), GatedPool(gate)
+
+    add_references(FakeStore(), pool, FakeOrderStore(), clips, gate, "düğün",
+                   [("dans.mp4", b"MP4"), ("kedi.png", b"PNG")])
+
+    assert clips.under_gate == [False]
+    assert pool.writes == [("bytes", False), ("bytes", False), ("sweep", True), ("name", True),
+                           ("name", True)]
+    assert pool.pools["düğün"] == {"dans.mp4": b"MP4", "kedi.png": b"PNG"}
+
+
+def test_an_upload_the_pool_refuses_leaves_no_bytes_behind():
+    """The bytes are written before the pool's limits can be weighed against the pool; a refusal
+    under the gate takes them away again."""
+    store, pool = FakeStore(), FakeReferenceStore()
+    for n in range(references.LIMITS[references.PICTURE]):
+        pool.save("düğün", f"{n}.png", b"PNG")
+
+    with pytest.raises(references.PoolLimit):
+        added(store, pool, [("fazla.png", b"PNG")])
+
+    assert pool.staged == {}
+    assert len(pool.pools["düğün"]) == references.LIMITS[references.PICTURE]
+
+
 def test_removing_takes_the_file_off_the_disk():
     clips = FakeClips()
     store, pool = FakeStore(), FakeReferenceStore(clips)
     added(store, pool, [("kedi.png", b"PNG"), ("dans.mp4", b"MP4")], clips)
 
-    remove_reference(store, pool, FakeOrderStore(), "düğün", "kedi.png")
+    remove_reference(store, pool, FakeOrderStore(), FakePlanStore(), "düğün", "kedi.png")
 
     assert pool_of(store, pool) == [clip("dans.mp4", references.VIDEO)]
 
@@ -259,7 +348,8 @@ def test_removing_something_that_is_not_there_is_not_an_error():
     """Deleting twice has to end where deleting once ends: another tab can get there first."""
     store, pool = FakeStore(), FakeReferenceStore()
 
-    assert remove_reference(store, pool, FakeOrderStore(), "düğün", "kedi.png") == []
+    assert remove_reference(store, pool, FakeOrderStore(), FakePlanStore(), "düğün",
+                            "kedi.png") == []
 
 
 def test_the_pool_carries_the_slot_each_reference_stands_in():
@@ -279,7 +369,7 @@ def test_removing_the_middle_one_moves_the_ones_after_it_up():
     store, pool = FakeStore(), FakeReferenceStore()
     added(store, pool, [(f"{name}.png", b"PNG") for name in ("bir", "iki", "üç")], orders=orders)
 
-    left = remove_reference(store, pool, orders, "düğün", "iki.png")
+    left = remove_reference(store, pool, orders, FakePlanStore(), "düğün", "iki.png")
 
     assert [(row["name"], row["slot"]) for row in left] == [("bir.png", 1), ("üç.png", 2)]
 
@@ -290,7 +380,7 @@ def test_a_removed_name_uploaded_again_goes_to_the_end():
     orders = FakeOrderStore({"düğün": {references.PICTURE: ["bir.png", "iki.png", "üç.png"]}})
     store, pool = FakeStore(), FakeReferenceStore()
     added(store, pool, [(f"{name}.png", b"PNG") for name in ("bir", "iki", "üç")], orders=orders)
-    remove_reference(store, pool, orders, "düğün", "iki.png")
+    remove_reference(store, pool, orders, FakePlanStore(), "düğün", "iki.png")
 
     again = added(store, pool, [("iki.png", b"NEW")], orders=orders)
 
@@ -305,8 +395,8 @@ def test_an_upload_joins_the_end_of_its_row():
     store, pool = FakeStore(), FakeReferenceStore()
     added(store, pool, [("zeynep.png", b"ONE")], orders=orders)
 
-    answer = add_references(store, pool, orders, FakeClips(), "düğün", [("ayse.png", b"TWO")],
-                            row=references.PICTURE)
+    answer = add_references(store, pool, orders, FakeClips(), FakePlanStore(), "düğün",
+                            [("ayse.png", b"TWO")], row=references.PICTURE)
 
     assert [(row["name"], row["slot"]) for row in answer] == [("zeynep.png", 1), ("ayse.png", 2)]
     assert [(row["name"], row["slot"]) for row in pool_of(store, pool, orders)] == [
@@ -318,7 +408,7 @@ def test_the_order_the_user_dragged_is_stored():
     store, pool = FakeStore(), FakeReferenceStore()
     added(store, pool, [("kedi.png", b"ONE"), ("kuş.png", b"TWO")], orders=orders)
 
-    left = save_reference_order(store, pool, orders,
+    left = save_reference_order(store, pool, orders, FakePlanStore(),
                                 "düğün", {references.PICTURE: ["kuş.png", "kedi.png"]})
 
     assert [row["name"] for row in left] == ["kuş.png", "kedi.png"]
@@ -333,7 +423,7 @@ def test_a_sent_order_keeps_only_the_names_the_pool_holds():
     store, pool = FakeStore(), FakeReferenceStore()
     added(store, pool, [("bir.png", b"ONE"), ("üç.png", b"THREE")], orders=orders)
 
-    save_reference_order(store, pool, orders,
+    save_reference_order(store, pool, orders, FakePlanStore(),
                          "düğün", {references.PICTURE: ["bir.png", "iki.png", "üç.png"]})
 
     assert orders.read("düğün") == {references.PICTURE: ["bir.png", "üç.png"]}
@@ -350,7 +440,7 @@ def test_a_dragged_row_leaves_every_other_row_as_it_was_saved():
     for name in ("zeynep.png", "ayse.png", "bir.mp4", "iki.mp4", "rüzgar.wav", "kuş.wav"):
         pool.save("düğün", name, b"FILE")
 
-    left = save_reference_order(store, pool, orders,
+    left = save_reference_order(store, pool, orders, FakePlanStore(),
                                 "düğün", {references.VIDEO: ["bir.mp4", "iki.mp4"]})
 
     assert orders.read("düğün") == {references.PICTURE: ["zeynep.png", "ayse.png"],
@@ -361,12 +451,28 @@ def test_a_dragged_row_leaves_every_other_row_as_it_was_saved():
         ("rüzgar.wav", 1), ("kuş.wav", 2)]
 
 
+def test_a_drag_from_a_tab_that_never_saw_an_upload_keeps_it_where_it_stood():
+    """Reviewer, madde 523: the dragged row replaced the stored one whole, so a tab that had not seen
+    another tab's upload dropped it from the order, and it stood wherever its name sorts. A file the
+    drag does not name keeps its place, as a frame does in the gallery (madde 512)."""
+    orders = FakeOrderStore()
+    store, pool = FakeStore(), FakeReferenceStore()
+    added(store, pool, [("bir.png", b"ONE"), ("iki.png", b"TWO")], orders=orders)
+    added(store, pool, [("aaa.png", b"NEW")], orders=orders)           # the other tab's upload
+
+    left = save_reference_order(store, pool, orders, FakePlanStore(),
+                                "düğün", {references.PICTURE: ["iki.png", "bir.png"]})
+
+    assert orders.read("düğün") == {references.PICTURE: ["iki.png", "bir.png", "aaa.png"]}
+    assert [row["name"] for row in left] == ["iki.png", "bir.png", "aaa.png"]
+
+
 @pytest.mark.parametrize("order", ["kedi.png", {"picture": "kedi.png"}, {"picture": [7]}])
 def test_an_order_that_is_not_lists_of_names_is_refused(order):
     store, pool = FakeStore(), FakeReferenceStore()
 
     with pytest.raises(InvalidReferenceOrder):
-        save_reference_order(store, pool, FakeOrderStore(), "düğün", order)
+        save_reference_order(store, pool, FakeOrderStore(), FakePlanStore(), "düğün", order)
 
 
 def ready_pool(orders=None):

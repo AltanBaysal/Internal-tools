@@ -106,13 +106,23 @@ class RecordingStore(FakeStore):
         return found
 
 
+def ending(log):
+    """The port a delete is handed: it stops the production, then runs the removal it was given --
+    the photo feature's follow_delete, which also holds the project's gate around both."""
+    def end(project, remove):
+        log.append(f"halt:{project}")
+        return remove()
+    return end
+
+
 def test_deleting_a_project_stops_its_production_before_the_folder_goes():
     """The other order is the bug: a worker writing into a folder that is being removed is exactly
-    the error the confirm promises the user will not see."""
+    the error the confirm promises the user will not see. The removal is handed to the port, which
+    stops first (madde 523)."""
     log = []
     store = RecordingStore(log)
 
-    delete_project(store, lambda project: log.append(f"halt:{project}"), "düğün")
+    delete_project(store, ending(log), "düğün")
 
     assert log == ["halt:düğün", "delete:düğün"]
 
@@ -120,7 +130,7 @@ def test_deleting_a_project_stops_its_production_before_the_folder_goes():
 def test_deleting_an_unknown_project_still_says_so():
     log = []
     with pytest.raises(ProjectMissing) as exc:
-        delete_project(RecordingStore(log), lambda project: log.append("halt"), "yok")
+        delete_project(RecordingStore(log), ending(log), "yok")
     assert str(exc.value) == "Proje yok: yok"
 
 

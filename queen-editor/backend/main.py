@@ -56,8 +56,8 @@ from backend.features.photo_generation.export_runner import MODES, ExportRunner
 from backend.features.photo_generation.domain.usecases.cancel_generation import cancel_generation
 from backend.features.photo_generation.domain.usecases.fix_photo import fix_photo
 from backend.features.photo_generation.domain.usecases.get_status import get_status
+from backend.features.photo_generation.domain.usecases.follow_delete import follow_delete
 from backend.features.photo_generation.domain.usecases.follow_rename import follow_rename
-from backend.features.photo_generation.domain.usecases.halt_project import halt_project
 from backend.features.photo_generation.domain.usecases.queue_layer import queue_layer
 from backend.features.photo_generation.domain.usecases.regenerate import regenerate
 from backend.features.photo_generation.domain.usecases.remove_layer import remove_layer
@@ -189,8 +189,8 @@ _projects_bp = make_projects_blueprint(
     create_project=partial(create_project, _project_store),
     check_name=check_name,
     delete_project=partial(delete_project, _project_store,
-                           partial(halt_project, _photo_runner, _comfy_client.interrupt,
-                                   time.sleep)),
+                           partial(follow_delete, _photo_runner, _plan_store,
+                                   _comfy_client.interrupt, time.sleep)),
     # Renaming meets the worker too, but the other way round: the production is not stopped, it is
     # carried over to the folder's new name.
     rename_project=partial(rename_project, _project_store,
@@ -321,12 +321,14 @@ _photo_bp = make_photo_generation_blueprint(
 # The pool's own surface, beside the cards' blueprint rather than inside it -- the two answer
 # different questions.
 _references_bp = make_reference_blueprint(
+    # The pool's three writers take the project's write gate (madde 523), so the plan store too.
     add_references=partial(add_references, _photo_store, _reference_store, _reference_orders,
-                           _clips),
+                           _clips, _plan_store),
     list_references=partial(list_references, _photo_store, _reference_store, _reference_orders),
-    remove_reference=partial(remove_reference, _photo_store, _reference_store, _reference_orders),
+    remove_reference=partial(remove_reference, _photo_store, _reference_store, _reference_orders,
+                             _plan_store),
     save_reference_order=partial(save_reference_order, _photo_store, _reference_store,
-                                 _reference_orders),
+                                 _reference_orders, _plan_store),
     queue_references=partial(queue_references, _photo_runner, _photo_store, _photo_record,
                              _plan_store, _order_store, _reference_store, _reference_orders,
                              _producers, seed.random_seed,

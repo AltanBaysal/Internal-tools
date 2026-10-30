@@ -16,8 +16,10 @@ that name or close frames, which read the plan, the record and the order and wri
 together, and hold it from the first read to the last write (PlanStore.held says why). The doors
 that queue work hold it on to the worker's claim, and a rename takes both names' around the
 folder's move (madde 522), so neither a door's writes nor its claim fall on both sides of a move.
-The loop writes the record outside it. One process serves every press, so a lock in memory is
-enough.
+The reference pool's writers hold it for the pool's order file, read and written back whole, and a
+delete holds it around the halt and the folder's removal, so no press starts a run in a folder that
+is going (madde 523). The loop writes the record outside it. One process serves every press, so a
+lock in memory is enough.
 """
 import json
 import threading

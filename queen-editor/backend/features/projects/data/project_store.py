@@ -12,6 +12,7 @@ under arsiv/, and moving them back is done in Drive by hand -- the user's own ca
 needed once does not live in this file forever.
 """
 import json
+import threading
 
 from backend.features.projects.domain import name_rules
 from backend.features.projects.domain.project import Project
@@ -36,6 +37,12 @@ def _parse(raw):
 class DriveProjectStore:
     def __init__(self, storage):
         self.storage = storage
+        # Every change of the marks reads the one file and writes it back whole: two at once, even
+        # for two projects, would each write the list they read and the first one's mark would be
+        # lost (madde 523). One process serves every press. Nothing is taken inside it, and it is
+        # held for a read, a write and at most a folder's rename -- a rename holds it under the
+        # project's name lock, which the loop waits on, so a folder's removal stays outside it.
+        self._lock = threading.Lock()
 
     # --- the mark ---------------------------------------------------------------------------
 
@@ -88,16 +95,18 @@ class DriveProjectStore:
         """
         if not self.storage.dir_exists(name):
             return False
-        marks = self._held_marks()
-        if name not in marks:
-            self._write_marks(marks + [name])
+        with self._lock:
+            marks = self._held_marks()
+            if name not in marks:
+                self._write_marks(marks + [name])
         return True
 
     def restore(self, name):
-        marks = self._held_marks()
-        if name not in marks:
-            return False
-        self._write_marks([held for held in marks if held != name])
+        with self._lock:
+            marks = self._held_marks()
+            if name not in marks:
+                return False
+            self._write_marks([held for held in marks if held != name])
         return True
 
     def is_archived(self, name):
@@ -119,24 +128,35 @@ class DriveProjectStore:
         The mark goes with it. A name left behind breaks no list -- there is no folder under it --
         right up until somebody makes a project with that name, which would then be born archived.
         The marks are read before the folder goes, so a file that cannot be read stops the delete
-        while the project is still there.
+        while the project is still there. They are read again, under the marks' lock, once it has
+        gone, and the mark dropped then: the lock is not held for a removal that can take long over
+        Drive (__init__ says why), and a change of another project's mark meanwhile would be lost
+        from a list read before. After and not before, so a removal that fails half way leaves an
+        archived project archived (madde 523). The first read takes no lock: a write replaces the
+        file whole, so a read sees one list or the other, and it writes nothing back.
         """
-        marks = self._held_marks()
+        self._held_marks()      # read only for its refusal: the list itself is read again below
         gone = self.storage.delete_dir(name)
-        if name in marks:
-            self._write_marks([held for held in marks if held != name])
+        with self._lock:
+            marks = self._held_marks()
+            if name in marks:
+                self._write_marks([held for held in marks if held != name])
         return gone
 
     def rename(self, old, new):
         """The renamed project, None when the new name is taken, False when the old one is gone.
 
-        The marks are read first, for the reason delete reads them first."""
-        marks = self._held_marks()
-        moved = self.storage.rename_dir(old, new)
-        # `is` and not truthiness: an mtime can be 0.0 and that is a success.
-        if moved is None or moved is False:
-            return moved
-        # The mark hangs on a name now rather than on where the folder sits, so it has to follow.
-        if old in marks:
-            self._write_marks([new if held == old else held for held in marks])
+        The marks are read first, for the reason delete reads them first. The folder's move is
+        under the marks' lock with them: it is one rename, and a mark change of another project
+        landing between the read and the write would be lost."""
+        with self._lock:
+            marks = self._held_marks()
+            moved = self.storage.rename_dir(old, new)
+            # `is` and not truthiness: an mtime can be 0.0 and that is a success.
+            if moved is None or moved is False:
+                return moved
+            # The mark hangs on a name now rather than on where the folder sits, so it has to
+            # follow.
+            if old in marks:
+                self._write_marks([new if held == old else held for held in marks])
         return Project(new, moved)

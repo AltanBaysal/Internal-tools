@@ -1,10 +1,10 @@
 """Delete one project: the folder and everything inside it.
 
 The production comes first. The confirm window promises that a running production is stopped and the
-queue thrown away, so `halt` is called before a single file goes -- the other order leaves a worker
-writing into a folder that is being removed, which is the error the promise rules out. What is
-behind `halt` is not this feature's business: the photo worker lives in another feature and they
-meet only in main.py.
+queue thrown away, so the folder's removal is handed to `end`, which stops the production before a
+single file goes -- the other order leaves a worker writing into a folder that is being removed,
+which is the error the promise rules out. What is behind `end` is not this feature's business: the
+photo worker lives in another feature and they meet only in main.py, as `move` does for a rename.
 
 The queue needs no separate emptying: the plan lives inside the folder, so it goes with it.
 
@@ -19,9 +19,8 @@ from backend.features.projects.domain import name_rules
 from backend.features.projects.domain.usecases.get_settings import ProjectMissing
 
 
-def delete_project(store, halt, name):
+def delete_project(store, end, name):
     if name_rules.is_reserved(name):
         raise ProjectMissing(f"Proje yok: {name}")
-    halt(name)
-    if not store.delete(name):
+    if not end(name, lambda: store.delete(name)):
         raise ProjectMissing(f"Proje yok: {name}")

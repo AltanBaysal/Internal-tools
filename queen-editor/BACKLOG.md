@@ -103,14 +103,26 @@ aynı kimliğin iki kez gelmesine bakmıyor. `remove_frames` böyle bir kareyi c
 ayıklıyor (`dict.fromkeys`). Düzeltme `checked`'te, bütün çağıranlar için: tekrar eden kimlik bir kez
 sayılır.
 
-### Proje silinirken gelen bir basış silinecek klasörde koşu başlatabilir
+### Arşive kaldırma ile silme aynı anda gelince silinen projenin işareti kalabilir
 
-*(522'nin reviewer'ı buldu, 30 Ekim; denenmedi, bu koşudan eski.)* `delete_project` önce projenin
-koşusunu durdurur (`halt_project`), sonra klasörü siler (`store.delete`), ve projenin yazma kapısını
-(`plan_store.held`) almaz. Durdurmayla silme arasına düşen bir Kuyruğa ekle işini yazar ve işçiyi alır;
-klasör ardından silinir ve koşu var olmayan klasörde hata verir. Kaybolan iş yok (klasörle birlikte
-gider), ama ekranda yersiz bir hata çıkar. Düzeltme 522'nin yeniden adlandırmaya yaptığı: silme de
-projenin kapısını alır, böylece basış ya silmeden önce biter ya sonra gelip projeyi bulamaz.
+*(523'ün coder'ı buldu, 30 Ekim; denenmedi, bu koşudan eski.)* `DriveProjectStore.archive` klasörün
+varlığına işaretlerin kilidinin dışında bakar, `delete` de klasörü o kilidin dışında siler (523: silme
+uzun sürebilir ve yeniden adlandırma o kilidi adın kilidinin içinde bekler); silme işareti klasör
+gittikten sonra kilitte düşürür. Klasör silinirken varlığa bakan bir arşive kaldırma klasörü bulur, ama
+işaretini ancak silmenin işareti düşürmesinden sonra yazarsa ad arşivde kalır. Kalan ad hiçbir listeyi
+bozmaz, ama o adla açılan yeni proje arşivde doğar. Hiçbir yazma kaybolmuyor. Düzeltme kullanıcının
+seçimi: arşive kaldırma da projenin yazma kapısını alsın (projeler özelliğine bir port daha), ya da
+yeni proje açılırken adın işareti silinsin.
+
+### Referans yüklenirken başlayan bir video referansları bir an ada göre sıralı okuyabilir
+
+*(523'ün coder'ı buldu, 30 Ekim; denenmedi, bu koşudan eski.)* Döngü referans havuzunu
+(`reference_files`) adın kilidinde okur, projenin yazma kapısında değil — GPU kapıyı beklemesin diye.
+Bir yükleme dosyayı yerine koyup sırayı henüz yazmamışken okunursa yeni dosya sıraya göre değil adına
+göre yer alır (`references.placed`); adı öndeyse o videonun `<Picture N>`'leri bir kayar. Silmede de,
+liste okunduktan sonra silinen dosyanın baytları okunamaz ve o deneme düşer (yeniden denenir).
+Düzeltme: sıra dosyalardan önce yazılabilir mi (sırada adı olup dosyası olmayan bir referans yuvada
+durmaz, 321) — okunup karar verilecek.
 
 ### Bilinmeyen bir satır türüyle referans yüklemek 500 veriyor
 
@@ -125,16 +137,6 @@ bilinen türleri gönderir. Düzeltme: bilinmeyen satır türü de `UnknownRefer
 `done 8, total 9` diyor, oysa borçlu iş yok: toplam silinen kareyi de sayıyor gibi (`queue.counts`
 planın işlerini, silinmiş yerleri ayırmadan sayıyor olabilir). Ekran bunu "8/9" diye gösterirse sıra
 bitmemiş gibi görünür.
-
-### Referans sırası ve arşiv işaretleri aynı anda iki yazmada birini kaybedebilir
-
-*(512'nin coder'ı buldu, 29 Ekim; denenmedi.)* 512 projenin planını, kaydını ve galeri sırasını yazan
-kapıları tek kilide aldı. Okunup bütün yeniden yazılan iki dosya hâlâ kilitsiz, aynı anda iki yazmada
-sonra yazan öncekininkini siliyor:
-- referans havuzunun sırası (`add_references`, `remove_reference`, `save_reference_order`);
-- arşiv işaretleri (`arsiv.json`, `DriveProjectStore`): aynı anda iki arşive kaldırma birini kaybeder.
-
-Düzeltme `DriveMuteStore`'un yolu: okuma ve yazma tek kilitte.
 
 ### Fotoğraf kaydına aynı anda iki satır yazılabilir
 

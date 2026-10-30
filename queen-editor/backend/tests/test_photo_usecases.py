@@ -57,6 +57,7 @@ from backend.features.photo_generation.domain.usecases.resume_batch import (
 )
 from backend.features.photo_generation.domain.usecases import halt_project as halt_module
 from backend.features.photo_generation.domain.usecases.halt_project import halt_project
+from backend.features.photo_generation.domain.usecases.follow_delete import follow_delete
 from backend.features.photo_generation.domain.usecases.save_order import InvalidOrder, save_order
 from backend.features.photo_generation.domain.usecases.stop_generation import stop_generation
 from backend.features.photo_generation.runner import PhotoRunner
@@ -802,6 +803,21 @@ def test_halting_stops_waiting_the_moment_the_worker_leaves():
 
     assert len(slept) == 2
     assert runner.status() == {"status": "idle"}
+
+
+def test_a_delete_stops_the_projects_run_before_its_folder_goes():
+    """The confirm's promise, kept by the port the projects feature is handed (madde 523 moved it
+    there with the gate): the removal comes after the stop, and its answer is the delete's."""
+    runner = halting_runner()
+    stopped_first = []
+
+    def remove():
+        stopped_first.append(runner.stop_requested())
+        return False
+
+    assert follow_delete(runner, FakePlanStore(), lambda: None, lambda _: None, "düğün",
+                         remove) is False
+    assert stopped_first == [True]
 
 
 def test_stop_generation_survives_interrupt_failure():

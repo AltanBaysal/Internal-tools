@@ -15,6 +15,9 @@ from backend.features.photo_generation.domain import references
 
 # The project folder's own reference area.
 REFERENCE_DIR = "referans"
+# How old a staged upload is before a sweep takes it, in seconds: far past the time an upload's
+# bytes spend between their staging and the gate -- the upload's own wait for the gate.
+STAGED_FOR = 3600
 
 
 class DriveReferenceStore:
@@ -22,8 +25,31 @@ class DriveReferenceStore:
         self._storage = storage
         self._clips = clips
 
-    def save(self, project, name, data):
-        self._storage.write_bytes(self._subdir(project), name, data)
+    def stage(self, project, data):
+        """Write an upload's bytes into the pool under a hidden name, which comes back; no listing
+        sees it. An upload writes its files before the project's gate and names them under it
+        (add_references, madde 523)."""
+        return self._storage.stage_bytes(self._subdir(project), data)
+
+    def place(self, project, staged, name):
+        """Give a staged file the name it is stored under, which must be free."""
+        self._storage.rename_file(self._subdir(project), staged, name)
+
+    def discard(self, project, staged):
+        """Take away a staged file that was never placed. Never raises: it is called on the way out
+        of a failed upload, whose own error is the one worth telling, and a file left behind is
+        hidden from every listing."""
+        try:
+            self._storage.delete_file(self._subdir(project), staged)
+        except OSError:
+            pass
+
+    def sweep(self, project):
+        """Take away what earlier uploads left staged in the pool and nobody will place (madde
+        523): the folder renamed between their staging and their gate, which moved the files with
+        it out of their discard's reach, or a server that died. Only files older than STAGED_FOR:
+        a younger one may be another upload's, still waiting for the gate."""
+        self._storage.sweep_staged(self._subdir(project), STAGED_FOR)
 
     def items(self, project):
         """[(name, seconds)] -- the length read off the file, never remembered from the day it
