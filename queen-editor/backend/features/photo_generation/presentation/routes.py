@@ -302,6 +302,9 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
             return jsonify({"error": str(exc)}), 400
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
+        except Busy as exc:
+            # A frame the worker is making a layer of (madde 519).
+            return jsonify({"error": str(exc)}), 409
 
     # Beside the delete above, and the same shape: a list of identities in the body, because a copy
     # frame shares its source's picture and a file name would not say which of the two was asked

@@ -26,16 +26,32 @@ An identity the gallery does not know is skipped, not refused. The confirm box c
 another tab removes the same frame, and refusing the whole batch over one that is already gone would
 leave the rest standing against the user's own decision. The answer says what really happened.
 
-The frame being rendered needs no guard: it writes its own line when it lands, and the latest line
-about a slot wins, so a removal that raced it is undone by the photo itself.
+A frame the worker is making a layer of is refused, the whole press with it, and nothing is written.
+The layer lands with its own line whatever was written meanwhile -- a landing always wins (madde
+513) -- so a frame deleted under its render came back, at the top, with a video and a picture that
+was gone (madde 519). Refused rather than skipped: the answer would otherwise say the rest went
+while the frame the user meant stays. The screens offer no Sil there; this is for the agent and a
+screen a poll behind.
 """
 from backend.features.photo_generation.domain import layers, queue
 from backend.features.photo_generation.domain.frame_list import checked
 from backend.features.photo_generation.domain.photo_name import layer_file
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
+from backend.features.photo_generation.domain.usecases.run_queue import Busy
 
 
-def remove_frames(record, store, plan_store, order_store, now, project, frames):
+def _being_made(runner, project):
+    """The frames of `project` the worker is making a layer of now: the one it holds and the rest of
+    its batch (madde 411). None while it writes a prompt -- that turn makes nothing, and the next one
+    reads the record again before it renders."""
+    state = runner.status()
+    if state.get("status") != "running" or state.get("project") != project:
+        return set()
+    current = state.get("current") or {}
+    return {fid for fid in [current.get("id"), *(state.get("batch") or [])] if fid}
+
+
+def remove_frames(runner, record, store, plan_store, order_store, now, project, frames):
     checked(frames, "Silinecek")
     # Held from the slots read to the order written: which files no other frame holds is decided
     # before they are unlinked, and a copy born in between -- its rows pointing at those files --
@@ -44,6 +60,9 @@ def remove_frames(record, store, plan_store, order_store, now, project, frames):
         # Raises ProjectMissing when there is no such project.
         gallery = {frame["id"]: frame
                    for frame in list_frames(record, store, plan_store, order_store, project)}
+        made = sorted(_being_made(runner, project) & set(frames) & set(gallery))
+        if made:
+            raise Busy(f"Kare şu an üretiliyor, bitince silinebilir: {', '.join(made)}")
         slots = record.slots(project)
 
         # The whole deletion is decided first: which slots close, and which files that leaves

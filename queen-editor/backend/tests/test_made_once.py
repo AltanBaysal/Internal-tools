@@ -218,6 +218,7 @@ def test_a_second_video_press_as_the_first_video_lands_never_makes_it_again():
     store, record, order = FakeStore(), LandsAfterFirstLook(), FakeOrderStore()
     plan_store = FakePlanStore(frames=[frame(0)])
     record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done"})
+    store.files["0_a.png"] = b"PNGDATA"
     runner = idle_runner()
     assert video_press(runner, store, record, plan_store, order) == 1      # press A
     video = WaitsForTheLook(record.looked)
@@ -245,6 +246,7 @@ def test_a_press_on_a_video_already_back_in_line_never_makes_it_again_as_it_land
     store, record, order = FakeStore(), LandsAfterFirstLook(), FakeOrderStore()
     plan_store = FakePlanStore(frames=[frame(0)])
     record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done"})
+    store.files["0_a.png"] = b"PNGDATA"
     plan_store.append("düğün", [{"id": "0_a", "type": "video", "number": 0, "variant": 0,
                                  "prompt": "", "negative": "", "seed": None, "model": ""}])
     record.mark("düğün", "0_a", "video", "0_a_V1_0.mp4", queue.REMOVED, "t0", seen=None)
@@ -319,6 +321,7 @@ def sound_copy_holding_the_video():
         record.append("düğün", {"file": "P1_0_V1_0.mp4", "frame": fid, "layer": "video",
                                 "status": queue.DONE})
     record.mark("düğün", "P1_0", "video", "P1_0_V1_0.mp4", queue.DELETED, "t1", seen=queue.DONE)
+    store.files["P1_0.png"] = b"PNGDATA"
     return store, record, plan_store
 
 
@@ -378,7 +381,8 @@ def test_taking_out_a_pending_frame_whose_photo_lands_meanwhile_keeps_the_photo(
     plan_store = FakePlanStore(frames=[{"id": "P0_0", "number": 0, "variant": 0, "prompt": "p",
                                         "seed": 1}])
 
-    remove_frames(record, store, plan_store, FakeOrderStore(), now, "düğün", ["P0_0"])
+    remove_frames(idle_runner(), record, store, plan_store, FakeOrderStore(), now, "düğün",
+                  ["P0_0"])
 
     assert record.slots("düğün")["P0_0"]["photo"]["status"] == queue.DONE
     assert store.deleted == []

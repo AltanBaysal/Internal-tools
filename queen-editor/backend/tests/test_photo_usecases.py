@@ -1522,6 +1522,7 @@ def video_job_project(prompt="p", job_prompt=""):
     ])
     record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done",
                             "prompt": prompt})
+    store.files["0_a.png"] = b"PNGDATA"
     return store, record, plan_store
 
 
@@ -1594,6 +1595,7 @@ def test_a_sound_job_s_writer_is_handed_the_frame_s_words():
     store, record, plan_store = video_job_project(prompt="kırmızı elbiseli kadın")
     record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
                             "status": "done", "prompt": "kadın başını çeviriyor"})
+    store.files["0_a_V1_0.mp4"] = b"MP4DATA"
     plan_store.frames.append({"id": "0_a", "type": "audio", "number": 0, "variant": 0,
                               "prompt": "", "negative": "", "seed": None, "model": ""})
     writer = FakeWriter(answer="fabric rustling")
@@ -1722,6 +1724,7 @@ def test_the_writer_is_handed_the_frame_s_scene_by_its_prompt_s_number():
     for number, prompt in ((0, "taht"), (1, "bahçe")):
         record.append("düğün", {"file": f"{number}_a.png", "frame": f"{number}_a",
                                 "layer": "photo", "status": "done", "prompt": prompt})
+        store.files[f"{number}_a.png"] = b"PNGDATA"
     writer = FakeWriter()
 
     resume_batch(sync_runner(), store, record, plan_store, {layers.VIDEO: FakeGenerator()},
@@ -1743,6 +1746,7 @@ def test_a_twin_is_handed_its_source_s_scene():
     for fid in ("P0_0", "C1_P0_0"):
         record.append("düğün", {"file": "P0_0.png", "frame": fid, "layer": "photo",
                                 "status": "done", "prompt": "taht"})
+    store.files["P0_0.png"] = b"PNGDATA"
     writer = FakeWriter()
 
     resume_batch(sync_runner(), store, record, plan_store, {layers.VIDEO: FakeGenerator()},
@@ -1769,6 +1773,7 @@ def test_a_queued_video_s_prompt_is_on_its_card_before_it_is_made():
     plan_store = FakePlanStore(frames=[frame(0, prompt="kırmızı elbiseli kadın")])
     record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done",
                             "prompt": "kırmızı elbiseli kadın"})
+    store.files["0_a.png"] = b"PNGDATA"
     runner = sync_runner()
 
     queue_layer(runner, store, record, plan_store, FakeOrderStore(),
@@ -1788,6 +1793,7 @@ def test_every_owed_prompt_is_written_before_anything_is_made():
         record.append("düğün", {"file": f"{number}_a.png", "frame": f"{number}_a",
                                 "layer": "photo", "status": "done",
                                 "prompt": "kırmızı elbiseli kadın"})
+        store.files[f"{number}_a.png"] = b"PNGDATA"
     plan_store.append("düğün", [{"id": f"{number}_a", "type": "video", "number": number,
                                  "variant": 0, "prompt": "", "negative": "", "seed": None,
                                  "model": ""} for number in (0, 1)])
@@ -1880,6 +1886,7 @@ def video_project(*frames):
     for number, _letter in frames:
         record.append("düğün", {"file": f"{number}_a.png", "frame": f"{number}_a",
                                 "layer": "photo", "status": "done"})
+        store.files[f"{number}_a.png"] = b"PNGDATA"
     return store, record, plan_store
 
 
@@ -1989,6 +1996,26 @@ def render_one_video(mode, linked_to=None, gallery=((0, "a"), (1, "a")), photos=
     make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
              lambda: "t", named=RunningName("düğün"))()
     return generator, record
+
+
+def test_a_video_whose_picture_is_gone_from_the_disk_turns_red_without_a_render():
+    """Madde 519: a deletion that lands after the turn read the record takes the picture before the
+    render reads it. The frame's own rule, not the producer's: this tile turns red and the queue goes
+    on, and the red line, read over a slot the deletion closed, is passed over (madde 513)."""
+    store, record = FakeStore(), FakeRecord()
+    plan_store = FakePlanStore(frames=[frame(0)])
+    record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done"})
+    plan_store.append("düğün", [{"id": "0_a", "type": "video", "number": 0, "variant": 0,
+                                 "prompt": "p", "negative": "", "seed": None, "model": ""}])
+    generator = FakeGenerator()
+
+    make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
+             lambda: "t", named=RunningName("düğün"))()
+
+    assert generator.calls == []
+    video = record.slots("düğün")["0_a"]["video"]
+    assert video["status"] == "failed"
+    assert "Kaynak dosya yok: 0_a.png" in video["error"]
 
 
 class FakeStills:
@@ -3651,7 +3678,7 @@ def test_a_kopyala_twin_waiting_for_its_video_takes_no_variants_of_its_own():
 
 
 def test_a_copy_whose_waiting_video_is_taken_out_keeps_its_place():
-    """Madde 519: the photo tab's Kuyruktan çıkar on such a copy takes the video out and nothing else
+    """Madde 519: the photo tab's Kuyruktan çıkar on such a copy takes the video out, nothing else
     -- the copy stays a twin holding its source's picture, where it stood in the gallery."""
     store, record, plan_store = copy_waiting_for_its_video()
     order = FakeOrderStore(["P0_1", "0_a"])
@@ -3730,7 +3757,7 @@ def test_a_photo_leaves_the_disk_and_the_log_says_so():
     plan_store = planned((0, "a", "a"), (1, "a", "b"), (2, "a", "c"))
     order = FakeOrderStore(["0_a.png", "1_a.png", "2_a.png"])
 
-    result = remove_frames(record, store, plan_store, order, stamped, "düğün",
+    result = remove_frames(sync_runner(), record, store, plan_store, order, stamped, "düğün",
                            ["0_a", "2_a"])
 
     assert result == {"deleted": ["0_a", "2_a"], "removed": []}
@@ -3743,8 +3770,8 @@ def test_a_frame_that_was_never_produced_only_leaves_the_queue():
     store, record = FakeStore(), FakeRecord()
     plan_store = planned((0, "a", "a"), (1, "a", "b"))
 
-    result = remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün",
-                           ["1_a"])
+    result = remove_frames(sync_runner(), record, store, plan_store, FakeOrderStore(), stamped,
+                           "düğün", ["1_a"])
 
     assert result == {"deleted": [], "removed": ["1_a"]}
     assert store.deleted == []                       # there is no file to delete yet
@@ -3756,8 +3783,8 @@ def test_a_failed_frame_leaves_the_gallery_the_same_way():
     record.mark("düğün", "1_a", "photo", "1_a.png", "failed", "t1", seen=None)
     plan_store = planned((0, "a", "a"), (1, "a", "b"))
 
-    result = remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün",
-                           ["1_a"])
+    result = remove_frames(sync_runner(), record, store, plan_store, FakeOrderStore(), stamped,
+                           "düğün", ["1_a"])
 
     assert result == {"deleted": [], "removed": ["1_a"]}
     assert [f["file"] for f in
@@ -3774,7 +3801,8 @@ def test_a_card_pulled_out_of_the_queue_leaves_no_job_behind():
     plan_store = planned_layers(("0_a", layers.PHOTO, "ilk"), ("0_a", layers.VIDEO, "hareket"),
                                 ("1_a", layers.PHOTO, "ikinci"))
 
-    result = remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["0_a"])
+    result = remove_frames(sync_runner(), record, store, plan_store, FakeOrderStore(), stamped,
+                           "düğün", ["0_a"])
 
     assert result == {"deleted": [], "removed": ["0_a"]}
     assert {slot: cell["status"] for slot, cell in record.slots("düğün")["0_a"].items()} == {
@@ -3789,7 +3817,8 @@ def test_a_card_planned_only_as_a_video_can_be_pulled_out():
     store, record = FakeStore(), FakeRecord()
     plan_store = planned_layers(("0_a", layers.VIDEO, "hareket"), ("1_a", layers.VIDEO, "ikinci"))
 
-    remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["0_a"])
+    remove_frames(sync_runner(), record, store, plan_store, FakeOrderStore(), stamped, "düğün",
+                  ["0_a"])
 
     assert record.slots("düğün")["0_a"] == {
         "video": {"status": "removed", "file": layer_file(layers.VIDEO, "0_a")}}
@@ -3806,8 +3835,8 @@ def test_deleting_a_frame_takes_all_of_its_layer_files():
                             "status": "done"})
     plan_store = planned((0, "a", "a"))
 
-    result = remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün",
-                           ["0_a"])
+    result = remove_frames(sync_runner(), record, store, plan_store, FakeOrderStore(), stamped,
+                           "düğün", ["0_a"])
 
     assert result == {"deleted": ["0_a"], "removed": []}
     assert sorted(store.deleted) == ["0_a.png", "0_a_v0.mp4", "0_a_v0_s0.wav"]
@@ -3828,7 +3857,8 @@ def test_a_file_another_frame_still_holds_is_left_on_disk():
     store, record = FakeStore(), FakeRecord()
     plan_store = shared_video_pair(record)
 
-    remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["0_a"])
+    remove_frames(sync_runner(), record, store, plan_store, FakeOrderStore(), stamped, "düğün",
+                  ["0_a"])
 
     # Its own picture goes; the video the other frame still plays stays.
     assert store.deleted == ["0_a.png"]
@@ -3838,7 +3868,7 @@ def test_the_last_holder_takes_the_shared_file_with_it():
     store, record = FakeStore(), FakeRecord()
     plan_store = shared_video_pair(record)
 
-    remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün",
+    remove_frames(sync_runner(), record, store, plan_store, FakeOrderStore(), stamped, "düğün",
                   ["0_a", "1_a"])
 
     assert sorted(store.deleted) == ["0_a.png", "0_a_v0.mp4", "1_a.png"]
@@ -3851,7 +3881,8 @@ def test_deleting_a_frame_whose_video_failed_unlinks_what_is_there():
                 error="ComfyUI 500")
     plan_store = planned((0, "a", "a"))
 
-    remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["0_a"])
+    remove_frames(sync_runner(), record, store, plan_store, FakeOrderStore(), stamped, "düğün",
+                  ["0_a"])
 
     # A failed layer holds its planned name; unlinking a file that never landed is not an error.
     assert sorted(store.deleted) == ["0_a.png", "0_a_v0.mp4"]
@@ -3877,7 +3908,8 @@ def test_deleting_a_frame_leaves_none_of_its_layer_files_behind():
                             "status": "done"})
     plan_store = planned((0, "a", "a"))
 
-    remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["0_a"])
+    remove_frames(sync_runner(), record, store, plan_store, FakeOrderStore(), stamped, "düğün",
+                  ["0_a"])
 
     assert record.slots("düğün")["0_a"] == {
         "photo": {"status": "deleted", "file": "0_a.png"},
@@ -3891,7 +3923,8 @@ def test_a_deleted_photo_still_never_returns_to_the_queue():
     record.append("düğün", {"file": "0_a.png", "status": "done"})
     plan_store = planned((0, "a", "a"))
 
-    remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["0_a"])
+    remove_frames(sync_runner(), record, store, plan_store, FakeOrderStore(), stamped, "düğün",
+                  ["0_a"])
 
     assert owed_files(record, plan_store) == []
 
@@ -3900,7 +3933,8 @@ def test_a_frame_pulled_out_never_gets_its_number_back():
     store, record = FakeStore(next_no=0), FakeRecord()
     plan_store = planned((0, "a", "a"))
 
-    remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["0_a"])
+    remove_frames(sync_runner(), record, store, plan_store, FakeOrderStore(), stamped, "düğün",
+                  ["0_a"])
 
     assert next_number(store, plan_store, record, "düğün") == 1
 
@@ -3909,8 +3943,8 @@ def test_a_name_the_gallery_does_not_know_is_skipped_not_refused():
     store, record = FakeStore(), FakeRecord()
     record.append("düğün", {"file": "0_a.png", "status": "done"})
 
-    result = remove_frames(record, store, FakePlanStore(), FakeOrderStore(), stamped, "düğün",
-                           ["hayalet", "0_a"])
+    result = remove_frames(sync_runner(), record, store, FakePlanStore(), FakeOrderStore(),
+                           stamped, "düğün", ["hayalet", "0_a"])
 
     assert result == {"deleted": ["0_a"], "removed": []}
     assert store.deleted == ["0_a.png"]
@@ -3920,7 +3954,8 @@ def test_removing_takes_the_named_frame_not_the_one_sharing_its_picture():
     store, record, plan_store = layered_project(audio=False)
     with_a_copy(record)
 
-    gone = remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["P0_1"])
+    gone = remove_frames(sync_runner(), record, store, plan_store, FakeOrderStore(), stamped,
+                         "düğün", ["P0_1"])
 
     assert gone == {"deleted": ["P0_1"], "removed": []}
     # Nothing left the disk: every file the copy held is its source's too (madde 101).
@@ -3936,7 +3971,7 @@ def test_deleting_a_frame_takes_the_jobs_still_coming_for_it():
     store, record, plan_store = video_owed(*video_project((0, "a"), (1, "a")))
     order = FakeOrderStore(["1_a", "0_a"])
 
-    gone = remove_frames(record, store, plan_store, order, stamped, "düğün", ["0_a"])
+    gone = remove_frames(sync_runner(), record, store, plan_store, order, stamped, "düğün", ["0_a"])
 
     assert gone == {"deleted": ["0_a"], "removed": []}
     assert store.deleted == ["0_a.png"]
@@ -3951,7 +3986,8 @@ def test_deleting_a_copy_waiting_for_its_video_takes_it_for_good():
     store, record, plan_store = copy_waiting_for_its_video()
     order = FakeOrderStore(["P0_1", "0_a"])
 
-    gone = remove_frames(record, store, plan_store, order, stamped, "düğün", ["P0_1"])
+    gone = remove_frames(sync_runner(), record, store, plan_store, order, stamped, "düğün",
+                         ["P0_1"])
 
     assert gone == {"deleted": ["P0_1"], "removed": []}
     assert store.deleted == []
@@ -3959,16 +3995,60 @@ def test_deleting_a_copy_waiting_for_its_video_takes_it_for_good():
     assert [f["id"] for f in list_frames(record, store, plan_store, order, "düğün")] == ["0_a"]
 
 
+def making(project, fid, kind=layers.VIDEO, batch=()):
+    """A runner whose worker is making `fid`'s `kind` layer in `project`, with `batch` beside it."""
+    runner = PhotoRunner(spawn=lambda fn: None)
+    runner.start(project, lambda: None)
+    runner.report({"current": {"id": fid, "type": kind}, "batch": list(batch)})
+    return runner
+
+
+@pytest.mark.parametrize("runner", [making("düğün", "0_a"),
+                                    making("düğün", "1_a", layers.PHOTO, batch=["0_a"])])
+def test_a_frame_being_made_cannot_be_deleted(runner):
+    """Madde 519 (QA): the render lands done whatever was written meanwhile (madde 513), so a frame
+    deleted under it came back at the top with a video and a missing picture. Refused whole, with
+    nothing deleted and nothing written."""
+    store, record, plan_store = video_owed(*video_project((0, "a"), (1, "a")))
+    order = FakeOrderStore(["1_a", "0_a"])
+    rows = list(record.rows)
+
+    with pytest.raises(Busy, match="0_a"):
+        remove_frames(runner, record, store, plan_store, order, stamped, "düğün", ["1_a", "0_a"])
+
+    assert store.deleted == []
+    assert record.rows == rows
+    assert order.order == ["1_a", "0_a"]
+
+
+def test_a_frame_is_deleted_while_another_is_being_made():
+    store, record, plan_store = video_owed(*video_project((0, "a"), (1, "a")))
+
+    gone = remove_frames(making("düğün", "1_a"), record, store, plan_store, FakeOrderStore(),
+                         stamped, "düğün", ["0_a"])
+
+    assert gone == {"deleted": ["0_a"], "removed": []}
+
+
+def test_another_projects_run_does_not_hold_a_deletion():
+    store, record, plan_store = video_owed(*video_project((0, "a")))
+
+    gone = remove_frames(making("başka", "0_a"), record, store, plan_store, FakeOrderStore(),
+                         stamped, "düğün", ["0_a"])
+
+    assert gone == {"deleted": ["0_a"], "removed": []}
+
+
 def test_a_body_that_is_not_a_list_of_names_is_rejected():
     with pytest.raises(InvalidFrames):
-        remove_frames(FakeRecord(), FakeStore(), FakePlanStore(), FakeOrderStore(), stamped,
-                      "düğün", "0_a.png")
+        remove_frames(sync_runner(), FakeRecord(), FakeStore(), FakePlanStore(), FakeOrderStore(),
+                      stamped, "düğün", "0_a.png")
 
 
 def test_removing_in_a_missing_project_is_rejected():
     with pytest.raises(ProjectMissing):
-        remove_frames(FakeRecord(), FakeStore(projects=()), FakePlanStore(), FakeOrderStore(),
-                      stamped, "yok", ["0_a"])
+        remove_frames(sync_runner(), FakeRecord(), FakeStore(projects=()), FakePlanStore(),
+                      FakeOrderStore(), stamped, "yok", ["0_a"])
 
 
 def test_the_summary_counts_no_video_as_having_no_sound():

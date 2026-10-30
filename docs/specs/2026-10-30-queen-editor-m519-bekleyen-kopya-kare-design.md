@@ -131,6 +131,42 @@ Bu, seçim çubuğunun bekleyen kopyayı silmesi için gerekli (durumu artık `d
 işi onu resimsiz bir bekleyen kart olarak geri getirirdi. Aynı değişiklik yukarıdaki üçüncü hatayı da
 kapatır.
 
+### Katmanı üretilen kare silinmez
+
+QA (30 Ekim) aynı sözün bir deliğini buldu — *silinen kare bir daha gelmez*: kendi videosu çizilirken
+silinen kare (fotoğraf sekmesinin Sil'i, onay): fotoğraf `deleted` ve diskten gitti, video `removed`
+(`from` boş), ardından çizim `done` yazdı — 513'e göre inen katman her zaman kazanır — ve kare galerinin
+en üstüne videosuyla ve olmayan bir resimle (404) döndü. Seçim çubuğunun Sil'i de, bekleyen kopya da aynı
+yoldan geçiyor.
+
+İnen katman kazanmaya devam eder; değişen, silmenin o ana düşmemesi. **İşçinin bir katmanını yaptığı kare
+silinemez:**
+
+- **Sunucu, `remove_frames`:** işçi (`PhotoRunner`) artık kapının ilk parametresi, `cancel_generation`'daki
+  gibi. Plan kilidinde, galeri okunduktan sonra işçinin durumuna bakılır: bu projede çalışıyorsa, elindeki
+  kare (`current.id`) ve aynı çizimdeki öteki kareler (`batch`, madde 411) yapılıyor demektir. İstenen
+  karelerden biri onlardansa basışın tamamı `Busy` ile reddedilir — *"Kare şu an üretiliyor, bitince
+  silinebilir: P5_0"*, 409 — ve hiçbir şey silinmez, yazılmaz. **Neden sunucuda da:** ajan ve bir yoklama
+  geride kalan ekran oraya ekranın düğmesinden geçmeden varıyor. **Neden mümkün:** işçinin durumu bellekte;
+  okumak disk ya da ağ istemiyor, ve işçi zaten pek çok kapıya böyle veriliyor. **Neden atlamak değil
+  reddetmek:** atlanırsa cevap öteki karelerin gittiğini söylerken kullanıcının kastettiği kare kalırdı.
+  Prompt yazılırken `current` boş: o tur bir şey yapmıyor, ve sonraki tur çizmeden önce kaydı yeniden
+  okuyor, silinen işi görmüyor.
+- **Kare sayfası:** kareyi ya da bekleyen işlerini götüren her düğme — fotoğraf sekmesinin Sil / Kuyruktan
+  çıkar / Kareyi sil'i, dolu ve kırmızı katman sekmelerinin Kareyi sil'i — işçi bu karenin bir katmanını
+  yaparken (`running`) kapalı (`binOff`).
+- **Seçim çubuğu:** seçimde işçinin yaptığı bir kare varsa Sil kapalı ve yanında *"Üretilen kare bitince
+  silinebilir."* yazar. Seçim dairesi yalnız fotoğraf çizilirken kalkıyor; video çizilirken kare
+  seçilebiliyor, ve çizim başlamadan yapılmış bir seçim kalıyor — bu yüzden düğme seçime bakıyor.
+
+### Kaynağı diskte olmayan katman çizilmez
+
+Yukarıdaki güvenli sonuç bugüne kadar üreticinin kendi denetimine dayanıyordu: döngü (`run_loop._source_for`)
+kayıtta adı geçen kaynak dosya diskte yoksa üreticiye boş bayt veriyordu, ve H3'ün grafiği PNG olmayan
+girdiyi reddettiği için iş düşüyordu. Bu artık döngünün kendi kuralı (reviewer): kaynak okunamazsa
+`MissingSource` kare düzeyinde düşer, `MissingEndFrame`'in yaptığı gibi — o kare kırmızı olur, sıra sürer.
+Prompt yazımı da aynı kaynağı okuduğu için, resmi olmayan bir video için prompt da yazılmaz.
+
 ## Maliyet
 
 Proje, sohbet ve dosya sayısından bağımsız; her basış bir istek.
@@ -140,7 +176,7 @@ Proje, sohbet ve dosya sayısından bağımsız; her basış bir istek.
 | Galeri (`list_frames`) | değişmez: aynı okumalar; kart başına zaten okunmuş hücrelerden bir sözlük bakışı. |
 | Kuyruğa ekle (`queue_layer`) | değişmez: kapsam, galerinin zaten okunmuş satırına bir soru daha sorar. |
 | Fotoğraf sekmesinin "Kuyruktan çıkar"ı, kopyada | bir `POST …/layers/video/dequeue`: plan kilidinde galeri bir kez, hücreler bir kez okunur; borçlu katman başına `photos.jsonl`'e bir satır. Sıra dosyası yazılmaz, dosya silinmez. Cevaptan sonra hook galeriyi bir kez okur. Eskisi: aynı okumalar, bir satır, artı sıra dosyasının bir yazması — ve kare geri geliyordu. |
-| Kare silme (`remove_frames`) | aynı okumalar ve yazmalar; üretilmiş karede borçlu iş başına bir satır fazla. |
+| Kare silme (`remove_frames`) | aynı okumalar ve yazmalar; üretilmiş karede borçlu iş başına bir satır fazla; işçinin durumuna bir bakış (bellek). Reddedilen basış galeriyi bir kez okur, hiçbir şey yazmaz. |
 
 ## Ne kaybolabilir, ne bozulabilir
 
@@ -154,6 +190,18 @@ Proje, sohbet ve dosya sayısından bağımsız; her basış bir istek.
 - **Çizilmeye başlamış bir videoya basış:** ekran sıranın çizdiğini gördüyse fotoğraf sekmesinin düğmesi
   kapalı. Görmediyse (son yoklamadan sonra başladıysa) basış `removed` yazar, çizim bitince `done` onu ezer
   ve video yine gelir — 516'nın belgelediği sınır; hiçbir şey kaybolmaz.
+- **Çizilen karenin silinmesi:** sunucu reddeder. Kalan aralık, döngünün kaydı okuduğu an ile elindeki
+  kareyi bildirdiği an arası (arada yalnız prompt kaydına bir bakış var); aynı çizimdeki öteki kareler için
+  biraz daha uzun, çünkü onlar ancak çizimin kendi raporuyla bildiriliyor. Silme oraya düşerse sonuç
+  karenin türüne bağlı:
+  - **Kendi fotoğrafı olan kare, videosu sırada:** silme fotoğrafı döngü okumadan diskten götürür. Döngü
+    kaynağı okuyunca dosyayı bulamaz ve iş kare düzeyinde düşer (`MissingSource`, *"Kaynak dosya yok:
+    0_a.png"*, aşağıda); `failed` satırı (`from` boş) silmenin kapattığı bir yuvaya düşer ve 513'e göre
+    geçersiz sayılır. Kare silinmiş kalır, eksik resim yok.
+  - **Kopya (resmi kaynağın) ya da fotoğrafını bekleyen kare:** resim diskte kalır ya da hiç yoktu; çizim
+    iner ve silmeyi geri alır (513: inen katman kazanır). Resim sağlam, kare yerinde.
+  Kapatmak döngüyü kapıların kilidine almayı isterdi; 513 GPU'yu o kilidin dışında tuttu, bu madde de
+  tutuyor.
 
 ## Sınırlar
 
@@ -178,12 +226,20 @@ Proje, sohbet ve dosya sayısından bağımsız; her basış bir istek.
   - videosu sırada kendi fotoğraflı kare silinince video `removed`, borç boş, kare geri gelmez (bugün
     kırmızı);
   - bekleyen kopya silinince video `removed`, diskten hiçbir şey gitmez, kopya geri gelmez (bugün kırmızı);
-  - `remove_frames`'in, `dequeue_layer`'ın ve galerinin bütün eski testleri değişmeden geçer.
+  - işçinin bir katmanını yaptığı kare (elindeki ya da çizimindeki) silinmez: `Busy`, hiçbir şey silinmez,
+    hiçbir satır yazılmaz, sıra dosyası aynı; kapı 409 ve kareyi adlandırır; başka bir kare çizilirken ya da
+    başka bir projenin koşusu sürerken silme geçer (bugün kırmızı);
+  - kaydın adını verdiği fotoğrafı diskte olmayan video çizilmez: üretici çağrılmaz, video `failed`,
+    hatası *"Kaynak dosya yok: 0_a.png"* (bugün kırmızı: üretici boş baytla çağrılıyordu);
+  - `remove_frames`'in, `dequeue_layer`'ın ve galerinin bütün eski testleri işçiyle çağrılıp geçer.
 - **Ekran:**
   - bekleyen kopyanın fotoğraf sekmesinde "Kuyruktan çıkar" → `dequeueLayer("düğün", ["P0_1"], "video")`;
     `removeFrames` çağrılmaz, onay kutusu yok, sayfa karede ve Foto sekmesinde kalır (bugün kırmızı);
   - ret: *"Video kuyruktan çıkarılamadı"* ve sunucunun cümlesi;
   - kopyanın videosu çizilirken fotoğraf sekmesinin "Kuyruktan çıkar"ı kapalı (bugün kırmızı);
+  - kendi videosu çizilen karenin fotoğraf sekmesinde Sil kapalı (bugün kırmızı);
+  - seçim çubuğunda, seçimde çizilen bir kare varken Sil kapalı ve *"Üretilen kare bitince silinebilir."*;
+    yalnız öteki kareler seçiliyken açık (bugün kırmızı);
   - video paneli bekleyen ve videosu kırmızı kopyayı ne "Videosu olmayan kareler"de ne seçimde sayar
     (bugün kırmızı);
   - `QUEUED_COPY` sunucunun cevabı (`done`); kopyanın resmini ve etiketini gösteren testler olduğu gibi
@@ -195,4 +251,6 @@ Proje, sohbet ve dosya sayısından bağımsız; her basış bir istek.
 
 BACKLOG'dan iki iş silinir: *"Sıradaki kopya kare kaynağının fotoğrafı yerine "bekliyor" gösteriyor"* ve
 *"Sıradaki kopya kare "Kuyruktan çıkar"dan sonra geri geliyor"*. Bir iş girer (reviewer): *"Aynı kimlik iki
-kez gelince kare iki kez sayılıyor"* — `checked` tekrar eden kimliği ayıklamıyor.
+kez gelince kare iki kez sayılıyor"* — `checked` tekrar eden kimliği ayıklamıyor. QA'dan iki iş, ikisi de
+519'dan eski: *"Katmanı kırmızı karonun seçim dairesine basılamıyor"* ve *"Video paneli zaten sırada olan
+videoyu da sayıyor"*.

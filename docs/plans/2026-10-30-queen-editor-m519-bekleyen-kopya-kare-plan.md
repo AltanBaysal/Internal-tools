@@ -18,13 +18,28 @@
   gelmez; bekleyen kopya silinince video `removed`, `store.deleted` boş, kopya geri gelmez.
 - Kopyala ikizi: kendisi için bir şey planlanmamışken video basışının kapsamında; videosu planlanınca
   ikinci iki varyantlı basışta kendi kopyasını almaz.
+- `making(project, fid, kind, batch)`: işçisi bir karenin katmanını yapan `PhotoRunner`. İşçinin elindeki
+  ya da çizimindeki kare silinmez (`Busy`, hiçbir şey silinmez ya da yazılmaz, sıra aynı); başka kare
+  çizilirken ve başka projenin koşusunda silme geçer.
+- `remove_frames`'in bütün çağrıları işçiyle (`sync_runner()`, `idle_runner()`): `test_photo_usecases.py`,
+  `test_made_once.py`, `test_plan_hold.py`, `test_photo_routes.py`'nin `make_client`'ı.
+- `test_photo_routes.py`: çizilen kareyi silme 409, cümle kareyi adlandırır, fotoğraf diskte.
+- Fotoğrafı diskte olmayan video: üretici çağrılmaz, video `failed`, *"Kaynak dosya yok: 0_a.png"*.
+  Üretilmiş fotoğrafı anlatan ama baytlarını sahte depoya koymayan yardımcılar ve testler (`video_project`,
+  `video_job_project`, prompt yazımı testleri; `test_made_once.py`, `test_export_total.py`) fotoğrafın
+  baytlarını koyar.
 
 **Ekran** — `features/photo_generation/PhotoDetail.test.jsx`
 - `QUEUED_COPY`'nin yorumu: `done` sunucunun cevabı.
 - "takes it out of the queue without asking" → fotoğraf sekmesinin "Kuyruktan çıkar"ı
   `dequeueLayer("düğün", ["P0_1"], "video")`; `removeFrames` yok, onay yok, `navigate` yok, Foto sekmesi
   açık. Ret testi: *"Video kuyruktan çıkarılamadı"* ve sunucunun cümlesi.
-- Kopyanın videosu çizilirken fotoğraf sekmesinin "Kuyruktan çıkar"ı kapalı.
+- Kopyanın videosu çizilirken fotoğraf sekmesinin "Kuyruktan çıkar"ı kapalı; kendi videosu çizilen karede
+  Sil kapalı.
+
+**Ekran** — `features/photo_generation/Gallery.test.jsx`
+- Seçimde çizilen bir kare varken Sil kapalı ve *"Üretilen kare bitince silinebilir."*; yalnız öteki kare
+  seçiliyken açık.
 
 **Ekran** — `features/photo_generation/LayerPanel.test.jsx`
 - Bekleyen (`type: "video"`, `owed: ["video"]`) ve videosu kırmızı kopya ne "Videosu olmayan kareler"de
@@ -40,11 +55,17 @@
   yorum.
 - `backend/features/photo_generation/domain/usecases/remove_frames.py`: borçlu işlere `removed` yazan
   döngü `deleted + removed` üstünden; kapanan hücre atlanır; boş borçta fotoğraf hücresi yalnız üretilmemiş
-  karede. Modülün yorumu.
+  karede. İşçi ilk parametre; `_being_made` işçinin bu projede yaptığı kareleri (`current`, `batch`)
+  verir, istenenlerden biri onlardansa `Busy`. Modülün yorumu.
+- `backend/features/photo_generation/presentation/routes.py`: silme kapısında `Busy` → 409.
+- `backend/main.py`: `remove_frames`'e `_photo_runner`.
+- `backend/features/photo_generation/domain/run_loop.py`: `MissingSource` (kare düzeyinde); `_source_for`
+  okunamayan kaynakta onu yükseltir.
 - `frontend/src/features/photo_generation/PhotoDetail.jsx`: `handleDequeue(layer)`; fotoğraf sekmesinde
   `produced && awaited` (resmi kendisinin değil) → `handleDequeue(frame.owed[0])`; bekleyen sekme
-  `handleDequeue(open)`; o düğme karenin bir katmanı çizilirken kapalı (`dequeues`, `photoBinOff`); sil
-  düğmelerinin üstündeki yorum.
+  `handleDequeue(open)`; kareyi ya da işlerini götüren her düğme karenin bir katmanı çizilirken kapalı
+  (`dequeues`, `binOff`); sil düğmelerinin üstündeki yorum.
+- `frontend/src/features/photo_generation/Gallery.jsx`: `chosenMaking`; Sil kapalı ve yanında sebebi.
 - `frontend/src/features/photo_generation/LayerPanel.jsx`: `eligible`, açan katmanı (`type`, yoksa
   `"photo"`) `owed`'da ya da `failed`'da olan satırı saymaz.
 - `python -m pytest queen-editor -q`, `npm test --prefix queen-editor/frontend`,
@@ -54,4 +75,5 @@
 
 - `queen-editor/BACKLOG.md`: iki iş silinir — *"Sıradaki kopya kare kaynağının fotoğrafı yerine "bekliyor"
   gösteriyor"* ve *"Sıradaki kopya kare "Kuyruktan çıkar"dan sonra geri geliyor"*; bir iş girer — *"Aynı
-  kimlik iki kez gelince kare iki kez sayılıyor"*.
+  kimlik iki kez gelince kare iki kez sayılıyor"*, *"Katmanı kırmızı karonun seçim dairesine basılamıyor"*,
+  *"Video paneli zaten sırada olan videoyu da sayıyor"*.

@@ -87,6 +87,20 @@ parçanın sesi bir sonraki parçanın içine ~50 ms taşıyor: 440 Hz'lik bir p
 sesi kapalı parçada 11.00–11.05 s arasında duyuldu. Büyük ihtimalle AAC'nin her parçaya eklediği dolgu,
 birleşim yerlerinde birikiyor. Şimdilik düzeltilmiyor.
 
+### Katmanı kırmızı karonun seçim dairesine basılamıyor
+
+*(519'un QA'sı buldu, 30 Ekim; 519'dan eski.)* Galeride fotoğrafı inmiş ama bir katmanı kırmızı karoda
+fare üstüne gelince Tekrar dene perdesi iniyor (`VEIL`, `zIndex: 3`), ve seçim dairesinin (`CHECK`,
+`zIndex: 2`) üstünü örtüyor: daireye basılamıyor. Kare yine Tümünü seç'le ya da kare sayfasından
+seçilebiliyor. 519'dan beri videosu kırmızı kopya kareler de böyle görünüyor.
+
+### Video paneli zaten sırada olan videoyu da sayıyor
+
+*(519'un QA'sı buldu, 30 Ekim; 519'dan eski.)* Videosu zaten sırada olan karelere iki varyantla basmadan
+önce panel *"6 video üretilecek"* diyor, basış ise 3 iş ekliyor: kare başına karenin kendi videosu
+eklenmiyor (513'ün "sırada olan yeniden eklenmez"i), yalnız kopyası. Kare sayısı doğru, varyant başına
+tahmin değil (`LayerPanel`'in `owed`'u: kapsam × varyant).
+
 ### Aynı kimlik iki kez gelince kare iki kez sayılıyor
 
 *(519'un coder'ı ve reviewer'ı buldu, 30 Ekim; denenmedi, bu koşudan eski.)* Kare listesi taşıyan

@@ -258,7 +258,8 @@ def test_a_deletion_never_takes_the_picture_a_copy_made_at_the_same_moment_stand
     other = Contention(
         lambda: copy_frames(record, store, plan_store, order, lambda: "t", "düğün", ["0_a"]),
         (store, "delete"), *every_write(record, plan_store, order))
-    said = remove_frames(record, store, plan_store, order, lambda: "t", "düğün", ["0_a"])
+    said = remove_frames(idle_runner(), record, store, plan_store, order, lambda: "t", "düğün",
+                         ["0_a"])
 
     # The frame went first and whole, so there was nothing left to twin.
     assert said["deleted"] == ["0_a"]

@@ -131,6 +131,7 @@ def test_a_video_made_at_a_chosen_length_counts_at_it(tmp_path):
                               "prompt": "kadın dönüyor", "negative": "", "seed": 5, "model": "",
                               "seconds": 12})
     store = FakeStore()
+    store.files["0_a.png"] = b"PNGDATA"
 
     make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: FakeGenerator()},
              lambda: "t", named=RunningName("düğün"))()

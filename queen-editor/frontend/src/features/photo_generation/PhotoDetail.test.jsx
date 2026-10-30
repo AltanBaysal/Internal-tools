@@ -1815,6 +1815,16 @@ describe("PhotoDetail — a copy frame waiting in the queue", () => {
     expect(tab("Foto").getAttribute("aria-current")).toBe("page");
   });
 
+  it("offers no Sil on a frame whose video is being made", async () => {
+    // Madde 519 (QA): the video lands whatever was written meanwhile (madde 513), so a frame deleted
+    // under its render came back with a video and a missing picture.
+    await open("P0_0", { frames: [RENDERING],
+                         status: { status: "running", project: "düğün",
+                                   current: { id: "P0_0", type: "video" } } });
+
+    expect(screen.getByText("Sil").closest("button").disabled).toBe(true);
+  });
+
   it("offers no way out of the queue while its video is being made", async () => {
     // The job is no longer waiting: the video tab shows it being made and offers nothing, and the
     // photo tab's press could only write a line the landing video overrides (madde 516's limit).

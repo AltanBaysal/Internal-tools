@@ -140,7 +140,7 @@ def make_client(tmp_path, generator=None, runner=None):
         run_export=partial(start_export, export_runner, store, record, plan_store, order_store,
                            exporter, lambda: "2026-08-12 14-32", mutes=mutes),
         cancel_export=lambda: [export_runner.cancel(mode) for mode in MODES],
-        remove_frames=partial(remove_frames, record, store, plan_store, order_store,
+        remove_frames=partial(remove_frames, runner, record, store, plan_store, order_store,
                               lambda: "2026-08-05T10:00:00+00:00"),
         copy_frames=partial(copy_frames, record, store, plan_store, order_store,
                             lambda: "2026-08-05T10:00:00+00:00"),
@@ -1108,6 +1108,23 @@ def test_deleting_a_photo_drops_it_from_the_saved_order(tmp_path):
     delete_photos_request(client, ["P0_0"])
 
     assert files_of(client) == ["P1_0.png"]
+
+
+def test_deleting_a_frame_being_made_is_refused_with_409(tmp_path):
+    # Madde 519: the first run makes the photo; the second takes the worker and stays on P0_0's
+    # video, the way a long render holds it.
+    starts = []
+    runner = PhotoRunner(spawn=lambda fn: starts.append(fn) or (fn() if len(starts) == 1 else None))
+    client, drive = make_client(tmp_path, runner=runner)
+    generate(client, prompts='["a"]', variants=1)
+    runner.start("düğün", lambda: None)
+    runner.report({"current": {"id": "P0_0", "type": "video"}})
+
+    resp = delete_photos_request(client, ["P0_0"])
+
+    assert resp.status_code == 409
+    assert "P0_0" in resp.get_json()["error"]
+    assert (drive / "düğün" / "P0_0.png").exists()
 
 
 def test_deleting_an_unknown_photo_reports_nothing_deleted(tmp_path):

@@ -467,11 +467,12 @@ export default function PhotoDetail({ project, frame: fid }) {
   // answer rather than the open tab's, because it is the frame that is waiting.
   const coming = running || (frame?.owed || [])[0] || null;
   // Does the photo tab's bin take the frame's waiting jobs out rather than the frame? On a copy
-  // waiting over its source's picture (madde 519). Not while one of those jobs is being made: it is
-  // no longer waiting, the layer's own tab shows it being made and offers nothing, and a press
-  // could only write a line the landing layer overrides.
+  // waiting over its source's picture (madde 519).
   const dequeues = produced && !ownsItsPhoto && awaited;
-  const photoBinOff = busy || state === "running" || (dequeues && running !== null);
+  // Nothing takes the frame, or its waiting jobs, while the worker makes a layer of it: the layer
+  // lands with its own line whatever was written meanwhile (madde 513), so a frame deleted under
+  // its render came back with a picture that was gone (madde 519). The server refuses it too.
+  const binOff = busy || running !== null;
   // What the layer was made from -- the frame's own words until the user types over them.
   const said = (frame?.prompts || {})[open] ?? (open === "photo" ? frame?.prompt : "") ?? "";
   const typed = words[open] ?? said;
@@ -963,11 +964,11 @@ export default function PhotoDetail({ project, frame: fid }) {
                   519). Otherwise the photo tab and a red layer's tab take the frame -- on a frame
                   still waiting for its photo, that is the job itself. */}
               {open === "photo" ? (
-                <Btn sm disabled={photoBinOff}
+                <Btn sm disabled={binOff}
                      onClick={ownsItsPhoto ? () => setAsking("frame")
                        : dequeues ? () => handleDequeue(frame.owed[0])
                          : handleRemove}
-                     style={bin(photoBinOff)}>
+                     style={bin(binOff)}>
                   <Icon.Trash /> {ownsItsPhoto
                     ? "Sil"
                     : (awaited ? "Kuyruktan çıkar" : "Kareyi sil")}
@@ -981,7 +982,7 @@ export default function PhotoDetail({ project, frame: fid }) {
                   <Btn sm disabled={busy} onClick={() => setAsking("layer")} style={bin(busy)}>
                     <Icon.Trash /> {DESTRUCTIVE[open].label}
                   </Btn>
-                  <Btn sm disabled={busy} onClick={() => setAsking("frame")} style={bin(busy)}>
+                  <Btn sm disabled={binOff} onClick={() => setAsking("frame")} style={bin(binOff)}>
                     <Icon.Trash /> Kareyi sil
                   </Btn>
                 </>
@@ -995,9 +996,9 @@ export default function PhotoDetail({ project, frame: fid }) {
               ) : openState === "failed" ? (
                 /* Fark 100: a copy with no video is pointless, so the way out stands beside the
                    way back. */
-                <Btn sm disabled={busy}
+                <Btn sm disabled={binOff}
                      onClick={ownsItsPhoto ? () => setAsking("frame") : handleRemove}
-                     style={bin(busy)}>
+                     style={bin(binOff)}>
                   <Icon.Trash /> Kareyi sil
                 </Btn>
               ) : null}

@@ -40,6 +40,19 @@ class MissingEndFrame(RuntimeError):
     frame_level = True
 
 
+class MissingSource(RuntimeError):
+    """The file a layer is made from is gone from the disk though the turn's record names it.
+
+    A frame deleted after the turn read the record (madde 519): the doors' gate does not hold the
+    loop, so the deletion can fall between the read and the render. frame_level, as MissingEndFrame:
+    this one tile turns red and the queue goes on -- and that red line, written over a slot the
+    deletion has closed since, is passed over (madde 513), so the frame stays deleted. Nothing is
+    rendered from no bytes, whatever a producer would make of them.
+    """
+
+    frame_level = True
+
+
 def _prompts_of(record, project, fid):
     """What the frame already says, layer by layer -- the material a prompt writer works from.
 
@@ -92,7 +105,10 @@ def _source_for(kind, store, slots, project, fid):
     cell = slots.get(fid, {}).get(under)
     if not cell:
         return None
-    return (cell["file"], store.read(project, cell["file"]))
+    data = store.read(project, cell["file"])
+    if data is None:
+        raise MissingSource(f"Kaynak dosya yok: {cell['file']}")
+    return (cell["file"], data)
 
 
 def _end_for(job, store, slots, project, fid, source):

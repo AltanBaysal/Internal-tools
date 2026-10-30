@@ -269,6 +269,11 @@ export default function Gallery({ project, frames, failure, current, batch = [],
   const byId = new Map((frames || []).map((frame) => [frame.id, frame]));
   const chosenPhotos = selected.filter((fid) => byId.get(fid)?.status === "done");
   const chosenQueued = selected.filter((fid) => byId.get(fid)?.status !== "done");
+  // A frame the worker is making a layer of cannot be deleted: the layer lands with its own line
+  // whatever was written meanwhile (madde 513), and the frame came back with a picture that was
+  // gone (madde 519). Its circle can be pressed while a video is made -- only a photo render takes
+  // it away -- and a selection made before the render started stays.
+  const chosenMaking = selected.some(making);
 
   function handleCopy() {
     // Only the produced ones multiply: a pending frame has no layer to twin (Fark 79).
@@ -519,11 +524,17 @@ export default function Gallery({ project, frames, failure, current, batch = [],
             {chosenPhotos.length > 0 && (
               <Btn sm ghost onClick={handleCopy}>Kopyala</Btn>
             )}
-            <Btn sm onClick={() => setConfirming(FRAMES)} style={DANGER}>
+            <Btn sm disabled={chosenMaking} onClick={() => setConfirming(FRAMES)}
+                 style={chosenMaking ? undefined : DANGER}>
               {/* One word in all three cases (madde 65): what really happens is the opening
                   window's to say, and it says it differently every time. */}
               <Icon.Trash /> Sil
             </Btn>
+            {chosenMaking && (
+              <Mono size={11} style={{ color: "var(--ink-3)" }}>
+                Üretilen kare bitince silinebilir.
+              </Mono>
+            )}
             {/* One per layer, to the right of Sil and dressed like it. Two conditions: nothing in
                 the selection may still be waiting -- what these take off is a finished stack, and
                 the queue is still writing into that one (Fark 82) -- and something has to carry the
