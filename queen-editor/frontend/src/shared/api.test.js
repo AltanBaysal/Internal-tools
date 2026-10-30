@@ -35,25 +35,26 @@ describe("api.request", () => {
     expect(url).not.toContain("düğün");
   });
 
-  it("asks how often the queue ended from a count, or at once with none (madde 509)", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(okResponse({ ended: 2, last: { status: "done" } }));
+  it("asks how often the queue started and ended from the counts heard, or at once with none (madde 518)", async () => {
+    const answer = { started: 3, ended: 2, last: { status: "done" } };
+    const fetchMock = vi.fn().mockResolvedValue(okResponse(answer));
     vi.stubGlobal("fetch", fetchMock);
 
-    expect(await api.waitForEnded(1)).toEqual({ ended: 2, last: { status: "done" } });
-    await api.waitForEnded(null);
+    expect(await api.waitForQueue({ started: 2, ended: 1, last: null })).toEqual(answer);
+    await api.waitForQueue(null);
 
     expect(fetchMock.mock.calls.map(([url, options]) => [options.method || "GET", url])).toEqual([
-      ["GET", "/api/queue/ended?after=1"], ["GET", "/api/queue/ended"]]);
+      ["GET", "/api/queue/watch?started=2&ended=1"], ["GET", "/api/queue/watch"]]);
   });
 
-  it("holds the ended ask longer than the server does, and cuts it before the tunnel would", async () => {
+  it("holds the queue's ask longer than the server does, and cuts it before the tunnel would", async () => {
     vi.useFakeTimers();
     vi.stubGlobal("fetch", vi.fn((url, { signal }) => new Promise((resolve, reject) => {
       signal.addEventListener("abort", () => reject(Object.assign(new Error("aborted"),
                                                                    { name: "AbortError" })));
     })));
 
-    const asked = api.waitForEnded(0).catch((err) => err);
+    const asked = api.waitForQueue({ started: 0, ended: 0, last: null }).catch((err) => err);
     // The server holds an ask 50 seconds: a client cut at the usual ten would never hear it.
     await vi.advanceTimersByTimeAsync(60_000);
     let settled = false;
@@ -62,7 +63,8 @@ describe("api.request", () => {
     expect(settled).toBe(false);
 
     await vi.advanceTimersByTimeAsync(40_000);
-    expect((await asked).evidence).toBe("GET /api/queue/ended?after=0\nZaman aşımı (80 sn)");
+    expect((await asked).evidence).toBe(
+      "GET /api/queue/watch?started=0&ended=0\nZaman aşımı (80 sn)");
   });
 
   it("throws the server's own text when the server rejects a request", async () => {

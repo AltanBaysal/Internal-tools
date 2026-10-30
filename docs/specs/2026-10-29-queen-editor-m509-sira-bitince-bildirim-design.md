@@ -4,6 +4,8 @@
 509 · v11-8 (yama v11.1) · **Dal:** `feat/queen-editor-v11.1` · **Kurallar:** queen-editor
 [FOUNDATION](../../queen-editor/FOUNDATION.md) · [CODE-STANDARD](../../queen-editor/CODE-STANDARD.md)
 
+[518](2026-10-30-queen-editor-m518-acik-sayfa-isi-gorur-design.md) bu bekçiyi `features/queue_watch/` (`QueueWatch`, `GET /api/queue/watch`) olarak genişletti.
+
 ## Kabul koşulu (maddeden)
 
 - 10 dk'lık geri sayım ve "orada mısın?" kutusu yok; kullanıcı ne yaparsa yapsın çıkmıyor.

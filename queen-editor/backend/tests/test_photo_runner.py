@@ -238,6 +238,41 @@ def test_a_run_renamed_under_it_ends_under_its_new_name():
     assert told == [{"status": "done", "project": "nikah"}]
 
 
+def test_the_press_that_takes_the_worker_says_the_queue_started():
+    """Madde 518: a page left open while the queue is idle hears the start. Said once the status
+    reads running, so whoever hears it and asks reads running, and before the job begins."""
+    jobs, told = [], []
+    runner = PhotoRunner(spawn=jobs.append, started=lambda: told.append(runner.status()))
+
+    runner.start("düğün", lambda: {"status": "done"})
+
+    assert told == [{"status": "running", "project": "düğün"}]
+    assert len(jobs) == 1                       # spawned, and not yet run
+
+
+def test_a_start_after_the_run_ended_says_so_again():
+    told = []
+    runner = PhotoRunner(spawn=lambda fn: fn(), started=lambda: told.append("started"))
+
+    runner.start("düğün", lambda: {"status": "done"})
+    runner.start("düğün", lambda: {"status": "done"})
+
+    assert told == ["started", "started"]
+
+
+def test_a_join_and_a_refused_start_say_nothing():
+    """A join lands while a run is going, and a refusal while another project's does: every page
+    open is asking then already."""
+    told = []
+    runner = PhotoRunner(spawn=lambda fn: None, started=lambda: told.append("started"))
+    runner.start("düğün", lambda: {"status": "done"})
+
+    runner.start("düğün", lambda: {"status": "done"})
+    runner.start("başka", lambda: {"status": "done"})
+
+    assert told == ["started"]
+
+
 def test_stop_requested_during_the_job_is_visible():
     runner = sync_runner()
     seen = []

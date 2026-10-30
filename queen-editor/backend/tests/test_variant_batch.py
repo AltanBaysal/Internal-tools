@@ -330,7 +330,6 @@ def test_the_status_names_every_frame_its_batch_is_making():
     assert seen["current"]["id"] == "P0_0"
     assert seen["batch"] == ["P0_1", "P0_2"]
     assert seen["startedAt"] == NOW
-    assert seen["pending"] == ["P1_0.png", "P1_1.png", "P1_2.png"]
     # Cleared at the top of every turn, the way the start is: nothing is being made yet.
     assert reports[0]["batch"] is None
 

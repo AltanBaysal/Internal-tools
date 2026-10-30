@@ -56,24 +56,25 @@ def test_the_app_comes_up_and_answers_health(import_main):
     assert response.status_code == 200
 
 
-def test_the_queue_tells_the_ended_watch_when_it_ends_and_nothing_else_does(import_main):
-    """Madde 509: the one notification is the queue ending -- an export ending brings none, and
-    the agent has nothing to say to the watch either."""
+def test_the_queue_tells_the_watch_when_it_starts_and_ends_and_nothing_else_does(import_main):
+    """Madde 509 and 518: the queue's worker tells the watch its starts and its endings -- an export
+    brings nothing, and the agent has nothing to say to the watch either."""
     from backend.features.agent.runner import _thread_spawn as agent_spawn
     from backend.features.photo_generation.export_runner import _thread_spawn as export_spawn
     main = import_main()
 
-    assert main._photo_runner._ended == main._ended.ended
+    assert main._photo_runner._started == main._queue_watch.started
+    assert main._photo_runner._ended == main._queue_watch.ended
     assert main._export_runner._spawn is export_spawn
     assert main._agent_runner._spawn is agent_spawn
 
 
-def test_the_app_comes_up_with_the_queue_never_ended(import_main):
+def test_the_app_comes_up_with_the_queue_never_started_nor_ended(import_main):
     main = import_main()
 
-    response = main.app.test_client().get("/api/queue/ended")
+    response = main.app.test_client().get("/api/queue/watch")
 
-    assert response.get_json() == {"ended": 0, "last": None}
+    assert response.get_json() == {"started": 0, "ended": 0, "last": None}
 
 
 def test_a_root_that_is_not_there_is_nobodys_business_until_it_is_asked(import_main, monkeypatch,

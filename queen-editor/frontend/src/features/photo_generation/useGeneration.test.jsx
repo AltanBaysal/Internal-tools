@@ -10,10 +10,13 @@ import {
   resumeBatch,
   saveOrder,
   stopGeneration,
+  waitForQueue,
 } from "../../shared/api.js";
+import { useQueueWatch } from "../../shared/queue_watch.js";
 import { useGeneration } from "./useGeneration.js";
 
 vi.mock("../../shared/api.js", () => ({
+  waitForQueue: vi.fn(),
   cancelGeneration: vi.fn(),
   queueLayer: vi.fn(),
   produceFromReferences: vi.fn(),
@@ -634,5 +637,84 @@ describe("useGeneration — producing from the reference pool", () => {
     expect(produceFromReferences).toHaveBeenCalledWith("düğün", '["gotik kız", "dans"]', 3,
                                                        "dikey");
     expect(queueLayer).not.toHaveBeenCalled();
+  });
+});
+
+// Madde 518: a page opened while the queue is idle asks once and then never again, so work the agent
+// or another tab adds stayed out of sight until a reload. The tab's one held ask hears the queue
+// start, as it hears it end, and the page asks again.
+describe("useGeneration — a start made elsewhere", () => {
+  const FRAME = { id: "P0_0", file: "P0_0.png", status: "done", owed: [], failed: [] };
+  const ADDED = { id: "P1_0", file: "P1_0.png", status: "pending", owed: ["photo"], failed: [] };
+  let asks;
+
+  beforeEach(() => {
+    asks = [];
+    waitForQueue.mockImplementation(() => new Promise((resolve) => { asks.push(resolve); }));
+  });
+
+  // The page as App holds it: the tab's watch beside it. The first ask, with no counts, is answered
+  // at once with where they stand.
+  async function openIdle(project) {
+    getStatus.mockResolvedValue({ status: "idle" });
+    listFrames.mockResolvedValue([FRAME]);
+    const view = renderHook(() => {
+      useQueueWatch();
+      return useGeneration(project);
+    });
+    await settle();
+    await act(async () => { asks.at(-1)({ started: 2, ended: 2, last: null }); });
+    return view;
+  }
+
+  it("asks nothing while the queue stays idle", async () => {
+    await openIdle("boşta-1");
+
+    await settle(60_000);
+
+    expect(getStatus).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the work and follows the run once the queue starts elsewhere", async () => {
+    const { result } = await openIdle("boşta-2");
+    getStatus.mockResolvedValue({ ...RUNNING, project: "boşta-2" });
+    listFrames.mockResolvedValue([ADDED, FRAME]);
+
+    await act(async () => { asks.at(-1)({ started: 3, ended: 2, last: null }); });
+
+    expect(result.current.frames.map((frame) => frame.id)).toEqual(["P1_0", "P0_0"]);
+    expect(result.current.job.status).toBe("running");
+    await settle(2000);
+    expect(getStatus).toHaveBeenCalledTimes(3);
+  });
+
+  it("asks nothing for an ending alone: the chain that followed the run saw it end", async () => {
+    await openIdle("boşta-4");
+
+    await act(async () => { asks.at(-1)({ started: 2, ended: 3, last: DONE }); });
+
+    expect(getStatus).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks after a server that came up again and started once, with the start count heard before",
+     async () => {
+       // The tab heard two starts and two endings; the server restarts, counts from nought and the
+       // queue starts twice: the start count is 2 again, and only the ending count moved.
+       const { result } = await openIdle("boşta-5");
+       listFrames.mockResolvedValue([ADDED, FRAME]);
+
+       await act(async () => { asks.at(-1)({ started: 2, ended: 0, last: null }); });
+
+       expect(getStatus).toHaveBeenCalledTimes(2);
+       expect(result.current.frames.map((frame) => frame.id)).toEqual(["P1_0", "P0_0"]);
+     });
+
+  it("asks nothing more once it is gone", async () => {
+    const { unmount } = await openIdle("boşta-3");
+
+    unmount();
+    await act(async () => { asks.at(-1)({ started: 3, ended: 2, last: null }); });
+
+    expect(getStatus).toHaveBeenCalledTimes(1);
   });
 });

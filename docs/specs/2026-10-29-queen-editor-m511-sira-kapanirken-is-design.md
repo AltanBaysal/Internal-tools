@@ -4,6 +4,8 @@
 511 · v11-10 (yama v11.1) · **Dal:** `feat/queen-editor-v11.1` · **Kurallar:** queen-editor
 [FOUNDATION](../../queen-editor/FOUNDATION.md) · [CODE-STANDARD](../../queen-editor/CODE-STANDARD.md)
 
+[518](2026-10-30-queen-editor-m518-acik-sayfa-isi-gorur-design.md) bu bekçiyi `features/queue_watch/` (`QueueWatch`, `GET /api/queue/watch`) olarak genişletti.
+
 ## Kabul koşulu (maddeden)
 
 - Kuyruğa ne zaman bir iş eklenirse eklensin, sıra kapanırken eklense bile, o iş başlıyor; hiçbir iş

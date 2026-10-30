@@ -325,16 +325,17 @@ export async function getStatus() {
   return request("/api/status");
 }
 
-// How many times the queue has ended and how it last did, as the server keeps them (madde 509):
-// { ended, last }.
-// Asked from a count, the server holds the answer until the count moves or 50 seconds pass -- long
-// polling, since the Quick Tunnel holds a streaming body until it ends -- so the wait outlasts the
-// server's hold and stays under the tunnel's cut of about 100 quiet seconds. With no count, at once.
-const ENDED_ASK_TIMEOUT_MS = 80_000;
+// How many times the queue has started and ended, and how it last ended, as the server keeps them
+// (madde 509, 518): { started, ended, last }.
+// Asked from the counts last heard, the server holds the answer until one of them moves or 50 seconds
+// pass -- long polling, since the Quick Tunnel holds a streaming body until it ends -- so the wait
+// outlasts the server's hold and stays under the tunnel's cut of about 100 quiet seconds. With
+// nothing heard yet, at once.
+const QUEUE_ASK_TIMEOUT_MS = 80_000;
 
-export async function waitForEnded(after) {
-  const since = after === null ? "" : `?after=${after}`;
-  return request(`/api/queue/ended${since}`, { timeout: ENDED_ASK_TIMEOUT_MS });
+export async function waitForQueue(seen) {
+  const since = seen === null ? "" : `?started=${seen.started}&ended=${seen.ended}`;
+  return request(`/api/queue/watch${since}`, { timeout: QUEUE_ASK_TIMEOUT_MS });
 }
 
 // Plain URL, not a fetch: the browser loads it into an <img>, a <video> or an <audio>. Any file

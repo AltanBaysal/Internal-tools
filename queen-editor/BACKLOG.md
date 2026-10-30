@@ -74,11 +74,6 @@ saçma şeyler ortaya çıkıyor".)* **v7'nin ilk maddesi olarak yazıldı, koş
 
 ## Diğer
 
-### Açık ve boştaki bir sayfa dışarıdan eklenen işi görmüyor
-
-*(516'nın QA'sı buldu, 29 Ekim; bu koşudan eski.)* Sıra boşken açılmış bir kare sayfası bir daha
-yoklamıyor. Ajan ya da başka bir sekme o sırada iş eklerse, sayfa yenilenene kadar sekme kapalı kalıyor.
-
 ### Birleşik export'ta her parçanın sesi sonrakine taşıyor
 
 *(515'in QA'sı buldu, 29 Ekim; bu koşudan eski, gerçek ffmpeg'le ölçüldü.)* Birleşik export'ta her

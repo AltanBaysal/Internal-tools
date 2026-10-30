@@ -2,6 +2,8 @@
 
 **Spec:** [2026-10-29-queen-editor-m509-sira-bitince-bildirim-design.md](../specs/2026-10-29-queen-editor-m509-sira-bitince-bildirim-design.md)
 
+[518](../specs/2026-10-30-queen-editor-m518-acik-sayfa-isi-gorur-design.md) bu bekçiyi `features/queue_watch/` (`QueueWatch`, `GET /api/queue/watch`) olarak genişletti.
+
 Önce test yazılır ve kırmızı görülür, sonra kod. 498'in yalnız sayıma ve kutuya hizmet eden testleri
 kodlarıyla birlikte silinir. Kalan dosyalar spec'teki yeni adlarına `git mv` ile taşınır.
 

@@ -7,6 +7,10 @@ The worker knows nothing about photos, frames or policy: it starts one job, hold
 the job reports, and carries the stop flag the job reads between frames. `spawn` is injected:
 production starts a daemon thread, tests run the job inline and stay deterministic.
 
+`started` is told when a press takes the worker (madde 518): a page left open while the queue is
+idle asks no more, and this is what makes it ask again. A join tells nothing: it lands while a run
+goes on, and every page open is asking then already.
+
 `ended` is told when a job ends the queue, with the state it published (madde 509): done -- which
 the loop answers only once nothing is owed -- or stopped by an error, a job that raised included, or
 waiting for a producer that is not installed. A pause tells nothing: whoever pressed Durdur is at the
@@ -35,8 +39,9 @@ def _thread_spawn(fn):
 
 
 class PhotoRunner:
-    def __init__(self, spawn=None, ended=None):
+    def __init__(self, spawn=None, started=None, ended=None):
         self._spawn = spawn or _thread_spawn
+        self._started = started or (lambda: None)
         self._ended = ended or (lambda state: None)
         self._lock = threading.Lock()
         self._state = {"status": "idle"}
@@ -79,6 +84,9 @@ class PhotoRunner:
             self._state = {"status": "running", "project": project}
             self._stop = False      # a stale request must not kill the run that just started
         self.named.took(project)
+        # After the status, outside the lock, as `ended` is told: whoever hears it and asks the
+        # status reads running. Before the job, so the start is never heard after its own end.
+        self._started()
         self._spawn(lambda: self._run(job))
         return True
 

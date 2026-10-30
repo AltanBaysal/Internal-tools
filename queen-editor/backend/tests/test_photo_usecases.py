@@ -1378,16 +1378,16 @@ def frame(number, letter="a", prompt="p", seed=1):
     return {"number": number, "letter": letter, "prompt": prompt, "seed": seed}
 
 
-def test_progress_reports_name_the_frames_still_waiting():
+def test_progress_reports_name_no_waiting_list():
+    """Madde 518: what is owed is read off the gallery. The list the status carried was the queue
+    as it stood when the turn began, a render behind, and nobody read it."""
     runner, reports = sync_runner(), []
     original = runner.report
     runner.report = lambda patch: (reports.append(patch), original(patch))[1]
 
     run_batch(runner, FakeStore(), FakeGenerator(), text='["a", "b"]', variants=1)
 
-    # The first frame's report lists the one behind it; the last report has an empty queue.
-    assert reports[0]["pending"] == ["P1_0.png"]
-    assert reports[-1]["pending"] == []
+    assert reports and all("pending" not in report for report in reports)
 
 
 def test_resume_only_produces_the_frames_the_record_is_missing():

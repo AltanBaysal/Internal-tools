@@ -19,6 +19,7 @@ import {
   stopGeneration,
 } from "../../shared/api.js";
 import { failureText } from "../../shared/failure_text.js";
+import { onQueueMoved } from "../../shared/queue_watch.js";
 import { FROM_POOL } from "./production_modes.js";
 
 const POLL_MS = 2000;
@@ -127,6 +128,18 @@ export function useGeneration(project) {
       clearTimeout(timer.current);
     };
   }, [poll]);
+
+  // The chain above stops once the queue is not running, so a page left open while it is idle
+  // would never see work added elsewhere -- by the agent, by another tab (madde 518). The tab's queue
+  // watch hears the queue start, and the page asks again: a run that goes keeps the chain going, the
+  // way a mount finds one, and one that started and ended between two asks still moved the start
+  // count. An ending alone asks nothing: the chain that followed the run saw it end, and asking
+  // again would cost every open page a gallery read per run. An ending count that shrank is a server
+  // that came up again and counts from nought, where a start can bring back a start count already
+  // heard -- so that is asked about too.
+  useEffect(() => onQueueMoved((said, before) => {
+    if (said.started !== before.started || said.ended < before.ended) poll();
+  }), [poll]);
 
   // Whatever the list becomes -- answered, reordered, a frame removed -- is what a later mount
   // starts from. One effect rather than a write next to every setFrames: those are functional

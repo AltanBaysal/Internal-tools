@@ -334,11 +334,10 @@ def make_job(runner, store, record, plan_store, producers, now,
             # startedAt is cleared for the same reason: no model is working on anything until the
             # render below says so, and a cleared one is what makes a retried attempt's counter
             # start again. So is batch: which frames the render makes with this one is the render's
-            # to say.
+            # to say. What is still owed is not reported: the gallery says it, read when it is asked,
+            # and a list here would be the queue as the turn began, a render behind (madde 518).
             progress = {**queue.counts(jobs, slots),
                         "current": None if writing else current,
-                        "pending": [photo_file(j["id"])
-                                    for j in (owed if writing else owed[1:])],
                         "startedAt": None, "batch": None}
             runner.report(progress)
             # What this turn makes: the job in hand alone, unless its prompt's variants go with it.
@@ -384,9 +383,7 @@ def make_job(runner, store, record, plan_store, producers, now,
                     # (madde 408). The progress travels with it so every report reads whole, and
                     # names the batch's other frames, which are being made as much as this one.
                     runner.report({**progress, "startedAt": now(),
-                                   "batch": [other["id"] for other in together[1:]],
-                                   "pending": [photo_file(j["id"])
-                                               for j in owed[len(together):]]})
+                                   "batch": [other["id"] for other in together[1:]]})
                     started = clock()
                     if len(together) > 1:
                         made = producer.generate_batch(prompt, current["negative"], chosen,

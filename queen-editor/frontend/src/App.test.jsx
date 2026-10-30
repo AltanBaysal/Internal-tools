@@ -45,10 +45,10 @@ vi.mock("./shared/api.js", () => ({
   saveSettings: vi.fn(),
   startExport: vi.fn(),
   stopGeneration: vi.fn(),
-  waitForEnded: vi.fn((after) => new Promise((resolve) => { heldAsks.push({ after, resolve }); })),
+  waitForQueue: vi.fn((seen) => new Promise((resolve) => { heldAsks.push({ seen, resolve }); })),
 }));
 
-// The queue-ended asks, answered by the test that wants the queue ended.
+// The queue watch's asks, answered by the test that wants the queue started or ended.
 const heldAsks = [];
 
 const FRAME = { id: "1_a", file: "1_a.png", status: "done" };
@@ -120,18 +120,20 @@ describe("App — the queue's notification on every screen (madde 509)", () => {
     getSettings.mockImplementation(() => new Promise(() => {}));
   });
 
-  // The first ask, with no count, answered at once: where the count stands when the page opens.
+  // The first ask, with no counts, answered at once: where they stand when the page opens.
   async function openOn(path) {
     window.history.pushState({}, "", path);
     render(<App />);
     await act(async () => {});
-    await act(async () => { heldAsks.at(-1).resolve({ ended: 0, last: null }); });
+    await act(async () => { heldAsks.at(-1).resolve({ started: 0, ended: 0, last: null }); });
   }
 
   it("rings over the projects list, and asks nobody whether they are there", async () => {
     await openOn("/");
 
-    await act(async () => { heldAsks.at(-1).resolve({ ended: 1, last: { status: "done" } }); });
+    await act(async () => {
+      heldAsks.at(-1).resolve({ started: 0, ended: 1, last: { status: "done" } });
+    });
 
     expect(shown).toEqual(["Queen Editor"]);
     expect(screen.queryByText("Orada mısın?")).toBeNull();
@@ -142,11 +144,36 @@ describe("App — the queue's notification on every screen (madde 509)", () => {
 
     act(() => navigate(`/projects/${encodeURIComponent("sayan")}`));
     await act(async () => {});
-    expect(heldAsks.map((one) => one.after)).toEqual([null, 0]);
+    expect(heldAsks.map((one) => one.seen)).toEqual(
+      [null, { started: 0, ended: 0, last: null }]);
 
-    await act(async () => { heldAsks.at(-1).resolve({ ended: 1, last: { status: "done" } }); });
+    await act(async () => {
+      heldAsks.at(-1).resolve({ started: 0, ended: 1, last: { status: "done" } });
+    });
 
     expect(shown).toEqual(["Queen Editor"]);
     expect(screen.getByText("sayan")).toBeTruthy();
+  });
+});
+
+// Madde 518: a page left open while the queue is idle never asked again, so a frame the agent or
+// another tab queued stayed out of sight until a reload.
+describe("App — work added elsewhere while the page stands idle", () => {
+  beforeEach(() => {
+    heldAsks.length = 0;
+    getSettings.mockImplementation(() => new Promise(() => {}));
+  });
+
+  it("shows a frame queued elsewhere on the open project page, without a reload", async () => {
+    listFrames.mockResolvedValue([FRAME]);
+    openProject("bosta-proje");
+    await screen.findByText("1_a.png");
+    await act(async () => { heldAsks.at(-1).resolve({ started: 0, ended: 0, last: null }); });
+
+    listFrames.mockResolvedValue([{ id: "2_a", file: "2_a.png", status: "pending",
+                                    owed: ["photo"], failed: [] }, FRAME]);
+    await act(async () => { heldAsks.at(-1).resolve({ started: 1, ended: 0, last: null }); });
+
+    expect(await screen.findByText("2_a.png")).toBeTruthy();
   });
 });

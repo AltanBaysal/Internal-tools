@@ -117,8 +117,8 @@ from backend.features.projects.presentation.reference_settings_routes import (
     make_reference_settings_blueprint,
 )
 from backend.features.projects.presentation.routes import make_projects_blueprint
-from backend.features.queue_ended.presentation.routes import make_ended_blueprint
-from backend.features.queue_ended.watch import EndedWatch
+from backend.features.queue_watch.presentation.routes import make_watch_blueprint
+from backend.features.queue_watch.watch import QueueWatch
 from backend.services.comfy.client import ComfyClient
 from backend.services.deepseek.box import Box
 from backend.services.deepseek.client import DeepSeekClient
@@ -166,10 +166,11 @@ _writers = {layers.VIDEO: _video_writer}
 # What a card with no picture gets when its video lands (madde 296). ffmpeg is already on the
 # machine -- the export joins with it.
 _stills = FfmpegStills()
-# One browser notification each time the queue ends -- emptied, or stopped (madde 509): the queue's
-# worker is the one that knows, so it is the one that tells the watch the screen listens to.
-_ended = EndedWatch()
-_photo_runner = PhotoRunner(ended=_ended.ended)
+# One browser notification each time the queue ends -- emptied, or stopped (madde 509) -- and a page
+# left open while it is idle asking again when it starts (madde 518): the queue's worker is the one
+# that knows, so it is the one that tells the watch the screen listens to.
+_queue_watch = QueueWatch()
+_photo_runner = PhotoRunner(started=_queue_watch.started, ended=_queue_watch.ended)
 _photo_record = DrivePhotoRecord(_storage)
 _plan_store = DrivePlanStore(_storage)
 _order_store = DriveOrderStore(_storage)
@@ -382,11 +383,11 @@ _agent_bp = make_agent_blueprint(
     stop_agent=partial(stop_agent, _chat_record, _agent_runner),
     working_chats=partial(working_chats, _chat_record, _agent_runner),
     answer_permission=partial(answer_permission, _chat_record, _agent_runner))
-_ended_bp = make_ended_blueprint(_ended)
+_queue_watch_bp = make_watch_blueprint(_queue_watch)
 
 app = create_app(blueprints=[_projects_bp, _reference_settings_bp, _photo_bp, _references_bp,
                              _video_length_bp, _happy_ending_bp, _mute_bp, _producers_bp,
-                             _chats_bp, _agent_bp, _ended_bp])
+                             _chats_bp, _agent_bp, _queue_watch_bp])
 
 if __name__ == "__main__":
     print(f"Proje kökü: {config.DRIVE_ROOT}")
