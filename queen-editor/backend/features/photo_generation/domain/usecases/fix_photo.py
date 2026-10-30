@@ -120,9 +120,12 @@ def fix_photo(runner, store, record, plan_store, order_store, producers, now, pr
             record.mark(project, fid, slot, slots[fid][slot]["file"], queue.DELETED, now(),
                         seen=slots[fid][slot]["status"])
 
-    try:
-        run_queue(runner, store, record, plan_store, producers, now, project, log,
-                  order_store=order_store, writers=writers, stills=stills, references=references)
-    except Busy:
-        return WAITING
+        # Still under the gate, so a rename never falls between the new photo's job and its claim
+        # (madde 522).
+        try:
+            run_queue(runner, store, record, plan_store, producers, now, project, log,
+                      order_store=order_store, writers=writers, stills=stills,
+                      references=references)
+        except Busy:
+            return WAITING
     return FIXED

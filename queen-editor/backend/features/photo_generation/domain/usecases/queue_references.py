@@ -64,23 +64,23 @@ def queue_references(runner, store, record, plan_store, order_store, pool, order
     """Returns how many cards the queue took. `length` answers how long the project's videos run
     now (madde 422), `ending` whether they end happily (madde 426), and `orientation` which way
     the cards stand (madde 476)."""
-    if not store.project_exists(project):
-        raise ProjectMissing(f"Proje yok: {project}")
     written = parse_prompts(prompts)        # raises InvalidPrompts
     # bool is an int in Python, and True would silently mean "1 variant".
     if isinstance(variants, bool) or not isinstance(variants, int) \
             or not 1 <= variants <= MAX_VARIANTS:
         raise InvalidVariants(f"Varyant sayısı 1-{MAX_VARIANTS} arası bir tam sayı olmalı.")
     orientations.validate(orientation)       # raises InvalidOrientation
-    held = list_references(store, pool, orders, project)
-    if not held:
-        raise references.PoolLimit(
-            "Havuzda referans yok — önce en az bir referans ekle.")
-    # Every card is an H3 video, made at the project's length and with its switch of this moment
-    # (madde 422, 426).
-    timed = video_settings.carried(length, ending, project)
-    # Held from the number read to the cards written, start_batch's way (madde 512).
+    # Held from the look at the project to the cards written and the worker taken, start_batch's
+    # way (madde 512, 522): a rename falls before the press, which finds no project, or after it.
     with plan_store.held(project):
+        if not store.project_exists(project):
+            raise ProjectMissing(f"Proje yok: {project}")
+        if not list_references(store, pool, orders, project):
+            raise references.PoolLimit(
+                "Havuzda referans yok — önce en az bir referans ekle.")
+        # Every card is an H3 video, made at the project's length and with its switch of this
+        # moment (madde 422, 426).
+        timed = video_settings.carried(length, ending, project)
         cards = [{**card, **timed}
                  for card in plan_reference_cards(next_number(store, plan_store, record, project),
                                                   written, variants, new_seed, orientation)]
@@ -88,9 +88,11 @@ def queue_references(runner, store, record, plan_store, order_store, pool, order
         # dies leaves behind what it meant to make, and a loop already in flight finds the cards on
         # its next turn.
         plan_store.append(project, cards)
-    run_queue(runner, store, record, plan_store, producers, now, project, log,
-              order_store=order_store, writers=writers, stills=stills,
-              # The pool is read at each job's turn, not now: it is the user's to change while the
-              # queue runs, and a card does not remember what it was made from (madde 304).
-              references=partial(reference_files, store, pool, orders))
+        # Still under the gate, so a rename never falls between the cards and their claim
+        # (madde 522).
+        run_queue(runner, store, record, plan_store, producers, now, project, log,
+                  order_store=order_store, writers=writers, stills=stills,
+                  # The pool is read at each job's turn, not now: it is the user's to change while
+                  # the queue runs, and a card does not remember what it was made from (madde 304).
+                  references=partial(reference_files, store, pool, orders))
     return len(cards)

@@ -194,7 +194,7 @@ _projects_bp = make_projects_blueprint(
     # Renaming meets the worker too, but the other way round: the production is not stopped, it is
     # carried over to the folder's new name.
     rename_project=partial(rename_project, _project_store,
-                           partial(follow_rename, _photo_runner)),
+                           partial(follow_rename, _photo_runner, _plan_store)),
     get_settings=partial(get_settings, _settings_store),
     save_settings=partial(save_settings, _settings_store),
     # No halt port: archiving marks the project rather than moving it (madde 227), so a worker

@@ -137,7 +137,8 @@ def regenerate(runner, store, record, plan_store, order_store, producers, new_se
         }])
         order_store.write(project, placed([frame["id"] for frame in gallery],
                                           {source["id"]: [born]}))
-    run_queue(runner, store, record, plan_store, producers, now, project, log,
-              order_store=order_store, writers=writers, stills=stills,
-              references=references)
+        # Still under the gate, so a rename never falls between the job and its claim (madde 522).
+        run_queue(runner, store, record, plan_store, producers, now, project, log,
+                  order_store=order_store, writers=writers, stills=stills,
+                  references=references)
     return born

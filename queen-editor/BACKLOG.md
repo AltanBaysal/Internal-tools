@@ -103,14 +103,14 @@ aynı kimliğin iki kez gelmesine bakmıyor. `remove_frames` böyle bir kareyi c
 ayıklıyor (`dict.fromkeys`). Düzeltme `checked`'te, bütün çağıranlar için: tekrar eden kimlik bir kez
 sayılır.
 
-### Aynı anda gelen kuyruk basışı ve yeniden adlandırma bir işi bekletebilir
+### Proje silinirken gelen bir basış silinecek klasörde koşu başlatabilir
 
-*(511'in reviewer'ı buldu, 29 Ekim.)* Bir proje aynı anda hem kuyruğa iş alır hem yeniden adlandırılırsa
-iş başlamadan kalabilir. Yol: basış işi `P` projesine yazar; yeniden adlandırma `P`'yi `Q`'ya taşır ve
-adın tutucusunu `Q`'ya çevirir; basış ardından işçiyi eski adla, `P` ile alır; koşu var olmayan `P`'yi
-okur, borç bulmaz ve `done` yayımlar — iş `Q`'da borçlu kalır. İki sekme ya da yeniden
-adlandırma sürerken basan ajan gerekir. Düzeltme, işçiyi almakla yeniden adlandırmanın adı kimin
-tuttuğunda anlaşmasını ister (ör. `start` artık var olmayan bir adı reddeder).
+*(522'nin reviewer'ı buldu, 30 Ekim; denenmedi, bu koşudan eski.)* `delete_project` önce projenin
+koşusunu durdurur (`halt_project`), sonra klasörü siler (`store.delete`), ve projenin yazma kapısını
+(`plan_store.held`) almaz. Durdurmayla silme arasına düşen bir Kuyruğa ekle işini yazar ve işçiyi alır;
+klasör ardından silinir ve koşu var olmayan klasörde hata verir. Kaybolan iş yok (klasörle birlikte
+gider), ama ekranda yersiz bir hata çıkar. Düzeltme 522'nin yeniden adlandırmaya yaptığı: silme de
+projenin kapısını alır, böylece basış ya silmeden önce biter ya sonra gelip projeyi bulamaz.
 
 ### Referans sırası ve arşiv işaretleri aynı anda iki yazmada birini kaybedebilir
 
@@ -133,16 +133,6 @@ aynı anda çok sayıda satır ekleyip dosyada yarım ya da kayıp satır var m�
 513 de buna dayanıyor: bir kararın satırı (`from`'lu) ancak okunduğu durumun üstüne düşerse geçerli, ve
 bu, satırların dosyada eklendikleri sırada durmasına bağlı. Denemede satırların sırası da bakılacak:
 ekleme sırası ile dosyadaki sıra aynı mı.
-
-### Yeniden adlandırma bir videoyu boş prompt'la ürettirebilir
-
-*(513'ün coder'ı buldu, 29 Ekim; denenmedi.)* Sıranın turu planı ve kaydı adın kapısında, tek adla okur
-(513). Ama turun sonraki okumaları — karenin sözleri (`record.prompts`), altındaki fotoğraf, yazılmış
-prompt (`written_prompts`) — o adla, kapının dışında yapılıyor. Yeniden adlandırma bunların arasına
-düşerse çoğu okuma eski adda bir şey bulamaz ve deneme düşüp yeniden denenir. Ama taşıma tam fotoğrafın
-okunmasıyla yazılmış prompt'un okunması arasına düşerse prompt boş gelir ve video boş prompt'la üretilip
-yeni klasöre yazılır. Bitmiş bir şeyin yeniden üretilmesi değil; yanlış bir video. Düzeltme, turun
-render'dan önceki okumalarının da aynı ada bağlanmasını ister (yazar çağrısı kapının dışında kalarak).
 
 ### Windows'ta okunan bir dosyanın üstüne kayıt düşebilir
 

@@ -143,7 +143,7 @@ def test_a_rename_between_the_loops_reads_never_makes_a_finished_frame_again(tmp
     runner.start("düğün", lambda: None)             # the holder now names the folder
     generator = FakeGenerator()
     rename = threading.Thread(target=lambda: follow_rename(
-        runner, "düğün", "nişan", lambda: storage.rename_dir("düğün", "nişan")))
+        runner, plan, "düğün", "nişan", lambda: storage.rename_dir("düğün", "nişan")))
     read = plan.read
 
     def read_then_rename(project):

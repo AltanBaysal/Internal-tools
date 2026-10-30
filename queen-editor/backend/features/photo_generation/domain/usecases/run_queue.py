@@ -9,6 +9,10 @@ Called after the queue is written, by every door into it. A run of this project 
 than trusted to come round: its loop may already have looked for the last time, and joining is what
 makes it look once more before it ends (madde 511). Joining and claiming are one step of the
 runner's, so there is nothing to look at first.
+
+Called inside the door's write gate (`plan_store.held`), which a rename takes too (madde 522): the
+job and its claim are then on the same side of the folder's move. Outside it, a job written under
+the old name could be claimed after the move, and its run read a folder no longer there.
 """
 from backend.features.photo_generation.domain.run_loop import make_job
 

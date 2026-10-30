@@ -101,22 +101,24 @@ def start_batch(runner, store, record, plan_store, producers, new_seed, now,
     if lora not in ("", catalog.NO_LORA) and catalog.box_row(model, lora) is None:
         raise InvalidLora(f"Tanınmayan LoRA: {lora} — listeden başka bir LoRA seç.")
     orientations.validate(orientation)       # raises InvalidOrientation
-    if not store.project_exists(project):
-        raise ProjectMissing(f"Proje yok: {project}")
 
     # Neither the model nor the lora is checked against what is installed: whether they can be
     # loaded is the renderer's answer to give, at render time, in its own words (Madde 8's rule).
-    # Held from the number read to the frames written, so a press at the same moment numbers after
-    # these rather than beside them (madde 512).
+    # Held from the look at the project to the frames written, so a press at the same moment
+    # numbers after these rather than beside them (madde 512), and on to the worker taken: a rename
+    # then falls before the press, which finds no project, or after its job and its claim, never
+    # between them (madde 522).
     with plan_store.held(project):
+        if not store.project_exists(project):
+            raise ProjectMissing(f"Proje yok: {project}")
         frames = plan_frames(next_number(store, plan_store, record, project), entries, negative,
                              variants, new_seed, model, lora, orientation)
         # Appended before the worker is asked to run: a run that dies leaves behind what it meant
         # to make, and a loop already in flight finds the frames on its next turn.
         plan_store.append(project, frames)
-    run_queue(runner, store, record, plan_store, producers, now, project, log,
-              order_store=order_store, writers=writers, stills=stills,
-              references=references)
+        run_queue(runner, store, record, plan_store, producers, now, project, log,
+                  order_store=order_store, writers=writers, stills=stills,
+                  references=references)
     # How many frames the queue really took. The panel's own estimate is a preview it is not
     # allowed to enforce, so the confirmation card quotes this instead.
     return len(frames)

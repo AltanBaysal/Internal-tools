@@ -15,13 +15,17 @@ class NothingToResume(Exception):
 
 def resume_batch(runner, store, record, plan_store, producers, now, project, log=None,
                  order_store=None, writers=None, stills=None, references=None):
-    if not store.project_exists(project):
-        raise ProjectMissing(f"Proje yok: {project}")
-    jobs = plan_store.read(project)["frames"]
-    # No order here on purpose: this asks whether anything is owed at all, and that answer is a set
-    # rather than a sequence.
-    if not queue.open_jobs(jobs, record.slots(project)):
-        raise NothingToResume("Devam edilecek kare yok.")
-    run_queue(runner, store, record, plan_store, producers, now, project, log,
-              order_store=order_store, writers=writers, stills=stills,
-              references=references)
+    # Held from the look at the project to the worker taken: a rename then falls before the press,
+    # which finds no project, or after its claim, which it carries along -- never between the two,
+    # leaving a run on a folder no longer there (madde 522).
+    with plan_store.held(project):
+        if not store.project_exists(project):
+            raise ProjectMissing(f"Proje yok: {project}")
+        jobs = plan_store.read(project)["frames"]
+        # No order here on purpose: this asks whether anything is owed at all, and that answer is a
+        # set rather than a sequence.
+        if not queue.open_jobs(jobs, record.slots(project)):
+            raise NothingToResume("Devam edilecek kare yok.")
+        run_queue(runner, store, record, plan_store, producers, now, project, log,
+                  order_store=order_store, writers=writers, stills=stills,
+                  references=references)

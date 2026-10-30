@@ -131,7 +131,9 @@ def queue_layer(runner, store, record, plan_store, order_store, producers, now, 
             or not 1 <= variants <= MAX_VARIANTS:
         raise InvalidVariants(f"Varyant sayısı 1-{MAX_VARIANTS} arası bir tam sayı olmalı.")
     # Held from the gallery read to the jobs written: a press at the same moment would otherwise
-    # read the same names and give its copies the same ones (madde 512).
+    # read the same names and give its copies the same ones (madde 512). And on to the worker
+    # taken: a rename then falls before the press or after it, never between its jobs and its
+    # claim (madde 522).
     with plan_store.held(project):
         gallery = list_frames(record, store, plan_store, order_store, project)
         scope = frames_in_scope(gallery, kind, frames)
@@ -209,7 +211,7 @@ def queue_layer(runner, store, record, plan_store, order_store, producers, now, 
         if born:
             order_store.write(project, placed([frame["id"] for frame in gallery], born))
         plan_store.append(project, jobs)
-    run_queue(runner, store, record, plan_store, producers, now, project, log,
-              order_store=order_store, writers=writers, stills=stills,
-              references=references)
+        run_queue(runner, store, record, plan_store, producers, now, project, log,
+                  order_store=order_store, writers=writers, stills=stills,
+                  references=references)
     return len(jobs)

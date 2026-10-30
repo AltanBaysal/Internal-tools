@@ -280,16 +280,17 @@ def make_job(runner, store, record, plan_store, producers, now,
     if named is None:
         named = runner.named
 
-    def snapshot():
-        """The turn's name and what the queue says under it. Read under the rename's gate: a move
-        between the plan's read and the record's left a full plan beside an empty record, every
-        finished job looked owed, and the first was made again over its own file (madde 513)."""
-        with named.steady() as project:
-            return (project, plan_store.read(project)["frames"], record.slots(project),
-                    order_store.read(project) if order_store else ())
+    def snapshot(project):
+        """What the queue says under `project`: the plan's jobs, the record's slots, the order.
+        Asked inside the rename's gate: a move between the plan's read and the record's left a full
+        plan beside an empty record, every finished job looked owed, and the first was made again
+        over its own file (madde 513)."""
+        return (plan_store.read(project)["frames"], record.slots(project),
+                order_store.read(project) if order_store else ())
 
     def summary(status, **extra):
-        _project, jobs, slots, _order = snapshot()
+        with named.steady() as project:
+            jobs, slots, _order = snapshot(project)
         return {"status": status, **queue.counts(jobs, slots), **extra}
 
     def job():
@@ -301,19 +302,24 @@ def make_job(runner, store, record, plan_store, producers, now,
             if runner.stop_requested():
                 return summary("paused")
             # Read again every turn: a rename moves the folder under the run, and this is what lets
-            # the next turn simply work in the new one. The turn's reads use the name the snapshot
-            # was read under.
-            project, jobs, slots, order = snapshot()
-            owed = queue.open_jobs(jobs, slots, order)
+            # the next turn simply work in the new one. Every read of the turn resolves the name
+            # under the rename's gate and uses it only there, so none can find the folder gone from
+            # under it (madde 522). The folder moves whole, so what one hold read is still true of
+            # it under its new name.
+            with named.steady() as project:
+                jobs, slots, order = snapshot(project)
+                owed = queue.open_jobs(jobs, slots, order)
+                # A prompt nobody typed is written before anything is made (madde 403), so a layer
+                # queued while the engine is busy has its words on the card before its own turn --
+                # and a job queued while the loop is idle has them at once. Every door into the
+                # queue ends in run_queue, so this one place covers them all. Written here rather
+                # than in the request that queued it: that request answers at once, and forty
+                # frames' worth of asks would hold it for minutes. Asked in the snapshot's hold: its
+                # two reads of the record, split by a move, read a written prompt as missing and
+                # asked the model for it again.
+                writing = _unwritten(owed, writers or {}, record, project)
             if not owed:
                 return summary("done")
-            # A prompt nobody typed is written before anything is made (madde 403), so a layer
-            # queued while the engine is busy has its words on the card before its own turn -- and
-            # a job queued while the loop is idle has them at once. Every door into the queue ends
-            # in run_queue, so this one place covers them all. Written here rather than in the
-            # request that queued it: that request answers at once, and forty frames' worth of asks
-            # would hold it for minutes.
-            writing = _unwritten(owed, writers or {}, record, project)
             current = writing or owed[0]
             kind = queue.type_of(current)
             producer = producers.get(kind)
@@ -364,9 +370,26 @@ def make_job(runner, store, record, plan_store, producers, now,
                 # makes the layer from the one and ends on the other, and the row names the ending
                 # -- the detail page prints it for a linked video. The ending is found before the
                 # writer is asked, so a linked video whose next frame lost its photo spends no
-                # request.
-                under = _source_for(kind, store, slots, project, fid)
-                ending = _end_for(current, store, slots, project, fid, under)
+                # request. Every read before the writer's ask and the render is made in one hold of
+                # the rename's gate, under the name as it stands now (madde 522): a move between the
+                # picture's read and the written prompt's left the prompt empty, and the video was
+                # made with none. The ask and the render stay outside it -- nobody waits on a model.
+                with named.steady() as project:
+                    under = _source_for(kind, store, slots, project, fid)
+                    ending = _end_for(current, store, slots, project, fid, under)
+                    if writing:
+                        said = _prompts_of(record, project, fid)
+                    else:
+                        # The card's prompt when the job carries none of its own. The record is
+                        # asked only then, so a job the user wrote for never reaches it.
+                        prompt = current["prompt"] or record.written_prompts(project).get(
+                            fid, {}).get(kind, "")
+                        # Only a job made of the pool has any, and it is asked for now rather than
+                        # when the job was queued: the pool is the user's to change in between.
+                        pool = (references(project)
+                                if references
+                                and production_mode.of(current) == production_mode.REFERENCE
+                                else ())
                 if writing:
                     # Inside the try on purpose -- a model that will not answer is a failure like
                     # any other, and the three attempts and the frame-fault rule already say what
@@ -375,22 +398,11 @@ def make_job(runner, store, record, plan_store, producers, now,
                     # 307). The picture and the scenario go too: H3's writer looks at the one and
                     # reads the other (madde 400), and a linked video's writer sees where it ends
                     # (402).
-                    words = writers[kind].write(_prompts_of(record, project, fid),
-                                                production_mode.of(current), source=under,
+                    words = writers[kind].write(said, production_mode.of(current), source=under,
                                                 end=ending,
                                                 scene=scene.of(scene.by_number(jobs), fid),
                                                 happy_ending=happy)
                 else:
-                    # The card's prompt when the job carries none of its own. The record is asked
-                    # only then, so a job the user wrote for never reaches it.
-                    prompt = current["prompt"] or record.written_prompts(project).get(
-                        fid, {}).get(kind, "")
-                    # Only a job made of the pool has any, and it is asked for now rather than
-                    # when the job was queued: the pool is the user's to change in between.
-                    pool = (references(project)
-                            if references
-                            and production_mode.of(current) == production_mode.REFERENCE
-                            else ())
                     together = _made_together(owed, jobs, slots, producer)
                     # The model's own seconds and nothing else: no wait in the queue, no prompt
                     # being written, no Drive read of what the layer is made from (madde 405).
@@ -447,9 +459,8 @@ def make_job(runner, store, record, plan_store, producers, now,
                 # from it rather than leaving a red tile the user has to rescue by hand.
                 return summary("error", error=f"{policy.stop_reason(attempts)}\n{exc}")
             if writing:
-                # Under the gate, like the render's own line: the storage layer creates a folder it
-                # is missing, so a line that resolved the old name after a rename would leave a
-                # ghost project beside the real one.
+                # Under the gate, like the render's own line: a line that resolved the old name
+                # after a rename would find no folder there, and the written prompt would be lost.
                 with named.steady() as project:
                     record.prompt_written(project, fid, kind, name, words, now())
                 # The attempts were the ask's; the render that follows gets three of its own.
@@ -460,9 +471,9 @@ def make_job(runner, store, record, plan_store, producers, now,
             # seconds are shared out, so a picture's time reads like one made alone (madde 411).
             seconds = round((rendered - started) / len(together), 1)
             files = []
-            # Together and under the gate: the storage layer creates a folder it is missing, so a
-            # save that resolved the old name after a rename would leave a ghost project beside the
-            # real one with this single file in it.
+            # Together and under the gate: a save that resolved the old name after a rename would
+            # find no folder there, and the render would be thrown away -- or the file would land
+            # and its line fail, leaving a layer on disk the record does not know.
             with named.steady() as project:
                 for landed, file, data in zip(together, _files(name, together), made):
                     filename = store.save(project, file, data)

@@ -17,6 +17,7 @@ from backend.features.photo_generation.domain.usecases.start_batch import (
     InvalidVariants,
     ProjectMissing,
 )
+from backend.tests.test_photo_usecases import FakePlanStore
 
 
 class FakeStore:
@@ -381,12 +382,13 @@ def run(store, pool, orders, prompts='["gotik kız"]', variants=1, project="dü�
 
     Everything a run would need once it is allowed to start is None here on purpose: these tests
     are about the checks that come first, and nothing past them is touched. What a run that IS
-    allowed does is tested beside the queue's own fakes (test_photo_usecases).
+    allowed does is tested beside the queue's own fakes (test_photo_usecases). The plan store is
+    there for its gate alone: the pool is looked at inside it (madde 522).
 
     No word about the video model: H3 is the one there is (madde 435), and it reads the pool.
     """
-    return queue_references(None, store, None, None, None, pool, orders, None, None, None,
-                            project, prompts, variants)
+    return queue_references(None, store, None, FakePlanStore(), None, pool, orders, None, None,
+                            None, project, prompts, variants)
 
 
 def test_a_reference_run_with_an_empty_pool_is_refused():
