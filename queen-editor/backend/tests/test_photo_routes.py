@@ -631,6 +631,19 @@ def test_the_videos_endpoint_refuses_a_selection_that_is_not_a_list(tmp_path):
     assert video_jobs(drive) == []
 
 
+def test_the_videos_endpoint_refuses_a_selection_that_is_null(tmp_path):
+    """A key that is there is a selection: read as missing, null would hang the layer on every frame
+    without one -- the widest scope there is. Only a missing key means that."""
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a", "b"]', variants=1)
+
+    resp = client.post("/api/projects/düğün/layers/video", json={"frames": None})
+
+    assert resp.status_code == 400
+    assert resp.get_json() == {"error": "Katman eklenecek kare listesi metin dizisi olmalı."}
+    assert video_jobs(drive) == []
+
+
 def test_the_videos_endpoint_refuses_a_selection_sent_by_file_name(tmp_path):
     """Read as no selection, a "files" body would hang the layer on every frame without one -- the
     widest scope there is, from a press that meant a few."""

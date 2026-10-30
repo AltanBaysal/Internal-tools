@@ -22,6 +22,7 @@ kullanıcının kararıyla kalır (30 Ekim, "2"); galeriye dokunulmaz.
 **Sunucu** — `test_photo_routes.py`
 - `{"frames": ["P0_0"]}` yalnız `P0_0`'a video planlar; `{"frames": "P0_0"}` 400 ve cümle, plana video
   yazılmaz.
+- `{"frames": null}` 400 ve aynı cümle, plana video yazılmaz (kırmızı: 202).
 - `{"files": ["P0_0.png"]}` 400 ve *"Kareler frames ile gönderilmeli."*, plana video yazılmaz (kırmızı:
   202).
 
@@ -37,7 +38,8 @@ kullanıcının kararıyla kalır (30 Ekim, "2"); galeriye dokunulmaz.
 **Sunucu**
 - `domain/usecases/queue_layer.py`: `files` → `frames`; doğrulama `frame_list.checked(frames,
   "Katman eklenecek")`; `InvalidScope` kalkar; `frames_in_scope` `frame["id"]` ile seçer.
-- `presentation/routes.py`: `files` taşıyan gövde 400; `body.get("frames")`, `InvalidFrames` → 400;
+- `presentation/routes.py`: `files` taşıyan gövde 400; `frames` anahtarı varsa `checked` (`null` 400),
+  yoksa `None`; `InvalidFrames` → 400;
   `InvalidScope` importu kalkar.
 - `domain/frame_list.py`: docstring kimlik listesi alan kapıları sayar.
 

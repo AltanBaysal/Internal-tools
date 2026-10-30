@@ -8,7 +8,7 @@ from flask import Blueprint, jsonify, request, send_from_directory
 
 from backend.features.photo_generation.domain import layers, orientation, production_mode
 from backend.features.photo_generation.export_runner import MODES
-from backend.features.photo_generation.domain.frame_list import InvalidFrames
+from backend.features.photo_generation.domain.frame_list import InvalidFrames, checked
 from backend.features.photo_generation.domain.orientation import InvalidOrientation
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
 from backend.features.photo_generation.domain.production_mode import InvalidMode
@@ -154,10 +154,11 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
         # the layer on every frame without one (madde 520).
         if "files" in body:
             return jsonify({"error": "Kareler frames ile gönderilmeli."}), 400
-        # No "frames" key at all means every frame that does not hold this layer; a list of
-        # identities means that selection.
-        frames = body.get("frames")
         try:
+            # No "frames" key at all means every frame that does not hold this layer; a key that is
+            # there is a selection and has to be a list of identities -- null included, which read
+            # as missing would mean every frame too.
+            frames = checked(body["frames"], "Katman eklenecek") if "frames" in body else None
             # No "variants" key means one per frame, and no "mode" key means a plain video: a
             # client older than either box asks for exactly what it always asked for.
             added = queue_layer(project, kind, frames=frames, variants=body.get("variants", 1),

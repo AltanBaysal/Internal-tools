@@ -44,7 +44,10 @@ Kapılara tek tek bakıldı. Kimlik alanlar: kare silme (`removeFrames`), Kopyal
 ### Katman ekleme kareleri kimlikle alır
 
 `POST /api/projects/<project>/layers/<kind>` gövdesinde `files` yerine `frames`: seçilen karelerin
-kimlikleri, öteki kapıların aldığı gibi. Anahtar yoksa bugünkü gibi "katmanı olmayan her kare".
+kimlikleri, öteki kapıların aldığı gibi. Anahtar yoksa bugünkü gibi "katmanı olmayan her kare". Anahtar
+varsa bir seçimdir ve kimlik listesi olmalı; `null` da kötü bir liste sayılır ve 400 alır, çünkü yok
+sayılsa "her kare" demek olurdu (QA'dan sonra, reviewer'ın `files` kuralıyla aynı neden). Bu ayrım
+JSON'un — anahtar var mı yok mu — bu yüzden route okur, `frame_list.checked`'le, cümle tek yerde kalır.
 
 - **`queue_layer`:** parametre `files` → `frames`. Doğrulaması öteki kapılarınki: `frame_list.checked`,
   cümlesi *"Katman eklenecek kare listesi metin dizisi olmalı."*; route `InvalidFrames`'i 400 ile, `field`
@@ -86,7 +89,7 @@ Proje, sohbet ve dosya sayısından bağımsız; her basış bir istek.
 - **Hiçbir şey daha fazla yazılmaz ya da silinmez.** Değişen yalnız katman eklemenin kapsamı; daralır.
 - **Kuyruğa ekle seçilmeyen kareye iş yazmaz.** Eskiden bir karenin seçimi resmini paylaşan her kareye iş ve
   kopya yazıyordu; ekranın tahmini (`inSelection`) bunu saymıyordu. Artık tahmin ile sıranın aldığı aynı.
-- **Geçersiz gövde:** `frames` liste değilse ya da metin olmayan bir öğe taşıyorsa, ya da gövde eski
+- **Geçersiz gövde:** `frames` liste değilse (`null` dahil) ya da metin olmayan bir öğe taşıyorsa, ya da gövde eski
   `files` anahtarını taşıyorsa, basış kilide girmeden 400 ile reddedilir; plana hiçbir şey yazılmaz.
 
 ## Sınırlar
@@ -101,6 +104,7 @@ Proje, sohbet ve dosya sayısından bağımsız; her basış bir istek.
     kırmızı: dosya adıyla 2 iş);
   - route `{"frames": ["P0_0"]}` ile yalnız `P0_0`'a video planlar; `{"frames": "P0_0"}` 400 ve
     *"Katman eklenecek kare listesi metin dizisi olmalı."*, plana video yazılmaz;
+  - `{"frames": null}` 400 ve aynı cümle, plana video yazılmaz (bugün kırmızı: 202, her kareye video);
   - `{"files": ["P0_0.png"]}` 400 ve *"Kareler frames ile gönderilmeli."*, plana video yazılmaz (bugün
     kırmızı: 202, her kareye video);
   - `queue_layer`'ı ve `frames_in_scope`'u seçimle çağıran bütün eski testler kimlikle geçer
