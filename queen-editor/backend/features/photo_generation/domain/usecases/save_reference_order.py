@@ -13,7 +13,7 @@ the read and the write would drop out of the order (madde 523). And a file of th
 not name keeps its place rather than leaving the order: a tab drawn before another tab's upload
 sends a row without it, and replacing the row whole lost that upload's place.
 """
-from backend.features.photo_generation.domain import gallery_order
+from backend.features.photo_generation.domain import gallery_order, references
 from backend.features.photo_generation.domain.usecases.list_references import list_references
 from backend.features.photo_generation.domain.usecases.start_batch import ProjectMissing
 
@@ -40,4 +40,6 @@ def save_reference_order(store, pool, orders, plan_store, project, order):
             order_now[kind] = gallery_order.keep_unnamed(
                 [name for name in dict.fromkeys(names) if name in row], row)
         orders.write(project, order_now)
-        return list_references(store, pool, orders, project)
+        # The answer from the one listing, not a second: each clip listed is an ffprobe, and every
+        # press on the project waits for the gate (madde 523's QA).
+        return references.placed(order_now, standing)

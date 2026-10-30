@@ -86,8 +86,15 @@ def add_references(store, pool, orders, clips, plan_store, project, files, row=N
     weighed = _weighed(clips, files, row)
     staged = []
     try:
-        for _name, _one, data in weighed:
-            staged.append(pool.stage(project, data))
+        try:
+            for _name, _one, data in weighed:
+                staged.append(pool.stage(project, data))
+        except FileNotFoundError:
+            # The project was taken away -- deleted or renamed -- since the look above: the bytes
+            # had no folder to go to. Asked rather than guessed, and said in the screen's words.
+            if not store.project_exists(project):
+                raise ProjectMissing(f"Proje yok: {project}") from None
+            raise
         with plan_store.held(project):
             if not store.project_exists(project):
                 raise ProjectMissing(f"Proje yok: {project}")
@@ -110,7 +117,9 @@ def add_references(store, pool, orders, clips, plan_store, project, files, row=N
             for kind in {one["kind"] for one in arriving}:
                 order[kind] = [one["name"] for one in held + arriving if one["kind"] == kind]
             orders.write(project, order)
-            return list_references(store, pool, orders, project)
+            # The answer from what was listed and what was placed, not a second listing: each clip
+            # listed is an ffprobe, and every press on the project waits for the gate (QA).
+            return references.placed(order, held + arriving)
     finally:
         # Whatever was not placed: a refusal under the gate, or a failure on the way.
         for hidden in staged:

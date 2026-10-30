@@ -33,6 +33,7 @@ from backend.features.photo_generation.domain.usecases.start_batch import (
 from backend.features.photo_generation.runner import PhotoRunner
 from backend.features.projects.data.project_store import DriveProjectStore
 from backend.features.projects.domain.usecases.delete_project import delete_project
+from backend.services.storage import storage as storage_module
 from backend.services.storage.storage import TEMP_PREFIX, Storage
 from backend.tests.test_photo_usecases import FakeGenerator
 
@@ -43,29 +44,28 @@ WINDOW = 0.2
 
 
 class Meanwhile:
-    """Lets a second party in, in a thread of its own, right after an answer of a method -- the
-    first one, or the `nth`."""
+    """Lets a second party in, in a thread of its own, right after the first answer of a method."""
 
     def __init__(self):
         self.thread = None
         self.failure = None
 
-    def after_first(self, obj, method, second, nth=1):
+    def after_first(self, obj, method, second):
         original = getattr(obj, method)
-        calls = []
 
         def hooked(*args, **kwargs):
             answer = original(*args, **kwargs)
-            calls.append(None)
-            if len(calls) < nth:
-                return answer
             setattr(obj, method, original)
-            self.thread = threading.Thread(target=self._run, args=(second,))
-            self.thread.start()
-            self.thread.join(WINDOW)
+            self.now(second)
             return answer
 
         setattr(obj, method, hooked)
+
+    def now(self, second):
+        """Let the second party in from here."""
+        self.thread = threading.Thread(target=self._run, args=(second,))
+        self.thread.start()
+        self.thread.join(WINDOW)
 
     def _run(self, second):
         try:
@@ -89,7 +89,7 @@ class Pool:
     def __init__(self, tmp_path, *names):
         (tmp_path / "düğün").mkdir()
         self.dir = tmp_path / "düğün" / "referans"
-        storage = Storage(str(tmp_path))
+        self.storage = storage = Storage(str(tmp_path))
         self.store = DrivePhotoStore(storage, storage)
         self.pool = DriveReferenceStore(storage)
         self.orders = DriveReferenceOrderStore(storage)
@@ -196,21 +196,17 @@ class Projects:
         return sorted(project.name for project in self.store.list_archived())
 
 
-@pytest.mark.parametrize("archived, first, read, then", [
-    (False, lambda store: store.archive("düğün"), 1, ["düğün", "kına"]),
-    (True, lambda store: store.restore("düğün"), 1, ["kına"]),
-    (True, lambda store: store.delete("düğün"), 1, ["kına"]),
-    (True, lambda store: store.delete("düğün"), 2, ["kına"]),
-    (True, lambda store: store.rename("düğün", "nişan"), 1, ["kına", "nişan"]),
-], ids=["archive", "restore", "delete-before-removal", "delete-after-removal", "rename"])
-def test_an_archive_in_the_middle_of_another_mark_change_is_kept(tmp_path, archived, first, read,
-                                                                 then):
+@pytest.mark.parametrize("archived, first, then", [
+    (False, lambda store: store.archive("düğün"), ["düğün", "kına"]),
+    (True, lambda store: store.restore("düğün"), ["kına"]),
+    (True, lambda store: store.delete("düğün"), ["kına"]),
+    (True, lambda store: store.rename("düğün", "nişan"), ["kına", "nişan"]),
+], ids=["archive", "restore", "delete", "rename"])
+def test_an_archive_in_the_middle_of_another_mark_change_is_kept(tmp_path, archived, first, then):
     """arsiv.json is one file for every project: each change read the marks and wrote them back
-    whole, and an archive of another project landing in between was undone. A delete reads them
-    twice -- before the folder goes, and to drop its mark once it has gone -- so both are tried."""
+    whole, and an archive of another project landing in between was undone."""
     projects, meanwhile = Projects(tmp_path, archived), Meanwhile()
-    meanwhile.after_first(projects.storage, "read_text", lambda: projects.store.archive("kına"),
-                          nth=read)
+    meanwhile.after_first(projects.storage, "read_text", lambda: projects.store.archive("kına"))
 
     first(projects.store)
     meanwhile.done()
@@ -246,4 +242,73 @@ def test_a_press_as_the_project_is_deleted_starts_no_run(tmp_path):
         meanwhile.done()
     assert runner.status() == {"status": "idle"}
     assert runs == []
+    assert not (tmp_path / "düğün").exists()
+
+
+# --- an upload as the project is deleted ---------------------------------------------------------
+
+def deleting(pool):
+    """The delete as main.py wires it, over the pool's own root."""
+    projects = DriveProjectStore(pool.storage)
+    runner = PhotoRunner(spawn=lambda fn: None)
+    return lambda: delete_project(
+        projects, partial(follow_delete, runner, pool.plan, lambda: None, lambda _: None), "düğün")
+
+
+def test_an_upload_during_a_slow_removal_never_brings_the_project_back(tmp_path, monkeypatch):
+    """Madde 523's QA: an upload staged its bytes outside the gate into the referans folder a delete
+    was removing; the removal failed on a folder that was no longer empty, the project survived
+    gutted, and the upload took the gate, found it and answered 200 -- a deleted project back with
+    that one reference. Drive's removal takes tens of seconds, so the window is real. Here the
+    removal takes its files first and its folders after, and the upload comes in between."""
+    pool, meanwhile = Pool(tmp_path, "eski.png"), Meanwhile()
+
+    def slow_removal(path, *_args, **_kwargs):
+        for folder, _dirs, files in os.walk(path, topdown=False):
+            for name in files:
+                os.remove(os.path.join(folder, name))
+        meanwhile.now(lambda: pool.add("yeni.png"))
+        for folder, _dirs, _files in os.walk(path, topdown=False):
+            os.rmdir(folder)
+
+    monkeypatch.setattr(storage_module.shutil, "rmtree", slow_removal)
+
+    failed = None
+    try:
+        deleting(pool)()
+    except OSError as exc:
+        failed = exc
+
+    with pytest.raises(ProjectMissing):
+        meanwhile.done()
+    assert not (tmp_path / "düğün").exists()
+    assert failed is None
+
+
+def test_an_upload_into_the_trash_by_name_is_told_there_is_no_project(tmp_path):
+    """A crafted URL naming a deleted project's trash finds no project, like every other door."""
+    pool = Pool(tmp_path)
+    trash = pool.storage.trash_dir("düğün")
+
+    with pytest.raises(ProjectMissing):
+        add_references(pool.store, pool.pool, pool.orders, None, pool.plan, trash,
+                       [("yeni.png", b"PNG")])
+    assert not (tmp_path / trash / "referans").exists()
+
+
+def test_an_upload_whose_project_is_deleted_before_its_bytes_go_is_told_it_is_gone(tmp_path):
+    """The delete lands between the upload's look at the project and its staging: the bytes have
+    nowhere to go, and the answer is the screen's sentence, not the OS's."""
+    pool = Pool(tmp_path)
+    stage = pool.pool.stage
+
+    def deleted_first(project, data):
+        pool.pool.stage = stage
+        deleting(pool)()
+        return stage(project, data)
+
+    pool.pool.stage = deleted_first
+
+    with pytest.raises(ProjectMissing):
+        pool.add("yeni.png")
     assert not (tmp_path / "düğün").exists()

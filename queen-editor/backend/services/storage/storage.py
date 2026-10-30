@@ -34,6 +34,7 @@ import shutil
 import stat
 import tempfile
 import time
+import uuid
 
 # What a save writes before it moves into place. Listings skip it: a session that dies mid-save leaves
 # one behind, and it is nobody's file.
@@ -85,6 +86,14 @@ def _is_dir(path):
     return stat.S_ISDIR(info.st_mode)
 
 
+def _trashed_at(name):
+    """When trash_dir put this folder in the trash, from its name; None for any other name."""
+    if not name.startswith(TEMP_PREFIX):
+        return None
+    stamp = name[len(TEMP_PREFIX):].split("-", 1)[0]
+    return int(stamp) if stamp.isdigit() else None
+
+
 def _discard(temporary):
     """Remove a save's temporary file after the save failed.
 
@@ -132,9 +141,41 @@ class Storage:
     # --- folders ----------------------------------------------------------------------------
 
     def list_dirs(self):
-        """[(name, mtime)] for every folder directly under the root. Files are skipped."""
+        """[(name, mtime)] for every folder directly under the root. Files are skipped, and so is
+        the trash (trash_dir)."""
         with os.scandir(self._folder(())) as entries:
-            return [(e.name, e.stat().st_mtime) for e in entries if e.is_dir()]
+            return [(e.name, e.stat().st_mtime) for e in entries
+                    if e.is_dir() and not e.name.startswith(TEMP_PREFIX)]
+
+    def trash_dir(self, name):
+        """Move a folder directly under the root to a hidden name there, in one rename, and return
+        that name; False when it was not there.
+
+        What a removal does first (madde 523): taking a folder away over Drive takes tens of
+        seconds, and a write landing in it meanwhile made the removal fail half way, leaving the
+        folder there, gutted. Renamed, the name is gone at once and nothing written to it lands in
+        the trash; delete_dir then removes the trash at leisure. The hidden name carries the time it
+        was put there, which sweep_trash reads: a folder's own mtime says when its contents last
+        changed, not when it was trashed.
+        """
+        source = self._folder(_checked(name))
+        if not _is_dir(source):
+            return False
+        trash = f"{TEMP_PREFIX}{int(time.time())}-{uuid.uuid4().hex}"
+        os.rename(source, os.path.join(self._root, trash))
+        return trash
+
+    def sweep_trash(self, age):
+        """Remove the trash put under the root more than `age` seconds ago: what a removal could not
+        finish, or a server that died left. A younger one may be another removal's, still going.
+        One listing of the root; a trash that cannot be removed stays, hidden, for the next sweep."""
+        oldest = time.time() - age
+        with os.scandir(self._folder(())) as entries:
+            old = [entry.path for entry in entries
+                   if entry.is_dir() and _trashed_at(entry.name) is not None
+                   and _trashed_at(entry.name) < oldest]
+        for trash in old:
+            shutil.rmtree(trash, ignore_errors=True)
 
     def make_dir(self, name):
         """Create a folder directly under the root -- the one way a project folder, or an export's
@@ -199,7 +240,13 @@ class Storage:
         return os.stat(target).st_mtime
 
     def dir_exists(self, folder):
-        return _is_dir(self._folder(folder))
+        """Whether the folder is there. One under a hidden name is not, as list_dirs does not list
+        it: the trash is nobody's (madde 523), and every project door asks this, so a URL naming the
+        trash finds no project rather than queueing, uploading or exporting into it."""
+        path = self._folder(folder)
+        if any(part.startswith(TEMP_PREFIX) for part in _parts(folder)):
+            return False
+        return _is_dir(path)
 
     def path(self, folder, name=None):
         """The absolute path of a folder, or of a file in it, for a reader outside this process --

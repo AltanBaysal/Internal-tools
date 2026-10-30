@@ -1,5 +1,6 @@
 import errno
 import os
+import time
 from types import SimpleNamespace
 
 import pytest
@@ -115,6 +116,8 @@ CALLS = {
     "stage_bytes": lambda storage, source: storage.stage_bytes("düğün", b"PNG"),
     "rename_file": lambda storage, source: storage.rename_file("düğün", "a.png", "c.png"),
     "sweep_staged": lambda storage, source: storage.sweep_staged("düğün", 3600),
+    "trash_dir": lambda storage, source: storage.trash_dir("düğün"),
+    "sweep_trash": lambda storage, source: storage.sweep_trash(3600),
 }
 
 
@@ -623,6 +626,49 @@ def test_renaming_onto_a_name_that_is_taken_moves_nothing(tmp_path):
 
     assert storage.dir_exists("düğün")
     assert storage.dir_exists("nikah")
+
+
+def test_a_folder_put_in_the_trash_is_gone_at_once_under_a_hidden_name(tmp_path):
+    """Madde 523's QA: a removal over Drive takes tens of seconds, and a write landing in the folder
+    meanwhile made it fail half way. One rename takes the name away first; listings skip the
+    hidden one."""
+    storage = with_project(tmp_path)
+    storage.write_text(("düğün", "referans"), "a.png", "PNG")
+
+    trash = storage.trash_dir("düğün")
+
+    assert trash.startswith(TEMP_PREFIX)
+    assert not storage.dir_exists("düğün")
+    assert storage.list_dirs() == []
+    assert (tmp_path / trash / "referans" / "a.png").read_text(encoding="utf-8") == "PNG"
+    assert storage.trash_dir("düğün") is False
+
+
+def test_a_folder_in_the_trash_is_not_there_for_anyone_who_asks_by_name(tmp_path):
+    """Madde 523's reviewer: every project door asks dir_exists, and a URL naming the trash would
+    otherwise queue, upload or export into it until it was swept. Hidden, as list_dirs hides it."""
+    storage = with_project(tmp_path)
+    trash = storage.trash_dir("düğün")
+
+    assert storage.dir_exists(trash) is False
+    assert storage.dir_exists((trash, "referans")) is False
+
+
+def test_a_sweep_of_the_trash_takes_only_what_was_put_there_long_enough_ago(tmp_path, monkeypatch):
+    """Trash a removal could not finish, or a server died before; never another delete's own, put
+    there a moment ago and still being removed."""
+    storage = Storage(str(tmp_path))
+    for name in ("eski", "yeni", "düğün"):
+        storage.make_dir(name)
+    now = time.time()
+    monkeypatch.setattr(storage_module.time, "time", lambda: now - 7200)
+    storage.trash_dir("eski")
+    monkeypatch.setattr(storage_module.time, "time", lambda: now)
+    fresh = storage.trash_dir("yeni")
+
+    storage.sweep_trash(3600)
+
+    assert sorted(path.name for path in tmp_path.iterdir()) == sorted([fresh, "düğün"])
 
 
 def test_deleting_a_folder_takes_everything_in_it(tmp_path):

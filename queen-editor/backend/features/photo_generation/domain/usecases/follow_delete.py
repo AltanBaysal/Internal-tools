@@ -17,7 +17,9 @@ def follow_delete(runner, plan_store, interrupt, sleep, project, remove):
     that queues work writes its job and claims or joins the worker under that gate, so a press falls
     wholly before the halt -- its run stopped with the rest -- or wholly after the removal, and finds
     no project. Taken without, a press between the halt and the removal wrote its job, claimed the
-    idle worker, and the folder then went from under its run.
+    idle worker, and the folder then went from under its run. `remove` takes the project away in
+    one step (it puts the folder in the trash), so the gate is not held through a removal over
+    Drive; the caller clears the trash once this has returned.
     """
     with plan_store.held(project):
         halt_project(runner, interrupt, sleep, project)

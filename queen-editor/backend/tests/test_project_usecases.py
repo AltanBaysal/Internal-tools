@@ -79,10 +79,14 @@ class RecordingStore(FakeStore):
         self.archived = [Project(name, 100.0) for name in archived]
 
     def delete(self, name):
+        """What is left to clear -- the trash's name -- or False when there was no such project."""
         self.log.append(f"delete:{name}")
         gone = [p for p in self.projects if p.name == name]
         self.projects = [p for p in self.projects if p.name != name]
-        return bool(gone)
+        return f"çöp-{name}" if gone else False
+
+    def clear(self, trash):
+        self.log.append(f"clear:{trash}")
 
     def archive(self, name):
         """The marked project, or False when there is no such project. Nothing can collide any more
@@ -111,20 +115,23 @@ def ending(log):
     the photo feature's follow_delete, which also holds the project's gate around both."""
     def end(project, remove):
         log.append(f"halt:{project}")
-        return remove()
+        answer = remove()
+        log.append("gate let go")
+        return answer
     return end
 
 
 def test_deleting_a_project_stops_its_production_before_the_folder_goes():
     """The other order is the bug: a worker writing into a folder that is being removed is exactly
     the error the confirm promises the user will not see. The removal is handed to the port, which
-    stops first (madde 523)."""
+    stops first (madde 523); the trash is cleared after the port has let the gate go, since a
+    removal over Drive takes tens of seconds and the project is already gone."""
     log = []
     store = RecordingStore(log)
 
     delete_project(store, ending(log), "düğün")
 
-    assert log == ["halt:düğün", "delete:düğün"]
+    assert log == ["halt:düğün", "delete:düğün", "gate let go", "clear:çöp-düğün"]
 
 
 def test_deleting_an_unknown_project_still_says_so():

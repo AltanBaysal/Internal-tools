@@ -22,5 +22,10 @@ from backend.features.projects.domain.usecases.get_settings import ProjectMissin
 def delete_project(store, end, name):
     if name_rules.is_reserved(name):
         raise ProjectMissing(f"Proje yok: {name}")
-    if not end(name, lambda: store.delete(name)):
+    # The store takes the project away at once and hands back what is left to clear (madde 523).
+    # Cleared here, once `end` has returned: a removal over Drive takes tens of seconds, and whatever
+    # `end` holds around the delete need not be held for it.
+    trash = end(name, lambda: store.delete(name))
+    if not trash:
         raise ProjectMissing(f"Proje yok: {name}")
+    store.clear(trash)

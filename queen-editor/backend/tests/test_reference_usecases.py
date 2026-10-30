@@ -320,6 +320,42 @@ def test_an_upload_reads_its_lengths_and_writes_its_bytes_before_the_gate():
     assert pool.pools["düğün"] == {"dans.mp4": b"MP4", "kedi.png": b"PNG"}
 
 
+def gated_pool_of_clips(count):
+    """A pool of `count` videos whose lengths are asked through clips that know the gate."""
+    gate = Gate()
+    clips = GatedClips(gate)
+    pool = FakeReferenceStore(clips)
+    for n in range(count):
+        pool.save("düğün", f"{n}.mp4", f"MP4-{n}".encode())
+    return gate, clips, pool
+
+
+def test_an_upload_lists_the_pool_once_under_the_gate():
+    """Madde 523's QA: the pool was listed twice under the gate -- for the names, and again for the
+    answer -- so each clip already there was asked its length twice, and a press on the project
+    waited 5.79 s with three videos at a second each. Once, and the answer is built from it."""
+    gate, clips, pool = gated_pool_of_clips(2)
+
+    answer = add_references(FakeStore(), pool, FakeOrderStore(), clips, gate, "düğün",
+                            [("yeni.mp4", b"NEW")])
+
+    assert clips.under_gate.count(True) == 2
+    assert clips.under_gate.count(False) == 1                 # the new clip, before the gate
+    assert [(row["name"], row["slot"]) for row in answer] == [
+        ("0.mp4", 1), ("1.mp4", 2), ("yeni.mp4", 3)]
+
+
+def test_a_drag_lists_the_pool_once_under_the_gate():
+    gate, clips, pool = gated_pool_of_clips(3)
+
+    answer = save_reference_order(FakeStore(), pool, FakeOrderStore(), gate, "düğün",
+                                  {references.VIDEO: ["2.mp4", "0.mp4", "1.mp4"]})
+
+    assert clips.under_gate == [True] * 3
+    assert [(row["name"], row["slot"]) for row in answer] == [
+        ("2.mp4", 1), ("0.mp4", 2), ("1.mp4", 3)]
+
+
 def test_an_upload_the_pool_refuses_leaves_no_bytes_behind():
     """The bytes are written before the pool's limits can be weighed against the pool; a refusal
     under the gate takes them away again."""

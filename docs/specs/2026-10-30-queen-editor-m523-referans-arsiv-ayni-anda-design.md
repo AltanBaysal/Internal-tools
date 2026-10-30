@@ -54,6 +54,18 @@ işi kabul edildi.
 - *Silmede işaretin klasörden önce düşmesi:* Drive'da yarıda kalan bir silme arşivli projeyi etkin
   projelerin arasına geri getiriyordu. Kırmızı: arşiv `[]` (beklenen `['düğün']`).
 
+**QA'nın buldukları** (c8e0bd23'ten sonra, ikisi de testle kırmızı görüldü):
+
+- *F1 — yükleme silmenin iki yanına düşebiliyordu:* yüklemenin ilk varlık bakışı ve baytları kapının
+  dışında; silme klasörü Drive'da onlarca saniyede silerken klasör hâlâ vardı, baytlar silinen
+  `referans/`'a yazıldı, silme "klasör boş değil" ile düştü, proje içi boşalmış halde kaldı; yükleme
+  sonra kapıyı aldı, projeyi buldu ve 200 verdi — silinen proje yalnız o referansla geri geldi. Kırmızı:
+  `DID NOT RAISE ProjectMissing`. Aynı yerde: silme yüklemenin varlık bakışı ile baytları arasına
+  düşerse yükleme işletim sisteminin cümlesiyle düşüyordu (`FileNotFoundError … referans`).
+- *F2 — havuz kapıda iki kez listeleniyordu:* yükleme (adlar için, sonra cevap için) ve sürükleme;
+  havuzdaki her klip iki ffprobe, üç videoda o projeye bir basış 5,79 saniye bekledi (ekranın zaman
+  aşımı 10 saniye). Kırmızı: kapıda `5 == 2` ffprobe (yükleme), `6` yerine `3` (sürükleme).
+
 ## Ne yapılır
 
 ### Referans havuzunun üç kapısı projenin yazma kapısında
@@ -63,14 +75,18 @@ işi kabul edildi.
 alır (`main.py`'deki `partial`'lar `_plan_store`'u verir); yalnız kapısı için.
 
 Neden G, kendi kilidi değil: havuz proje başına ve G zaten proje başına "okuyup birlikte geri yazan
-kapıların" kapısı. Üstelik aynı kapıyı yeniden adlandırma (522) ve artık silme de alıyor; yükleme bir
-taşımanın ya da silmenin iki yanına düşemez (dosyalar eski klasörde, sıra yazması yok olan klasörde
-düşmez). Ayrı bir kilit bunu vermezdi ve bir parça daha olurdu.
+kapıların" kapısı. Üstelik aynı kapıyı yeniden adlandırma (522) ve artık silme de alıyor; çıkarma ve
+sürükleme bir taşımanın ya da silmenin iki yanına düşemez, yüklemenin kapıdaki kısmı da (adlandırma,
+sıra). Yüklemenin kapıdan önceki kısmı (baytlar) için aşağıya bakın: taşıma ve silme klasörü tek bir
+`os.rename` ile götürür, baytlar ya o adımdan önce yazılıp klasörle gider ya sonra yazılamaz. Ayrı bir
+kilit bunu vermezdi ve bir parça daha olurdu.
 
 Varlık bakışı kapının içinde, 522'nin kuralıyla: taşımanın ya da silmenin hangi yanında olduğu ancak
 orada kesindir. Sürüklemenin gövde denetimi (`InvalidReferenceOrder`) diske gitmediği için dışarıda.
-Cevap (havuzun son hali) kapının içinde okunur: dışarıda okunsa, kapı bırakılır bırakılmaz gelen bir
-taşıma kabul edilmiş bir yüklemeyi 404'le cevaplatırdı (522'nin F1'i).
+Cevap (havuzun son hali) kapının içinde kurulur: dışarıda okunsa, kapı bırakılır bırakılmaz gelen bir
+taşıma kabul edilmiş bir yüklemeyi 404'le cevaplatırdı (522'nin F1'i). İkinci bir listeleme değil
+(QA'nın F2'si): yükleme cevabı kapıdaki tek listeden ve yerine koyduğu dosyalardan, sürükleme tek
+listesinden kurar (`references.placed`, yeni sırayla). Kapıda havuzdaki her klip bir kez ffprobe'lanır.
 
 ### Yükleme iki adımda: uzun iş kapının dışında
 
@@ -85,6 +101,10 @@ kapısız yapılır:
 2. **Kapıda:** projeye yeniden bakış, havuzun listesi, boş adların seçimi, sınırların havuzla birlikte
    tartılması, her gizli dosyanın adına çevrilmesi (`pool.place`; `Storage.rename_file`, tek
    `os.replace`), sıranın yazılması, cevap.
+
+Baytlar yazılırken klasör yoksa (`FileNotFoundError`: proje varlık bakışından sonra silindi ya da
+yeniden adlandırıldı) yükleme projeye yeniden bakar; proje yoksa "Proje yok" der, varsa hatayı olduğu
+gibi bırakır — tahmin değil, sorulmuş cevap.
 
 Reddedilen ya da yarıda kalan bir yükleme (`finally`) yerine konmamış gizli dosyaları siler
 (`pool.discard`; hiç hata atmaz, yüklemenin kendi hatası söylenecek olandır, kalan dosya zaten gizli).
@@ -117,36 +137,53 @@ yazma geçici dosya ve `os.replace` ile bütün ya da hiç.
   eskisi gibi.
 - `rename`: okuma, klasörün taşınması (tek `os.rename`) ve yazma M'de — okuma ile yazma arasına başka
   bir değişiklik düşmesin diye taşıma da içeride.
-- `delete`: işaretler önce okunur (kilitsiz), klasör silinir, sonra M'de **yeniden okunur** ve
-  (proje işaretliyse) yazılır. Eskiden tek okuma vardı: önce okunur, klasör silinir, okunan liste
-  yazılırdı.
-  - Neden M klasörün silinmesi boyunca tutulmaz: yeniden adlandırmanın `store.rename`'i adın kilidinin
-    (**N**) içinde çalışır (522), döngü de N'yi bekler. M bir rmtree boyunca — Drive'da yüzlerce dosya,
-    onlarca saniye — tutulsaydı başka bir projenin yeniden adlandırması M'yi, döngü de N'yi o kadar
-    beklerdi: GPU boş kalırdı.
-  - Neden ikinci okuma: silmenin süresince başka bir projenin işaret değişikliği gelebilir; önceden
-    okunan liste yazılsaydı o değişiklik kaybolurdu.
-  - Neden işaret klasörden sonra: yarıda kalan bir silme arşivli projeyi arşivde bırakır (reviewer;
-    işaret önce düşerse etkin projelerin arasına dönüyordu).
-  - Eski güvence aynen kalır: okunamayan dosya silmeyi proje henüz bütünken durdurur.
-  - Birinci okuma kilitsiz: yazmalar dosyayı bütün olarak değiştirir (geçici dosya, `os.replace`), okuma
-    ya eski listeyi ya yenisini görür ve hiçbir şey geri yazmaz; kilit bir şey korumazdı.
+- `delete`: okuma, klasörün **çöpe** taşınması (`Storage.trash_dir`: kökte gizli bir ada tek
+  `os.rename`) ve işaretin yazılması M'de — `rename` gibi. Cevabı çöpün adı (yoksa `False`).
+  Klasörün asıl silinmesi ayrı: `clear(trash)`, silme kapısını bıraktıktan sonra (aşağıda).
+  - Neden çöp (QA'nın F1'i): Drive'da bir klasörü silmek onlarca saniye sürer; o sürede klasöre yazan
+    bir yükleme silmeyi "klasör boş değil" ile düşürüyor, içi boşalmış proje kalıyor ve yükleme onu
+    bulup geri getiriyordu. Tek bir yeniden adlandırma adı hemen götürür: sonra gelen yazma yolu
+    bulamaz, öncesinde yazılan çöpe gider. Silme yarıda kalırsa geride proje değil, hiçbir listenin
+    göstermediği gizli bir çöp kalır.
+  - M bir rmtree boyunca hiç tutulmaz: yeniden adlandırmanın `store.rename`'i adın kilidinin (**N**)
+    içinde çalışır (522), döngü de N'yi bekler; M bir silme boyunca tutulsaydı GPU o kadar boş kalırdı.
+  - İşaret çöpe taşımadan sonra yazılır: taşıma düşerse (bir `os.rename`) hiçbir şey değişmemiştir,
+    arşivli proje arşivde kalır (reviewer'ın istediği güvence). Okunamayan dosya silmeyi proje henüz
+    bütünken durdurur, eskisi gibi. `arsiv.json` bir kez okunur.
+- `clear(trash)`: çöpü siler (`delete_dir`) ve kökte bir saatten (`STALE`) eski çöpleri süpürür
+  (`Storage.sweep_trash`; zaman çöpün adında, çünkü bir klasörün mtime'ı içinin son değiştiği anı
+  söyler, çöpe atıldığı anı değil). Daha genç bir çöp başka bir silmenin olabilir, hâlâ siliniyor
+  olabilir; kalır. Hata atmaz: proje zaten gitmiştir, bir hata kullanıcıya olmamış bir başarısızlığı
+  söylerdi; silinemeyen çöp gizli kalır, sonraki silme süpürür.
+- `Storage.list_dirs` `TEMP_PREFIX`'li klasörleri atlar (`list_files`'ın dosyalar için yaptığı gibi):
+  çöp hiçbir listede proje kartı olmaz. Bir proje adı noktayla başlayamadığı için (`name_rules`) hiçbir
+  proje bu öneki taşıyamaz.
 
 ### Silme projenin yazma kapısında
 
 Yeni port `follow_delete(runner, plan_store, interrupt, sleep, project, remove)` (photo_generation):
 G'yi tutarak koşuyu durdurur (`halt_project`, eskisi gibi) ve `remove`'u çalıştırır, cevabını döner.
-`delete_project(store, end, name)` klasörün silinmesini (`lambda: store.delete(name)`) bu porta verir;
-`halt` portunun yerine. 522'nin `follow_rename`'iyle aynı biçim: projeler özelliği kapıyı bilmez,
+`delete_project(store, end, name)` projenin götürülmesini (`lambda: store.delete(name)`, çöpe taşıma)
+bu porta verir; `halt` portunun yerine. Port döndükten sonra, G bırakılmışken, çöpü `store.clear` ile
+siler: G bir Drive silmesi boyunca tutulmaz, o projeye gelen basışlar hemen "Proje yok" alır. 522'nin `follow_rename`'iyle aynı biçim: projeler özelliği kapıyı bilmez,
 `main.py` iki özelliği birleştirir. "Önce koşu durur" kuralı artık porttadır; projeler özelliğinin testi
 porta silmeyi verdiğini, photo_generation'ın testi durdurmanın silmeden önce olduğunu söyler.
 
 Bir basışın kapı tutuşu **K** (işi yazar, işçiyi alır), silmenin kapı tutuşu **D** (durdurur, siler):
 
-- **K, D'den önce:** iş yazılmış, işçi alınmış; D o koşuyu durdurur, sonra klasörü siler. Bugünkü
+- **K, D'den önce:** iş yazılmış, işçi alınmış; D o koşuyu durdurur, sonra klasörü çöpe taşır. Bugünkü
   "silme koşuyu durdurur" sözü.
 - **D, K'den önce:** K geldiğinde klasör yok; kapı projeye kapının içinde bakar, "Proje yok" der, hiçbir
   şey yazmaz, işçiyi almaz.
+
+Bir yüklemenin kapısız kısmı (varlık bakışı, baytlar) için D'nin çöpe taşıması tek adımdır:
+
+- **Baytlar taşımadan önce yazıldı:** klasörle çöpe gider. Yükleme kapıda projeyi bulamaz, "Proje
+  yok"; gizli dosyaları eski adla silinemez, çöple birlikte silinir.
+- **Baytlar taşımadan sonra yazılacaktı:** yol yok, yazma `FileNotFoundError` verir, yükleme projeye
+  yeniden bakar, "Proje yok". Hiçbir şey yazılmaz.
+- Silinen klasöre hiçbir yazma düşmez (silme çöpü siler, adı artık kimse bilmez); silme bu yüzden
+  "klasör boş değil" ile düşmez, düşse de proje geri gelmez.
 
 ## Neden hiçbir yazma kaybolmaz
 
@@ -156,9 +193,9 @@ Bir basışın kapı tutuşu **K** (işi yazar, işçiyi alır), silmenin kapı 
   havuzda yoklar, adlarını ve sıradaki yerlerini kapıda alırlar.
 - **Eski sekmenin sürüklemesi:** adını vermediği dosya sırada yerini korur, düşmez.
 - **İşaretler:** dört değişikliğin okuma-yazması aynı M'de; ikinci okuma birincinin yazdığını görür.
-  `delete`'in klasör silmesi M'nin dışında, ama yazdığı liste M'de, klasör gittikten sonra okunur —
-  kaybolan işaret yok.
-- **Silme:** basış ya silmeden önce biter ve koşusu durdurulur, ya sonra gelir ve projeyi bulamaz.
+  `delete`'in çöpü silmesi M'nin dışında, okuması ve yazması içinde — kaybolan işaret yok.
+- **Silme:** basış ya silmeden önce biter ve koşusu durdurulur, ya sonra gelir ve projeyi bulamaz; bir
+  yükleme ya projeyle çöpe gider ya hiç yazmaz, ikisinde de "Proje yok" alır.
 
 ## Kilitler
 
@@ -170,20 +207,21 @@ yeni, işaretlerin kilidi **M** (`DriveProjectStore._lock`).
 |---|---|
 | Kuyruğa iş koyan kapı | G → R (bırakılır) → N (`took`, bırakılır) → W (522'deki gibi) |
 | Yeniden adlandırma | G(küçük ad) → G(büyük ad) → N (`moved`) → M (`store.rename`, içinde taşıma) → bırakılır → R (`rename`) |
-| Silme (yeni) | G → R (`halt_project`, kısa tutuşlar) → işaretler okunur (kilitsiz) → klasör silinir → M (işaretler, bırakılır) |
+| Silme (yeni) | G → R (`halt_project`, kısa tutuşlar) → M (okuma, çöpe taşıma, yazma; bırakılır) → G bırakılır → çöp silinir, kilitsiz |
 | Havuzun üç kapısı (yeni) | G yalnız; yüklemenin ffprobe'u ve baytları G'den önce, kilitsiz |
 | Arşive kaldırma, geri alma (yeni) | M yalnız |
 | Döngü | N (tutuşlar); R ayrı; G ve M hiç |
 
 Kenarlar G→R, G→N, G→W, G→M, N→M ve G(x)→G(y) yalnız x < y için. M bir yaprak: içinde hiçbir kilit
-alınmaz, tutulurken yalnız bir okuma, en çok bir yazma ve (yeniden adlandırmada) bir `os.rename`
-var. N'yi tutan hiç kimse G'yi almaz; M'yi tutan hiç kimse bir şey almaz. Döngü yok, kilitlenme yok.
+alınmaz, tutulurken yalnız bir okuma, en çok bir yazma ve (yeniden adlandırmada ve silmede) bir
+`os.rename` var. N'yi tutan hiç kimse G'yi almaz; M'yi tutan hiç kimse bir şey almaz. Döngü yok, kilitlenme yok.
 
 **GPU hiçbir kapıyı beklemez:** döngü G'yi de M'yi de hiç almaz. Havuzu adın kilidinde okur (522), havuzun
 kapılarını beklemez. Döngünün tek dolaylı bekleyişi 522'deki gibi N'de süren bir yeniden adlandırma; o
 da artık M'yi bekleyebilir, M'yi tutan da en çok bir işaret okuması ve yazmasıdır (başka bir projenin
 arşive kaldırılması, geri alınması ya da silinmesi aynı anda gelirse): döngünün bir yeniden adlandırmayı
-bekleyişi en çok Drive'da iki gidiş dönüş uzar. Silmenin klasör silmesi bu yüzden M'nin dışında.
+bekleyişi en çok Drive'da üç gidiş dönüş (okuma, `os.rename`, yazma) uzar. Silmenin çöpü silmesi bu
+yüzden hiçbir kilitte değil.
 
 ## Maliyet
 
@@ -192,32 +230,38 @@ bekleyişi en çok Drive'da iki gidiş dönüş uzar. Silmenin klasör silmesi b
   klasörünün bir listesi daha (bir gidiş dönüş; yalnız gizli dosyalar için birer stat, süpürülecek
   her dosya için bir silme — çoğu yüklemede hiç). Baytlar eskisi gibi bir kez
   yazılır. Kapının dışında: yüklenen her klip için bir ffprobe ve M dosyanın yazılması (uzun kısım).
-  Kapıda: bir varlık bakışı, havuz listesi (bir klasör listesi, havuzdaki N klip için N ffprobe —
-  bugünkü gibi), M yeniden adlandırma, sıranın okunması ve yazılması, cevap için havuz listesi
-  yeniden. Kapıyı bekleyenler (aynı projenin basışları, yeniden adlandırması, silmesi, öteki havuz
-  yazmaları) artık yüklemenin baytlarını beklemez; havuzdaki klip sayısı kadar ffprobe'u bekler. Başka
-  projeler hiç beklemez.
+  Kapıda: bir varlık bakışı, süpürme, havuzun **tek** listesi (bir klasör listesi, havuzdaki N klip
+  için N ffprobe), M yeniden adlandırma, sıranın okunması ve yazılması; cevap bellekte kurulur. Eskiden
+  kapıda 2N + M ffprobe vardı (QA'nın F2'si). Kapıyı bekleyenler (aynı projenin basışları, yeniden
+  adlandırması, silmesi, öteki havuz yazmaları) artık yüklemenin baytlarını beklemez; havuzdaki klip
+  sayısı kadar ffprobe'u bekler. Başka projeler hiç beklemez.
 - **Havuzla reddedilen yükleme:** baytlar yazılıp silinir (dosya başına bir yazma ve bir silme); basışın
   tek başına çiğnediği sınırlar ise baytlar gitmeden söylenir.
-- **Çıkarma, sürükleme:** Drive'a ek işlem yok; kapı tutuşu kapının bütün işi kadar (havuz listesi,
-  sıranın okunup yazılması, cevap). `keep_unnamed` bellekte, satırdaki dosya sayısıyla.
+- **Sürükleme:** kapıda havuzun tek listesi (N ffprobe), sıranın okunup yazılması; cevap bellekte.
+  Eskiden iki liste, 2N ffprobe. `keep_unnamed` bellekte, satırdaki dosya sayısıyla.
+- **Çıkarma:** Drive'a ek işlem yok; dosyanın silinmesi, sıranın okunup yazılması, cevap için bir
+  liste (zaten tekti).
 - **İşaretler:** Drive'a ek işlem yok. M bir okuma ve en çok bir yazma kadar tutulur (yeniden
   adlandırmada bir `os.rename` daha); aynı anda gelen başka bir işaret değişikliği en çok bunu bekler.
   Proje sayısından bağımsız: `arsiv.json` her değişiklikte bir kez okunur, bir kez yazılır, eskisi gibi.
-- **Silme:** `arsiv.json` iki kez okunur (eskiden bir): klasör gitmeden önceki okuma güvence için,
-  sonraki M'de yazılacak listeyi okumak için — arada başka bir değişiklik olabileceğinden ilki
-  yazılamaz. Küçük bir dosya, bir gidiş dönüş. G durdurma (en çok 5 saniye, `halt_project`), işaretler
-  ve klasörün silinmesi (projedeki dosya sayısı kadar silme, O(dosya)) boyunca tutulur; o projeye gelen
-  basışlar bekler, sonra "Proje yok" alır. Başka projeler beklemez.
+- **Silme:** `arsiv.json` bir kez okunur, en çok bir kez yazılır, eskisi gibi; ek olarak bir
+  `os.rename` (çöpe taşıma) ve bir kök listesi (süpürme). G yalnız durdurma (en çok 5 saniye,
+  `halt_project`) ve M'deki üç adım boyunca tutulur; o projeye gelen basışlar onu bekler, sonra "Proje
+  yok" alır. Çöpün silinmesi (projedeki dosya sayısı kadar silme, O(dosya), Drive'da onlarca saniye)
+  hiçbir kilitte değil; kimse onu beklemez, yalnız silme isteğinin cevabı.
 - **Döngü:** okumaları aynı, sayısı aynı; yukarıdaki en çok iki gidiş dönüşlük bekleyiş dışında değişmez.
 
 ## Ne kaybolabilir, ne bozulabilir
 
 - Diskte hiçbir biçim değişmez; kilitler bellekte, bir süreç bütün basışlara hizmet eder (512'nin
   varsayımı). Sunucu ölürse kilitler gider, dosyalar yerinde.
-- Silmede işaret klasörden sonra gider: Drive'da yarıda kalan bir silme arşivli projeyi arşivde bırakır
-  (testi var). Klasör gittikten sonra, işaret yazılmadan ölen bir sunucu arşivde hiçbir şeyi göstermeyen
-  bir ad bırakır; bugünkü gibi (o adla açılacak proje arşivde doğar).
+- Silmede proje tek adımda (çöpe taşıma) gider; Drive'da yarıda kalan bir silme geride proje değil,
+  gizli bir çöp bırakır, bir saat sonraki ilk silme süpürür (testi var). Çöpe taşıma düşerse hiçbir şey
+  değişmemiştir; arşivli proje arşivde kalır (testi var). Taşıma ile işaretin yazılması arasında ölen
+  bir sunucu arşivde hiçbir şeyi göstermeyen bir ad bırakır; bugünkü gibi (o adla açılacak proje arşivde
+  doğar).
+- Çöp adının içindeki zaman sunucunun saatidir; Drive'ın değil. Süpürme yalnız bir saatten eskileri
+  aldığı için saat kayması önemsiz.
 - Havuzun yazmaları eskisi gibi: önce dosyalar, sonra sıra. Bir dosya ya gizli adıyla yazılmış ya
   adıyla yerinde; yarım dosya hiçbir listede görünmez.
 - Gizli dosyalar ile adlandırma arasında ölen bir sunucu havuz klasöründe gizli dosyalar bırakır
@@ -238,7 +282,12 @@ bekleyişi en çok Drive'da iki gidiş dönüş uzar. Silmenin klasör silmesi b
   yüklenirken başlayan bir video referansları bir an ada göre sıralı okuyabilir"*.
 - Baytlar yazıldıktan sonra, kapıdan önce proje yeniden adlandırılırsa yükleme "Proje yok" alır ve
   gizli dosyalar eski adla silinemez, yeni klasörde gizli kalır (`discard` hata atmaz) — o projeye bir
-  saat sonra gelen ilk yükleme süpürene kadar. Hiç yükleme gelmezse kalır.
+  saat sonra gelen ilk yükleme süpürene kadar. Hiç yükleme gelmezse kalır. (Silmede bu olmaz: gizli
+  dosyalar çöple silinir.)
+- Bir URL çöpün adını proje adı olarak verse de proje bulunmaz: `Storage.dir_exists` gizli adlı bir
+  klasöre `False` der (`list_dirs`'in onu listelemediği gibi), ve bütün proje kapıları varlığı ona
+  sorar — kuyruğa iş, yükleme ya da export çöpe gidemez (reviewer). `name_rules` bu öneki taşıyan bir
+  adı zaten yeni proje adı olarak kabul etmez.
 
 ## Ne zaman bitti
 
@@ -247,8 +296,13 @@ bekleyişi en çok Drive'da iki gidiş dönüş uzar. Silmenin klasör silmesi b
 - Arşive kaldırma, geri alma, silme ve yeniden adlandırmanın ortasına düşen başka bir projenin arşive
   kaldırılması kalır.
 - Silmenin ortasına düşen basış "Proje yok" alır; işçi boş, koşu başlamadı, klasör silindi.
-- Silmenin iki okumasından birinin ardına düşen başka bir projenin arşive kaldırılması kalır.
-- Yarıda kalan bir silme arşivli projeyi arşivde bırakır.
+- Silme yavaş giderken araya düşen yükleme projeyi geri getirmez, "Proje yok" alır; silme düşmez.
+- Silme, yüklemenin varlık bakışı ile baytları arasına düşerse yükleme "Proje yok" alır.
+- Silmenin çöpü silemediği bir silme geride proje bırakmaz (iki listede de yok, ad yeniden açılabilir,
+  arşivde doğmaz); çöpe taşıması düşen silme arşivli projeyi arşivde bırakır.
+- Silme çöpünü G bırakıldıktan sonra siler ve bir saatten eski çöpleri süpürür, gençleri bırakır.
+- Yükleme ve sürükleme kapıda havuzdaki her klibi bir kez ffprobe'lar.
+- Çöpün adıyla gelen bir yükleme "Proje yok" alır; `dir_exists` çöpe `False` der.
 - Yükleme süreleri ve baytları kapı tutulmadan okur ve yazar; yalnız adlandırma kapıda.
 - Havuzla reddedilen bir yükleme klasörde gizli dosya bırakmaz.
 - Bir yükleme kapıda havuz klasöründeki bir saatten eski gizli dosyaları süpürür, gençleri bırakır.
@@ -262,5 +316,7 @@ bekleyişi en çok Drive'da iki gidiş dönüş uzar. Silmenin klasör silmesi b
 
 - İki sekmede aynı anda aynı projeye referans yüklemek: iki dosya da havuzda, sıranın sonunda.
 - İki sekmede aynı anda iki farklı projeyi arşive kaldırmak: ikisi de arşivde.
+- Büyük bir projeyi silerken başka sekmeden ona referans yüklemek: proje gidiyor ve geri gelmiyor,
+  yükleme "Proje yok" diyor; Drive'da kökte gizli çöp klasörü silme bitince kalmıyor.
 - Kuyruk çalışırken başka bir projeyi silmek ve aynı anda bir projeyi yeniden adlandırmak: sıra
   durmadan sürüyor.

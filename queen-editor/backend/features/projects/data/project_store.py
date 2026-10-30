@@ -21,6 +21,9 @@ from backend.features.projects.domain.project import Project
 # files over Drive, and this screen is slow enough already (madde 225).
 MARK_FILE = "arsiv.json"
 KEY = "arsiv"
+# How old another delete's trash is before a delete sweeps it, in seconds: far past any removal
+# still going.
+STALE = 3600
 
 
 def _parse(raw):
@@ -41,7 +44,7 @@ class DriveProjectStore:
         # for two projects, would each write the list they read and the first one's mark would be
         # lost (madde 523). One process serves every press. Nothing is taken inside it, and it is
         # held for a read, a write and at most a folder's rename -- a rename holds it under the
-        # project's name lock, which the loop waits on, so a folder's removal stays outside it.
+        # project's name lock, which the loop waits on, so a folder's removal never runs in it.
         self._lock = threading.Lock()
 
     # --- the mark ---------------------------------------------------------------------------
@@ -123,25 +126,43 @@ class DriveProjectStore:
         return Project(name, mtime)
 
     def delete(self, name):
-        """Remove the project folder with everything in it; False when there was nothing to remove.
+        """Take the project away at once: its folder put in the trash, its mark dropped. What is
+        left to clear -- the trash -- or False when there was no such project.
+
+        The folder goes in one rename (Storage.trash_dir) rather than a removal, which over Drive
+        takes tens of seconds: an upload writing into the folder meanwhile made the removal fail half
+        way, and the project survived, gutted, holding that upload (madde 523's QA). Renamed, the
+        name is gone at once, and the slow part is clear's, after the caller has let the project's
+        gate go.
 
         The mark goes with it. A name left behind breaks no list -- there is no folder under it --
         right up until somebody makes a project with that name, which would then be born archived.
         The marks are read before the folder goes, so a file that cannot be read stops the delete
-        while the project is still there. They are read again, under the marks' lock, once it has
-        gone, and the mark dropped then: the lock is not held for a removal that can take long over
-        Drive (__init__ says why), and a change of another project's mark meanwhile would be lost
-        from a list read before. After and not before, so a removal that fails half way leaves an
-        archived project archived (madde 523). The first read takes no lock: a write replaces the
-        file whole, so a read sees one list or the other, and it writes nothing back.
+        while the project is still there, and written after, so a rename that fails leaves an
+        archived project archived. All three under the marks' lock, as a rename of a project is:
+        one read, one rename, one write.
         """
-        self._held_marks()      # read only for its refusal: the list itself is read again below
-        gone = self.storage.delete_dir(name)
         with self._lock:
             marks = self._held_marks()
+            trash = self.storage.trash_dir(name)
             if name in marks:
                 self._write_marks([held for held in marks if held != name])
-        return gone
+        return trash
+
+    def clear(self, trash):
+        """Remove what delete put in the trash, and sweep the trash older deletes left -- a removal
+        that failed, or a server that died -- once it is STALE seconds old: a younger one may be
+        another delete's, still being removed.
+
+        Never raises: the project is already gone, and an error now would tell the user a delete
+        failed that did not. What cannot be removed stays hidden from every list, for the next
+        delete's sweep.
+        """
+        try:
+            self.storage.delete_dir(trash)
+            self.storage.sweep_trash(STALE)
+        except OSError:
+            pass
 
     def rename(self, old, new):
         """The renamed project, None when the new name is taken, False when the old one is gone.

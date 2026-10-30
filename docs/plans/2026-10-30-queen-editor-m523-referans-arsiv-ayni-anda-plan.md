@@ -62,6 +62,34 @@
 - `data/plan_store.py` modül docstring'i ve `domain/ports.py` `PlanStore.held`: kapıyı havuzun
   yazarları ve silme de tutar.
 
+## 2b. QA'dan sonra (c8e0bd23'ün üstüne) — testler önce, kırmızı
+
+- Testler:
+  - `test_written_at_once.py`: `Meanwhile.now`; `test_an_upload_during_a_slow_removal_never_brings_the_project_back`
+    (yavaş silme: önce dosyalar, araya yükleme, sonra klasörler); `test_an_upload_whose_project_is_deleted_before_its_bytes_go_is_told_it_is_gone`.
+    Silmenin iki okumalı denemesi kalktı (artık tek okuma).
+  - `test_reference_usecases.py`: `test_an_upload_lists_the_pool_once_under_the_gate`,
+    `test_a_drag_lists_the_pool_once_under_the_gate`.
+  - `test_project_store.py`: çöpü silinemeyen silme proje bırakmaz; çöpe taşıması düşen silme arşivi
+    korur; `clear` eski çöpleri süpürür.
+  - `test_storage.py`: `trash_dir`, `sweep_trash` (mount listesine de).
+  - `test_project_usecases.py`: `RecordingStore.clear`; çöp port döndükten sonra silinir.
+- Kod:
+  - `services/storage/storage.py`: `trash_dir`, `sweep_trash`, `_trashed_at`; `list_dirs` önekli
+    klasörleri atlar.
+  - `features/projects/data/project_store.py`: `delete` M'de okur, çöpe taşır, yazar, çöpü döner;
+    `clear(trash)` (hata atmaz) siler ve süpürür (`STALE`).
+  - `features/projects/domain/usecases/delete_project.py`: port döndükten sonra `store.clear`.
+  - `domain/usecases/follow_delete.py`: docstring.
+  - `domain/usecases/add_references.py`: baytlarda `FileNotFoundError` → yeniden bakış → "Proje yok";
+    cevap `references.placed(order, held + arriving)`.
+  - `domain/usecases/save_reference_order.py`: cevap `references.placed(order_now, standing)`.
+
+- Reviewer'dan sonra: `Storage.dir_exists` gizli adlı (`TEMP_PREFIX`) bir klasöre `False` der.
+  Testler önce, kırmızı: `test_storage.py`
+  `test_a_folder_in_the_trash_is_not_there_for_anyone_who_asks_by_name`, `test_written_at_once.py`
+  `test_an_upload_into_the_trash_by_name_is_told_there_is_no_project`.
+
 ## 3. Eski testlerin yeni imzası
 
 - `test_reference_usecases.py`: üç kapının çağrıları `FakePlanStore()` verir.
