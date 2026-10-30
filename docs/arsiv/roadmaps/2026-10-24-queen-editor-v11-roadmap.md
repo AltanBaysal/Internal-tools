@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-10-24 · **Koşu dalı:** `feat/queen-editor-v11` · **Durum:** 7/7 · bitti; kullanıcı 28 Ekim'de denedi *(kullanıcı, 28 Ekim — "ve gerisi düzgün queen agnetı ve editoru maine mergelyebilrisn")*
 
-**Yama v11.1:** 2026-10-29 · **Koşu dalı:** `feat/queen-editor-v11.1` · **Durum:** 9/16 *(kullanıcı, 29 Ekim —
+**Yama v11.1:** 2026-10-29 · **Koşu dalı:** `feat/queen-editor-v11.1` · **Durum:** 10/16 *(kullanıcı, 29 Ekim —
 "patch gibi düşün ubnları"; "queen editorun son roadmpine ekle zaten var v11.1 yap direkt sonuna ekle işte
 ynei madde olarak")*. 509 · v11-8'den 524 · v11-23'e on altı madde bu yamanın; yine tek tek yürürler. Ekrandaki sürüm V11
 kalır, yama onu artırmaz *(kullanıcı, 29 Ekim — "ekran sürümü değişmesin")*.
@@ -53,7 +53,7 @@ ana klasörde koşunun dalında yürür.
 | 514 · [v11-13](#v11-13) | MMAudio kalkar | ✅ *(defterin iki kutucukla baştan sona çalışması ve MMAudio'nun artık inmemesi kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
 | 515 · [v11-14](#v11-14) | Ses düğmesi her videoda | ✅ *(gerçek H3 videosunun kendi sesiyle sessiz oynaması ve sessiz export'u kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
 | 517 · [v11-16](#v11-16) | Bir reddin cümlesi kalır ve kendi karesinde görünür | ✅ *(tünelin gerçek gecikmesinde ok tuşuyla aynı anda gelen bir cevap kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
-| 518 · [v11-17](#v11-17) | Açık sayfa dışarıdan eklenen işi görür | `ALIGNED` |
+| 518 · [v11-17](#v11-17) | Açık sayfa dışarıdan eklenen işi görür | ✅ *(tünel üzerinden açık tutulan istek, arka plandaki gerçek bir sekme ve ajanın kendi düzeltme basışı kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
 | 519 · [v11-18](#v11-18) | Bekleyen kopya kare doğru görünür ve yerinde kalır | `ALIGNED` |
 | 520 · [v11-19](#v11-19) | Kopyala'dan sonra seçim seçilen karede kalır | `ALIGNED` |
 | 521 · [v11-20](#v11-20) | Birleşik export'ta ses parçadan parçaya taşmaz | `ALIGNED` |

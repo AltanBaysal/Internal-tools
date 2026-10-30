@@ -74,6 +74,12 @@ saçma şeyler ortaya çıkıyor".)* **v7'nin ilk maddesi olarak yazıldı, koş
 
 ## Diğer
 
+### Export ekranı üretilen videoyu kuyrukta saymıyor
+
+*(518'in QA'sı buldu, 30 Ekim; bu koşudan eski.)* Bir video üretilirken export ekranı "Üretim sürüyor — 0
+video kuyrukta" diyor. Sayı galerinin `owed`'undan geliyor (`ExportScreen.jsx`), ve üretilmekte olan iş
+orada sayılmıyor.
+
 ### Birleşik export'ta her parçanın sesi sonrakine taşıyor
 
 *(515'in QA'sı buldu, 29 Ekim; bu koşudan eski, gerçek ffmpeg'le ölçüldü.)* Birleşik export'ta her
