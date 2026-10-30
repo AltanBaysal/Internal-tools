@@ -74,14 +74,6 @@ saçma şeyler ortaya çıkıyor".)* **v7'nin ilk maddesi olarak yazıldı, koş
 
 ## Diğer
 
-### Sıra çalışırken bir reddin sunucu cümlesi bir saniyede kayboluyor
-
-*(516'nın QA'sı buldu, 29 Ekim; bu koşudan eski.)* Kare sayfasında bir basış reddedilince kart sunucunun
-cümlesini gösteriyor, ama sıra çalışıyorsa cümle ~1,5 sn sonra siliniyor; yalnız başlık kalıyor ("Video
-kuyruktan çıkarılamadı", "Video silinemedi"). Kart, ortak hook'un `error`'ünü gösteriyor
-(`PhotoDetail.jsx`, `raw={error}`), ve başarılı her yoklama onu temizliyor (`useGeneration.js`,
-`setError(null)`). Sunucunun kendi sözü ekranda kalmalı.
-
 ### Açık ve boştaki bir sayfa dışarıdan eklenen işi görmüyor
 
 *(516'nın QA'sı buldu, 29 Ekim; bu koşudan eski.)* Sıra boşken açılmış bir kare sayfası bir daha
@@ -200,14 +192,6 @@ yapılıyor, `F`'in fotoğraf yeri boş olduğu için videonun ilk karesi `F.png
 reddedilince hata `ProjectScreen`'in `error`'una gidiyor. GeneratePanel onu yalnız kendi Kuyruğa ekle'si
 reddedilince gösteriyor, bu yüzden fotoğraf sekmesi açıkken bu hata ancak video, ses ya da sıra
 sekmesine geçince görünüyor. Hata sunucunun cümlesini taşıyor; eksik olan yeri.
-
-### Kare sayfasında geç gelen bir ret başka karede görünüyor
-
-*(510'un reviewer'ı buldu, 29 Ekim.)* Kare sayfasında bir istek — Yeniden üret, katmanı sil, sesi
-kapat/aç — gönderilip cevabı gelmeden oklarla başka kareye geçilirse, ret geldiğinde kartı o sırada
-açık olan karede çıkıyor: sayfa takılı kalıyor, kartın durumu kareyi bilmiyor. Kart sunucunun cümlesini
-taşıyor; yanlış olan yeri. Düzeltme: her ret, geldiği isteğin kare kimliğini taşır ve yalnız o karede
-çizilir.
 
 ### Windows'ta sıranın süre satırı yazılamıyor
 

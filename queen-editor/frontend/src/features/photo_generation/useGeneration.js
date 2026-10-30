@@ -225,9 +225,18 @@ export function useGeneration(project) {
       })
   ), [project, startPolling]);
 
+  // A refusal of one of the frame page's presses: kept in `error` for the screens that read it, and
+  // handed back in generate's shape (madde 497) for the page that pressed. The page cannot read it
+  // off `error` -- a good poll clears that, and the refusal still stands (madde 517).
+  const refusal = useCallback((err) => {
+    const said = failureText(err);
+    setError(said);
+    return { error: said };
+  }, []);
+
   // One layer of one frame, made again from the words on screen. Resolves with the server's answer
-  // -- it names the frame the result will land on, which is never this one -- or null when it was
-  // refused; the page has to tell those apart to know whether to say anything.
+  // -- it names the frame the result will land on, which is never this one -- or with the refusal's
+  // words; the page has to tell those apart to know whether to say anything.
   const regenerate = useCallback((frame, kind, prompt, mode, negative, orientation) => (
     regenerateFrame(project, frame, kind, prompt, mode, negative, orientation)
       .then((body) => {
@@ -235,12 +244,8 @@ export function useGeneration(project) {
         startPolling();
         return body;
       })
-      .catch((err) => {
-        if (!alive.current) return null;
-        setError(failureText(err));
-        return null;
-      })
-  ), [project, startPolling]);
+      .catch((err) => (alive.current ? refusal(err) : null))
+  ), [project, startPolling, refusal]);
 
   // One layer off the frames named. Nothing starts running, so the screen only has to read the
   // gallery again -- the frames stay where they are and come back with one layer fewer.
@@ -251,12 +256,8 @@ export function useGeneration(project) {
         poll();
         return body;
       })
-      .catch((err) => {
-        if (!alive.current) return null;
-        setError(failureText(err));
-        return null;
-      })
-  ), [project, poll]);
+      .catch((err) => (alive.current ? refusal(err) : null))
+  ), [project, poll, refusal]);
 
   // A layer's waiting job out of the queue, and nothing else (madde 516). Nothing starts running,
   // so the screen reads the gallery again, as after a layer comes off.
@@ -267,12 +268,8 @@ export function useGeneration(project) {
         poll();
         return body;
       })
-      .catch((err) => {
-        if (!alive.current) return null;
-        setError(failureText(err));
-        return null;
-      })
-  ), [project, poll]);
+      .catch((err) => (alive.current ? refusal(err) : null))
+  ), [project, poll, refusal]);
 
   // Every red job at once. Same endpoint as one frame's Tekrar dene, with no frame named.
   const retryAll = useCallback(() => (
@@ -330,8 +327,10 @@ export function useGeneration(project) {
   // Only what the server says really went leaves the screen: a name that was already gone changes
   // nothing here, and the gallery keeps matching Drive. Both lists count -- a photo that left the
   // disk and a frame that only left the queue are equally out of the gallery.
-  // Resolves with the server's answer, or null when the request was refused: the detail page must
-  // not walk away from a frame that is still sitting in the queue.
+  // Resolves with the server's answer, or with the refusal's words: the detail page must not walk
+  // away from a frame that is still sitting in the queue. The server's own sentence, with no framing
+  // of ours wrapped around it -- the card that shows it supplies the heading, and it is the only side
+  // that knows what was attempted.
   const removePhotos = useCallback((frames) => (
     removeFrames(project, frames)
       .then((body) => {
@@ -342,13 +341,8 @@ export function useGeneration(project) {
           : current));
         return body;
       })
-      .catch((err) => {
-        // The server's own sentence, with no framing of ours wrapped around it -- the card that
-        // shows it supplies the heading, and it is the only side that knows what was attempted.
-        if (alive.current) setError(failureText(err));
-        return null;
-      })
-  ), [project]);
+      .catch((err) => (alive.current ? refusal(err) : null))
+  ), [project, refusal]);
 
   // What the screen is told. The raw status stays as it is -- another tab may be watching the same
   // run, and the server is not wrong; only this page's reading of it changes.

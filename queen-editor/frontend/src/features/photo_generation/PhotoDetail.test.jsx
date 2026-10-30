@@ -1325,7 +1325,8 @@ describe("PhotoDetail — a frame that is not a photo yet", () => {
     expect(screen.getByText(/Proje yok/)).toBeTruthy();
   });
 
-  it("leaves the refusal behind when the arrows move on to another frame", async () => {
+  it("shows no card on the frame the arrows move on to, the refusal staying with its own frame",
+     async () => {
     removeFrames.mockRejectedValue(new Error("Proje yok: düğün"));
     listFrames.mockResolvedValue(MIXED);
     getStatus.mockResolvedValue(IDLE);
@@ -2466,7 +2467,7 @@ describe("PhotoDetail — the sound turned off (madde 510, 515)", () => {
     expect(screen.getByText("düğün/muted.json okunamıyor: bozuk")).toBeTruthy();
   });
 
-  it("takes the refusal away with the frame", async () => {
+  it("shows no card on the next frame, the refusal staying with its own frame", async () => {
     saveMuted.mockRejectedValue(new Error("düğün/muted.json okunamıyor: bozuk"));
     listFrames.mockResolvedValue([LAYERED, SECOND_SOUND]);
     getStatus.mockResolvedValue(IDLE);
@@ -2483,5 +2484,203 @@ describe("PhotoDetail — the sound turned off (madde 510, 515)", () => {
     expect(screen.queryByText("Ses kapatılamadı")).toBeNull();
     // The list was read once for the page, not once a frame.
     expect(getMuted).toHaveBeenCalledTimes(1);
+  });
+});
+
+// Madde 517: a press's answer belongs to the frame it was pressed on. A refusal's card used to read
+// the hook's shared error, which every good poll clears, and no answer knew its frame: one that came
+// late -- refused or done -- acted on whichever frame was open by then.
+describe("PhotoDetail — an answer stays with its frame (madde 517)", () => {
+  // The queue at work on a frame of no concern here: the page polls every two seconds while it runs.
+  const ELSEWHERE = { status: "running", project: "düğün", current: { id: "Q9_0" } };
+  const SAID = "Proje yok: düğün";
+
+  // A request still in flight, answered when the test says so.
+  function deferred() {
+    let resolve;
+    let reject;
+    const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
+    return { promise, resolve, reject };
+  }
+
+  // The page on one frame, and the router's way of swapping another under it.
+  async function mount(fid, frames, status = IDLE) {
+    listFrames.mockResolvedValue(frames);
+    getStatus.mockResolvedValue(status);
+    listModels.mockResolvedValue({ models: [], loras: LORAS });
+    const { rerender } = render(<PhotoDetail project="düğün" frame={fid} />);
+    await settle();
+    return async (to) => {
+      rerender(<PhotoDetail project="düğün" frame={to} />);
+      await settle();
+    };
+  }
+
+  // The page's presses the server can refuse, each with the frame it is made on and one to step to.
+  const PRESSES = [
+    { name: "Yeniden üret", api: regenerateFrame, frames: [LAYERED, SECOND_VIDEO], fid: "P0_0",
+      to: "P1_0", heading: "Kare yeniden üretilemedi",
+      press: () => act(async () => { fireEvent.click(regenButton()); }) },
+    { name: "Videoyu sil", api: removeLayer, frames: [LAYERED, SECOND_VIDEO], fid: "P0_0",
+      to: "P1_0", heading: "Video silinemedi",
+      press: async () => {
+        fireEvent.click(tab("Video"));
+        fireEvent.click(screen.getByText("Videoyu sil — kare kalır"));
+        await act(async () => { fireEvent.click(confirmButton()); });
+      } },
+    { name: "Kuyruktan çıkar on a waiting layer", api: dequeueLayer,
+      frames: [RENDERING, SECOND_VIDEO], fid: "P0_0", to: "P1_0",
+      heading: "Video kuyruktan çıkarılamadı",
+      press: async () => {
+        fireEvent.click(tab("Video"));
+        await act(async () => { fireEvent.click(screen.getByText("Kuyruktan çıkar")); });
+      } },
+    { name: "Kuyruktan çıkar on a waiting frame", api: removeFrames, frames: MIXED, fid: "3_a",
+      to: "0_a", heading: "Kare kuyruktan çıkarılamadı",
+      press: () => act(async () => { fireEvent.click(screen.getByText("Kuyruktan çıkar")); }) },
+  ];
+  // The sound's switch kept its own sentence already; only the frame was missing.
+  const MUTE = { name: "Sesi kapat", api: saveMuted, frames: [LAYERED, SECOND_VIDEO],
+                 fid: "P0_0", to: "P1_0", heading: "Ses kapatılamadı",
+                 press: async () => {
+                   fireEvent.click(tab("Video"));
+                   await act(async () => {
+                     fireEvent.click(screen.getByRole("button", { name: "Sesi kapat" }));
+                   });
+                 } };
+
+  // Named rows, so a title reads the press's name as it is written.
+  const named = (presses) => presses.map((one) => [one.name, one]);
+
+  it.each(named(PRESSES))("keeps the server's sentence under a refused %s while the queue runs",
+                          async (_name, { api, frames, fid, press, heading }) => {
+    api.mockRejectedValue(new Error(SAID));
+    await mount(fid, frames, ELSEWHERE);
+    await press();
+    expect(screen.getByText(SAID)).toBeTruthy();
+
+    // A poll comes and answers well: that used to wipe the sentence and leave the heading alone.
+    const polls = getStatus.mock.calls.length;
+    await settle(2000);
+    expect(getStatus.mock.calls.length).toBeGreaterThan(polls);
+
+    expect(screen.getByText(heading)).toBeTruthy();
+    expect(screen.getByText(SAID)).toBeTruthy();
+  });
+
+  it.each(named([...PRESSES, MUTE]))("draws a late refusal of %s on its own frame alone",
+                                     async (_name, { api, frames, fid, to, press, heading }) => {
+    const answer = deferred();
+    api.mockReturnValue(answer.promise);
+    const step = await mount(fid, frames);
+    await press();
+
+    // The arrows move on before the server has answered.
+    await step(to);
+    await act(async () => { answer.reject(new Error(SAID)); });
+    await settle();
+
+    expect(screen.queryByText(heading)).toBeNull();
+    expect(screen.queryByText(SAID)).toBeNull();
+
+    // And back: the refusal was that frame's, and it is still waiting there to be read.
+    await step(fid);
+
+    expect(screen.getByText(heading)).toBeTruthy();
+    expect(screen.getByText(SAID)).toBeTruthy();
+  });
+
+  it("leaves the open frame's card standing when another frame's refusal lands late", async () => {
+    const first = deferred();
+    regenerateFrame.mockReturnValueOnce(first.promise)
+      .mockRejectedValueOnce(new Error("P1_0 için plan satırı yok"));
+    const step = await mount("P0_0", [LAYERED, SECOND_VIDEO]);
+    await act(async () => { fireEvent.click(regenButton()); });
+    await step("P1_0");
+    await act(async () => { fireEvent.click(regenButton()); });
+    expect(screen.getByText("P1_0 için plan satırı yok")).toBeTruthy();
+
+    await act(async () => { first.reject(new Error(SAID)); });
+    await settle();
+
+    expect(screen.getByText("Kare yeniden üretilemedi")).toBeTruthy();
+    expect(screen.getByText("P1_0 için plan satırı yok")).toBeTruthy();
+    expect(screen.queryByText(SAID)).toBeNull();
+  });
+
+  // A press that goes through, late: the frame open by then is not the one it was made on.
+  it("stays on the frame the user stepped to when a frame's removal lands late", async () => {
+    const answer = deferred();
+    removeFrames.mockReturnValue(answer.promise);
+    const step = await mount("3_a", MIXED);
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruktan çıkar")); });
+    await step("0_a");
+
+    await act(async () => { answer.resolve({ deleted: [], removed: ["3_a"] }); });
+    await settle();
+
+    // The walk to the pressed frame's neighbour was for a user still standing on it.
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["Videoyu sil", LAYERED, removeLayer, async () => {
+      fireEvent.click(screen.getByText("Videoyu sil — kare kalır"));
+      await act(async () => { fireEvent.click(confirmButton()); });
+    }],
+    ["Kuyruktan çıkar on a waiting layer", RENDERING, dequeueLayer, async () => {
+      await act(async () => { fireEvent.click(screen.getByText("Kuyruktan çıkar")); });
+    }],
+  ])("leaves the open frame's tab where it is when %s lands late",
+     async (_name, first, api, press) => {
+    const answer = deferred();
+    api.mockReturnValue(answer.promise);
+    const step = await mount("P0_0", [first, SECOND_VIDEO]);
+    fireEvent.click(tab("Video"));
+    await press();
+    // The second frame has a video too, so its page opens on the same tab.
+    await step("P1_0");
+    expect(tab("Video").getAttribute("aria-current")).toBe("page");
+
+    await act(async () => { answer.resolve({ deleted: ["P0_0_V1_0.mp4"], removed: [] }); });
+    await settle();
+
+    expect(tab("Video").getAttribute("aria-current")).toBe("page");
+  });
+
+  it("marks nothing as sent on the frame the user stepped to when Yeniden üret lands late",
+     async () => {
+    const answer = deferred();
+    regenerateFrame.mockReturnValue(answer.promise);
+    const step = await mount("P0_0", [LAYERED, SECOND_VIDEO]);
+    await act(async () => { fireEvent.click(regenButton()); });
+    await step("P1_0");
+
+    await act(async () => { answer.resolve({ frame: "P0_1" }); });
+    await settle();
+
+    expect(regenButton().disabled).toBe(false);
+    expect(screen.queryByText("Kuyruğa eklendi")).toBeNull();
+    expect(screen.queryByText("yeniden üretilecek — kuyrukta")).toBeNull();
+  });
+
+  it("keeps the open frame's own press going when another frame's answer lands late", async () => {
+    const first = deferred();
+    removeLayer.mockReturnValueOnce(first.promise).mockReturnValueOnce(new Promise(() => {}));
+    const step = await mount("P0_0", [LAYERED, SECOND_VIDEO]);
+    fireEvent.click(tab("Video"));
+    fireEvent.click(screen.getByText("Videoyu sil — kare kalır"));
+    await act(async () => { fireEvent.click(confirmButton()); });
+    await step("P1_0");
+    // The second frame's own deletion, still on its way.
+    fireEvent.click(screen.getByText("Videoyu sil — kare kalır"));
+    await act(async () => { fireEvent.click(confirmButton()); });
+    expect(screen.getByText("Siliniyor…")).toBeTruthy();
+
+    await act(async () => { first.resolve({ deleted: ["P0_0_V1_0.mp4"] }); });
+    await settle();
+
+    // Its window stays open and busy: the answer that came was the other frame's.
+    expect(screen.getByText("Siliniyor…")).toBeTruthy();
   });
 });
