@@ -952,22 +952,26 @@ class _Answer:
 class FakeRun:
     """subprocess.run's answer, and a note of what it was asked to run.
 
-    `sounds` answers the one question ffprobe is asked of a piece -- its sample rate and channel
-    layout, separated the way csv separates by itself (madde 288), or an empty line for a piece with
-    no audio at all. Nothing is the default: a set where no piece carries sound is one of the two
-    even sets, so a test that says nothing about sound asks about that (madde 286). A probe and an
-    ffmpeg run fail differently, so each carries its own exit code and message.
+    ffprobe is asked one question of a piece, and answers it in its JSON: its streams, the picture's
+    with how long it runs and the sound's with its shape (madde 286, 521). `sounds` gives a piece's
+    sound as "rate,layout"; a piece left out has no audio stream at all. Nothing is the default: a
+    set where no piece carries sound is one of the two even sets, so a test that says nothing about
+    sound asks about that. `lengths` gives a picture's duration as ffprobe prints it, `LENGTH` when
+    left out, and None leaves it out of the answer. A probe and an ffmpeg run fail differently, so
+    each carries its own exit code and message.
 
     No piece has a size here: the join never asks one (madde 478), and ffmpeg is not on this
     machine to measure anything.
     """
 
     def __init__(self, returncode=0, stderr="", probe_returncode=0, probe_stderr="", nvenc=False,
-                 sounds=None):
+                 sounds=None, lengths=None, probe_stdout=None):
         self.calls = []
+        self.probe_stdout = probe_stdout  # a raw answer in place of the JSON, when a test gives one
         self.returncode = returncode
         self.stderr = stderr
         self.sounds = dict(sounds or {})
+        self.lengths = dict(lengths or {})
         self.joined = None                # the pieces the join read, in the order it read them
         self.probe_returncode = probe_returncode
         self.probe_stderr = probe_stderr
@@ -981,13 +985,33 @@ class FakeRun:
             # Every input but the last, which is the disclaimer.
             self.joined = [args[at + 1] for at, part in enumerate(args) if part == "-i"][:-1]
         if "ffprobe" in args[0]:
-            # An empty answer is what a file with no audio stream gets, and it is an answer.
-            return _Answer(self.probe_returncode, self.sounds.get(args[-1], "") + "\n",
-                           self.probe_stderr)
+            said = self.streams(args[-1]) if self.probe_stdout is None else self.probe_stdout
+            return _Answer(self.probe_returncode, said, self.probe_stderr)
         if "nullsrc" in args:
             return _Answer(0 if self.nvenc else 1, "",
                            "" if self.nvenc else "No capable devices found")
         return _Answer(self.returncode, "", self.stderr)
+
+    def streams(self, piece):
+        """ffprobe's JSON for the piece: a picture, and a sound when it has one. A file with no
+        audio stream simply lists none, and that is an answer."""
+        picture = {"codec_type": "video"}
+        length = self.lengths.get(piece, LENGTH)
+        if length is not None:
+            picture["duration"] = length
+        streams = [picture]
+        if piece in self.sounds:
+            rate, _comma, layout = self.sounds[piece].partition(",")
+            sound = {"codec_type": "audio", "duration": "3.019000"}
+            # A value ffprobe does not know it leaves out, rather than printing it empty.
+            sound.update({key: value for key, value in
+                          (("sample_rate", rate), ("channel_layout", layout)) if value})
+            streams.append(sound)
+        return json.dumps({"streams": streams}, indent=4) + "\n"
+
+
+# How long a piece's picture runs when a test does not say: 72 frames at 24 fps, as ffprobe prints it.
+LENGTH = "3.000000"
 
 
 def ffmpeg_calls(run):
@@ -1005,8 +1029,9 @@ def probe_calls(run):
 
 
 def sound_calls(run):
-    """The question asked of a piece: what sound it carries, if any (madde 286)."""
-    return [call for call in probe_calls(run) if "a:0" in call]
+    """The question asked of a piece: how long its picture runs and what sound it carries, if any
+    (madde 286, 521)."""
+    return [call for call in probe_calls(run) if "-show_entries" in call]
 
 
 def test_a_silent_piece_is_copied_rather_than_re_encoded():
@@ -1043,11 +1068,12 @@ OVER = "scale=1536:-1[d];[c][d]overlay=(W-w)/2:H-h-43:enable='lt(t,60)'[v]"
 
 def expected_graph(count, sounded=False):
     """The filtergraph a join of `count` pieces is handed: each piece fitted, the fitted pieces
-    joined -- with their sound when they carry some -- and the disclaimer, the last input, laid over
-    the join."""
+    joined -- with their sound, each cut where its picture ends (`LENGTH`), when they carry some --
+    and the disclaimer, the last input, laid over the join."""
     fitted = "".join(f"[{at}:v]{FIT}[v{at}];" for at in range(count))
     if sounded:
-        joined = "".join(f"[v{at}][{at}:a]" for at in range(count))
+        joined = "".join(f"[{at}:a]atrim=end=3.0[a{at}];" for at in range(count))
+        joined += "".join(f"[v{at}][a{at}]" for at in range(count))
         joined += f"concat=n={count}:v=1:a=1[c][a];"
     else:
         joined = "".join(f"[v{at}]" for at in range(count))
@@ -1174,7 +1200,7 @@ def test_the_join_writes_no_list_file_anywhere(tmp_path):
 def test_no_piece_is_asked_its_size(tmp_path):
     """Each piece is fitted onto the canvas by its own filter, so the join no longer has to know
     what a piece measures: ffmpeg reads the real size as it scales. The one question left for a
-    piece is its sound (madde 286)."""
+    piece is its sound and its picture's length (madde 286, 521), asked once."""
     run = FakeRun()
 
     FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"],
@@ -1221,7 +1247,8 @@ def test_every_pieces_decoder_is_held_to_one_thread(tmp_path):
 def test_the_filtergraph_word_for_word(tmp_path):
     """Two sounded pieces, written out in full rather than built: `expected_graph` above is the same
     rule in a loop, and a rule checked only against its own copy checks nothing."""
-    run = FakeRun(sounds={"a.mp4": "48000,stereo", "b.mp4": "48000,stereo"})
+    run = FakeRun(sounds={"a.mp4": "48000,stereo", "b.mp4": "48000,stereo"},
+                  lengths={"b.mp4": "5.041667"})
 
     FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"],
                                                            str(tmp_path / "düğün.mp4"))
@@ -1231,7 +1258,8 @@ def test_the_filtergraph_word_for_word(tmp_path):
         "pad=1920:1080:(ow-iw)/2:(oh-ih)/2,setsar=1[v0];"
         "[1:v]scale=1920:1080:force_original_aspect_ratio=decrease,"
         "pad=1920:1080:(ow-iw)/2:(oh-ih)/2,setsar=1[v1];"
-        "[v0][0:a][v1][1:a]concat=n=2:v=1:a=1[c][a];"
+        "[0:a]atrim=end=3.0[a0];[1:a]atrim=end=5.041667[a1];"
+        "[v0][a0][v1][a1]concat=n=2:v=1:a=1[c][a];"
         "[2:v]scale=1536:-1[d];"
         "[c][d]overlay=(W-w)/2:H-h-43:enable='lt(t,60)'[v]")
 
@@ -1382,13 +1410,17 @@ def test_every_piece_is_asked_whether_it_carries_sound(tmp_path):
     assert [call[-1] for call in sound_calls(run)] == ["a.mp4", "b.mp4"]
 
 
-def test_the_sound_question_is_written_out_word_for_word(tmp_path):
+def test_the_question_asked_of_a_piece_is_written_out_word_for_word(tmp_path):
     """The whole command, not a piece of it: what broke the export in Colab was one argument of it.
 
     `-of csv=s=:p=0` asked csv to separate with a colon, and a colon is what ffprobe splits the
     writer's own option string on -- so `s=` was left with no value and the writer refused the
-    string, taking the merge down before a single piece was joined (madde 288). The separator is
-    csv's own now: an option that is not written cannot be written wrong.
+    string, taking the merge down before a single piece was joined (madde 288). JSON is written
+    with no options at all, and an option that is not written cannot be written wrong. It names
+    each field, so neither the order ffprobe prints them in nor which stream comes first is read.
+
+    One question for the two answers the join needs (madde 521): every stream, so the picture's
+    length and the sound's shape come back from the same reading of the piece.
 
     FakeRun answers a command without judging it -- it is not ffprobe and cannot be -- so a
     malformed argument is invisible to every test that only asks whether something was asked.
@@ -1397,9 +1429,115 @@ def test_the_sound_question_is_written_out_word_for_word(tmp_path):
 
     FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4"], str(tmp_path / "düğün.mp4"))
 
-    assert sound_calls(run)[0] == [
-        "ffprobe", "-v", "error", "-select_streams", "a:0",
-        "-show_entries", "stream=sample_rate,channel_layout", "-of", "csv=p=0", "a.mp4"]
+    assert sound_calls(run) == [[
+        "ffprobe", "-v", "error",
+        "-show_entries", "stream=codec_type,duration,sample_rate,channel_layout",
+        "-of", "json", "a.mp4"]]
+
+
+def test_each_pieces_sound_ends_where_its_picture_ends(tmp_path):
+    """A piece's sound runs longer than its picture: aac fills its last frame out to 1024 samples,
+    and the sound H3 or a layer brings can run past the last frame. concat makes each segment as
+    long as its longest stream, so every such piece pushed the rest of the timeline later, and the
+    join's 24 fps picture, which moves in whole frames, fell out of step with the sound -- a tone
+    heard ~20 ms into the muted piece after it, measured with ffmpeg 7.1 (madde 521).
+
+    Cut at the picture's own length, each piece's sound is never the longer stream, so every segment
+    lasts exactly as long as its picture and no join adds anything to the next."""
+    run = FakeRun(sounds={"a.mp4": "44100,stereo", "b.mp4": "44100,stereo",
+                          "c.mp4": "44100,stereo"},
+                  lengths={"a.mp4": "5.041667", "b.mp4": "3.000000", "c.mp4": "10.083333"})
+
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4", "c.mp4"],
+                                                           str(tmp_path / "düğün.mp4"))
+
+    said = filtergraph(run)
+    assert ("[0:a]atrim=end=5.041667[a0];[1:a]atrim=end=3.0[a1];[2:a]atrim=end=10.083333[a2];"
+            "[v0][a0][v1][a1][v2][a2]concat=n=3:v=1:a=1[c][a];") in said
+    assert "[0:a][" not in said and "][0:a]" not in said      # no piece's sound joins uncut
+
+
+def test_the_silence_written_into_a_piece_is_cut_at_its_picture_too(tmp_path):
+    """The silent piece's picture is the one ffprobe measured: `_with_sound` copies the video and
+    stops the silence with -shortest, so the length asked of the piece holds for its repair, and the
+    repair is not asked again."""
+    run = FakeRun(sounds={"a.mp4": "44100,mono"}, lengths={"b.mp4": "4.000000"})
+
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"],
+                                                           str(tmp_path / "düğün.mp4"))
+
+    assert run.joined == ["a.mp4", "b-sound.mp4"]
+    assert "[0:a]atrim=end=3.0[a0];[1:a]atrim=end=4.0[a1];" in filtergraph(run)
+    assert [call[-1] for call in sound_calls(run)] == ["a.mp4", "b.mp4"]
+
+
+def test_a_join_with_no_sound_cuts_nothing(tmp_path):
+    """No sound, nothing to cut: the picture-only graph is the one it was before madde 521."""
+    run = FakeRun()
+
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"],
+                                                           str(tmp_path / "düğün.mp4"))
+
+    assert filtergraph(run) == GRAPH
+    assert "atrim" not in filtergraph(run)
+
+
+@pytest.mark.parametrize("length", [None, "N/A"])
+def test_a_picture_ffprobe_gives_no_length_joins_its_sound_uncut(tmp_path, length):
+    """Every piece is an mp4 our own copy wrote, whose picture has a length; one that comes back
+    without one is not guessed at -- a sound cut at a guess is a sound cut wrong -- and the value is
+    never handed to the filtergraph as it came. That piece's sound joins as every piece's did
+    before madde 521: a sound running a little into the next piece is a smaller harm than no export
+    (FOUNDATION 1). The other pieces are still cut."""
+    run = FakeRun(sounds={"a.mp4": "44100,stereo", "b.mp4": "44100,stereo"},
+                  lengths={"b.mp4": length})
+    target = str(tmp_path / "düğün.mp4")
+
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"], target)
+
+    said = filtergraph(run)
+    assert "[0:a]atrim=end=3.0[a0];[v0][a0][v1][1:a]concat=n=2:v=1:a=1[c][a];" in said
+    assert "N/A" not in said and "None" not in said
+    assert ffmpeg_calls(run)[-1][-1] == target
+
+
+def test_silence_names_only_the_shape_ffprobe_gave(tmp_path):
+    """A sound whose channel layout ffprobe does not know comes back without one, and `cl=` with
+    nothing after it is refused by ffmpeg. So only what was given is named; anullsrc's own default
+    fills the rest, and concat converts it like any other shape."""
+    run = FakeRun(sounds={"a.mp4": "44100,"})
+
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"],
+                                                           str(tmp_path / "düğün.mp4"))
+
+    written = ffmpeg_calls(run)[0]
+    assert written[written.index("lavfi") + 2] == "anullsrc=r=44100"
+
+
+def test_silence_with_no_shape_at_all_takes_anullsrcs_own(tmp_path):
+    """Neither value given: no `=` at all, which anullsrc reads as every default."""
+    run = FakeRun(sounds={"a.mp4": ","})
+
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"],
+                                                           str(tmp_path / "düğün.mp4"))
+
+    written = ffmpeg_calls(run)[0]
+    assert written[written.index("lavfi") + 2] == "anullsrc"
+
+
+def test_an_answer_that_is_not_json_says_which_file_and_what_ffprobe_wrote(tmp_path):
+    """ffprobe can answer 0 and still not write what was asked; that is a failure like any other,
+    in its own words and with the file it was asked about, rather than a parser's complaint about a
+    character position. Nothing is joined."""
+    run = FakeRun(probe_stdout="Unsupported codec with id 0 for input stream 0")
+
+    with pytest.raises(RuntimeError) as caught:
+        FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4"],
+                                                               str(tmp_path / "düğün.mp4"))
+
+    assert str(caught.value) == (
+        "a.mp4: ffprobe JSON yerine şunu yazdı: Unsupported codec with id 0 for input stream 0")
+    assert ffmpeg_calls(run) == []
 
 
 def test_a_set_that_all_carries_sound_is_joined_with_nothing_written_first(tmp_path):

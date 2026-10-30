@@ -11,6 +11,7 @@ encode that joins them (478). Where the card can do that encoding, it does (253)
 `run` is injected so tests can read the command instead of needing ffmpeg on the machine; Colab has
 ffmpeg installed, which is where this really runs.
 """
+import json
 import subprocess
 
 # The canvas a merged export stands on -- landscape and fixed, the user's call (madde 259): exports
@@ -57,9 +58,10 @@ class FfmpegVideoExporter:
     def __init__(self, run=None, ffmpeg="ffmpeg", ffprobe="ffprobe", disclaimer=None):
         self._run = run or subprocess.run
         self._ffmpeg = ffmpeg
-        # Ships with ffmpeg, and the notebook installs them together. One question left: what
-        # sound a piece carries (madde 286). Nothing is measured from a piece -- the canvas is
-        # written down (259), and each piece is fitted by its real size inside ffmpeg (478).
+        # Ships with ffmpeg, and the notebook installs them together. One question left, asked once
+        # of each piece: what sound it carries (madde 286) and how long its picture runs, where its
+        # sound is cut (521). Its size is not asked -- the canvas is written down (259), and each
+        # piece is fitted by its real size inside ffmpeg (478).
         self._ffprobe = ffprobe
         # The picture laid over the merged export. Injected like the tools above: config knows where
         # the repo keeps it, and tests hand over a path of their own.
@@ -113,9 +115,11 @@ class FfmpegVideoExporter:
             self._encode = _GPU_ENCODE if done.returncode == 0 else _CPU_ENCODE
         return self._encode
 
-    def _filtergraph(self, count, sounded):
+    def _filtergraph(self, count, cuts):
         """The filtergraph that puts each of `count` pieces on the canvas, joins them, and stamps
         the join's first minute. Inputs 0 to count-1 are the pieces, input `count` the disclaimer.
+        `cuts` is where each piece's sound ends, in seconds -- None for a piece whose length is not
+        known -- or None for a set with no sound.
 
         Each piece is fitted on its own, so pieces of two shapes join (madde 478): `decrease` fits
         rather than fills -- the largest size that goes inside the canvas with the piece's own
@@ -128,9 +132,17 @@ class FfmpegVideoExporter:
 
         concat wants every segment the same size and pixel shape, so `setsar=1` closes each piece's
         chain; the frame rate is set once, on the join's output (`MERGED_FPS`). It picks a common
-        sample rate and channel layout for the sound by itself (ffmpeg's concat filter docs), so
-        the sound needs no chain of its own; it does need every piece to carry a sound stream,
-        which `_evened_out` sees to.
+        sample rate and channel layout for the sound by itself (ffmpeg's concat filter docs); it
+        does need every piece to carry a sound stream, which `_evened_out` sees to.
+
+        Each piece's sound is cut where its picture ends (madde 521). A piece's sound runs longer
+        than its picture -- aac fills its last frame out to 1024 samples, and H3's sound or a
+        layer's can run past the last frame -- and concat makes each segment as long as its longest
+        stream, so every such piece would push the rest of the timeline later: the last frame held
+        while the sound plays on, and the picture, which the join's 24 fps moves in whole frames,
+        out of step with the sound by up to a frame. Cut, the sound is never the longer stream, so a
+        segment lasts exactly as long as its picture and no join adds anything to the next. A sound
+        shorter than its picture -- the silence `_with_sound` writes -- is padded by concat.
 
         Centring is left to ffmpeg -- `(W-w)/2`, `(ow-iw)/2` -- because the scaled picture's width
         is ffmpeg's number, not ours. `enable`'s single quotes are ffmpeg's own escaping: without
@@ -140,9 +152,14 @@ class FfmpegVideoExporter:
         fit = (f"scale={MERGED_WIDTH}:{MERGED_HEIGHT}:force_original_aspect_ratio=decrease,"
                f"pad={MERGED_WIDTH}:{MERGED_HEIGHT}:(ow-iw)/2:(oh-ih)/2,setsar=1")
         fitted = "".join(f"[{at}:v]{fit}[v{at}];" for at in range(count))
-        if sounded:
-            segments = "".join(f"[v{at}][{at}:a]" for at in range(count))
-            joined = f"{segments}concat=n={count}:v=1:a=1[c][a];"
+        if cuts is not None:
+            # A piece whose length ffprobe did not give joins uncut, as before madde 521: a sound
+            # running a little into the next piece is a smaller harm than no export at all.
+            cut = "".join(f"[{at}:a]atrim=end={end}[a{at}];"
+                          for at, end in enumerate(cuts) if end is not None)
+            segments = "".join(f"[v{at}][{at}:a]" if end is None else f"[v{at}][a{at}]"
+                               for at, end in enumerate(cuts))
+            joined = f"{cut}{segments}concat=n={count}:v=1:a=1[c][a];"
         else:
             segments = "".join(f"[v{at}]" for at in range(count))
             joined = f"{segments}concat=n={count}:v=1:a=0[c];"
@@ -151,33 +168,52 @@ class FfmpegVideoExporter:
                 f"[c][d]overlay=(W-w)/2:H-h-{round(MERGED_HEIGHT * DISCLAIMER_MARGIN)}:"
                 f"enable='lt(t,{DISCLAIMER_SECONDS})'[v]")
 
-    def sound(self, video):
-        """What sound the file carries as (sample rate, channel layout), or None for none at all.
+    def streams(self, video):
+        """How long the file's picture runs, in seconds, and what sound it carries as (sample rate,
+        channel layout), or None for none at all -- the two things the join needs of a piece, from
+        one reading of it (madde 286, 521).
 
         Its own words on failure: a missing file, something that is not a video and an ffprobe that
         is not installed all look the same from here, and only ffprobe knows which one happened.
+        An answer that is not JSON is a failure too, named with the file and what ffprobe wrote.
 
-        An empty answer is an answer, not a failure: a WAN video with no sound layer has no audio
-        stream -- the ones made before madde 435 stay in their projects -- and ffprobe says so by
-        printing nothing.
+        No audio stream is an answer, not a failure: a WAN video with no sound layer has none --
+        the ones made before madde 435 stay in their projects -- and ffprobe lists none. A value
+        ffprobe leaves out of the sound's shape comes back empty.
 
-        No separator is named: ffprobe splits the writer's option string on colons, so asking csv
-        to separate with one left `s=` without a value and the writer refused the whole string --
-        which took the merged export down before a piece was joined (madde 288). csv separates with
-        a comma by itself, and an option that is not written cannot be written wrong.
+        No picture length is an answer too: the length comes back None, and that piece's sound joins
+        uncut, as every piece's did before madde 521. Every piece is an mp4 our own copy wrote,
+        whose picture has one; but a sound running a little long is a smaller harm than losing the
+        export (FOUNDATION 1), and a length guessed would cut it in the wrong place. It is read as a
+        number, so it reaches the filtergraph as one and never as whatever text the header held.
+
+        JSON, written with no options: ffprobe splits a writer's option string on colons, so asking
+        csv to separate with one left `s=` without a value, and the refused string took the merged
+        export down before a piece was joined (madde 288). And it names each field, so neither the
+        order ffprobe prints them in nor which stream comes first is relied on.
         """
         done = self._run(
-            [self._ffprobe, "-v", "error", "-select_streams", "a:0",
-             "-show_entries", "stream=sample_rate,channel_layout", "-of", "csv=p=0", video],
+            [self._ffprobe, "-v", "error",
+             "-show_entries", "stream=codec_type,duration,sample_rate,channel_layout",
+             "-of", "json", video],
             capture_output=True, text=True)
         if done.returncode != 0:
             tail = (done.stderr or "").strip().splitlines()[-1:] or ["ffprobe başarısız oldu"]
             raise RuntimeError(tail[0])
         said = (done.stdout or "").strip()
-        if not said:
-            return None
-        rate, _comma, layout = said.partition(",")
-        return (rate, layout)
+        try:
+            listed = json.loads(said or "{}").get("streams", [])
+        except (ValueError, AttributeError):
+            raise RuntimeError(f"{video}: ffprobe JSON yerine şunu yazdı: {said[:200]}") from None
+        picture = next((s for s in listed if s.get("codec_type") == "video"), {})
+        heard = next((s for s in listed if s.get("codec_type") == "audio"), None)
+        try:
+            seconds = float(picture["duration"])
+        except (KeyError, ValueError):
+            seconds = None
+        if heard is None:
+            return seconds, None
+        return seconds, (heard.get("sample_rate", ""), heard.get("channel_layout", ""))
 
     def _with_sound(self, piece, rate, layout):
         """The piece again, beside itself, with a silent track of the given shape.
@@ -187,17 +223,21 @@ class FfmpegVideoExporter:
 
         The shape comes from a piece that has sound rather than from a guess (madde 286): concat
         would convert a shape that differs, but one copied from the set leaves it nothing to do.
+        Only the values ffprobe gave are named: `r=` with nothing after it is refused by ffmpeg,
+        while a value left out takes anullsrc's own default, which concat converts like any other.
         """
         head, _dot, _tail = piece.rpartition(".")
         target = f"{head or piece}-sound.mp4"
-        self._ffmpeg_run(["-i", piece, "-f", "lavfi", "-i", f"anullsrc=r={rate}:cl={layout}",
+        shape = ":".join(f"{key}={value}" for key, value in (("r", rate), ("cl", layout)) if value)
+        silence = f"anullsrc={shape}" if shape else "anullsrc"
+        self._ffmpeg_run(["-i", piece, "-f", "lavfi", "-i", silence,
                           "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-c:a", "aac",
                           "-shortest", target])
         return target
 
     def _evened_out(self, pieces):
-        """The pieces to join, with silence written into the ones that carry no sound, and whether
-        the set has sound at all.
+        """The pieces to join, with silence written into the ones that carry no sound, and where
+        each one's sound is cut -- its picture's length -- or None when the set has no sound at all.
 
         concat joins one sound segment for every picture segment, so a project whose frames are
         only partly sounded would name a sound stream that one of its pieces does not have.
@@ -205,14 +245,18 @@ class FfmpegVideoExporter:
         One rule: if any piece has sound, all of them must. Both even sets therefore cost nothing --
         all sounded needs no silence, and none sounded has no shape to copy and needs none
         (FOUNDATION 3). The user's call, in their own words: sesi olmayan karelere sessiz eklenir.
+
+        A silenced piece is cut at the length asked of the piece it was written from: its picture
+        is that one, copied.
         """
-        sounds = [self.sound(piece) for piece in pieces]
-        carried = next((sound for sound in sounds if sound), None)
+        asked = [self.streams(piece) for piece in pieces]
+        carried = next((sound for _seconds, sound in asked if sound), None)
         if carried is None:
-            return list(pieces), False
+            return list(pieces), None
         rate, layout = carried
-        return [piece if sound else self._with_sound(piece, rate, layout)
-                for piece, sound in zip(pieces, sounds)], True
+        return ([piece if sound else self._with_sound(piece, rate, layout)
+                 for piece, (_seconds, sound) in zip(pieces, asked)],
+                [seconds for seconds, _sound in asked])
 
     def merge(self, pieces, target):
         """The pieces, in the order given, on the landscape canvas, with the disclaimer over its
@@ -230,16 +274,17 @@ class FfmpegVideoExporter:
         Colab trial. `-threads 1` caps each decoder at one thread and its frames: concat reads one
         segment at a time, so only one decoder works at once and the cap costs no speed.
 
-        Sound is asked of every piece, and answered rather than refused: a partly sounded set gets
-        silence written into the pieces that have none (madde 286).
+        Every piece is asked its picture's length and its sound, once each, and a missing sound is
+        answered rather than refused: a partly sounded set gets silence written into the pieces that
+        have none (madde 286). Each sound is then cut at its picture's length (madde 521).
 
         A piece ffmpeg cannot read, or a set it cannot join, stops the call with ffmpeg's own words.
         """
-        joined, sounded = self._evened_out(pieces)
+        joined, cuts = self._evened_out(pieces)
         inputs = [part for piece in joined for part in ("-threads", "1", "-i", piece)]
-        sound = ["-map", "[a]", *_SOUND_ENCODE] if sounded else []
+        sound = ["-map", "[a]", *_SOUND_ENCODE] if cuts is not None else []
         self._ffmpeg_run([*inputs, "-i", self._disclaimer,
-                          "-filter_complex", self._filtergraph(len(joined), sounded),
+                          "-filter_complex", self._filtergraph(len(joined), cuts),
                           "-map", "[v]", "-r", str(MERGED_FPS), *self._encoder(), *sound, target])
 
     def _ffmpeg_run(self, args):

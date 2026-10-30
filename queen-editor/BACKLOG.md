@@ -80,13 +80,6 @@ saçma şeyler ortaya çıkıyor".)* **v7'nin ilk maddesi olarak yazıldı, koş
 video kuyrukta" diyor. Sayı galerinin `owed`'undan geliyor (`ExportScreen.jsx`), ve üretilmekte olan iş
 orada sayılmıyor.
 
-### Birleşik export'ta her parçanın sesi sonrakine taşıyor
-
-*(515'in QA'sı buldu, 29 Ekim; bu koşudan eski, gerçek ffmpeg'le ölçüldü.)* Birleşik export'ta her
-parçanın sesi bir sonraki parçanın içine ~50 ms taşıyor: 440 Hz'lik bir parçanın sesi, ardından gelen
-sesi kapalı parçada 11.00–11.05 s arasında duyuldu. Büyük ihtimalle AAC'nin her parçaya eklediği dolgu,
-birleşim yerlerinde birikiyor. Şimdilik düzeltilmiyor.
-
 ### Katmanı kırmızı karonun seçim dairesine basılamıyor
 
 *(519'un QA'sı buldu, 30 Ekim; 519'dan eski.)* Galeride fotoğrafı inmiş ama bir katmanı kırmızı karoda
