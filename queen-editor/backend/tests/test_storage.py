@@ -652,6 +652,12 @@ def test_a_folder_in_the_trash_is_not_there_for_anyone_who_asks_by_name(tmp_path
 
     assert storage.dir_exists(trash) is False
     assert storage.dir_exists((trash, "referans")) is False
+    assert storage.rename_dir(trash, "geri") is False
+    assert storage.trash_dir(trash) is False
+    with pytest.raises(FileNotFoundError):
+        storage.path((trash, "referans"), "a.png")
+    assert (tmp_path / trash).is_dir()
+    assert not (tmp_path / "geri").exists()
 
 
 def test_a_sweep_of_the_trash_takes_only_what_was_put_there_long_enough_ago(tmp_path, monkeypatch):

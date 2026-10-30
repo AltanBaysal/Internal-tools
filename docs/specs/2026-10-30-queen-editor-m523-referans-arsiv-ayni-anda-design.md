@@ -284,10 +284,17 @@ yüzden hiçbir kilitte değil.
   gizli dosyalar eski adla silinemez, yeni klasörde gizli kalır (`discard` hata atmaz) — o projeye bir
   saat sonra gelen ilk yükleme süpürene kadar. Hiç yükleme gelmezse kalır. (Silmede bu olmaz: gizli
   dosyalar çöple silinir.)
-- Bir URL çöpün adını proje adı olarak verse de proje bulunmaz: `Storage.dir_exists` gizli adlı bir
-  klasöre `False` der (`list_dirs`'in onu listelemediği gibi), ve bütün proje kapıları varlığı ona
-  sorar — kuyruğa iş, yükleme ya da export çöpe gidemez (reviewer). `name_rules` bu öneki taşıyan bir
-  adı zaten yeni proje adı olarak kabul etmez.
+- Bir URL çöpün adını proje adı olarak verse de proje bulunmaz. Tek kural, `Storage`'da (`_hidden`:
+  klasör yolunda `TEMP_PREFIX`'li bir ad), adla klasöre ulaşan her kapıda:
+  - `dir_exists` `False` der (`list_dirs`'in onu listelemediği gibi); bütün proje kapıları varlığı
+    ona sorar — kuyruğa iş, yükleme ya da export çöpe gidemez (reviewer);
+  - `rename_dir` ve `trash_dir` "taşınacak bir şey yok" der (`False`): çöpü adlandırmak "Proje yok"
+    alır, çöp proje olarak geri gelmez; çöpü silmek de "Proje yok" alır (QA'nın N1'i);
+  - `path` bir yol vermez, `FileNotFoundError` atar; fotoğrafı ve referansı sunan iki yol bunu 404
+    olarak cevaplar, olmayan her dosya gibi (QA'nın N2'si).
+  Çöpe yalnız kendi işi ulaşır: `trash_dir` onu yapar, `sweep_trash` listeleyerek bulur, `delete_dir`
+  ona `trash_dir`'in verdiği adla siler. `name_rules` bu öneki taşıyan bir adı zaten yeni proje adı
+  olarak kabul etmez.
 
 ## Ne zaman bitti
 
@@ -303,6 +310,8 @@ yüzden hiçbir kilitte değil.
 - Silme çöpünü G bırakıldıktan sonra siler ve bir saatten eski çöpleri süpürür, gençleri bırakır.
 - Yükleme ve sürükleme kapıda havuzdaki her klibi bir kez ffprobe'lar.
 - Çöpün adıyla gelen bir yükleme "Proje yok" alır; `dir_exists` çöpe `False` der.
+- Çöpün adıyla gelen yeniden adlandırma ve silme "Proje yok" (404) alır, hiçbir şey taşınmaz; çöpteki
+  bir fotoğraf ya da referans sunulmaz (404).
 - Yükleme süreleri ve baytları kapı tutulmadan okur ve yazar; yalnız adlandırma kapıda.
 - Havuzla reddedilen bir yükleme klasörde gizli dosya bırakmaz.
 - Bir yükleme kapıda havuz klasöründeki bir saatten eski gizli dosyaları süpürür, gençleri bırakır.

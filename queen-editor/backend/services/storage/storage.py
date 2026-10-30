@@ -86,6 +86,15 @@ def _is_dir(path):
     return stat.S_ISDIR(info.st_mode)
 
 
+def _hidden(parts):
+    """Whether a folder lies under a hidden name: the trash (trash_dir), which is nobody's. Every
+    door that reaches a folder by a name it was given treats it as not there, the way list_dirs does
+    not list it (madde 523) -- a crafted URL could otherwise rename it back into a project, serve
+    its files, or write into it. Only the trash's own work reaches it: trash_dir makes it,
+    sweep_trash finds it by listing, and delete_dir removes it by the name trash_dir gave."""
+    return any(part.startswith(TEMP_PREFIX) for part in parts)
+
+
 def _trashed_at(name):
     """When trash_dir put this folder in the trash, from its name; None for any other name."""
     if not name.startswith(TEMP_PREFIX):
@@ -159,7 +168,7 @@ class Storage:
         changed, not when it was trashed.
         """
         source = self._folder(_checked(name))
-        if not _is_dir(source):
+        if _hidden((name,)) or not _is_dir(source):
             return False
         trash = f"{TEMP_PREFIX}{int(time.time())}-{uuid.uuid4().hex}"
         os.rename(source, os.path.join(self._root, trash))
@@ -229,7 +238,7 @@ class Storage:
         _checked(new)
         root = self._folder(())
         source, target = os.path.join(root, old), os.path.join(root, new)
-        if not _is_dir(source):
+        if _hidden((old,)) or not _is_dir(source):
             return False
         try:
             os.stat(target)
@@ -240,22 +249,23 @@ class Storage:
         return os.stat(target).st_mtime
 
     def dir_exists(self, folder):
-        """Whether the folder is there. One under a hidden name is not, as list_dirs does not list
-        it: the trash is nobody's (madde 523), and every project door asks this, so a URL naming the
-        trash finds no project rather than queueing, uploading or exporting into it."""
+        """Whether the folder is there. One under a hidden name is not (_hidden): every project door
+        asks this, so a URL naming the trash finds no project."""
         path = self._folder(folder)
-        if any(part.startswith(TEMP_PREFIX) for part in _parts(folder)):
-            return False
-        return _is_dir(path)
+        return not _hidden(_parts(folder)) and _is_dir(path)
 
     def path(self, folder, name=None):
         """The absolute path of a folder, or of a file in it, for a reader outside this process --
         ffmpeg, ffprobe, Flask sending a file -- and for the screen to say where an export lands.
 
         The name and the mount are checked like any other operation: the path is only handed out
-        while the root is the one it was.
+        while the root is the one it was. None is handed out under a hidden name (_hidden): it is
+        not there, and a server route answers 404 for it, as for any file that is not.
         """
-        return self._folder(folder) if name is None else self._file(folder, name)
+        path = self._folder(folder) if name is None else self._file(folder, name)
+        if _hidden(_parts(folder)):
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), path)
+        return path
 
     # --- files ------------------------------------------------------------------------------
 

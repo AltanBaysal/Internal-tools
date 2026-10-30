@@ -4,7 +4,7 @@
 Translation only: no rules here. The use case's exception messages go out verbatim, so the wording
 lives in exactly one place (the domain).
 """
-from flask import Blueprint, jsonify, request, send_from_directory
+from flask import Blueprint, abort, jsonify, request, send_from_directory
 
 from backend.features.photo_generation.domain import layers, orientation, production_mode
 from backend.features.photo_generation.export_runner import MODES
@@ -343,8 +343,13 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
     def serve_photo(project, filename):
         # The folder comes from the storage door, which holds the project's name to the root and
         # checks the mount; send_from_directory holds the file's name to the folder, answers 404
-        # for one that is not there, and serves a video in the ranges a browser asks for.
-        resp = send_from_directory(photo_dir(project), filename)
+        # for one that is not there, and serves a video in the ranges a browser asks for. A folder
+        # the door says is not there -- the trash a delete leaves (madde 523) -- is the same 404.
+        try:
+            folder = photo_dir(project)
+        except FileNotFoundError:
+            abort(404)
+        resp = send_from_directory(folder, filename)
         # next_number never reuses a number, so a photo URL's bytes can never change.
         resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
         return resp

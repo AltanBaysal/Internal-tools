@@ -9,7 +9,7 @@ separate, and the two are registered side by side in main.py.
 Translation only: no rules here. The use case's exception messages go out verbatim, so the wording
 lives in exactly one place (the domain).
 """
-from flask import Blueprint, jsonify, request, send_from_directory
+from flask import Blueprint, abort, jsonify, request, send_from_directory
 
 from backend.features.photo_generation.domain import orientation
 from backend.features.photo_generation.domain.orientation import InvalidOrientation
@@ -97,8 +97,13 @@ def make_reference_blueprint(add_references, list_references, remove_reference,
     @bp.get("/references/<project>/<filename>")
     def serve_reference(project, filename):
         # The folder comes from the storage door, the file's name is held to it by
-        # send_from_directory -- serve_photo's split.
-        resp = send_from_directory(reference_dir(project), filename)
+        # send_from_directory -- serve_photo's split. A folder the door says is not there -- the
+        # trash a delete leaves (madde 523) -- is a file that is not there.
+        try:
+            folder = reference_dir(project)
+        except FileNotFoundError:
+            abort(404)
+        resp = send_from_directory(folder, filename)
         # Unlike a photo, whose number is never reused: a deleted reference's name can be given to
         # another file, and bytes left in the browser would be the wrong picture.
         resp.headers["Cache-Control"] = "no-store"

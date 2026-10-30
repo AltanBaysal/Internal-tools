@@ -90,6 +90,11 @@
   `test_a_folder_in_the_trash_is_not_there_for_anyone_who_asks_by_name`, `test_written_at_once.py`
   `test_an_upload_into_the_trash_by_name_is_told_there_is_no_project`.
 
+- QA'dan sonra (N1, N2): `Storage._hidden`; `rename_dir`, `trash_dir` gizli ada `False`, `path`
+  `FileNotFoundError`; fotoğraf ve referans sunan yollar onu 404 yapar. Testler önce, kırmızı:
+  `test_storage_routes.py` (çöpü adlandırma, çöpü silme, çöpten fotoğraf, çöpten referans),
+  `test_storage.py`'nin çöp testi genişledi.
+
 ## 3. Eski testlerin yeni imzası
 
 - `test_reference_usecases.py`: üç kapının çağrıları `FakePlanStore()` verir.

@@ -11,6 +11,7 @@ from flask import Blueprint
 
 from backend.tests.test_photo_routes import make_client as photo_client
 from backend.tests.test_projects_routes import make_client as projects_client
+from backend.services.storage.storage import Storage
 from backend.tests.test_reference_routes import make_client as reference_client
 from backend.web.app import create_app
 
@@ -153,6 +154,62 @@ def test_a_reference_url_cannot_serve_a_file_beside_the_root(tmp_path, project):
     refused(response, "..")
     assert SECRET not in response.get_data(as_text=True)
     assert planted.exists()
+
+
+def trashed(drive):
+    """düğün put in the trash, as a delete leaves it until its removal ends -- the name a crafted
+    URL could give."""
+    return Storage(str(drive)).trash_dir("düğün")
+
+
+def test_renaming_the_trash_brings_nothing_back(tmp_path):
+    """Madde 523's QA: a rename named the trash and made it a project again, even while its removal
+    was going on. The trash is no project to anyone who names it."""
+    client, drive = projects_client(tmp_path)
+    client.post("/api/projects", json={"name": "düğün"})
+    trash = trashed(drive)
+
+    response = client.post(f"/api/projects/{trash}/rename", json={"name": "geri"})
+
+    assert response.status_code == 404
+    assert response.get_json() == {"error": f"Proje yok: {trash}"}
+    assert not (drive / "geri").exists()
+    assert (drive / trash).is_dir()
+
+
+def test_deleting_the_trash_by_name_finds_no_project(tmp_path):
+    client, drive = projects_client(tmp_path)
+    client.post("/api/projects", json={"name": "düğün"})
+    trash = trashed(drive)
+
+    response = client.delete(f"/api/projects/{trash}")
+
+    assert response.status_code == 404
+    assert (drive / trash).is_dir()
+
+
+def test_a_photo_in_the_trash_is_not_served(tmp_path):
+    client, drive = photo_client(tmp_path)
+    (drive / "düğün" / "P0_0.png").write_bytes(b"PNG")
+    trash = trashed(drive)
+
+    response = client.get(f"/photos/{trash}/P0_0.png")
+
+    assert response.status_code == 404
+    assert response.data != b"PNG"
+
+
+def test_a_reference_in_the_trash_is_not_served(tmp_path):
+    """QA: /references/<trash>/<file> answered 200 with the file."""
+    client, drive, _dist = reference_client(tmp_path)
+    (drive / "düğün" / "referans").mkdir()
+    (drive / "düğün" / "referans" / "kedi.png").write_bytes(b"PNG")
+    trash = trashed(drive)
+
+    response = client.get(f"/references/{trash}/kedi.png")
+
+    assert response.status_code == 404
+    assert response.data != b"PNG"
 
 
 def test_a_reference_name_cannot_delete_outside_the_pool(tmp_path):
