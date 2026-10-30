@@ -390,15 +390,16 @@ describe("LayerPanel — sending", () => {
     expect(screen.getByText("2 loop video kuyruğa eklendi")).toBeTruthy();
   });
 
-  it("asks only for what is selected when that is the scope", async () => {
+  it("asks only for what is selected when that is the scope, by identity", async () => {
     const onQueue = vi.fn().mockResolvedValue({ added: 1 });
-    // Matched by identity, sent by file name: two different things, and the whole value of this
-    // test is that it says so in one breath.
-    renderPanel({ selected: ["0_a"], onQueue });
+    // A Kopyala twin shows its source's picture under a name of its own: a file name would catch
+    // both, so the selection goes out as it is kept (madde 520).
+    const twin = { ...done("0_a.png"), id: "C1_0_a" };
+    renderPanel({ frames: [...FRAMES, twin], selected: ["0_a"], onQueue });
 
     await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
-    expect(onQueue).toHaveBeenCalledWith(["0_a.png"], 1, "loop");
+    expect(onQueue).toHaveBeenCalledWith(["0_a"], 1, "loop");
   });
 
   it("sends the variant count along with the scope", async () => {
@@ -548,7 +549,7 @@ describe("LayerPanel — linking wants neighbours", () => {
     );
     await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
-    expect(onQueue).toHaveBeenCalledWith(["2_a.png", "0_a.png"], 1, "standard");
+    expect(onQueue).toHaveBeenCalledWith(["2_a", "0_a"], 1, "standard");
   });
 });
 

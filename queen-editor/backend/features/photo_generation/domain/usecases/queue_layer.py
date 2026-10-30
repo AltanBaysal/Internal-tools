@@ -23,6 +23,7 @@ from backend.features.photo_generation.domain.copy_frame import (
     next_id,
     placed,
 )
+from backend.features.photo_generation.domain.frame_list import checked
 from backend.features.photo_generation.domain.photo_name import layer_file, variant_of
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
 from backend.features.photo_generation.domain.usecases.run_queue import run_queue
@@ -33,23 +34,22 @@ from backend.features.photo_generation.domain.usecases.start_batch import (  # n
 )
 
 
-class InvalidScope(Exception):
-    """The selection was not a list of file names (message is user-facing)."""
-
-
-def frames_in_scope(gallery, kind, files=None):
+def frames_in_scope(gallery, kind, frames=None):
     """The frames a `kind` job can be hung on, in gallery order.
 
-    `files` is the gallery's own selection; None means every frame that does not hold this layer
-    yet. A frame that already holds one is out of the None scope and inside a selection's: the
-    panel's row is called "Videosu olmayan kareler", while picking a frame by hand says "this one"
-    -- and that is the only way madde 25's "every variant of a frame that already has a video" can
-    be asked for.
+    `frames` is the gallery's own selection, by identity; None means every frame that does not hold
+    this layer yet. A frame that already holds one is out of the None scope and inside a
+    selection's: the panel's row is called "Videosu olmayan kareler", while picking a frame by hand
+    says "this one" -- and that is the only way madde 25's "every variant of a frame that already
+    has a video" can be asked for.
+
+    Identities, not file names: a copy frame shows its source's picture, so a name would pick every
+    frame showing it when one was chosen (madde 520).
     """
-    chosen = None if files is None else set(files)
+    chosen = None if frames is None else set(frames)
     scope = []
     for frame in gallery:
-        if chosen is not None and frame["file"] not in chosen:
+        if chosen is not None and frame["id"] not in chosen:
             continue
         # Only a card that has settled can carry anything -- the layer that opened it landed (madde
         # 292). Done alone no longer says so: a copy is done once the picture it carries is there,
@@ -111,18 +111,20 @@ def _mark(kind, mode, gallery, fid):
 
 
 def queue_layer(runner, store, record, plan_store, order_store, producers, now, project, kind,
-                files=None, variants=1, log=None, writers=None,
+                frames=None, variants=1, log=None, writers=None,
                 mode=production_mode.STANDARD, stills=None, references=None, length=None,
                 ending=None):
     """Returns how many jobs of this kind the queue took.
+
+    `frames` names the selection by identity, the way every other door that acts on frames does;
+    None is the panel's other row, every frame without this layer.
 
     `length` answers how long the project's videos run now (madde 422); None hands the jobs none,
     and each is made at its graph's own. `ending` answers whether they end happily now (madde 426);
     None, or off, hands them nothing about it.
     """
-    if files is not None and (not isinstance(files, list)
-                              or any(not isinstance(name, str) for name in files)):
-        raise InvalidScope("Seçim listesi metin dizisi olmalı.")
+    if frames is not None:
+        checked(frames, "Katman eklenecek")
     production_mode.validate(mode, kind)
     # bool is an int in Python, and True would silently mean "1 variant".
     if isinstance(variants, bool) or not isinstance(variants, int) \
@@ -132,7 +134,7 @@ def queue_layer(runner, store, record, plan_store, order_store, producers, now, 
     # read the same names and give its copies the same ones (madde 512).
     with plan_store.held(project):
         gallery = list_frames(record, store, plan_store, order_store, project)
-        scope = frames_in_scope(gallery, kind, files)
+        scope = frames_in_scope(gallery, kind, frames)
         if not scope:
             # Nothing owed and nothing started: an empty scope is a result, not a failure.
             return 0
@@ -164,7 +166,7 @@ def queue_layer(runner, store, record, plan_store, order_store, producers, now, 
             video = (slots.get(fid, {}).get(layers.VIDEO) or {}).get("file")
             full = layers.is_taken(status) or layers.held_elsewhere(
                 slots, fid, layer_file(kind, fid, video=video))
-            if files is None and full:
+            if frames is None and full:
                 # Landed since the gallery was read, or its name is a copy's: the row is "frames
                 # without this layer", and this one cannot be given its own.
                 continue

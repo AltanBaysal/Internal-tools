@@ -141,13 +141,6 @@ aynı anda çok sayıda satır ekleyip dosyada yarım ya da kayıp satır var m�
 bu, satırların dosyada eklendikleri sırada durmasına bağlı. Denemede satırların sırası da bakılacak:
 ekleme sırası ile dosyadaki sıra aynı mı.
 
-### Kopyala'dan sonra galerinin seçimi kopyanın üstüne geçiyor
-
-*(513'ün QA'sı buldu, 29 Ekim; 513'ten eski, ekranda.)* Kullanıcı bir kare seçip Kopyala'ya basınca
-seçim, seçtiği karede değil kopyanın üstünde duruyor; ardından basılan "Videoları sil" kopyanın videosunu
-sildi. Seçim karenin kimliğiyle değil dosya adıyla tutuluyor gibi görünüyor, ve kopya kare kaynağının
-fotoğrafını, dolayısıyla adını paylaşıyor (madde 102). Düzeltme seçimi kimlikle tutmayı ister.
-
 ### Yeniden adlandırma bir videoyu boş prompt'la ürettirebilir
 
 *(513'ün coder'ı buldu, 29 Ekim; denenmedi.)* Sıranın turu planı ve kaydı adın kapısında, tek adla okur

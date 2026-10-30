@@ -55,7 +55,7 @@ ana klasörde koşunun dalında yürür.
 | 517 · [v11-16](#v11-16) | Bir reddin cümlesi kalır ve kendi karesinde görünür | ✅ *(tünelin gerçek gecikmesinde ok tuşuyla aynı anda gelen bir cevap kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
 | 518 · [v11-17](#v11-17) | Açık sayfa dışarıdan eklenen işi görür | ✅ *(tünel üzerinden açık tutulan istek, arka plandaki gerçek bir sekme ve ajanın kendi düzeltme basışı kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
 | 519 · [v11-18](#v11-18) | Bekleyen kopya kare doğru görünür ve yerinde kalır | ✅ *(gerçek H3 üretimi ve prompt yazarının süresi kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
-| 520 · [v11-19](#v11-19) | Kopyala'dan sonra seçim seçilen karede kalır | `ALIGNED` |
+| 520 · [v11-19](#v11-19) | Seçilen bir kare yalnız kendisi sayılır | `ALIGNED` |
 | 521 · [v11-20](#v11-20) | Birleşik export'ta ses parçadan parçaya taşmaz | `ALIGNED` |
 | 522 · [v11-21](#v11-21) | Yeniden adlandırma bir basışı ya da prompt'u kaybettirmez | `ALIGNED` |
 | 523 · [v11-22](#v11-22) | Referans sırası ve arşiv işaretleri aynı anda yazılınca kaybolmaz | `ALIGNED` |
@@ -478,13 +478,19 @@ kalıyor, sona atlamıyor.
 (516'nın coder'ı).
 
 <a id="v11-19"></a>
-### 520 · v11-19 — Kopyala'dan sonra seçim seçilen karede kalır
+### 520 · v11-19 — Seçilen bir kare yalnız kendisi sayılır
 
-**Kabul koşulu:** Bir kare seçilip Kopyala'ya basılınca seçim o karede kalıyor; sonraki "Videoları sil"
-ya da "Sil" yalnız seçilen kareye dokunuyor.
+**Kabul koşulu:** Video panelinde "Seçili kareler" ile gönderilen bir seçim yalnız seçilen karelere iş
+ekliyor; aynı fotoğrafı paylaşan kopyalar seçilmedikçe girmiyor. Kopyala'dan sonra seçim, v4'teki gibi
+kopyaya geçiyor.
 
-**Bugün:** seçim kopyanın üstüne geçiyor, çünkü dosya adına bağlı ve kopya aynı dosyayı paylaşıyor; QA bu
-yüzden kopyanın videosunu sildi (513'ün QA'sı).
+**Bugün:** video paneli seçimi dosya adıyla gönderiyor, ve tek bir kare seçilince aynı fotoğrafı paylaşan
+bütün kopyalar da videoya giriyor (520'nin coder'ı). QA'nın kopyanın videosunu silmesi ise bir hata
+değildi: v4'ün 11. maddesi "seçim kopyaya geçer" diye karar vermişti (Fark 77).
+
+**Kullanıcının kararı** *(30 Ekim — Kopyala'dan sonra seçim seçilen karede mi kalsın, kopyaya mı geçsin
+sorusuna: "2")*: seçim kopyaya geçmeye devam eder. İlk yazılan kabul koşulu ("seçim o karede kalıyor")
+bununla değişti.
 
 <a id="v11-20"></a>
 ### 521 · v11-20 — Birleşik export'ta ses parçadan parçaya taşmaz

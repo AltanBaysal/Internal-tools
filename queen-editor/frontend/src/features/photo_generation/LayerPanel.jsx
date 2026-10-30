@@ -403,8 +403,10 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
     // many of each, and the server makes a card per pair (madde 303).
     const sent = fromPool ? FROM_POOL : mode;
     const count = Number(shownVariants);
-    const files = scope === "selected" && !fromPool
-      ? inSelection.map((frame) => frame.file) : null;
+    // By identity, the way the gallery keeps them: a copy shows its source's picture, and a file
+    // name would carry every frame showing it (madde 520).
+    const chosenFrames = scope === "selected" && !fromPool
+      ? inSelection.map((frame) => frame.id) : null;
     // From the pool the boxes are written down first, the photo panel's way (ProjectScreen's
     // handleGenerate): the record and the work land in the same folder, so a record that cannot be
     // written means the work could not be either, and nothing is sent. The words ride along only
@@ -412,7 +414,7 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
     const asked = fromPool
       ? saveReferenceSettings(project, { prompts, variants: count, orientation: poolOrientation })
         .then(() => onQueue(null, count, sent, prompts, poolOrientation))
-      : onQueue(files, count, sent);
+      : onQueue(chosenFrames, count, sent);
     asked
       .then((body) => {
         if (body && typeof body.added === "number") {

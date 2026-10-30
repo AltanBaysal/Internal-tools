@@ -219,13 +219,13 @@ export function useGeneration(project) {
 
   // Hang a layer on every frame in scope. Resolves with the server's answer so the panel can quote
   // how many the queue took, or null when it was refused.
-  const queueLayer = useCallback((kind, files, variants, mode, prompts, orientation) => (
+  const queueLayer = useCallback((kind, frames, variants, mode, prompts, orientation) => (
     // From the pool it is not a layer job at all: no frame is involved and cards are what come
     // back, so it goes to its own door (madde 302). Only it carries an orientation: a video hung on
     // a frame follows that frame's photo (madde 476).
     (mode === FROM_POOL
       ? produceFromReferences(project, prompts, variants, orientation)
-      : postLayer(project, kind, files, variants, mode))
+      : postLayer(project, kind, frames, variants, mode))
       .then((body) => {
         if (!alive.current) return null;
         startPolling(body?.frames);

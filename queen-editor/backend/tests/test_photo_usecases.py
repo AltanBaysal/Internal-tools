@@ -1890,11 +1890,11 @@ def video_project(*frames):
     return store, record, plan_store
 
 
-def queue_video(store, record, plan_store, mode, order=(), files=None):
+def queue_video(store, record, plan_store, mode, order=()):
     """Queue a video job the way the panel would, and hand back the plan lines it wrote."""
     added = queue_layer(sync_runner(), store, record, plan_store, FakeOrderStore(order),
                         {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.VIDEO,
-                        files=files, mode=mode)
+                        mode=mode)
     return added, (plan_store.appended[-1] if plan_store.appended else [])
 
 
@@ -2395,10 +2395,10 @@ def settled_slot_project(layer, status):
     return store, record, plan_store
 
 
-def ask_again(store, record, plan_store, layer, generator, files=None,
+def ask_again(store, record, plan_store, layer, generator, frames=None,
               mode=production_mode.STANDARD, runner=None):
     return queue_layer(runner or sync_runner(), store, record, plan_store, FakeOrderStore(),
-                       {layer: generator}, lambda: "t", "düğün", layer, files=files, mode=mode)
+                       {layer: generator}, lambda: "t", "düğün", layer, frames=frames, mode=mode)
 
 
 def idle_runner():
@@ -2563,7 +2563,7 @@ def test_a_failed_layer_picked_by_hand_becomes_a_frame_of_its_own():
     store, record, plan_store = settled_slot_project(layers.AUDIO, queue.FAILED)
     generator = FakeGenerator()
 
-    ask_again(store, record, plan_store, layers.AUDIO, generator, files=["0_a.png"])
+    ask_again(store, record, plan_store, layers.AUDIO, generator, frames=["0_a"])
 
     assert len(generator.calls) == 1
     # The new identity is the frame's, not the file's: a sound is named after the video it sits on,
@@ -2591,10 +2591,24 @@ def test_a_selection_narrows_the_scope_to_itself():
 
     added = queue_layer(sync_runner(), store, record, plan_store, FakeOrderStore(),
                          {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.VIDEO,
-                         files=["1_a.png"])
+                         frames=["1_a"])
 
     assert added == 1
     assert [job["id"] for job in plan_store.appended[-1]] == ["1_a"]
+
+
+def test_a_selection_of_one_frame_leaves_its_twin_alone():
+    """Madde 520: a Kopyala twin holds its source's picture, so the two share a file name -- a
+    selection of the source is the source, not every frame showing that picture."""
+    store, record, plan_store, order = twin_project((0, "a"))
+    copy_of(record, store, plan_store, order, ["0_a"])
+
+    added = queue_layer(sync_runner(), store, record, plan_store, order,
+                        {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.VIDEO,
+                        frames=["0_a"])
+
+    assert added == 1
+    assert [job["id"] for job in plan_store.appended[-1]] == ["0_a"]
 
 
 def test_a_selected_frame_that_has_a_video_is_still_in_scope():
@@ -2603,7 +2617,7 @@ def test_a_selected_frame_that_has_a_video_is_still_in_scope():
                 "layers": {"video": "0_a_V1_0.mp4"}},
                {"id": "1_a", "file": "1_a.png", "status": "done", "layers": {}}]
 
-    assert [f["id"] for f in frames_in_scope(gallery, layers.VIDEO, ["0_a.png"])] == ["0_a"]
+    assert [f["id"] for f in frames_in_scope(gallery, layers.VIDEO, ["0_a"])] == ["0_a"]
     # The panel's row is called "Videosu olmayan kareler": with no selection it means exactly that.
     assert [f["id"] for f in frames_in_scope(gallery, layers.VIDEO)] == ["1_a"]
 
@@ -2613,7 +2627,7 @@ def test_a_frame_whose_name_claims_no_number_takes_no_video():
     # have one, so the video would quietly vanish instead of being made.
     gallery = [{"id": "kapak", "file": "kapak.png", "status": "done", "layers": {}}]
 
-    assert frames_in_scope(gallery, layers.VIDEO, ["kapak.png"]) == []
+    assert frames_in_scope(gallery, layers.VIDEO, ["kapak"]) == []
 
 
 def test_audio_skips_a_frame_that_has_no_video():
@@ -2624,7 +2638,7 @@ def test_audio_skips_a_frame_that_has_no_video():
 
     assert [f["id"] for f in frames_in_scope(gallery, layers.AUDIO)] == ["1_a"]
     # Even when it is picked by hand: there is nothing to lay the sound over.
-    assert frames_in_scope(gallery, layers.AUDIO, ["0_a.png"]) == []
+    assert frames_in_scope(gallery, layers.AUDIO, ["0_a"]) == []
 
 
 def test_a_frame_with_no_photo_can_still_take_a_video():
@@ -2636,7 +2650,7 @@ def test_a_frame_with_no_photo_can_still_take_a_video():
     gallery = [{"id": "0_a", "file": "0_a.png", "status": "done",
                 "layers": {"video": "0_a_V1_0.mp4"}, "failed": []}]
 
-    assert [f["id"] for f in frames_in_scope(gallery, layers.VIDEO, ["0_a.png"])] == ["0_a"]
+    assert [f["id"] for f in frames_in_scope(gallery, layers.VIDEO, ["0_a"])] == ["0_a"]
 
 
 def test_sound_still_needs_a_video_under_it():
@@ -2773,7 +2787,7 @@ def test_every_variant_of_a_frame_that_has_a_video_is_a_copy():
 
     added = queue_layer(sync_runner(), store, record, plan_store, FakeOrderStore(),
                          {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.VIDEO,
-                         files=["0_a.png"], variants=2)
+                         frames=["0_a"], variants=2)
 
     assert added == 2
     assert [job["id"] for job in plan_store.appended[-1]] == ["P0_1", "P0_2"]
@@ -2808,7 +2822,7 @@ def test_a_copy_takes_its_place_right_above_its_source():
 
     queue_layer(sync_runner(), store, record, plan_store, order,
                  {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.VIDEO,
-                 files=["0_a.png"], variants=3)
+                 frames=["0_a"], variants=3)
 
     # The whole gallery is written down, newest first, with the copies hanging above their source.
     assert order.order == ["1_a", "P0_2", "P0_1", "0_a"]
@@ -2820,7 +2834,7 @@ def test_the_gallery_draws_the_copy_next_to_its_source():
 
     queue_layer(sync_runner(), store, record, plan_store, order,
                  {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.VIDEO,
-                 files=["0_a.png"], variants=2)
+                 frames=["0_a"], variants=2)
 
     frames = list_frames(record, store, plan_store, order, "düğün")
     assert [f["id"] for f in frames] == ["1_a", "P0_1", "0_a"]

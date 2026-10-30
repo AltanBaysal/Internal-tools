@@ -12,7 +12,6 @@ from backend.features.photo_generation.domain.frame_list import InvalidFrames
 from backend.features.photo_generation.domain.orientation import InvalidOrientation
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
 from backend.features.photo_generation.domain.production_mode import InvalidMode
-from backend.features.photo_generation.domain.usecases.queue_layer import InvalidScope
 from backend.features.photo_generation.domain.usecases.regenerate import LayerMissing, NoNextFrame
 from backend.features.photo_generation.domain.usecases.resume_batch import NothingToResume
 from backend.features.photo_generation.domain.usecases.retry_frame import FrameMissing
@@ -151,18 +150,22 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
         if kind not in QUEUEABLE:
             return jsonify({"error": f"Böyle bir katman yok: {kind}"}), 404
         body = request.get_json(silent=True) or {}
-        # No "files" key at all means every frame that does not hold this layer; a list means that
-        # selection.
-        files = body.get("files")
+        # The selection's old key, refused rather than ignored: read as no selection, it would hang
+        # the layer on every frame without one (madde 520).
+        if "files" in body:
+            return jsonify({"error": "Kareler frames ile gönderilmeli."}), 400
+        # No "frames" key at all means every frame that does not hold this layer; a list of
+        # identities means that selection.
+        frames = body.get("frames")
         try:
             # No "variants" key means one per frame, and no "mode" key means a plain video: a
             # client older than either box asks for exactly what it always asked for.
-            added = queue_layer(project, kind, files=files, variants=body.get("variants", 1),
+            added = queue_layer(project, kind, frames=frames, variants=body.get("variants", 1),
                                 mode=body.get("mode", production_mode.STANDARD))
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
-        except InvalidScope as exc:
-            return jsonify({"error": str(exc), "field": "files"}), 400
+        except InvalidFrames as exc:
+            return jsonify({"error": str(exc)}), 400
         except InvalidMode as exc:
             return jsonify({"error": str(exc), "field": "mode"}), 400
         except InvalidVariants as exc:

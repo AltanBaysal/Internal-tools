@@ -208,7 +208,7 @@ def made_videos(record, fid):
 
 def video_press(runner, store, record, plan_store, order):
     return queue_layer(runner, store, record, plan_store, order, {}, now, "düğün", layers.VIDEO,
-                       files=["0_a.png"])
+                       frames=["0_a"])
 
 
 def test_a_second_video_press_as_the_first_video_lands_never_makes_it_again():
@@ -296,7 +296,7 @@ def test_a_second_video_press_before_the_first_is_made_does_not_add_the_frames_o
 
     def press(mode):
         return queue_layer(runner, store, record, plan_store, order, {}, now, "düğün",
-                           layers.VIDEO, files=["0_a.png"], variants=2, mode=mode)
+                           layers.VIDEO, frames=["0_a"], variants=2, mode=mode)
 
     assert press(production_mode.LOOP) == 2
     assert press(production_mode.STANDARD) == 1
@@ -325,8 +325,8 @@ def sound_copy_holding_the_video():
     return store, record, plan_store
 
 
-@pytest.mark.parametrize("files", [None, ["P1_0.png"]])
-def test_a_video_press_never_saves_over_the_video_a_copy_still_holds(files):
+@pytest.mark.parametrize("frames", [None, ["P1_0"]])
+def test_a_video_press_never_saves_over_the_video_a_copy_still_holds(frames):
     """The deleted slot's own name is P1_0_V1_0.mp4, which the copy still stands on: reopening it
     would save the new video over the copy's. The slot counts as taken -- chosen by hand it gets a
     new variant under a name of its own, and "frames without a video" passes it by."""
@@ -334,12 +334,12 @@ def test_a_video_press_never_saves_over_the_video_a_copy_still_holds(files):
     video = FakeGenerator()
 
     queue_layer(sync_runner(), store, record, plan_store, FakeOrderStore(), {layers.VIDEO: video},
-                now, "düğün", layers.VIDEO, files=files)
+                now, "düğün", layers.VIDEO, frames=frames)
 
     saved = [name for name, _data in store.saved]
     assert "P1_0_V1_0.mp4" not in saved
     assert record.slots("düğün")["P1_0"]["video"]["status"] == queue.DELETED
-    if files:
+    if frames:
         assert saved and all(name.endswith(".mp4") for name in saved)  # new variants, own names
 
 

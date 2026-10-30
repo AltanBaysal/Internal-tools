@@ -608,6 +608,42 @@ def test_the_videos_endpoint_refuses_a_mode_nobody_knows(tmp_path):
     assert resp.get_json()["field"] == "mode"
 
 
+def test_the_videos_endpoint_takes_the_selection_by_identity(tmp_path):
+    # Madde 520: the frames the gallery chose, named the way the delete and the copy name them.
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a", "b"]', variants=1)
+
+    resp = client.post("/api/projects/düğün/layers/video", json={"frames": ["P0_0"]})
+
+    assert resp.status_code == 202
+    assert resp.get_json()["added"] == 1
+    assert [job["id"] for job in video_jobs(drive)] == ["P0_0"]
+
+
+def test_the_videos_endpoint_refuses_a_selection_that_is_not_a_list(tmp_path):
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+
+    resp = client.post("/api/projects/düğün/layers/video", json={"frames": "P0_0"})
+
+    assert resp.status_code == 400
+    assert resp.get_json() == {"error": "Katman eklenecek kare listesi metin dizisi olmalı."}
+    assert video_jobs(drive) == []
+
+
+def test_the_videos_endpoint_refuses_a_selection_sent_by_file_name(tmp_path):
+    """Read as no selection, a "files" body would hang the layer on every frame without one -- the
+    widest scope there is, from a press that meant a few."""
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a", "b"]', variants=1)
+
+    resp = client.post("/api/projects/düğün/layers/video", json={"files": ["P0_0.png"]})
+
+    assert resp.status_code == 400
+    assert resp.get_json() == {"error": "Kareler frames ile gönderilmeli."}
+    assert video_jobs(drive) == []
+
+
 def test_a_sound_is_no_longer_a_place_to_queue_anything(tmp_path):
     """Madde 514: the Ses üret panel is gone with MMAudio, and its door with it -- refused the way a
     layer nobody knows is, before anything is planned."""

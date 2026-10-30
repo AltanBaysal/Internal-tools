@@ -294,7 +294,7 @@ def test_a_video_queued_while_its_job_is_taken_out_stays_in_line():
 
     other = Contention(
         lambda: queue_layer(runner, store, record, plan_store, order, {}, lambda: "t", "düğün",
-                            layers.VIDEO, files=["0_a.png"]),
+                            layers.VIDEO, frames=["0_a"]),
         *every_write(record, plan_store, order))
     dequeue_layer(record, store, plan_store, order, lambda: "t", "düğün", ["0_a"], layers.VIDEO)
 

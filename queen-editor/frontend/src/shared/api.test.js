@@ -190,11 +190,12 @@ describe("api.request", () => {
     const fetchMock = vi.fn().mockResolvedValue(okResponse({ added: 1 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await queueLayer("düğün", "video", ["0_a.png"], 2, "loop");
+    await queueLayer("düğün", "video", ["0_a"], 2, "loop");
 
     const [url, options] = fetchMock.mock.calls[0];
     expect(url).toBe(`/api/projects/${encodeURIComponent("düğün")}/layers/video`);
-    expect(JSON.parse(options.body)).toEqual({ files: ["0_a.png"], variants: 2, mode: "loop" });
+    // Identities, the delete's and the copy's way (madde 520).
+    expect(JSON.parse(options.body)).toEqual({ frames: ["0_a"], variants: 2, mode: "loop" });
   });
 
   it("takes a layer's waiting job out at a door of its own, never the delete's (madde 516)",
