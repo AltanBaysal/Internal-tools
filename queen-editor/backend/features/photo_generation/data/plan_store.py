@@ -14,9 +14,10 @@ plan they read and the later would drop the earlier's jobs. So each project has 
 every append (madde 512). It is more than the plan's: it is the project's write gate for the doors
 that name or close frames, which read the plan, the record and the order and write them back
 together, and hold it from the first read to the last write (PlanStore.held says why). The doors
-that queue work hold it on to the worker's claim, and a rename takes it around the folder's move
-(madde 522), so neither a door's writes nor its claim fall on both sides of a move. The loop writes
-the record outside it. One process serves every press, so a lock in memory is enough.
+that queue work hold it on to the worker's claim, and a rename takes both names' around the
+folder's move (madde 522), so neither a door's writes nor its claim fall on both sides of a move.
+The loop writes the record outside it. One process serves every press, so a lock in memory is
+enough.
 """
 import json
 import threading

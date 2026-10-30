@@ -53,6 +53,19 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
     """The callables are already bound to a runner/store/generator (see main.py)."""
     bp = Blueprint("photo_generation", __name__)
 
+    def with_gallery(answer, project):
+        """`answer` with the gallery the work landed in, while there is one.
+
+        Read after the door has returned, outside its gate: a rename its gate held back moves the
+        folder the moment the door lets go (madde 522). The work was taken all the same, and an
+        error here would send the user to press again and make it twice -- so the answer says what
+        was taken, and the screen, given no gallery, reads it itself.
+        """
+        try:
+            return {**answer, "frames": list_frames(project)}
+        except ProjectMissing:
+            return answer
+
     @bp.post("/api/projects/<project>/generate")
     def post_generate(project):
         body = request.get_json(silent=True) or {}
@@ -90,7 +103,7 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
         # "added" is how many frames the queue took -- the panel quotes it back to the user; and
         # "frames" is the gallery they landed in, because the screen would ask for exactly that in
         # a second round-trip, and until it lands the frames it was just told about are nowhere.
-        return jsonify({"job": "running", "added": added, "frames": list_frames(project)}), 202
+        return jsonify(with_gallery({"job": "running", "added": added}, project)), 202
 
     # One answer for both boxes: the panel draws them together, and a second request would be a
     # second way for one of them to be missing (madde 237).
@@ -176,7 +189,7 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
         # The gallery comes back with the answer, the same as a photo batch: the button is the
         # same button, and one of the two waiting a round-trip longer than the other would be an
         # accident rather than a decision.
-        return jsonify({"job": "running", "added": added, "frames": list_frames(project)}), 202
+        return jsonify(with_gallery({"job": "running", "added": added}, project)), 202
 
     @bp.post("/api/projects/<project>/layers/<kind>/delete")
     def delete_layer(project, kind):
@@ -324,7 +337,7 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
             return jsonify({"error": str(exc)}), 404
         # The gallery comes back with the twins: the screen would ask for exactly this in a second
         # round-trip, and until it lands the copies it was just told about are nowhere.
-        return jsonify({**answer, "frames": list_frames(project)})
+        return jsonify(with_gallery(answer, project))
 
     @bp.get("/photos/<project>/<filename>")
     def serve_photo(project, filename):

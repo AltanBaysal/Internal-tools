@@ -27,8 +27,10 @@ from backend.features.photo_generation.domain.usecases.start_batch import (
     ProjectMissing,
     start_batch,
 )
+from backend.features.photo_generation.presentation.routes import make_photo_generation_blueprint
 from backend.features.photo_generation.runner import PhotoRunner
 from backend.services.storage.storage import Storage
+from backend.web.app import create_app
 from backend.tests.test_fix_photo import Project as FixProject
 from backend.tests.test_photo_usecases import (
     FakeGenerator,
@@ -99,9 +101,9 @@ class RenamedBeforeItsClaim(PhotoRunner):
         return super().start(project, job)
 
 
-def press(runner, project, generator):
+def press(runner, project, generator, name="düğün"):
     return start_batch(runner, project.store, project.record, project.plan,
-                       {layers.PHOTO: generator}, lambda: 7, now, "düğün", '["ilk"]', "", 1)
+                       {layers.PHOTO: generator}, lambda: 7, now, name, '["ilk"]', "", 1)
 
 
 def test_a_press_on_an_idle_worker_as_the_project_is_renamed_still_makes_its_job(tmp_path):
@@ -136,6 +138,108 @@ def test_a_press_joining_a_run_as_the_project_is_renamed_joins_it(tmp_path):
     assert runner.status() == {"status": "running", "project": "nişan"}
     assert len(runner.runs) == 1                                          # no second worker
     assert [job["id"] for job in project.owed("nişan")] == ["P0_0"]
+
+
+class PressedOnTheNewName(PhotoRunner):
+    """A worker that lets a press on nişan in once the folder has moved and before the rename has
+    restamped the run -- between `named.moved` and `runner.rename`."""
+
+    def __init__(self, project):
+        super().__init__(spawn=lambda fn: None)
+        self.project = project
+        self.pressed = None
+        self.failure = None
+
+    def rename(self, old, new):
+        if self.pressed is None:
+            self.pressed = threading.Thread(target=self._press)
+            self.pressed.start()
+            self.pressed.join(WINDOW)
+        super().rename(old, new)
+
+    def _press(self):
+        try:
+            press(self, self.project, FakeGenerator(), name="nişan")
+        except BaseException as exc:            # handed to the test, which raises it
+            self.failure = exc
+
+
+def test_a_press_on_the_new_name_as_the_rename_ends_joins_the_run(tmp_path):
+    """QA's s7: the press found nişan, wrote its job there and asked for the worker while it was
+    still stamped düğün -- Zaten bir üretim sürüyor, though its job was in the run's own queue. The
+    rename holds the new name's gate too, so the press waits for the stamp."""
+    project = Project(tmp_path)
+    runner = PressedOnTheNewName(project)
+    PhotoRunner.start(runner, "düğün", lambda: {"status": "done"})        # the run going on
+
+    project.rename(runner)
+    project.renamed()
+    runner.pressed.join(5)
+
+    if runner.failure is not None:
+        raise runner.failure
+    assert runner.status() == {"status": "running", "project": "nişan"}
+    assert [job["id"] for job in project.owed("nişan")] == ["P0_0"]
+
+
+def test_two_renames_crossing_each_others_names_never_lock_each_other_out(tmp_path):
+    """Each rename holds two gates, taken in the names' order: one from düğün to nişan and one from
+    nişan to düğün at once would otherwise each hold one and wait for the other for ever."""
+    project = Project(tmp_path)
+    runner = PhotoRunner(spawn=lambda fn: None)
+    start = threading.Barrier(2)
+
+    def rename(old, new):
+        start.wait()
+        follow_rename(runner, project.plan, old, new,
+                      lambda: project.storage.rename_dir(old, new))
+
+    both = [threading.Thread(target=rename, args=names)
+            for names in (("düğün", "nişan"), ("nişan", "düğün"))]
+    for thread in both:
+        thread.start()
+    for thread in both:
+        thread.join(5)
+
+    assert not any(thread.is_alive() for thread in both)
+
+
+# --- the answer to a press whose project moves as it answers -------------------------------------
+
+def answering(**doors):
+    """The photo blueprint with the doors given and every other one unused, over a gallery read
+    that finds the project gone: the rename the door's gate held back has just moved it."""
+    def gone(project):
+        raise ProjectMissing(f"Proje yok: {project}")
+
+    unused = dict.fromkeys(
+        ["start_batch", "get_status", "stop_generation", "resume_batch", "cancel_generation",
+         "retry_frame", "retry_failed", "queue_layer", "regenerate", "remove_layer",
+         "dequeue_layer", "list_models", "list_loras", "save_order", "export_summary",
+         "export_state", "run_export", "cancel_export", "remove_frames", "copy_frames",
+         "photo_dir"])
+    blueprint = make_photo_generation_blueprint(**{**unused, **doors, "list_frames": gone})
+    return create_app(dist_dir="unused", blueprints=[blueprint]).test_client()
+
+
+@pytest.mark.parametrize("path, doors, said", [
+    ("/api/projects/düğün/generate", {"start_batch": lambda *args, **kwargs: 1},
+     {"job": "running", "added": 1}),
+    ("/api/projects/düğün/layers/video", {"queue_layer": lambda *args, **kwargs: 2},
+     {"job": "running", "added": 2}),
+    ("/api/projects/düğün/frames/copy", {"copy_frames": lambda *args: {"copies": ["C1_0_a"]}},
+     {"copies": ["C1_0_a"]}),
+])
+def test_work_taken_as_the_project_moves_is_answered_as_taken(path, doors, said):
+    """QA: the job was taken and ran, and the answer was a 500 "Kuyruğa eklenemedi" -- the gallery
+    read after the door found the folder moved. Pressed again, the frames were made twice. The
+    answer says what was taken, without the gallery, and the screen reads that itself."""
+    client = answering(**doors)
+
+    resp = client.post(path, json={"prompts": '["ilk"]', "frames": ["0_a"]})
+
+    assert resp.status_code in (200, 202)
+    assert resp.get_json() == said
 
 
 def test_a_press_the_rename_lands_just_before_is_told_the_project_is_gone(tmp_path):

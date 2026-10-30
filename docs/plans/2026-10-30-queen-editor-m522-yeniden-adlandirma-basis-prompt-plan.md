@@ -45,7 +45,19 @@ Ekrana dokunulmaz, `dist` derlenmez.
 - `domain/running_name.py`: modül docstring'i ve `steady`, `moved`, `now`, yeniden girilebilirlik
   yorumları — okumalar da kilitte, hayalet klasör nedeni 472'den beri yanlış.
 
-## 3. Bitiş
+## 3. QA'dan sonra
+
+- F1, `presentation/routes.py`: `with_gallery(answer, project)` — galeriyi okur, `ProjectMissing`'te
+  cevabı galerisiz verir; `post_generate`, `post_layer` ve `copy` onu kullanır. Test (önce kırmızı,
+  üçü 500): `test_work_taken_as_the_project_moves_is_answered_as_taken`, kapıları sabit cevaplı, galeri
+  okuması projeyi bulamayan bir blueprint üstünde.
+- F2, `domain/usecases/follow_rename.py`: eski ve yeni adın kapısı, `sorted((old, new))` sırasıyla.
+  Testler: `test_a_press_on_the_new_name_as_the_rename_ends_joins_the_run` (önce kırmızı, `Busy`;
+  `PressedOnTheNewName` basışı `runner.rename`'den hemen önce sokar),
+  `test_two_renames_crossing_each_others_names_never_lock_each_other_out`.
+- BACKLOG: bilinmeyen satır türüyle referans yükleme, silinen kareyi sayan durum toplamı.
+
+## 4. Bitiş
 
 - BACKLOG: iki iş silinir; *"Proje silinirken gelen bir basış silinecek klasörde koşu başlatabilir"*
   eklenir.

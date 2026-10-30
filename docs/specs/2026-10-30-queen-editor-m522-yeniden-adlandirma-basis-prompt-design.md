@@ -57,8 +57,18 @@ kapısında (`named.steady()`) tek adla okudu. Turun sonraki okumaları — alt�
 ### Yeniden adlandırma projenin yazma kapısını alır; kapılar işçiyi kapıda alır
 
 - **`follow_rename(runner, plan_store, old, new, move)`** — taşımayı ve tutucunun, damganın
-  yönlendirilmesini `plan_store.held(old)` içinde yapar. `main.py`'deki `partial` `_plan_store`'u da
-  verir. Projeler özelliği hiçbir şey bilmez: `move` portu aynı.
+  yönlendirilmesini eski **ve yeni** adın kapısında yapar; ikisini adların sırasıyla
+  (`sorted((old, new))`) alır. `main.py`'deki `partial` `_plan_store`'u da verir. Projeler özelliği
+  hiçbir şey bilmez: `move` portu aynı.
+  - Yeni adın kapısı QA'nın bulduğu pencere için (s7): taşıma ile damganın çevrilmesi
+    (`named.moved` ile `runner.rename`) arasında yeni adla gelen bir basış klasörü bulur, işini yazar,
+    işçiyi eski adla damgalı görür ve `Busy` alır — işi koşunun kendi kuyruğunda olduğu halde. Yeni
+    adın kapısını tutan yeniden adlandırmada basış damga çevrilene kadar bekler, sonra koşuya katılır.
+  - Neden sıralı iki kapı, damgayı taşımadan önce çevirmek değil: taşıma başarısız olabilir (yeni ad
+    dolu, eski klasör yok). Yeni ad başka bir projenin adıysa, önceden çevrilmiş damga o projenin
+    basışını bu projenin koşusuna katardı — o projenin işi kimse çalıştırmadan borçlu kalırdı.
+  - Sıra: iki yeniden adlandırma birbirinin adına (düğün→nişan ve nişan→düğün) aynı anda gelse,
+    ikisi de önce aynı adın kapısını ister; biri bekler, kilitlenme olmaz.
 - **Kuyruğa iş koyan sekiz kapı** işini yazar, işçiyi alır ya da koşuya katılır ve tutucuyu yönlendirir —
   hepsini aynı kapı tutuşunda:
   - `start_batch`, `queue_layer`, `regenerate`, `queue_references`, `fix_photo`: `run_queue` çağrısı
@@ -72,6 +82,21 @@ kapısında (`named.steady()`) tek adla okudu. Turun sonraki okumaları — alt�
     kapının içinde, varlık bakışından sonra bakar; böylece eski sekmenin basışı her kapıda aynı cevabı
     alır.
 - `run_queue`'nun kendisi değişmez; docstring'i kapının içinde çağrıldığını ve nedenini söyler.
+
+### Kabul edilen bir basışın cevabı hata olmaz
+
+QA'nın bulduğu (F1): Kuyruğa ekle'nin (`post_generate`), katman eklemenin (`post_layer`) ve kopyalamanın
+(`copy`) yolları kapı döndükten sonra, kapının dışında, galeriyi okuyup cevaba koyar (`list_frames`).
+522 tam orada bekleyen bir yeniden adlandırmayı içeri alır: kapı kapısını bırakır bırakmaz klasör taşınır,
+galeri okuması `ProjectMissing` atar ve Flask 500 verir — *"Kuyruğa eklenemedi"* — oysa iş alınmış ve
+koşuyordur. Kullanıcı yeniden basar, kareler iki kez yapılır. Testle kırmızı görüldü (üç yolda 500).
+
+Yolların ortak yardımcısı `with_gallery(answer, project)` galeriyi okur; proje artık yoksa cevabı
+galerisiz verir (202, `added` ile; kopyada `copies` ile). Ekran galerisiz cevabı zaten tanıyor
+(`startPolling(body?.frames)` galeri yoksa kendisi okur; kopyada `if (body?.frames)`), bu yüzden ekran
+değişmez, `dist` derlenmez. Neden kapının içine almak değil: kapıların dönüşü (`queue_layer` bir sayı,
+`start_batch` bir sayı) ajan dahil her çağıranda değişirdi ve kapı tutuşu bir galeri okuması kadar
+uzardı; okunan şey ise yalnız bir kolaylık — ekran onu kendisi de okuyabiliyor.
 
 ### Turun okumaları da adın kapısında
 
@@ -121,6 +146,13 @@ kilidinde, yani biri ötekinden tamamen önce olur:
 
 Bir kapının yazmaları arasına da taşıma düşmez: hepsi K'nin içinde.
 
+**Yeni adla gelen basış** (`nişan`'ın kapı tutuşu K′): T `nişan`'ın kapısını da tuttuğu için K′ ya
+T'den önce olur — `nişan` henüz yok, "Proje yok", hiçbir şey yazılmaz — ya T'den sonra: klasör de damga
+da tutucu da `nişan`; K′ işini yazar ve `nişan`'ın koşusuna katılır ya da boş işçiyi alır.
+
+**Kabul edilen basışın cevabı:** K'den sonra kapının dışında okunan galeri proje taşınmış diye düşse de
+cevap 202'dir ve alınan işi söyler; kullanıcı yeniden basmaz.
+
 ## Neden hiçbir prompt boşalmaz
 
 Taşıma (`RunningName.moved`) adın kilidinde ve klasörü bütün olarak, tek bir `os.rename` ile taşır.
@@ -140,12 +172,13 @@ Dört kilit: projenin yazma kapısı **G** (`plan_store.held`, proje başına), 
 | Kim | Sıra |
 |---|---|
 | Kuyruğa iş koyan kapı | G → R (bırakılır) → N (`took`, bırakılır) → `QueueWatch.started` |
-| Yeniden adlandırma | G(eski) → N (`moved`, içinde taşıma) → bırakılır → R (`rename`) |
+| Yeniden adlandırma | G(küçük ad) → G(büyük ad) → N (`moved`, içinde taşıma) → bırakılır → R (`rename`) |
 | Döngü | N (tutuşlar); R ayrı, N'nin içinde değil; G hiç |
 | İşçiyi alan başka proje | R → bırakılır → N |
 
-Kenarlar G→R, G→N; R ve N hiç iç içe değil; N'yi tutan hiç kimse G'yi almaz; iki G hiç iç içe alınmaz
-(yeniden adlandırma yalnız eski adınkini alır). Döngü yok, kilitlenme yok.
+Kenarlar G→R, G→N ve G(x)→G(y) yalnız x < y için; R ve N hiç iç içe değil; N'yi tutan hiç kimse G'yi
+almaz; iki G'yi yalnız yeniden adlandırma tutar, her zaman adların sırasıyla. Kapılar tek G tutar.
+Döngü yok, kilitlenme yok (çapraz iki yeniden adlandırmanın testi var).
 
 **GPU hiçbir kapıyı beklemez:** döngü G'yi hiç almaz. N'yi döngüden başka yalnız yeniden adlandırma ve
 boş işçiyi alan basışın `took`'u ister; döngü en çok bir klasör taşımasını bekler (bugün de öyle).
@@ -160,7 +193,9 @@ boş işçiyi alan basışın `took`'u ister; döngü en çok bir klasör taşı
   bekler (o kapının okumaları ve yazmaları, Drive'da birkaç gidiş dönüş, birkaç saniye); o an bir tur
   ikinci tutuşundaysa onu da bekler (altındaki dosyanın okunuşu — bir fotoğraf ya da videonun baytları
   — ve kaydın okunuşu; referanslı bir işte havuzdaki N referans dosyası).
-- **Basış, süren bir yeniden adlandırmayı** bekler: bir klasör taşıması.
+- **Basış, süren bir yeniden adlandırmayı** bekler — eski adla da yeni adla da: bir klasör taşıması.
+- **Kabul edilen basışın cevabı:** galeri eskisi gibi bir kez okunur; proje taşınmışsa okunmuş sayılmaz,
+  ekran onu yeni adla kendisi okur.
 - **Döngü:** okumaları aynı, sayısı aynı; yalnız ikinci grubu kilitte yapar. Yeniden adlandırma
   sürerken en çok bir taşımayı bekler.
 
@@ -194,11 +229,17 @@ boş işçiyi alan basışın `took`'u ister; döngü en çok bir klasör taşı
 - Sekiz kapının her biri işçiyi kendi kapısını tutarken alır (`test_every_door_…`).
 - Kapıyı almadan hemen önce sokulan yeniden adlandırmada `start_batch` `ProjectMissing` verir, işçiyi
   almaz, hiçbir şey yazmaz.
+- Taşıma ile damganın çevrilmesi arasında yeni adla gelen basış `Busy` almaz, koşuya katılır; işi
+  `nişan`'da borçlu ve koşunun kuyruğunda.
+- Birbirinin adına aynı anda gelen iki yeniden adlandırma ikisi de biter.
+- Kuyruğa ekle, katman ekleme ve kopyalama, işleri alındıktan sonra proje taşınsa da 202/200 ve
+  alınanı söyleyen cevap verir, galerisiz.
 - Fotoğrafın okunmasından sonra sokulan yeniden adlandırma videoyu yazılmış prompt'la ürettirir;
   yazarın yolunda model karenin sözleriyle çağrılır; `_unwritten`'ın okumaları arasında sokulan
   yeniden adlandırma modeli bir daha çağırtmaz.
 - 513'ün yeniden adlandırma testi yeni imzayla yeşil.
-- BACKLOG'dan iki iş silindi, silme penceresi eklendi.
+- BACKLOG'dan iki iş silindi; silme penceresi ve QA'nın gördüğü iki eski hata (bilinmeyen satır
+  türüyle referans yüklemenin 500'ü, silinen kareyi sayan durum toplamı) eklendi.
 - `python -m pytest queen-editor -q` (bilerek kırmızı iki `test_notebook_clones_its_branch` testi
   dışında) ve `npm test --prefix queen-editor/frontend` yeşil.
 

@@ -112,6 +112,20 @@ klasör ardından silinir ve koşu var olmayan klasörde hata verir. Kaybolan i�
 gider), ama ekranda yersiz bir hata çıkar. Düzeltme 522'nin yeniden adlandırmaya yaptığı: silme de
 projenin kapısını alır, böylece basış ya silmeden önce biter ya sonra gelip projeyi bulamaz.
 
+### Bilinmeyen bir satır türüyle referans yüklemek 500 veriyor
+
+*(522'nin QA'sı buldu, 30 Ekim; bu koşudan eski.)* Referans yüklemesi tanınmayan bir `kind` ile
+gelince `add_references` satırın adını `references.SAID[row]`'da arar ve `KeyError` ile düşer
+(`add_references.py:59`); ekran 400 ve bir cümle yerine 500 alır. Ekranın kendi düğmeleri yalnız
+bilinen türleri gönderir. Düzeltme: bilinmeyen satır türü de `UnknownReference` olur.
+
+### Bir kare silinince durum toplamı silinen kareyi de sayıyor
+
+*(522'nin QA'sı buldu, 30 Ekim; denenmedi, bu koşudan eski.)* Bir kare silindikten sonra durum
+`done 8, total 9` diyor, oysa borçlu iş yok: toplam silinen kareyi de sayıyor gibi (`queue.counts`
+planın işlerini, silinmiş yerleri ayırmadan sayıyor olabilir). Ekran bunu "8/9" diye gösterirse sıra
+bitmemiş gibi görünür.
+
 ### Referans sırası ve arşiv işaretleri aynı anda iki yazmada birini kaybedebilir
 
 *(512'nin coder'ı buldu, 29 Ekim; denenmedi.)* 512 projenin planını, kaydını ve galeri sırasını yazan

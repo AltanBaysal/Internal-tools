@@ -14,8 +14,14 @@ def follow_rename(runner, plan_store, old, new, move):
     its claim and the holder's name all in the old folder, carried to the new one by what follows
     -- or wholly after it, and finds no project. Taken without, a press could write into the old
     folder and claim after the move, and its run read a folder that was no longer there.
+
+    The new name's gate too: a press on the new name between the move and the restamp found the
+    folder, wrote its job and was told the worker was busy with the old name. Both are taken in the
+    names' order, so two renames crossing each other's names never each hold one and wait for the
+    other.
     """
-    with plan_store.held(old):
+    first, second = sorted((old, new))
+    with plan_store.held(first), plan_store.held(second):
         answer = runner.named.moved(old, new, move)
         runner.rename(old, new)
     return answer

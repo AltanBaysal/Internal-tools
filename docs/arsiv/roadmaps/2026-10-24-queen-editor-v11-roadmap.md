@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-10-24 · **Koşu dalı:** `feat/queen-editor-v11` · **Durum:** 7/7 · bitti; kullanıcı 28 Ekim'de denedi *(kullanıcı, 28 Ekim — "ve gerisi düzgün queen agnetı ve editoru maine mergelyebilrisn")*
 
-**Yama v11.1:** 2026-10-29 · **Koşu dalı:** `feat/queen-editor-v11.1` · **Durum:** 13/16 *(kullanıcı, 29 Ekim —
+**Yama v11.1:** 2026-10-29 · **Koşu dalı:** `feat/queen-editor-v11.1` · **Durum:** 14/16 *(kullanıcı, 29 Ekim —
 "patch gibi düşün ubnları"; "queen editorun son roadmpine ekle zaten var v11.1 yap direkt sonuna ekle işte
 ynei madde olarak")*. 509 · v11-8'den 524 · v11-23'e on altı madde bu yamanın; yine tek tek yürürler. Ekrandaki sürüm V11
 kalır, yama onu artırmaz *(kullanıcı, 29 Ekim — "ekran sürümü değişmesin")*.
@@ -57,7 +57,7 @@ ana klasörde koşunun dalında yürür.
 | 519 · [v11-18](#v11-18) | Bekleyen kopya kare doğru görünür ve yerinde kalır | ✅ *(gerçek H3 üretimi ve prompt yazarının süresi kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
 | 520 · [v11-19](#v11-19) | Seçilen bir kare yalnız kendisi sayılır | ✅ · `ALIGNED` |
 | 521 · [v11-20](#v11-20) | Birleşik export'ta ses parçadan parçaya taşmaz | ✅ *(gerçek ffprobe'un süreleri, Colab'daki ffmpeg sürümü ve birleşik bir export'u dinlemek kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
-| 522 · [v11-21](#v11-21) | Yeniden adlandırma bir basışı ya da prompt'u kaybettirmez | `ALIGNED` |
+| 522 · [v11-21](#v11-21) | Yeniden adlandırma bir basışı ya da prompt'u kaybettirmez | ✅ *(Drive'ın gerçek gecikmesinde video üretilirken adlandırma ve iki sekmeden aynı anda basış kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
 | 523 · [v11-22](#v11-22) | Referans sırası ve arşiv işaretleri aynı anda yazılınca kaybolmaz | `ALIGNED` |
 | 524 · [v11-23](#v11-23) | Fotoğraf kaydına satırlar sırayla yazılır | `ALIGNED` |
 | 516 · [v11-15](#v11-15) | "Kuyruktan çıkar" yalnız sıradaki işi çıkarır | ✅ *(tünel üzerinden gerçek bir H3 işi sıradayken basmak kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
