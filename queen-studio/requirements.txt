@@ -1,0 +1,19 @@
+# What the core needs to run: the notebook installs this file (v1-25). Every package the core loads
+# is pinned, not only the two it names, so Colab's preinstalled versions (pydantic among them) do not
+# stand in for what this machine tested.
+fastapi==0.162.0
+uvicorn==0.54.0
+
+# Pulled in by the two above, at the versions this machine runs.
+annotated-doc==0.0.5
+annotated-types==0.8.0
+anyio==4.16.0
+click==8.5.0
+h11==0.16.0
+idna==3.20
+opentelemetry-api==1.45.2
+pydantic==2.14.3
+pydantic-core==2.50.4
+starlette==1.10.0
+typing-extensions==4.16.0
+typing-inspection==0.4.5

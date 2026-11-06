@@ -1,0 +1,8 @@
+.ruff_cache/
+
+# The built UI ships in the repo: the notebook clones and never builds (FOUNDATION 7). Re-including the
+# directory the root ignores is what matters: git never opens an ignored one.
+!ui/dist/
+
+# Generated from ui/src/api/openapi.json before every UI test and build, so it is never stale.
+ui/src/api/schema.d.ts

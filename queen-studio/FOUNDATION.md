@@ -70,9 +70,10 @@ single database later is an adapter change ([step 4, Depo portu](../docs/researc
 The notebook clones this repo, installs ComfyUI and its nodes and starts the core; it downloads no
 model — the agent has the core download what it needs. The core reads its settings and secrets from
 the environment, since Colab Secrets answer only the notebook. The tunnel opens only on Pro
-([step 10](../docs/research/2026-11-03-yeni-editor-v1-10-barindirma.md)). How to start the core on
-this machine is not set yet: [v1-3](../docs/roadmaps/2026-11-06-queen-studio-v1-roadmap.md#v1-3)
-replaces this sentence with the command.
+([step 10](../docs/research/2026-11-03-yeni-editor-v1-10-barindirma.md)). On this machine one
+command, from the repo's root, opens the core with its UI at `http://127.0.0.1:8200`:
+`queen-studio/.venv/Scripts/python queen-studio/main.py`. Its log and identity go to the repo's
+git-ignored `tmp/queen-studio/`.
 
 **5. The address carries no password.**
 It is random and lasts one session, and whoever holds it can do everything. Accepted knowingly: what

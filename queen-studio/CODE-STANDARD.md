@@ -5,8 +5,20 @@ How the code is laid out and the rules it is written by, decided in
 the rule: a deviation changes it as well as the step. The principles and decisions it serves:
 [FOUNDATION.md](FOUNDATION.md).
 
-Folder names, the suites' commands and the start command are not set yet:
-[v1-3](../docs/roadmaps/2026-11-06-queen-studio-v1-roadmap.md#v1-3) replaces this sentence with them.
+The folders: `core/` is the core, a folder per group (`core/api/`) and per gate (`core/disk/`);
+`main.py` is the start file; `tests/` mirrors `core/`; `ui/` is the UI, its `dist/` committed. The
+app's name and version are in `core/about.py` alone. From the repo's root — everything installs inside
+the repo, nothing globally:
+
+```bash
+queen-studio/.venv/Scripts/python -m pip install --no-cache-dir -r queen-studio/requirements-dev.txt
+npm ci --prefix queen-studio/ui --cache tmp/npm-cache
+queen-studio/.venv/Scripts/python queen-studio/main.py        # the core and its UI, http://127.0.0.1:8200
+queen-studio/.venv/Scripts/python -m pytest queen-studio -q   # the core's suite, ruff and pyright included
+npm test --prefix queen-studio/ui                             # tsc, eslint and Vitest
+npm run build --prefix queen-studio/ui
+queen-studio/.venv/Scripts/python queen-studio/write_openapi.py   # after a core change the UI must follow
+```
 
 ## Layout
 
@@ -22,6 +34,9 @@ Folder names, the suites' commands and the start command are not set yet:
   outside the process is behind a gate, so a test puts a fake in its place.
 - **Groups may call each other, never in a cycle.** Deleting a frame, `frames` asks `jobs`; were
   `jobs` to ask `frames` too, that is a cycle, and forbidden.
+- **`core/`'s root holds the app's assembly and what every group shares:** the name and version
+  (`about.py`), the HTTP app (`server.py`), the log (`log.py`). A group's rule never goes there. Why:
+  each group's rules stay in its own folder, and the root stays small enough to read whole.
 - The real gates are wired in one start file.
 - The UI is laid out by the same groups.
 - Each file has one job.

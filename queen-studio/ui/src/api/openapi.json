@@ -1,0 +1,58 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "queen-studio",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Which app and which core answer here",
+        "description": "Checks the address is this app's core. Calls no other service.",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Health": {
+        "properties": {
+          "app": {
+            "type": "string",
+            "title": "App",
+            "description": "Always the app's name: an address that answers otherwise is not ours."
+          },
+          "core": {
+            "type": "string",
+            "title": "Core",
+            "description": "This core's identity. It stays while the machine lives, restarts included."
+          },
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "description": "The core's version."
+          }
+        },
+        "type": "object",
+        "required": [
+          "app",
+          "core",
+          "version"
+        ],
+        "title": "Health"
+      }
+    }
+  }
+}

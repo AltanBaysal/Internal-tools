@@ -1,0 +1,8 @@
+# The suite and its checks, on top of what the core runs with.
+-r requirements.txt
+pytest==9.2.0
+# FastAPI's TestClient speaks through it; Starlette calls plain httpx deprecated.
+httpx2==2.16.0
+ruff==0.17.4
+# Ships its own copy of pyright and runs it on this machine's Node: nothing is downloaded.
+pyright==1.1.414

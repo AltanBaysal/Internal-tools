@@ -12,11 +12,16 @@ python -m pytest queen-agent -q
 npm test --prefix queen-agent/frontend
 python -m pytest queen-editor -q
 npm test --prefix queen-editor/frontend
+# queen-studio's Python lives in its own .venv, nothing installed globally; ruff and pyright run in
+# its suite, tsc and eslint in its UI's.
+queen-studio/.venv/Scripts/python -m pytest queen-studio -q
+npm test --prefix queen-studio/ui
 
 # The notebooks clone this repo and do not build, so a frontend change is committed together with its
 # rebuilt dist, and reaches a notebook once it is pushed.
 npm run build --prefix queen-agent/frontend
 npm run build --prefix queen-editor/frontend
+npm run build --prefix queen-studio/ui
 ```
 
 The suites an item runs are its tool's: queen-editor's and queen-agent's four for an item of either;

@@ -1,6 +1,6 @@
 # Queen Studio — Yol Haritası v1
 
-**Tarih:** 2026-11-06 · **Koşu dalı:** `feat/queen-studio-v1` · **Durum:** 2/33 · koşuyor
+**Tarih:** 2026-11-06 · **Koşu dalı:** `feat/queen-studio-v1` · **Durum:** 3/33 · koşuyor
 
 queen-studio, queen-editor'ın özelliklerini bir AI agent'ın kullanabileceği biçimde sunan yeni bir
 araç. Ne yaptığı [tasarım adımlarında](../research/2026-11-03-yeni-editor-v1-tasarim-adimlar.md).
@@ -14,7 +14,7 @@ koşu durmaz. Son iki madde de kullanıcıyla: Pro'daki deneme ve DeepSeek harne
 |---|---|---|
 | 525 · [v1-1](#v1-1) | Kurulum, kullanıcıyla adım adım | ✅ *(Colab Secrets CLI'da okunmuyor; [kararlar](2026-11-06-queen-studio-v1-kararlar.md#sapmalar))* · `ALIGNED` |
 | 526 · [v1-2](#v1-2) | Aracın kuralları, tasarımcı ve tasarım reviewer'ı | ✅ · `ALIGNED` |
-| [v1-3](#v1-3) | İskelet ve ilk ekran, sürüm V1 | `ALIGNED` |
+| 527 · [v1-3](#v1-3) | İskelet ve ilk ekran, sürüm V1 | ✅ · `ALIGNED` |
 | [v1-4](#v1-4) | Drive'ın ölçümleri | `ALIGNED` |
 | [v1-5](#v1-5) | Ortak sözleşme: hatalar, başlıklar, `GET /api` | `ALIGNED` |
 | [v1-6](#v1-6) | Liste sorgusu | `ALIGNED` |

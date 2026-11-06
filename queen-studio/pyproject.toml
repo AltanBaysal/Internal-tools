@@ -1,0 +1,21 @@
+# Settings for the checks and the suite only; queen-studio is not installed as a package.
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+# No .pytest_cache left behind: the cache only serves --lf/--ff, and the whole suite is what we run.
+addopts = "-p no:cacheprovider"
+
+[tool.ruff]
+line-length = 100
+# Colab's Python may be older than this machine's 3.14: the code is held to the oldest it may meet.
+target-version = "py312"
+extend-exclude = ["ui"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+
+[tool.pyright]
+typeCheckingMode = "strict"
+pythonVersion = "3.12"
+include = ["core", "tests", "main.py", "write_openapi.py"]
