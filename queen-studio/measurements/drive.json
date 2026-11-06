@@ -1,0 +1,1001 @@
+{
+ "item": 528,
+ "summarized": "2026-11-06",
+ "account": "the test account, drive.file scope",
+ "hosts": {
+  "local": {
+   "platform": {
+    "system": "Windows-11-10.0.26200-SP0",
+    "python": "3.14.7"
+   }
+  },
+  "colab": {
+   "platform": {
+    "system": "Linux-6.6.159+-x86_64-with-glibc2.39",
+    "python": "3.13.18"
+   }
+  }
+ },
+ "assumptions": {
+  "read_after_write": {
+   "claim": "A read by id (md5) right after another client's write returns the new md5.",
+   "relied_on_by": "Ana fikir 4, look before writing",
+   "holds": true,
+   "local": {
+    "writes": 200,
+    "stale_reads": 0,
+    "stale_at": [],
+    "update_returns_local_md5": 200,
+    "read_answered_after_write_s": {
+     "n": 200,
+     "min": 0.215,
+     "p50": 0.275,
+     "p90": 0.308,
+     "p99": 0.608,
+     "max": 0.689,
+     "mean": 0.283
+    },
+    "write_s": {
+     "n": 200,
+     "min": 1.396,
+     "p50": 1.657,
+     "p90": 2.739,
+     "p99": 3.234,
+     "max": 4.774,
+     "mean": 1.909
+    }
+   },
+   "colab": {
+    "writes": 200,
+    "stale_reads": 0,
+    "stale_at": [],
+    "update_returns_local_md5": 200,
+    "read_answered_after_write_s": {
+     "n": 200,
+     "min": 0.059,
+     "p50": 0.08,
+     "p90": 0.098,
+     "p99": 0.149,
+     "max": 0.164,
+     "mean": 0.081
+    },
+    "write_s": {
+     "n": 200,
+     "min": 0.615,
+     "p50": 0.821,
+     "p90": 1.683,
+     "p99": 4.464,
+     "max": 5.317,
+     "mean": 1.032
+    }
+   }
+  },
+  "content_and_properties": {
+   "claim": "Content and properties in one multipart files.update land together or not at all.",
+   "relied_on_by": "the main-list row and the content agreeing",
+   "holds": true,
+   "local": {
+    "writes": 200,
+    "by_id": {
+     "reads": 1334,
+     "md5_and_property_apart": 0,
+     "unknown_md5": 0
+    },
+    "by_list": {
+     "reads": 1129,
+     "md5_and_property_apart": 0,
+     "unknown_md5": 0
+    },
+    "downloads": {
+     "whole": 434,
+     "partial": 0
+    }
+   },
+   "colab": {
+    "writes": 200,
+    "by_id": {
+     "reads": 2650,
+     "md5_and_property_apart": 0,
+     "unknown_md5": 0
+    },
+    "by_list": {
+     "reads": 2157,
+     "md5_and_property_apart": 0,
+     "unknown_md5": 0
+    },
+    "downloads": {
+     "whole": 842,
+     "partial": 0
+    }
+   }
+  },
+  "cut_upload": {
+   "claim": "An existing file's new content shows only once its upload has finished.",
+   "relied_on_by": "no half-written head file",
+   "holds": true,
+   "local": {
+    "multipart_cut_trials": 20,
+    "multipart_cut_left_old": 20,
+    "old_after_all_cuts": true,
+    "whole_body_unanswered_applied": 5,
+    "whole_body_unanswered_trials": 5,
+    "whole_body_applied_after_s": {
+     "n": 5,
+     "min": 1.854,
+     "p50": 1.878,
+     "p90": 2.588,
+     "p99": 2.588,
+     "max": 2.588,
+     "mean": 2.106
+    },
+    "resumable": {
+     "trials": 5,
+     "left_old_after_first_chunk": 5,
+     "finished_new": true
+    }
+   },
+   "colab": {
+    "multipart_cut_trials": 20,
+    "multipart_cut_left_old": 20,
+    "old_after_all_cuts": true,
+    "whole_body_unanswered_applied": 5,
+    "whole_body_unanswered_trials": 5,
+    "whole_body_applied_after_s": {
+     "n": 5,
+     "min": 1.25,
+     "p50": 1.278,
+     "p90": 3.006,
+     "p99": 3.006,
+     "max": 3.006,
+     "mean": 1.732
+    },
+    "resumable": {
+     "trials": 5,
+     "left_old_after_first_chunk": 5,
+     "finished_new": true
+    }
+   }
+  },
+  "list_delay": {
+   "claim": "files.list returns properties and md5; a write shows in the listing within 5 s.",
+   "relied_on_by": "seeing another Colab's change (the 5 s list cache)",
+   "holds": true,
+   "local": {
+    "list_returns_md5_and_properties": true,
+    "create": {
+     "trials": 100,
+     "never_seen_in_60s": 0,
+     "seen_on_first_listing": 100,
+     "delay_s": {
+      "n": 100,
+      "min": 0.0,
+      "p50": 0.0,
+      "p90": 0.0,
+      "p99": 0.0,
+      "max": 0.0,
+      "mean": 0.0
+     }
+    },
+    "update": {
+     "trials": 100,
+     "never_seen_in_60s": 0,
+     "seen_on_first_listing": 100,
+     "delay_s": {
+      "n": 100,
+      "min": 0.0,
+      "p50": 0.0,
+      "p90": 0.0,
+      "p99": 0.0,
+      "max": 0.0,
+      "mean": 0.0
+     }
+    }
+   },
+   "colab": {
+    "list_returns_md5_and_properties": true,
+    "create": {
+     "trials": 100,
+     "never_seen_in_60s": 0,
+     "seen_on_first_listing": 100,
+     "delay_s": {
+      "n": 100,
+      "min": 0.0,
+      "p50": 0.0,
+      "p90": 0.0,
+      "p99": 0.0,
+      "max": 0.0,
+      "mean": 0.0
+     }
+    },
+    "update": {
+     "trials": 100,
+     "never_seen_in_60s": 0,
+     "seen_on_first_listing": 100,
+     "delay_s": {
+      "n": 100,
+      "min": 0.0,
+      "p50": 0.0,
+      "p90": 0.0,
+      "p99": 0.0,
+      "max": 0.0,
+      "mean": 0.0
+     }
+    }
+   }
+  },
+  "list_pages": {
+   "claim": "files.list with pageSize=1000 returns up to 1,000 projects in one page, mostly.",
+   "relied_on_by": "the main list and the quota",
+   "holds": true,
+   "local": {
+    "files": 1000,
+    "listings": 100,
+    "one_page": 100,
+    "pages_max": 1,
+    "complete": 100,
+    "listing_s": {
+     "n": 100,
+     "min": 1.127,
+     "p50": 1.401,
+     "p90": 1.604,
+     "p99": 1.854,
+     "max": 1.854,
+     "mean": 1.399
+    },
+    "populate": {
+     "files": 1000,
+     "wall_s": 344.2,
+     "create_s": {
+      "n": 1000,
+      "min": 1.153,
+      "p50": 1.364,
+      "p90": 1.492,
+      "p99": 1.686,
+      "max": 2.36,
+      "mean": 1.376
+     }
+    }
+   },
+   "colab": {
+    "files": 1000,
+    "listings": 100,
+    "one_page": 100,
+    "pages_max": 1,
+    "complete": 100,
+    "listing_s": {
+     "n": 100,
+     "min": 0.592,
+     "p50": 0.829,
+     "p90": 1.123,
+     "p99": 2.494,
+     "max": 2.494,
+     "mean": 0.889
+    },
+    "populate": {
+     "files": 1000,
+     "wall_s": 204.0,
+     "create_s": {
+      "n": 1000,
+      "min": 0.535,
+      "p50": 0.778,
+      "p90": 0.96,
+      "p99": 1.877,
+      "max": 3.675,
+      "mean": 0.815
+     }
+    }
+   }
+  },
+  "reserved_ids": {
+   "claim": "An id from files.generateIds can still be used days later.",
+   "relied_on_by": "ids reserved ahead for blocks, folders and outputs",
+   "holds": null,
+   "local": {
+    "file_made_with_reserved_id": true,
+    "folder_made_with_reserved_id": true,
+    "same_id_again": {
+     "status": 409,
+     "message": "A file already exists with the provided ID."
+    },
+    "pending": {
+     "reserved_at": "2026-11-06T14:13:39+00:00",
+     "checks": {
+      "1": {
+       "due": "2026-11-07T14:13:39+00:00",
+       "ids": [
+        "1eLC_ZzeYuFdPhguFzxBHCw72LrQQ9Tqw",
+        "1CFJffk_IeUZD5odRhJdV518oU1xvAM1X",
+        "1tnMpvHTMWMAmasszZ7tItdeRxGk5uHDy"
+       ]
+      },
+      "3": {
+       "due": "2026-11-09T14:13:39+00:00",
+       "ids": [
+        "1wlL0IAi_fMScIxcNpt1070jVqcVN3T0s",
+        "1llE-5QJDw24kMC3MRzai0jzdLGHa7cOU",
+        "1nR9k_YBsWdSTRDWSIHvPOTkS6zbUaDK0"
+       ]
+      },
+      "7": {
+       "due": "2026-11-13T14:13:39+00:00",
+       "ids": [
+        "1zu0ftCx3IjHAdnp4GGPU3wardr5kkFhI",
+        "1r0V_Pl7GsXNJlJz5wab4YpVeomSyxbvz",
+        "1m_zqwwDbG092wq_TDmvkirihOrCuS8rb"
+       ]
+      }
+     },
+     "spare": [
+      "1uLe-nJ1Svmo_PREjBzeEJn2OVjh75Yxg"
+     ]
+    }
+   },
+   "colab": {
+    "file_made_with_reserved_id": true,
+    "folder_made_with_reserved_id": true,
+    "same_id_again": {
+     "status": 409,
+     "message": "A file already exists with the provided ID."
+    }
+   }
+  },
+  "trash_folder": {
+   "claim": "A folder of many files goes to the trash in one call, its files with it.",
+   "relied_on_by": "deleting a project",
+   "holds": true,
+   "local": {
+    "files": 2000,
+    "trash_call_s": 2.582,
+    "listed_after_trash": 2000,
+    "trashed_at_first_check": 0,
+    "all_trashed_after_s": 20.041,
+    "explicitly_trashed": 0,
+    "untrashed_listing_shows": 0,
+    "populate": {
+     "files": 1000,
+     "wall_s": 355.2,
+     "create_s": {
+      "n": 1000,
+      "min": 1.167,
+      "p50": 1.408,
+      "p90": 1.526,
+      "p99": 1.79,
+      "max": 2.554,
+      "mean": 1.418
+     }
+    }
+   },
+   "colab": {
+    "files": 2000,
+    "trash_call_s": 2.01,
+    "listed_after_trash": 2000,
+    "trashed_at_first_check": 0,
+    "all_trashed_after_s": 9.823,
+    "explicitly_trashed": 0,
+    "untrashed_listing_shows": 0,
+    "populate": {
+     "files": 1000,
+     "wall_s": 195.0,
+     "create_s": {
+      "n": 1000,
+      "min": 0.56,
+      "p50": 0.736,
+      "p90": 0.917,
+      "p99": 1.758,
+      "max": 2.674,
+      "mean": 0.779
+     }
+    }
+   }
+  },
+  "trash_limit": {
+   "claim": "Under drive.file, a folder goes to the trash in one call whatever it holds below it.",
+   "relied_on_by": "deleting a project, whose folder holds every frame's media",
+   "holds": true,
+   "local": {
+    "largest_trashed": 3000,
+    "first_refused": null,
+    "part_size": 100
+   }
+  },
+  "rate_limit": {
+   "claim": "Four Colabs on one account, 3 writes/s each to its own file, meet no per-second limit: nothing refused, and Drive keeps at least 90% of the pace asked.",
+   "relied_on_by": "the quota sums (Değerlendirme 9)",
+   "holds": false,
+   "local": {
+    "processes": 4,
+    "seconds": 60,
+    "writes_per_second_each": 3,
+    "writes": 720,
+    "ok": 706,
+    "refused": {
+     "503 transientError": 14
+    },
+    "refused_per_process": [
+     1,
+     5,
+     4,
+     4
+    ],
+    "first_refused_at_s": 2.0,
+    "write_s": {
+     "n": 706,
+     "min": 1.217,
+     "p50": 2.425,
+     "p90": 14.582,
+     "p99": 30.5,
+     "max": 34.868,
+     "mean": 4.781
+    },
+    "sent_over_s": 118.095,
+    "asked_per_second": 12,
+    "ok_per_second": 5.37,
+    "finished_over_s": 131.4,
+    "decision": "Not measured further by the user's decision (6 Kasım): the core backs off on 403/429, and Google documents only per-minute quotas."
+   }
+  },
+  "revisions": {
+   "claim": "Every update leaves a revision, and old revisions do not count against the quota.",
+   "relied_on_by": "storage (Değerlendirme 9)",
+   "holds": true,
+   "local": {
+    "updates": 500,
+    "file_bytes": 250000,
+    "revisions_listed": 101,
+    "revisions_keep_forever": 0,
+    "revisions_bytes": 25256952,
+    "quota_delta_first": 250069,
+    "quota_delta_last": 250069,
+    "update_s": {
+     "n": 500,
+     "min": 1.361,
+     "p50": 1.678,
+     "p90": 2.841,
+     "p99": 3.246,
+     "max": 29.453,
+     "mean": 1.995
+    }
+   },
+   "colab": {
+    "updates": 500,
+    "file_bytes": 250000,
+    "revisions_listed": 101,
+    "revisions_keep_forever": 0,
+    "revisions_bytes": 25256950,
+    "quota_delta_first": 250069,
+    "quota_delta_last": 250069,
+    "update_s": {
+     "n": 500,
+     "min": 0.668,
+     "p50": 0.897,
+     "p90": 1.726,
+     "p99": 2.682,
+     "max": 3.436,
+     "mean": 1.059
+    }
+   }
+  },
+  "name_contains": {
+   "claim": "name contains ignores case in export names.",
+   "relied_on_by": "numbering export folders (1), (2)",
+   "holds": true,
+   "local": {
+    "names": [
+     "Final",
+     "final",
+     "FINAL (1)",
+     "Finale",
+     "My Final Cut",
+     "xFinal",
+     "Final_cut",
+     "Işık",
+     "ışık",
+     "İz",
+     "iz"
+    ],
+    "found": {
+     "Final": [
+      "FINAL (1)",
+      "Final",
+      "Final_cut",
+      "Finale",
+      "My Final Cut",
+      "final",
+      "xFinal"
+     ],
+     "final": [
+      "FINAL (1)",
+      "Final",
+      "Final_cut",
+      "Finale",
+      "My Final Cut",
+      "final",
+      "xFinal"
+     ],
+     "FINAL": [
+      "FINAL (1)",
+      "Final",
+      "Final_cut",
+      "Finale",
+      "My Final Cut",
+      "final",
+      "xFinal"
+     ],
+     "inal": [],
+     "Final Cut": [
+      "Final_cut",
+      "My Final Cut"
+     ],
+     "My Final": [
+      "My Final Cut"
+     ],
+     "Final (1)": [
+      "FINAL (1)",
+      "Final",
+      "Final_cut",
+      "Finale",
+      "My Final Cut",
+      "final"
+     ],
+     "Final_cut": [
+      "Final_cut",
+      "My Final Cut"
+     ],
+     "cut": [
+      "Final_cut",
+      "My Final Cut"
+     ],
+     "Işık": [
+      "Işık"
+     ],
+     "ışık": [
+      "ışık"
+     ],
+     "IŞIK": [],
+     "İz": [
+      "iz",
+      "İz"
+     ],
+     "iz": [
+      "iz",
+      "İz"
+     ],
+     "Iz": [
+      "iz",
+      "İz"
+     ],
+     "10-04": [
+      "My Final Cut"
+     ],
+     "2026-11-06 10-04 My Final Cut": [
+      "My Final Cut"
+     ]
+    },
+    "changed_after_wait": {},
+    "listed_after_s": 0.312
+   },
+   "colab": {
+    "names": [
+     "Final",
+     "final",
+     "FINAL (1)",
+     "Finale",
+     "My Final Cut",
+     "xFinal",
+     "Final_cut",
+     "Işık",
+     "ışık",
+     "İz",
+     "iz"
+    ],
+    "found": {
+     "Final": [
+      "FINAL (1)",
+      "Final",
+      "Final_cut",
+      "Finale",
+      "My Final Cut",
+      "final",
+      "xFinal"
+     ],
+     "final": [
+      "FINAL (1)",
+      "Final",
+      "Final_cut",
+      "Finale",
+      "My Final Cut",
+      "final",
+      "xFinal"
+     ],
+     "FINAL": [
+      "FINAL (1)",
+      "Final",
+      "Final_cut",
+      "Finale",
+      "My Final Cut",
+      "final",
+      "xFinal"
+     ],
+     "inal": [],
+     "Final Cut": [
+      "Final_cut",
+      "My Final Cut"
+     ],
+     "My Final": [
+      "My Final Cut"
+     ],
+     "Final (1)": [
+      "FINAL (1)",
+      "Final",
+      "Final_cut",
+      "Finale",
+      "My Final Cut",
+      "final"
+     ],
+     "Final_cut": [
+      "Final_cut",
+      "My Final Cut"
+     ],
+     "cut": [
+      "Final_cut",
+      "My Final Cut"
+     ],
+     "Işık": [
+      "Işık"
+     ],
+     "ışık": [
+      "ışık"
+     ],
+     "IŞIK": [],
+     "İz": [
+      "iz",
+      "İz"
+     ],
+     "iz": [
+      "iz",
+      "İz"
+     ],
+     "Iz": [
+      "iz",
+      "İz"
+     ],
+     "10-04": [
+      "My Final Cut"
+     ],
+     "2026-11-06 10-04 My Final Cut": [
+      "My Final Cut"
+     ]
+    },
+    "changed_after_wait": {},
+    "listed_after_s": 0.074
+   }
+  },
+  "durations": {
+   "claim": "Calls take 0.25 s (small), 0.6 s (head upload), 0.3 s (download up to 1 MB).",
+   "relied_on_by": "every duration in step 4",
+   "holds": false,
+   "calls": {
+    "get_metadata": {
+     "assumed_s": 0.25,
+     "local": {
+      "n": 100,
+      "min": 0.214,
+      "p50": 0.267,
+      "p90": 0.297,
+      "p99": 0.552,
+      "max": 0.552,
+      "mean": 0.274
+     },
+     "colab": {
+      "n": 100,
+      "min": 0.057,
+      "p50": 0.082,
+      "p90": 0.108,
+      "p99": 0.216,
+      "max": 0.216,
+      "mean": 0.087
+     },
+     "holds_on_colab": true
+    },
+    "list_small_folder": {
+     "assumed_s": 0.25,
+     "local": {
+      "n": 100,
+      "min": 0.282,
+      "p50": 0.32,
+      "p90": 0.346,
+      "p99": 0.793,
+      "max": 0.793,
+      "mean": 0.325
+     },
+     "colab": {
+      "n": 100,
+      "min": 0.082,
+      "p50": 0.104,
+      "p90": 0.14,
+      "p99": 0.305,
+      "max": 0.305,
+      "mean": 0.111
+     },
+     "holds_on_colab": true
+    },
+    "update_properties": {
+     "assumed_s": 0.25,
+     "local": {
+      "n": 100,
+      "min": 0.634,
+      "p50": 0.712,
+      "p90": 0.767,
+      "p99": 0.938,
+      "max": 0.938,
+      "mean": 0.717
+     },
+     "colab": {
+      "n": 100,
+      "min": 0.237,
+      "p50": 0.28,
+      "p90": 0.357,
+      "p99": 0.563,
+      "max": 0.563,
+      "mean": 0.299
+     },
+     "holds_on_colab": false
+    },
+    "trash": {
+     "assumed_s": 0.25,
+     "local": {
+      "n": 100,
+      "min": 0.608,
+      "p50": 0.752,
+      "p90": 0.819,
+      "p99": 1.044,
+      "max": 1.044,
+      "mean": 0.756
+     },
+     "colab": {
+      "n": 100,
+      "min": 0.252,
+      "p50": 0.384,
+      "p90": 0.468,
+      "p99": 1.446,
+      "max": 1.446,
+      "mean": 0.389
+     },
+     "holds_on_colab": false
+    },
+    "generate_ids_1000": {
+     "assumed_s": 0.25,
+     "local": {
+      "n": 100,
+      "min": 0.196,
+      "p50": 0.234,
+      "p90": 0.256,
+      "p99": 0.277,
+      "max": 0.277,
+      "mean": 0.234
+     },
+     "colab": {
+      "n": 100,
+      "min": 0.044,
+      "p50": 0.058,
+      "p90": 0.066,
+      "p99": 0.083,
+      "max": 0.083,
+      "mean": 0.059
+     },
+     "holds_on_colab": true
+    },
+    "about": {
+     "assumed_s": 0.25,
+     "local": {
+      "n": 100,
+      "min": 0.217,
+      "p50": 0.272,
+      "p90": 0.305,
+      "p99": 0.386,
+      "max": 0.386,
+      "mean": 0.275
+     },
+     "colab": {
+      "n": 100,
+      "min": 0.054,
+      "p50": 0.078,
+      "p90": 0.107,
+      "p99": 0.213,
+      "max": 0.213,
+      "mean": 0.082
+     },
+     "holds_on_colab": true
+    },
+    "copy_1m": {
+     "assumed_s": 0.25,
+     "local": {
+      "n": 100,
+      "min": 0.927,
+      "p50": 1.071,
+      "p90": 1.147,
+      "p99": 1.406,
+      "max": 1.406,
+      "mean": 1.081
+     },
+     "colab": {
+      "n": 100,
+      "min": 0.481,
+      "p50": 0.581,
+      "p90": 0.727,
+      "p99": 1.276,
+      "max": 1.276,
+      "mean": 0.61
+     },
+     "holds_on_colab": false
+    },
+    "update_head_110k": {
+     "assumed_s": 0.6,
+     "local": {
+      "n": 100,
+      "min": 1.373,
+      "p50": 1.568,
+      "p90": 1.667,
+      "p99": 1.832,
+      "max": 1.832,
+      "mean": 1.566
+     },
+     "colab": {
+      "n": 100,
+      "min": 0.67,
+      "p50": 0.813,
+      "p90": 0.973,
+      "p99": 1.82,
+      "max": 1.82,
+      "mean": 0.855
+     },
+     "holds_on_colab": false
+    },
+    "update_head_250k": {
+     "assumed_s": 0.6,
+     "local": {
+      "n": 100,
+      "min": 1.339,
+      "p50": 1.583,
+      "p90": 1.699,
+      "p99": 1.908,
+      "max": 1.908,
+      "mean": 1.586
+     },
+     "colab": {
+      "n": 100,
+      "min": 0.685,
+      "p50": 0.821,
+      "p90": 1.069,
+      "p99": 2.532,
+      "max": 2.532,
+      "mean": 0.892
+     },
+     "holds_on_colab": false
+    },
+    "create_head_110k_reserved_id": {
+     "assumed_s": 0.6,
+     "local": {
+      "n": 100,
+      "min": 1.343,
+      "p50": 1.496,
+      "p90": 1.596,
+      "p99": 1.736,
+      "max": 1.736,
+      "mean": 1.508
+     },
+     "colab": {
+      "n": 100,
+      "min": 0.65,
+      "p50": 0.787,
+      "p90": 0.918,
+      "p99": 1.228,
+      "max": 1.228,
+      "mean": 0.801
+     },
+     "holds_on_colab": false
+    },
+    "download_250k": {
+     "assumed_s": 0.3,
+     "local": {
+      "n": 100,
+      "min": 0.772,
+      "p50": 0.837,
+      "p90": 0.898,
+      "p99": 0.946,
+      "max": 0.946,
+      "mean": 0.844
+     },
+     "colab": {
+      "n": 100,
+      "min": 0.216,
+      "p50": 0.266,
+      "p90": 0.345,
+      "p99": 0.48,
+      "max": 0.48,
+      "mean": 0.28
+     },
+     "holds_on_colab": true
+    },
+    "download_1m": {
+     "assumed_s": 0.3,
+     "local": {
+      "n": 100,
+      "min": 0.668,
+      "p50": 0.763,
+      "p90": 0.851,
+      "p99": 0.928,
+      "max": 0.928,
+      "mean": 0.769
+     },
+     "colab": {
+      "n": 100,
+      "min": 0.213,
+      "p50": 0.278,
+      "p90": 0.349,
+      "p99": 2.786,
+      "max": 2.786,
+      "mean": 0.312
+     },
+     "holds_on_colab": true
+    },
+    "parallel_8_get_metadata": {
+     "local": {
+      "width": 8,
+      "call_s": {
+       "n": 100,
+       "min": 0.203,
+       "p50": 0.247,
+       "p90": 0.282,
+       "p99": 0.39,
+       "max": 0.39,
+       "mean": 0.252
+      },
+      "wall_s": 3.242
+     },
+     "colab": {
+      "width": 8,
+      "call_s": {
+       "n": 100,
+       "min": 0.055,
+       "p50": 0.076,
+       "p90": 0.094,
+       "p99": 0.22,
+       "max": 0.22,
+       "mean": 0.079
+      },
+      "wall_s": 1.03
+     }
+    },
+    "upload_video_20m_resumable": {
+     "local": {
+      "n": 5,
+      "min": 4.34,
+      "p50": 5.243,
+      "p90": 5.383,
+      "p99": 5.383,
+      "max": 5.383,
+      "mean": 4.994
+     },
+     "colab": {
+      "n": 5,
+      "min": 1.422,
+      "p50": 1.616,
+      "p90": 2.008,
+      "p99": 2.008,
+      "max": 2.008,
+      "mean": 1.684
+     }
+    }
+   }
+  }
+ },
+ "retries": {
+  "local": {
+   "trash_limit": {
+    "userRateLimitExceeded": 10
+   }
+  },
+  "colab": {}
+ }
+}

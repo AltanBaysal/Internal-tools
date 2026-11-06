@@ -1,0 +1,8 @@
+# What the Drive measurements need, at the versions this machine's queen-studio/.venv measured with;
+# installed on the Colab VM too, so both hosts time the same client. Step 5 chose Drive's official
+# Python client for the store, so the measurements go through it.
+google-api-python-client==2.201.0
+google-auth==2.62.1
+google-auth-httplib2==0.4.4
+httplib2==0.32.1
+requests==2.34.2

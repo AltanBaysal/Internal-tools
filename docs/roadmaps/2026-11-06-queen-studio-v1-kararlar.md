@@ -27,6 +27,23 @@ neye, neden, hangi belge düzeltildi.
 4. **`.secrets/` okunmaz** ([v1-1](2026-11-06-queen-studio-v1-roadmap.md#v1-1); kullanıcı, 6 Kasım —
    "okumayı engelleyen bir kural ekle"). `.claude/settings.json` Read ve Edit'i yasaklar,
    `.claude/hooks/guard_secrets.py` okuyan kabuk komutlarını durdurur. Betikler yolu alır, değer basmaz.
+5. **Colab'da Drive gereken testlere deneme hesabının token'ı geçici olarak gider** ([528 · v1-4](2026-11-06-queen-studio-v1-roadmap.md#v1-4)).
+   `colab upload` ile VM'e, iş bitince `colab rm` ile silinir, oturum kapatılır. Neden: Colab'ın
+   kendi Drive girişi CLI'da tıklamasız açılmıyor. Güvenlik kontrolü bunu "veri dışarı çıkıyor" diye
+   işaretledi; giden token yalnız deneme hesabının, yalnız uygulamanın açtığı dosyalara erişen
+   token'ı, gittiği yer o hesabın kendi Colab VM'i. Bir kez de başarısız bir yükleme, o oturumun
+   çalışma zamanı adresini (içinde geçici bir anahtarla) ekrana bastı; oturum kapandı.
+6. **Drive ölçümlerinden çıkan düzeltmeler** ([528 · v1-4](2026-11-06-queen-studio-v1-roadmap.md#v1-4)).
+   4. adıma yazıldı: çağrı süreleri ölçülenle değişti (okumalar ~0,1 sn, yazmalar ~0,8 sn); Drive
+   yoğun yazmada reddetmiyor, yavaşlatıyor, geçici `503` de yeniden denenir; 500 fotoğraflı export'un
+   kopyaları ~16 sn değil ~1,5–3 dk; export adları kodda tam karşılaştırılır, çünkü Drive'ın ad
+   araması Türkçe I'yı eşlemiyor; eski sürümler kotaya sayılmıyor, Değerlendirme 9'un iki önlemi
+   yapılmaz. Açık kalan: bu makineden bir klasörün çöpe atılması bir kez `appNotAuthorizedToChild`
+   ile reddedildi, nedeni bulunamadı; gerçek Drive'a karşı testlerde (v1-8, v1-9) izlenir. Ayrılmış
+   kimliklerin 1, 3, 7 günlük bakışı 7, 9, 13 Kasım'da.
+7. **Hız sınırı deneyini kullanıcı atlattı, sonuç yine tutuldu** ([528 · v1-4](2026-11-06-queen-studio-v1-roadmap.md#v1-4);
+   kullanıcı, 6 Kasım — "üst limiti de denemeyelim"). Atla kararı gelmeden koşmuştu; sonuç 6'daki
+   düzeltmenin dayanağı.
 
 ## Koşudan önce, belgelerin gözden geçirilmesinde
 

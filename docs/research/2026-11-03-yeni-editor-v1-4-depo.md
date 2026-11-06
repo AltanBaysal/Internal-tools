@@ -25,14 +25,18 @@ Core'un verisini Drive'da nasıl tuttuğu; aynı Drive köküne bakan birkaç Co
 
 ## Varsayımlar
 
-**Drive çağrısının süresi** (Colab'dan; hepsi ölçülecek):
+**Drive çağrısının süresi** — Colab'ın ücretsiz katmanından ölçüldü, ortanca (madde 528;
+[`drive.json`](../../queen-studio/measurements/drive.json)). Önce 0,25 / 0,6 / 0,3 sn varsayılmıştı;
+okumalar daha hızlı, yazmalar daha yavaş çıktı:
 
-| Çağrı | Varsayılan süre |
+| Çağrı | Ölçülen süre |
 |---|---|
-| Küçük okuma (`files.get` yalnız bilgi), listeleme sayfası, etiket, çöpe atma, `generateIds` | 0,25 sn |
-| Baş dosyasını yükleme (≤ 0,25 MB, tek istek) | 0,6 sn |
-| İndirme, ≤ 1 MB | 0,3 sn |
-| Aynı anda en çok 8 çağrı | — |
+| Küçük okuma (`files.get` yalnız bilgi), küçük listeleme, `generateIds`, `about` | ~0,1 sn |
+| Yalnız etiket güncellemek, çöpe atma | ~0,3–0,4 sn |
+| Kopya (1 MB) | ~0,6 sn |
+| Baş dosyasını yükleme ya da oluşturma (≤ 0,25 MB, tek istek) | ~0,8 sn (p99 ~4,5 sn) |
+| İndirme, ≤ 1 MB | ~0,3 sn |
+| Aynı anda 8 okuma | yavaşlamadan, çağrı başına ~0,08 sn |
 
 **Boyutlar** — yapay veriyle ölçüldü: bir kare kaydı ~1,8 KB (sahne, iki prompt, negatif, model,
 LoRA, seed…); her kareye 1,3 iş, karelerin yarısında video; 10 edit (her biri en çok 2.000 yer), 100
@@ -435,7 +439,8 @@ Kalıcı silme yoktur. Bir kayıt son durumuna vardıktan sonra (iş bitti, expo
 `commit`'e konmaz; 2. adım "Son durumlar değişmez" diyor. Drive adaptörü değişmeyen kayıtları bloğa
 bu yüzden koyabilir. Port'un hataları deponun sözünü taşır; çekirdek onları dört alanlı hataya
 çevirir. Hız sınırına karşı üstel bekleme ve belirsiz yazmanın yeniden yüklenmesi Drive adaptörünün
-içindedir; çekirdek `429` görmez, yalnız son reddi ya da belirsizliği.
+içindedir; çekirdek `429` görmez, yalnız son reddi ya da belirsizliği. Drive'ın geçici `503`'ü
+(`transientError`) de aynı beklemeyle yeniden denenir: ölçümde yoğun yazmada görüldü (madde 528).
 
 **Her işlem neye karşılık gelir**
 
@@ -451,7 +456,7 @@ içindedir; çekirdek `429` görmez, yalnız son reddi ya da belirsizliği.
 | `put` | Kimlikle oluşturma; 5 MB üstü resumable; tekrarda `409` | R2 `put`, `onlyIf` ile bir kez |
 | `copy` | `files.copy` | R2 kopyası |
 | `trash` | `trashed=true` | `trash/` önekine taşı; yaşam döngüsü kuralı 30 gün sonra siler |
-| `export_names` | `files.list`, `name contains` | Önekle listeleme |
+| `export_names` | `files.list`, `name contains` yalnız daraltır; ad kodda tam karşılaştırılır (Drive Türkçe I'yı eşlemiyor, kelime önekiyle arıyor; madde 528) | Önekle listeleme |
 | `space` | `about.get` | Servisin kendi sınırı |
 
 - D1'de sıra ve yerler satırın JSON sütunudur: 20.000 kare ~0,35 MB, D1'in satır sınırı 2 MB. İstek
@@ -488,7 +493,7 @@ listeleme 100 (sayfa başına), yazma 50, indirme 200.
 | Aynı anahtarla tekrar | 0 | 0 | 0 | 0 | İlk cevap bellekten; ilki sürüyorsa onu bekler |
 | Mühür (her akışta ~100 değişiklikte bir) | 1 yazma, değişikliğin içinde | +1 | 50 | +~0,6 sn | Giden en çok ~0,65 MB, ortalama ~0,3 MB; değişiklik başına ortalama ~6 KB |
 | Export başlatmak | 1 listeleme + 1 klasör + bak + yaz | 4 | 205 | ~1,4 sn | Her export'ta 1 listeleme, `(1)`, `(2)` için |
-| Export süresince | fotoğraf başına 1 kopya; diskte olmayan video başına 1 indirme; 1 resumable yükleme | — | 50·foto + 200·video | foto 500 → ~16 sn | GPU'yu beklemez |
+| Export süresince | fotoğraf başına 1 kopya; diskte olmayan video başına 1 indirme; 1 resumable yükleme | — | 50·foto + 200·video | foto 500 → ~1,5–3 dk: Drive hesabın yazmalarını saniyede ~3–6'ya yavaşlatıyor (madde 528) | GPU'yu beklemez |
 | Export bitişi | bak + yaz | 2 | 55 | ~0,85 sn | |
 | History, son kayıtlar | 0 | 0 | 0 | 0 | `tail` ve bellek |
 | History, eski kayıtlar | blok başına 1 indirme, ilk seferde | 1 | 200 | ~0,4 sn | Sonra diskten |
@@ -684,11 +689,17 @@ Ani yükler: 20.000 karelik projeyi ilk yüklemek ~4.000; 500 fotoğraflı expor
 
 Sınıra takılınca Drive `403 User rate limit exceeded` ya da `429` döner. Drive adaptörü, belgenin
 önerdiği gibi üstel bekler (en çok ~32 sn, rastgele kaydırmayla) ve yeniden dener; istek yavaşlar, bir şey
-kaybolmaz. ~60 sn'de olmazsa istek `storage_rejected` ile döner. Saniye başına sınır belgelenmemiş;
-bu makineden, deneme hesabıyla dört süreçle ölçülecek (Ölçülmemiş varsayımlar).
+kaybolmaz. ~60 sn'de olmazsa istek `storage_rejected` ile döner. Saniye başına sınır belgelenmemiş.
+Ölçüldü (madde 528; dört süreç, her biri saniyede 3 yazma, bir dakika): Drive reddetmedi, yavaşlattı —
+toplam saniyede ~5–6 yazma, yazma ortancası 2,4 sn, en uzunu 35 sn; 720 yazmanın 14'ü geçici `503`.
+Beklenen yük (Colab başına dakikada ~10 değişiklik) bunun çok altında; yalnız export'un kopyaları uzar.
 
-**Drive'ın eski sürümleri.** Baş dosyasının her güncellemesi Drive'da bir sürüm bırakır (ölçülecek;
-belge bunu açık yazmıyor). Belgeye göre ikili dosyaların eski sürümleri genellikle 30 gün tutulur;
+**Drive'ın eski sürümleri.** Ölçüldü (madde 528): bir dosya 500 kez güncellenince Drive ~100 sürüm
+tutuyor, eskilerini hemen bırakıyor; kota yalnız güncel dosya kadar arttı. Eski sürümler kotaya
+sayılmıyor; aşağıdaki tablo üst sınırdır ve sondaki iki önlem gerekmiyor, yapılmaz.
+
+Ölçümden önce yazılan: baş dosyasının her güncellemesi Drive'da bir sürüm bırakır (belge bunu açık
+yazmıyor). Belgeye göre ikili dosyaların eski sürümleri genellikle 30 gün tutulur;
 dosyanın 100 sürümü olunca daha erken silinebilir. "Keep Forever" işaretli sürümler kotaya sayılır;
 ötekilerin sayılıp sayılmadığını belge söylemiyor, doğrulanmadı.
 
@@ -768,6 +779,11 @@ yaz", Drive kimliklerinin ayrılması, Drive'ın çöpü ve sürümleri.
   fonksiyondur.
 
 ### 14. Ölçülmemiş varsayımlar
+
+Madde 528'de ölçüldü; sonuçlar [`drive.json`](../../queen-studio/measurements/drive.json)'da ve
+[spec'in Sonuçlar'ında](../specs/2026-11-06-queen-studio-m528-drive-olcumleri-design.md). Tutmayanlar
+(hız sınırı, çağrı süreleri, Türkçe ad araması) yukarıda düzeltildi; ayrılmış kimliklerin 1, 3 ve 7
+günlük bakışı 7, 9 ve 13 Kasım'da yapılır.
 
 | Varsayım | Neye dayanıyor | Küçük deney |
 |---|---|---|
