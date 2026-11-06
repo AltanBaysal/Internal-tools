@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
-from core.clock.clock import Clock, ManualClock
+from core.clock.clock import Clock, ManualClock, SystemClock
 
 START = datetime(2026, 11, 6, 9, 0, tzinfo=UTC)
 
@@ -41,3 +41,14 @@ def test_it_does_not_go_back() -> None:
         clock.sleep(-1)
 
     assert clock.now() == START
+
+
+def test_the_system_clock_gives_utc_and_sleeps_for_real() -> None:
+    # Wired in the start file and in the opt-in real-Drive tests; no other test sleeps on it.
+    clock: Clock = SystemClock()
+
+    before = clock.now()
+    clock.sleep(0)
+
+    assert before.utcoffset() == timedelta(0)
+    assert clock.now() >= before

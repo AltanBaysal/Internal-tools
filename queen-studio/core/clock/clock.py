@@ -2,12 +2,13 @@
 
 Whatever waits — the in-memory store's slowness, the Drive adapter's backoff, the core's 5 s and
 30 s looks — is handed a clock, so no test waits a real second (step 12): a test hands in a
-ManualClock, whose sleep moves its time on and returns at once. The real clock is wired in the start
-file with the first thing that waits on Drive (v1-8).
+ManualClock, whose sleep moves its time on and returns at once. SystemClock is the real one: the
+opt-in tests on the real Drive take it today, and the start file once it opens the store (v1-25).
 """
 
 import threading
-from datetime import datetime, timedelta
+import time
+from datetime import UTC, datetime, timedelta
 from typing import Protocol
 
 
@@ -38,3 +39,13 @@ class ManualClock:
             raise ValueError(f"A clock does not go back: sleep({seconds}).")
         with self._lock:
             self._now += timedelta(seconds=seconds)
+
+
+class SystemClock:
+    """The machine's own time and real sleep."""
+
+    def now(self) -> datetime:
+        return datetime.now(UTC)
+
+    def sleep(self, seconds: float) -> None:
+        time.sleep(seconds)

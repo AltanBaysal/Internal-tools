@@ -101,6 +101,17 @@ neye, neden, hangi belge düzeltildi.
     indirme, listede 25 çağrı ve 8 resim; ComfyUI'ye ve indirmelere süre sınırı, Civitai anahtarının
     log'da görünmemesi, büyük projenin yüklenmemesi. Sayılar önerinin kendisi; kullanıcı sonda bu
     belgenin üstünden geçerken değiştirebilir. Yolda bulunan iş v1-43'ten.
+16. **Drive'da her mühür yeni bir blok yazar, eskisi bir saat sonra çöpe gider** ([532 · v1-8](2026-11-06-queen-studio-v1-roadmap.md#v1-8)).
+    4. adım açık bloğu yerinde yeniden yazıyordu; iki Colab aynı anda mühürlese proje kalıcı okunamaz
+    olurdu (reviewer). Şimdi: taze kimlikte yeni blok; yerini veren blok bir saat sonra çöpe, hiçbir
+    şey kalıcı silinmez (ilke 1). Her değişikliğin 10 dakikalık bir son süresi var, geçerse reddedilir;
+    böylece bir saat içinde eski bloğu anan bir baş dosyası yazılamaz. Zamanlar Drive'ın saatinden.
+    Bedeli: mühür başına +1 listeleme ve çöp; kapanan blok başına çöpte 30 gün ~3–7 MB (kayıtlar),
+    ~55 MB (history), sürekli çalışan bir Colab için en çok ~2,6 GB; videoların yanında küçük, history
+    bloğunu 1 MB'ta kapatmak (Değerlendirme 9) yapılmadı. Öbür sapmalar: `load` baş dosyası için 2
+    çağrı (değişmemiş projede 1), yazmanın kimliği `w`, kaybolan yazmadan önce md5'e bakılması, klasör
+    kimliği etikette, `create` mühürlemez, bilinmeyen `v` okunamaz, disk önbelleğinin anahtarı md5.
+    Hepsi: [m532 spec, 4. adımdan sapmalar](../specs/2026-11-06-queen-studio-m532-drive-projeler-design.md#4-adımdan-sapmalar).
 
 ## Koşudan önce, belgelerin gözden geçirilmesinde
 
