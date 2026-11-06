@@ -1,8 +1,8 @@
 # CLAUDE.md
 
-Three tools, a folder each: `collab-toolbox` (Colab notebooks), `queen-editor` and `queen-agent` (web
-apps). Their rules sit beside them and say why the code is shaped as it is: `FOUNDATION.md` and
-`CODE-STANDARD.md` in the two apps, `NOTEBOOK-STANDARD.md` in collab-toolbox.
+Four tools, a folder each: `collab-toolbox` (Colab notebooks), `queen-editor`, `queen-agent` and
+`queen-studio` (web apps). Their rules sit beside them and say why the code is shaped as it is:
+`FOUNDATION.md` and `CODE-STANDARD.md` in the three apps, `NOTEBOOK-STANDARD.md` in collab-toolbox.
 
 ## Commands
 
@@ -18,6 +18,10 @@ npm test --prefix queen-editor/frontend
 npm run build --prefix queen-agent/frontend
 npm run build --prefix queen-editor/frontend
 ```
+
+The suites an item runs are its tool's: queen-editor's and queen-agent's four for an item of either;
+queen-studio's alone for a queen-studio item, since it shares no code with the others. Every tool's
+suites run once before a queen-studio run merges into `main`.
 
 Tests cover code. Documents are for people, and a test that reads a `.md` file breaks each time one is
 reworded, so none does (item 431). The exception is the `.md` files in
@@ -71,15 +75,21 @@ the git.
   it to the user before any code. A coder shapes new code itself, but asks before it restructures
   code already written; a fault it finds in passing is reported, not rewritten.
 - A [qa](.claude/agents/qa.md) agent then checks the items that change the screen or what the tool
-  does, as a tester: against the item and its spec, the four suites, and the screen with Playwright.
-  It comes once the reviewer's findings are fixed, so it tests the code that is committed. A change
-  of tests, comments or documents alone goes without it.
-- Both report and the coder fixes. The main agent reads their reports and the diff, checks the spec
-  against the item, and runs the four suites itself. What falls short goes back to the same coder,
-  who still holds the context; what passes, the main agent commits.
-- A coder can ask the main agent at any time and wait for the answer. The main agent answers from
-  what it has — the roadmap, the code, the rules, the conversation — and asks the user whenever it
-  cannot answer itself.
+  does, as a tester: against the item and its spec, the item's suites, and the screen with
+  Playwright. It comes once the reviewer's findings are fixed, so it tests the code that is
+  committed. A change of tests, comments or documents alone goes without it.
+- A design item — a tool's screens, designed in this repo — goes to the
+  [designer](.claude/agents/designer.md) in place of the coder, and the
+  [design reviewer](.claude/agents/design-reviewer.md) looks at the experience before the reviewer
+  reads the code, as on any item. A designed screen is wired to the core by a later item, a coder's,
+  and its look stays (the user, 6 Kasım). So a code item goes coder → reviewer → QA where it applies
+  → main agent, and a design item designer → design reviewer → reviewer → QA → main agent.
+- They report and the agent that built the item fixes it. The main agent reads their reports and the
+  diff, checks the spec against the item, and runs the item's suites itself. What falls short goes
+  back to that same agent, which still holds the context; what passes, the main agent commits.
+- A coder or the designer can ask the main agent at any time and wait for the answer. The main agent
+  answers from what it has — the roadmap, the code, the rules, the conversation — and asks the user
+  whenever it cannot answer itself.
 - An agent working alone works in the main folder, on the run's branch. A worktree is opened only
   while two or more agents build at the same time, because each worktree's installs and suites weigh
   on this machine (the user, 10 Ekim — "aynı anda tek agent çalışıyorsa worktree oluşturma, bilgisayarı
@@ -88,14 +98,15 @@ the git.
   `<run branch>-m<number>`, opened from the run's branch: the Agent tool's own worktree isolation opens
   from `main`, which lacks the run's work.
 - The main agent merges finished items from their worktrees into the run's branch one at a time, with
-  the four suites after each merge, so a break points at one item, and removes each worktree once its
+  the item's suites after each merge, so a break points at one item, and removes each worktree once its
   item is merged. Branches such as the run's stay, for the history.
 
 ## Browser
 
-Playwright MCP (`.mcp.json`) is the main agent's and QA's, for seeing a running tool the way the user
-does. It opens the tools on this machine; any other address is the user's call, since the allow-list
-flag misses redirects and is no security boundary.
+Playwright MCP (`.mcp.json`) is the main agent's and QA's — on a design item the designer's and the
+design reviewer's too — for seeing a running tool the way the user does. It opens the tools on this
+machine; any other address is the user's call, since the allow-list flag misses redirects and is no
+security boundary.
 
 It has one browser, and everyone who calls it shares that browser's tabs: one agent's navigation moves
 the page under another's (tried on 9 Ekim). So one agent uses it at a time — no main-agent look while
@@ -103,9 +114,14 @@ QA has the screen, and no two QA agents trying a screen at once.
 
 ## Designs
 
-The designer works in `D:\Github\queen-design` (`AltanBaysal/queen-design`), a folder per tool under
-`projects/`. Its `main` is what the tools already build; each round arrives on a branch the user names,
-per tool. Fetch, diff that branch against `main`, and each difference becomes a roadmap item.
+queen-editor's and queen-agent's screens are designed in `D:\Github\queen-design`
+(`AltanBaysal/queen-design`), a folder per tool under `projects/`. Its `main` is what the tools already
+build; each round arrives on a branch the user names, per tool. Fetch, diff that branch against `main`,
+and each difference becomes a roadmap item.
+
+queen-studio's are not drawn there: the [designer](.claude/agents/designer.md) builds them in this
+repo, in the tool's own UI code (the user, 6 Kasım — "queen-design reposunda çizmesin, kendimiz
+yapalım").
 
 ## Tools
 
@@ -126,5 +142,5 @@ check. The shell is for what has no tool: git, the suites, builds, processes.
 - A comment says why, and what is true now; the history is in git.
 - An error message prints what the command or the service actually said, not a guessed cause.
 - Turkish for what a person reads: notebook markdown and output, queen-editor's UI, everything under
-  `docs/`. English for code, comments, commits and the rule files — and QueenAgent's UI, on purpose
-  (its `CODE-STANDARD.md` says why).
+  `docs/`. English for code, comments, commits and the rule files — and QueenAgent's and queen-studio's
+  UI, on purpose (their `CODE-STANDARD.md` says why).

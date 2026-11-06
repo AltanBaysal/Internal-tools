@@ -16,7 +16,7 @@ spec'inde, kodu okuduktan sonra yazar; reviewer ve QA onlara bakar (CLAUDE.md). 
 - Hiçbir test gerçek bir saniye beklemez; saat dışarıdan verilir.
 - Yarışlar zaman penceresiyle değil, taklit servislerdeki kancalarla kurulur; sonuç her koşuda
   aynıdır. queen-editor'da yarışların çoğunu test değil QA bulmuştu (512, 513, 522, 523).
-- Maliyet de test edilir: her işlemin kaç Drive çağrısı yaptığı (4. adımın tablosu). queen-editor'da
+- Maliyet de test edilir: her işlemin kaç Drive çağrısı yaptığı (4. adımın tablosu). queen-agent'ta
   446'yı hiçbir review görmemişti.
 - Bilinen kırmızı test olmaz.
 

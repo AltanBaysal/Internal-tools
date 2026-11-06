@@ -38,5 +38,5 @@ user can see them.
 You can ask the main agent at any time: return your question, and you are resumed with the answer. A
 wrong guess costs more than the wait.
 
-Report the files you changed, the four suites' result lines, and anything you were unsure of — or your
-question.
+Report the files you changed, the item's suites' result lines (CLAUDE.md, Commands), and anything you
+were unsure of — or your question.
