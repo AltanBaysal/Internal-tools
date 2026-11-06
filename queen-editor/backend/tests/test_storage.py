@@ -1,5 +1,6 @@
 import errno
 import os
+import time
 from types import SimpleNamespace
 
 import pytest
@@ -112,6 +113,11 @@ CALLS = {
     "save_file": lambda storage, source: storage.save_file("düğün", "01.mp4", source),
     "append_line": lambda storage, source: storage.append_line("düğün", "photos.jsonl", "{}"),
     "delete_file": lambda storage, source: storage.delete_file("düğün", "a.png"),
+    "stage_bytes": lambda storage, source: storage.stage_bytes("düğün", b"PNG"),
+    "rename_file": lambda storage, source: storage.rename_file("düğün", "a.png", "c.png"),
+    "sweep_staged": lambda storage, source: storage.sweep_staged("düğün", 3600),
+    "trash_dir": lambda storage, source: storage.trash_dir("düğün"),
+    "sweep_trash": lambda storage, source: storage.sweep_trash(3600),
 }
 
 
@@ -291,6 +297,64 @@ def test_a_left_over_temporary_file_is_not_listed(tmp_path):
     storage.write_bytes("düğün", "0_a.png", b"PNG")
 
     assert storage.list_files("düğün") == ["0_a.png"]
+
+
+def test_staged_bytes_are_hidden_until_they_are_given_a_name(tmp_path):
+    """Madde 523: an upload writes its bytes before it knows the name they will carry."""
+    storage = with_project(tmp_path)
+
+    staged = storage.stage_bytes(("düğün", "referans"), b"PNG")
+
+    assert staged.startswith(TEMP_PREFIX)
+    assert storage.list_files(("düğün", "referans")) == []
+    storage.rename_file(("düğün", "referans"), staged, "kedi.png")
+    assert storage.list_files(("düğün", "referans")) == ["kedi.png"]
+    assert (tmp_path / "düğün" / "referans" / "kedi.png").read_bytes() == b"PNG"
+
+
+def test_staging_that_fails_halfway_leaves_nothing_behind(tmp_path, monkeypatch):
+    storage = with_project(tmp_path)
+
+    def broken(*_args):
+        raise OSError(errno.EIO, "Input/output error")
+
+    monkeypatch.setattr(storage_module.os, "fsync", broken)
+
+    with pytest.raises(OSError):
+        storage.stage_bytes("düğün", b"PNG")
+
+    assert list((tmp_path / "düğün").iterdir()) == []
+
+
+def test_a_sweep_takes_only_the_hidden_files_older_than_it_is_told(tmp_path):
+    """A staged upload whose folder was renamed from under it, or whose server died, is never
+    placed or discarded: hidden, but it holds its megabytes of Drive (madde 523's reviewer). One
+    younger may be a write still on its way."""
+    storage = with_project(tmp_path)
+    folder = tmp_path / "düğün"
+    for name in (f"{TEMP_PREFIX}eski", "eski.png", f"{TEMP_PREFIX}yeni"):
+        (folder / name).write_bytes(b"x")
+    two_hours_ago = os.path.getmtime(folder / "eski.png") - 7200
+    for name in (f"{TEMP_PREFIX}eski", "eski.png"):
+        os.utime(folder / name, (two_hours_ago, two_hours_ago))
+
+    storage.sweep_staged("düğün", 3600)
+
+    assert sorted(path.name for path in folder.iterdir()) == sorted(
+        ["eski.png", f"{TEMP_PREFIX}yeni"])
+
+
+def test_a_sweep_of_a_folder_that_is_not_there_is_nothing(tmp_path):
+    with_project(tmp_path).sweep_staged(("düğün", "referans"), 3600)
+
+
+def test_staging_never_opens_a_project_folder(tmp_path):
+    storage = Storage(str(tmp_path))
+
+    with pytest.raises(FileNotFoundError):
+        storage.stage_bytes(("yok", "referans"), b"PNG")
+
+    assert not (tmp_path / "yok").exists()
 
 
 def test_save_file_brings_a_file_in_from_the_machine(tmp_path):
@@ -562,6 +626,55 @@ def test_renaming_onto_a_name_that_is_taken_moves_nothing(tmp_path):
 
     assert storage.dir_exists("düğün")
     assert storage.dir_exists("nikah")
+
+
+def test_a_folder_put_in_the_trash_is_gone_at_once_under_a_hidden_name(tmp_path):
+    """Madde 523's QA: a removal over Drive takes tens of seconds, and a write landing in the folder
+    meanwhile made it fail half way. One rename takes the name away first; listings skip the
+    hidden one."""
+    storage = with_project(tmp_path)
+    storage.write_text(("düğün", "referans"), "a.png", "PNG")
+
+    trash = storage.trash_dir("düğün")
+
+    assert trash.startswith(TEMP_PREFIX)
+    assert not storage.dir_exists("düğün")
+    assert storage.list_dirs() == []
+    assert (tmp_path / trash / "referans" / "a.png").read_text(encoding="utf-8") == "PNG"
+    assert storage.trash_dir("düğün") is False
+
+
+def test_a_folder_in_the_trash_is_not_there_for_anyone_who_asks_by_name(tmp_path):
+    """Madde 523's reviewer: every project door asks dir_exists, and a URL naming the trash would
+    otherwise queue, upload or export into it until it was swept. Hidden, as list_dirs hides it."""
+    storage = with_project(tmp_path)
+    trash = storage.trash_dir("düğün")
+
+    assert storage.dir_exists(trash) is False
+    assert storage.dir_exists((trash, "referans")) is False
+    assert storage.rename_dir(trash, "geri") is False
+    assert storage.trash_dir(trash) is False
+    with pytest.raises(FileNotFoundError):
+        storage.path((trash, "referans"), "a.png")
+    assert (tmp_path / trash).is_dir()
+    assert not (tmp_path / "geri").exists()
+
+
+def test_a_sweep_of_the_trash_takes_only_what_was_put_there_long_enough_ago(tmp_path, monkeypatch):
+    """Trash a removal could not finish, or a server died before; never another delete's own, put
+    there a moment ago and still being removed."""
+    storage = Storage(str(tmp_path))
+    for name in ("eski", "yeni", "düğün"):
+        storage.make_dir(name)
+    now = time.time()
+    monkeypatch.setattr(storage_module.time, "time", lambda: now - 7200)
+    storage.trash_dir("eski")
+    monkeypatch.setattr(storage_module.time, "time", lambda: now)
+    fresh = storage.trash_dir("yeni")
+
+    storage.sweep_trash(3600)
+
+    assert sorted(path.name for path in tmp_path.iterdir()) == sorted([fresh, "düğün"])
 
 
 def test_deleting_a_folder_takes_everything_in_it(tmp_path):

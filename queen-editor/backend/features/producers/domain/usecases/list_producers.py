@@ -1,4 +1,4 @@
-"""What the Üreticiler panel draws: three rows, each with a name and an answer.
+"""What the Üreticiler panel draws: a row per producer, each with a name and an answer.
 
 Installed means every row of the producer's declared group is answered. A row asks one of three
 questions and its shape says which: a named row asks for that file, a row naming a kind asks

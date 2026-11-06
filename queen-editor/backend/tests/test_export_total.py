@@ -10,6 +10,7 @@ the number on the export screen, the fold included.
 from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
 from backend.features.photo_generation.domain import layers
 from backend.features.photo_generation.domain.run_loop import make_job
+from backend.features.photo_generation.domain.running_name import RunningName
 from backend.features.photo_generation.domain.usecases.copy_frames import copy_frames
 from backend.features.photo_generation.domain.usecases.export_summary import export_summary
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
@@ -19,6 +20,7 @@ from backend.tests.test_photo_usecases import (
     FakeOrderStore,
     FakePlanStore,
     FakeStore,
+    NoMutes,
     frame,
     sync_runner,
 )
@@ -42,7 +44,8 @@ def project(tmp_path, *videos):
 
 def summary(store, record, plan_store, graph):
     """The export summary, `graph` standing for how long the session's video graph runs."""
-    return export_summary(record, store, plan_store, FakeOrderStore(), lambda: graph, "düğün")
+    return export_summary(record, store, plan_store, FakeOrderStore(), lambda: graph, "düğün",
+                          mutes=NoMutes())
 
 
 # --- The record's fold ---------------------------------------------------------------------------
@@ -128,8 +131,9 @@ def test_a_video_made_at_a_chosen_length_counts_at_it(tmp_path):
                               "prompt": "kadın dönüyor", "negative": "", "seed": 5, "model": "",
                               "seconds": 12})
     store = FakeStore()
+    store.files["0_a.png"] = b"PNGDATA"
 
     make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: FakeGenerator()},
-             lambda: "t", "düğün")()
+             lambda: "t", named=RunningName("düğün"))()
 
     assert summary(store, record, plan_store, graph=4)["seconds"] == 12

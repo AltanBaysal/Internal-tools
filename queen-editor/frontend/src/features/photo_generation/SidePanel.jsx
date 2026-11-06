@@ -10,7 +10,6 @@ import {
   PhotoGlyph,
   ProducersGlyph,
   QueueGlyph,
-  SoundGlyph,
   VideoGlyph,
 } from "./glyphs.jsx";
 import LayerPanel from "./LayerPanel.jsx";
@@ -54,8 +53,8 @@ const WAITING = { flex: 1, display: "flex", alignItems: "center", justifyContent
 
 // Which panel gets which icon. The drawings live in glyphs.jsx, because the photo one is also the
 // icon its own submit button carries.
-const GLYPH = { photo: PhotoGlyph, video: VideoGlyph, audio: SoundGlyph, queue: QueueGlyph,
-                agent: AgentGlyph, producers: ProducersGlyph };
+const GLYPH = { photo: PhotoGlyph, video: VideoGlyph, queue: QueueGlyph, agent: AgentGlyph,
+                producers: ProducersGlyph };
 
 // Which panel each project's column was last showing. Opening a frame's detail replaces the whole
 // project screen, so this component is torn down and built again on every step in and out; without
@@ -76,11 +75,10 @@ function opening(project) {
 // hard-coded buttons. The id is the layer's own word, so it matches both the glyph's name and what
 // the server calls that kind of job. `title` is what the rail's icon is called; `heading` is what
 // the open panel is called, and the queue is the one place the design gives those two different
-// words.
+// words. No sound panel since MMAudio went (madde 514): nothing makes a new sound.
 const PANELS = [
   { id: "photo", title: "Fotoğraf üret" },
   { id: "video", title: "Video üret" },
-  { id: "audio", title: "Ses üret" },
   { id: "queue", title: "Kuyruğu takip et", heading: "Kuyruk" },
   { id: "agent", title: "AI agent" },
   { id: "producers", title: "Üreticiler", apart: true },
@@ -184,13 +182,9 @@ export default function SidePanel({ job, known, error, errorField, busyElsewhere
                          onGenerate={onGenerate} onClearError={onClearError}
                          onInstall={producers?.install} />
         ))}
-        {/* One panel, two layers: the design asks for the same screen twice, so only the words and
-            the scope rule differ (see LayerPanel). The panel's call goes through whole, with the
-            layer in front: a list of named arguments here would drop whatever the panel adds -- the
-            pool's prompts ride fourth (madde 325). Keyed by the layer: drawn in the same place,
-            the two would otherwise be one panel, and the video one's tab and words would pass to
-            the sound one. */}
-        {(open === "video" || open === "audio") && (
+        {/* The panel's call goes through whole, with the layer in front: a list of named arguments
+            here would drop whatever the panel adds -- the pool's prompts ride fourth (madde 325). */}
+        {open === "video" && (
           <LayerPanel key={open} layer={open} project={project} frames={frames} selected={selected}
                       poolShown={poolShown} onShowPool={onShowPool} pool={pool}
                       job={job} busyElsewhere={busyElsewhere} error={error}

@@ -20,15 +20,14 @@ Revisit the libraries only if we ever embed the UI inside ComfyUI as a custom no
 
 ## Independence from collab-toolbox
 Queen Editor wraps the same pipelines as `collab-toolbox` — the photo one from
-`photo_generator/nova-3dcg/`, the video one, MiniMax H3, from `video_experiments/minimax-h3/`, the
-sound one from `mmaudio_generate.ipynb` — but it depends on nothing there at runtime: no imported
+`photo_generator/nova-3dcg/`, the video one, MiniMax H3, from `video_experiments/minimax-h3/` — but
+it depends on nothing there at runtime: no imported
 cell, no shared file, no shared Drive folder. What we inherit is knowledge, not code:
 
 | Inherited (knowledge) | Never (dependency) |
 |---|---|
 | The ComfyUI graphs — copied into `assets/` as our own files: `workflow_api.json`, and H3's `workflow_video_h3_api.json` and `workflow_video_h3_first_last_api.json` | Reading `collab-toolbox`'s copies, or Drive's copy of any of them |
 | Injection node ids — photo (`"3"`, `"4"`, `"23"`, `"40"`, `"45"`), video (`"2730"`, `"2739"`) | `api.ipynb`'s or `minimax-h3/manual.ipynb`'s CONFIG cell |
-| MMAudio's settings — architecture, fine-tune, steps, cfg, solver, negative, chunk lengths — written into our own files | Importing anything from `mmaudio_generate.ipynb`, or running it. Sound is the one engine we call as a library rather than through ComfyUI ([FOUNDATION 6](FOUNDATION.md)) |
 | Setup machinery — the custom nodes, headless ComfyUI, the model downloads — taken from those notebooks, because it is proven, and written into `colab/`, where it runs under test | Running or importing their cells, or reading a file they own. A copy is not a dependency; its cost is that the two notebooks are maintained separately |
 | Which model files each pipeline needs: the names into `features/producers/` so the panel can answer whether they are here, the addresses into `queeneditor.ipynb` where they are fetched ([FOUNDATION 9](FOUNDATION.md)) | Two places knowing one address. The app carries no URL at all — a producer's group is a reading list, and reading it is all the app does with it |
 | Proven behaviour: `/prompt` → `/history` → `/view`, and the idea that a failure is either the frame's or the run's | Copying those functions — we write them into our own layers. The stop rule itself is ours: the same frame is retried three times, not three frames in a row ([Madde 8](../docs/arsiv/specs/2026-08-09-queen-editor-v4-madde-8-durma-kurali-design.md)) |
@@ -138,7 +137,6 @@ The notebook's own code: what `queeneditor.ipynb` imports from its clone, one mo
 - `comfy.py`: ComfyUI's install and its start;
 - `nodes.py`: the custom node installs;
 - `downloads.py`: the model downloads, with the disk check, the folder listing and the summary;
-- `sound.py`: MMAudio's library and weights;
 - `server.py`: Flask, the tunnel, the link and the live log.
 
 It sits outside `backend/` because the app downloads nothing ([FOUNDATION 9](FOUNDATION.md)): the
@@ -187,8 +185,8 @@ User-facing UI text and notebook markdown / `print` / `assert`: Turkish.
 ## Tests
 Backend: domain and use cases test with fake ports — no ComfyUI, no Drive.
 
-Notebook code: `colab/` runs under pytest with the machine faked — Hugging Face's downloader and
-MMAudio's weights swapped in `sys.modules`; the apt, curl/aria2c, git, pip, wget, pkill and tail
+Notebook code: `colab/` runs under pytest with the machine faked — Hugging Face's downloader
+swapped in `sys.modules`; the apt, curl/aria2c, git, pip, wget, pkill and tail
 calls, the started processes, their health checks and the clock replaced — and real files on disk.
 
 Frontend: vitest + jsdom. Test files sit next to their source as `<name>.test.js(x)`; they are never

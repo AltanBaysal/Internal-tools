@@ -74,6 +74,76 @@ saçma şeyler ortaya çıkıyor".)* **v7'nin ilk maddesi olarak yazıldı, koş
 
 ## Diğer
 
+### Export ekranı üretilen videoyu kuyrukta saymıyor
+
+*(518'in QA'sı buldu, 30 Ekim; bu koşudan eski.)* Bir video üretilirken export ekranı "Üretim sürüyor — 0
+video kuyrukta" diyor. Sayı galerinin `owed`'undan geliyor (`ExportScreen.jsx`), ve üretilmekte olan iş
+orada sayılmıyor.
+
+### Katmanı kırmızı karonun seçim dairesine basılamıyor
+
+*(519'un QA'sı buldu, 30 Ekim; 519'dan eski.)* Galeride fotoğrafı inmiş ama bir katmanı kırmızı karoda
+fare üstüne gelince Tekrar dene perdesi iniyor (`VEIL`, `zIndex: 3`), ve seçim dairesinin (`CHECK`,
+`zIndex: 2`) üstünü örtüyor: daireye basılamıyor. Kare yine Tümünü seç'le ya da kare sayfasından
+seçilebiliyor. 519'dan beri videosu kırmızı kopya kareler de böyle görünüyor.
+
+### Video paneli zaten sırada olan videoyu da sayıyor
+
+*(519'un QA'sı buldu, 30 Ekim; 519'dan eski.)* Videosu zaten sırada olan karelere iki varyantla basmadan
+önce panel *"6 video üretilecek"* diyor, basış ise 3 iş ekliyor: kare başına karenin kendi videosu
+eklenmiyor (513'ün "sırada olan yeniden eklenmez"i), yalnız kopyası. Kare sayısı doğru, varyant başına
+tahmin değil (`LayerPanel`'in `owed`'u: kapsam × varyant).
+
+### Aynı kimlik iki kez gelince kare iki kez sayılıyor
+
+*(519'un coder'ı ve reviewer'ı buldu, 30 Ekim; denenmedi, bu koşudan eski.)* Kare listesi taşıyan
+kapıların ortak denetimi `checked` (`domain/frame_list.py`) yalnız listenin metin dizisi olduğuna bakıyor,
+aynı kimliğin iki kez gelmesine bakmıyor. `remove_frames` böyle bir kareyi cevabında iki kez sayıyor
+(`deleted` ya da `removed`), `copy_frames` aynı kareye iki ikiz yapar. `dequeue_layer` bunu kendi içinde
+ayıklıyor (`dict.fromkeys`). Düzeltme `checked`'te, bütün çağıranlar için: tekrar eden kimlik bir kez
+sayılır.
+
+### Arşive kaldırma ile silme aynı anda gelince silinen projenin işareti kalabilir
+
+*(523'ün coder'ı buldu, 30 Ekim; denenmedi, bu koşudan eski.)* `DriveProjectStore.archive` klasörün
+varlığına işaretlerin kilidinin dışında bakar, `delete` de klasörü o kilidin dışında siler (523: silme
+uzun sürebilir ve yeniden adlandırma o kilidi adın kilidinin içinde bekler); silme işareti klasör
+gittikten sonra kilitte düşürür. Klasör silinirken varlığa bakan bir arşive kaldırma klasörü bulur, ama
+işaretini ancak silmenin işareti düşürmesinden sonra yazarsa ad arşivde kalır. Kalan ad hiçbir listeyi
+bozmaz, ama o adla açılan yeni proje arşivde doğar. Hiçbir yazma kaybolmuyor. Düzeltme kullanıcının
+seçimi: arşive kaldırma da projenin yazma kapısını alsın (projeler özelliğine bir port daha), ya da
+yeni proje açılırken adın işareti silinsin.
+
+### Referans yüklenirken başlayan bir video referansları bir an ada göre sıralı okuyabilir
+
+*(523'ün coder'ı buldu, 30 Ekim; denenmedi, bu koşudan eski.)* Döngü referans havuzunu
+(`reference_files`) adın kilidinde okur, projenin yazma kapısında değil — GPU kapıyı beklemesin diye.
+Bir yükleme dosyayı yerine koyup sırayı henüz yazmamışken okunursa yeni dosya sıraya göre değil adına
+göre yer alır (`references.placed`); adı öndeyse o videonun `<Picture N>`'leri bir kayar. Silmede de,
+liste okunduktan sonra silinen dosyanın baytları okunamaz ve o deneme düşer (yeniden denenir).
+Düzeltme: sıra dosyalardan önce yazılabilir mi (sırada adı olup dosyası olmayan bir referans yuvada
+durmaz, 321) — okunup karar verilecek.
+
+### Bilinmeyen bir satır türüyle referans yüklemek 500 veriyor
+
+*(522'nin QA'sı buldu, 30 Ekim; bu koşudan eski.)* Referans yüklemesi tanınmayan bir `kind` ile
+gelince `add_references` satırın adını `references.SAID[row]`'da arar ve `KeyError` ile düşer
+(`add_references.py:59`); ekran 400 ve bir cümle yerine 500 alır. Ekranın kendi düğmeleri yalnız
+bilinen türleri gönderir. Düzeltme: bilinmeyen satır türü de `UnknownReference` olur.
+
+### Bir kare silinince durum toplamı silinen kareyi de sayıyor
+
+*(522'nin QA'sı buldu, 30 Ekim; denenmedi, bu koşudan eski.)* Bir kare silindikten sonra durum
+`done 8, total 9` diyor, oysa borçlu iş yok: toplam silinen kareyi de sayıyor gibi (`queue.counts`
+planın işlerini, silinmiş yerleri ayırmadan sayıyor olabilir). Ekran bunu "8/9" diye gösterirse sıra
+bitmemiş gibi görünür.
+
+### Windows'ta okunan bir dosyanın üstüne kayıt düşebilir
+
+*(512'nin coder'ı buldu, 29 Ekim; yalnız yerelde.)* Windows açık bir dosyanın üstüne `os.replace`'e izin
+vermiyor (`[WinError 5] Access is denied`). Döngü ya da galeri bir dosyayı okurken onun kaydı gelirse
+kayıt düşer ve ekran hatayı gösterir; hiçbir şey kaybolmaz. Colab Linux olduğu için orada olmaz.
+
 ### Kendi kutusu olan modelde bilinmeyen LoRA çizimi durdurmuyor
 
 *(501'in reviewer'ı buldu, 28 Ekim.)* Madde 238'in kuralı: kutunun bilmediği bir LoRA çizimi durdurur,
@@ -89,7 +159,8 @@ istisna olarak yazılır.
 *(Kullanıcı, 27 Ekim — "bence bunu roadmapten backloga koyalım şuanlık kapatmak yerine bildirim
 yollasın sadece"; v11 roadmap'inin v11-2'sinden çıktı.)* Sıra 10 dk boş kalınca Queen Editor "orada
 mısın?" diye sorar; *"sorudan sonra 5 dk da cevapp kalmazsa kapansın"*. Süren export ya da ajan iş
-sayılır. v11-2 bugün yalnız bildirim gönderiyor; sekme kapalıyken bildirim de gitmez, A100'ü o
+sayılır. Bugün geri sayım ve kutu yok ([509 · v11-8](../docs/arsiv/roadmaps/2026-10-24-queen-editor-v11-roadmap.md#v11-8)
+kaldırdı); yalnız sıra boşalınca ya da durunca bir bildirim geliyor. Sekme kapalıyken bildirim de gitmez, A100'ü o
 durumda ancak kapatma kurtarır. Açık soru: sekme kapalıyken kim sayar — bunu Colab tarafı yapmalı.
 
 ### Silinmiş fotoğraftan video, ve kopya karenin fotoğrafının üstüne yazılması
@@ -149,13 +220,6 @@ silme (`remove_frames`) bugün bu yola varıyor. 481'in düzeltmesi böyle bir k
 *(480'in reviewer'ı buldu, 20 Ekim.)* `queen-editor/backend`'de 8 dosyada 14 yorum "BEHAVIOUR.md, Agent
 panel" gibi bir yere bağlanıyor, ama repo'da — git geçmişinde de — öyle bir dosya hiç olmamış. Ya
 bağlantılar doğru belgeye çevrilir ya kaldırılır. Kullanıcının göreceği bir şey değişmez.
-
-### MMAudio silinecek
-
-*(Kullanıcı, 22 Ekim — 483'te MMAudio'nun ses talimatının da güncellenip güncellenmeyeceği sorulunca:
-"gerek yok, MMAudio silmeyi backloga ekle".)* H3 videoyu sesiyle birlikte üretiyor; MMAudio ayrı bir
-ses üreticisi, ve ses talimatı `data/prompt_writer.py`'nin `AUDIO_INSTRUCTION`'ında. **Ayrıntılar
-kullanıcıyla konuşulacak:** notebook'taki kurulumu, paneldeki yeri ve eski projelerdeki ses işleri.
 
 ### Karakter LoRA'sı eklenecek
 

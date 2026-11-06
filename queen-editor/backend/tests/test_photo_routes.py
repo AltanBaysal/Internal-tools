@@ -1,6 +1,7 @@
 import json
 from functools import partial
 
+from backend.features.photo_generation.data.mute_store import DriveMuteStore
 from backend.features.photo_generation.data.order_store import DriveOrderStore
 from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
@@ -18,6 +19,7 @@ from backend.features.photo_generation.domain.usecases.list_models import list_l
 from backend.features.photo_generation.domain.usecases.queue_layer import queue_layer
 from backend.features.photo_generation.domain.usecases.regenerate import regenerate
 from backend.features.photo_generation.domain.usecases.remove_layer import remove_layer
+from backend.features.photo_generation.domain.usecases.dequeue_layer import dequeue_layer
 from backend.features.photo_generation.domain.usecases.retry_failed import retry_failed
 from backend.features.photo_generation.domain.usecases.retry_frame import retry_frame
 from backend.features.photo_generation.domain.usecases.resume_batch import resume_batch
@@ -99,6 +101,7 @@ def make_client(tmp_path, generator=None, runner=None):
     record = DrivePhotoRecord(storage)
     plan_store = DrivePlanStore(storage)
     order_store = DriveOrderStore(storage)
+    mutes = DriveMuteStore(storage)
     runner = runner or PhotoRunner(spawn=lambda fn: fn())
     export_runner = ExportRunner(spawn=lambda fn: fn())
     exporter = RecordingExporter()
@@ -124,18 +127,20 @@ def make_client(tmp_path, generator=None, runner=None):
                            producers, lambda: 42, lambda: "2026-08-03T14:32:11+00:00"),
         remove_layer=partial(remove_layer, record, store, plan_store, order_store,
                              lambda: "2026-08-05T10:00:00+00:00"),
+        dequeue_layer=partial(dequeue_layer, record, store, plan_store, order_store,
+                              lambda: "2026-08-05T10:00:00+00:00"),
         list_frames=partial(list_frames, record, store, plan_store, order_store),
         # No model ids: a notebook that installed no photo, which is the case madde 229 is about.
         list_models=partial(list_models, []),
         list_loras=list_loras,
         save_order=partial(save_order, record, store, plan_store, order_store),
         export_summary=partial(export_summary, record, store, plan_store, order_store,
-                               lambda: 5),
+                               lambda: 5, mutes=mutes),
         export_state=export_runner.state,
         run_export=partial(start_export, export_runner, store, record, plan_store, order_store,
-                           exporter, lambda: "2026-08-12 14-32"),
+                           exporter, lambda: "2026-08-12 14-32", mutes=mutes),
         cancel_export=lambda: [export_runner.cancel(mode) for mode in MODES],
-        remove_frames=partial(remove_frames, record, store, plan_store, order_store,
+        remove_frames=partial(remove_frames, runner, record, store, plan_store, order_store,
                               lambda: "2026-08-05T10:00:00+00:00"),
         copy_frames=partial(copy_frames, record, store, plan_store, order_store,
                             lambda: "2026-08-05T10:00:00+00:00"),
@@ -603,15 +608,67 @@ def test_the_videos_endpoint_refuses_a_mode_nobody_knows(tmp_path):
     assert resp.get_json()["field"] == "mode"
 
 
-def test_a_sound_cannot_be_asked_to_end_anywhere(tmp_path):
-    # Only a video ends on a picture. Letting the word through would hide the mistake behind a
-    # sound that came out fine.
-    client, _ = make_client(tmp_path)
+def test_the_videos_endpoint_takes_the_selection_by_identity(tmp_path):
+    # Madde 520: the frames the gallery chose, named the way the delete and the copy name them.
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a", "b"]', variants=1)
 
-    resp = client.post("/api/projects/düğün/layers/audio", json={"mode": "loop"})
+    resp = client.post("/api/projects/düğün/layers/video", json={"frames": ["P0_0"]})
+
+    assert resp.status_code == 202
+    assert resp.get_json()["added"] == 1
+    assert [job["id"] for job in video_jobs(drive)] == ["P0_0"]
+
+
+def test_the_videos_endpoint_refuses_a_selection_that_is_not_a_list(tmp_path):
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+
+    resp = client.post("/api/projects/düğün/layers/video", json={"frames": "P0_0"})
 
     assert resp.status_code == 400
-    assert resp.get_json()["field"] == "mode"
+    assert resp.get_json() == {"error": "Katman eklenecek kare listesi metin dizisi olmalı."}
+    assert video_jobs(drive) == []
+
+
+def test_the_videos_endpoint_refuses_a_selection_that_is_null(tmp_path):
+    """A key that is there is a selection: read as missing, null would hang the layer on every frame
+    without one -- the widest scope there is. Only a missing key means that."""
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a", "b"]', variants=1)
+
+    resp = client.post("/api/projects/düğün/layers/video", json={"frames": None})
+
+    assert resp.status_code == 400
+    assert resp.get_json() == {"error": "Katman eklenecek kare listesi metin dizisi olmalı."}
+    assert video_jobs(drive) == []
+
+
+def test_the_videos_endpoint_refuses_a_selection_sent_by_file_name(tmp_path):
+    """Read as no selection, a "files" body would hang the layer on every frame without one -- the
+    widest scope there is, from a press that meant a few."""
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a", "b"]', variants=1)
+
+    resp = client.post("/api/projects/düğün/layers/video", json={"files": ["P0_0.png"]})
+
+    assert resp.status_code == 400
+    assert resp.get_json() == {"error": "Kareler frames ile gönderilmeli."}
+    assert video_jobs(drive) == []
+
+
+def test_a_sound_is_no_longer_a_place_to_queue_anything(tmp_path):
+    """Madde 514: the Ses üret panel is gone with MMAudio, and its door with it -- refused the way a
+    layer nobody knows is, before anything is planned."""
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+
+    resp = client.post("/api/projects/düğün/layers/audio", json={})
+
+    assert resp.status_code == 404
+    assert resp.get_json()["error"] == "Böyle bir katman yok: audio"
+    assert [job["type"] for job in json.loads(
+        (drive / "düğün" / "plan.json").read_text(encoding="utf-8"))["frames"]] == ["photo"]
 
 
 def test_an_unknown_layer_is_not_a_place_to_queue_anything(tmp_path):
@@ -709,13 +766,27 @@ def test_regenerating_a_frame_the_gallery_does_not_know_returns_404(tmp_path):
 
 
 def test_regenerating_a_layer_the_frame_cannot_carry_returns_400(tmp_path):
+    """A frame whose photo never landed has nothing a video could hang on."""
+    runner = PhotoRunner(spawn=lambda fn: fn())
+    client, _ = make_client(tmp_path, generator=StopsAfter(runner, 0), runner=runner)
+    generate(client, prompts='["a"]', variants=1)
+
+    resp = regenerate_request(client, "P0_0", layer="video", prompt="video")
+
+    assert resp.status_code == 400
+    assert resp.get_json()["error"]
+
+
+def test_a_sound_is_no_longer_made_again(tmp_path):
+    """Madde 514: MMAudio is gone, so the sound tab's Yeniden üret is too, and the door refuses a
+    sound the way it refuses a layer nobody knows."""
     client, _ = make_client(tmp_path)
     generate(client, prompts='["a"]', variants=1)
 
     resp = regenerate_request(client, "P0_0", layer="audio", prompt="ses")
 
-    assert resp.status_code == 400
-    assert resp.get_json()["error"]
+    assert resp.status_code == 404
+    assert resp.get_json()["error"] == "Böyle bir katman yok: audio"
 
 
 def test_regenerating_a_layer_that_does_not_exist_returns_404(tmp_path):
@@ -816,6 +887,25 @@ def test_deleting_a_video_leaves_the_frame_in_the_gallery(tmp_path):
     assert (drive / "düğün" / "P0_0.png").exists()
 
 
+def test_a_sound_made_before_mmaudio_went_can_still_be_deleted(tmp_path):
+    """Madde 514: no new sound is made, and the ones already made stay the user's to delete --
+    the video under it stays."""
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+    video = give_it_a_video(drive)
+    sound = "P0_0_V1_0_S1_0.wav"
+    (drive / "düğün" / sound).write_bytes(b"RIFF")
+    DrivePhotoRecord(Storage(str(drive))).append("düğün", {
+        "file": sound, "frame": "P0_0", "layer": "audio", "status": "done", "prompt": "dalga"})
+
+    resp = delete_layer_request(client, ["P0_0"], layer="audio")
+
+    assert resp.status_code == 200
+    assert resp.get_json() == {"deleted": [sound]}
+    assert not (drive / "düğün" / sound).exists()
+    assert (drive / "düğün" / video).exists()
+
+
 def test_the_photo_is_a_layer_that_can_be_deleted(tmp_path):
     """Madde 294: the picture comes off like any other layer and the card stays, because the video
     was made from it once and does not hang on it now (madde 293)."""
@@ -858,6 +948,70 @@ def test_deleting_one_layer_off_many_frames_in_one_press(tmp_path):
     gallery = client.get("/api/projects/düğün/frames").get_json()["frames"]
     assert [frame["layers"] for frame in gallery] == [{"photo": "P1_0.png"},
                                                       {"photo": "P0_0.png"}]
+
+
+def dequeue_request(client, frames, layer="video", project="düğün"):
+    return client.post(f"/api/projects/{project}/layers/{layer}/dequeue", json={"frames": frames})
+
+
+def test_a_queued_video_comes_out_and_the_frame_stays(tmp_path):
+    """Madde 516: the dequeue door takes out the job the queue still owes, and only that."""
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+    client.post("/api/projects/düğün/layers/video", json={})
+    assert client.get("/api/projects/düğün/frames").get_json()["frames"][0]["owed"] == ["video"]
+
+    resp = dequeue_request(client, ["P0_0"])
+
+    assert resp.status_code == 200
+    assert resp.get_json() == {"removed": ["P0_0_V1_0.mp4"]}
+    assert (drive / "düğün" / "P0_0.png").exists()
+    gallery = client.get("/api/projects/düğün/frames").get_json()["frames"]
+    assert [(f["id"], f["status"], f["layers"], f["owed"]) for f in gallery] == [
+        ("P0_0", "done", {"photo": "P0_0.png"}, [])]
+
+
+def test_a_queue_removal_leaves_a_video_that_has_landed(tmp_path):
+    # Queued, and landed before the press: the screen still drew it as waiting.
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+    client.post("/api/projects/düğün/layers/video", json={})
+    video = give_it_a_video(drive)
+
+    resp = dequeue_request(client, ["P0_0"])
+
+    assert resp.status_code == 200
+    assert resp.get_json() == {"removed": []}
+    assert (drive / "düğün" / video).exists()
+    gallery = client.get("/api/projects/düğün/frames").get_json()["frames"]
+    assert gallery[0]["layers"] == {"photo": "P0_0.png", "video": video}
+
+
+def test_a_photo_is_not_taken_out_of_the_queue_on_its_own(tmp_path):
+    # A frame waiting for its photo is that job: it leaves through the frame's own door.
+    client, _ = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+
+    resp = dequeue_request(client, ["P0_0"], layer="photo")
+
+    assert resp.status_code == 404
+    assert resp.get_json() == {"error": "Kuyruktan çıkarılabilir bir katman değil: photo"}
+
+
+def test_a_queue_removal_body_that_is_not_a_list_of_identities_is_refused(tmp_path):
+    client, _ = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+
+    resp = dequeue_request(client, "P0_0")
+
+    assert resp.status_code == 400
+    assert "metin dizisi" in resp.get_json()["error"]
+
+
+def test_a_queue_removal_in_a_project_that_is_not_there_is_404(tmp_path):
+    client, _ = make_client(tmp_path)
+
+    assert dequeue_request(client, ["P0_0"], project="yok").status_code == 404
 
 
 def test_a_layer_delete_body_that_is_not_a_list_of_identities_is_refused(tmp_path):
@@ -1003,6 +1157,23 @@ def test_deleting_a_photo_drops_it_from_the_saved_order(tmp_path):
     delete_photos_request(client, ["P0_0"])
 
     assert files_of(client) == ["P1_0.png"]
+
+
+def test_deleting_a_frame_being_made_is_refused_with_409(tmp_path):
+    # Madde 519: the first run makes the photo; the second takes the worker and stays on P0_0's
+    # video, the way a long render holds it.
+    starts = []
+    runner = PhotoRunner(spawn=lambda fn: starts.append(fn) or (fn() if len(starts) == 1 else None))
+    client, drive = make_client(tmp_path, runner=runner)
+    generate(client, prompts='["a"]', variants=1)
+    runner.start("düğün", lambda: None)
+    runner.report({"current": {"id": "P0_0", "type": "video"}})
+
+    resp = delete_photos_request(client, ["P0_0"])
+
+    assert resp.status_code == 409
+    assert "P0_0" in resp.get_json()["error"]
+    assert (drive / "düğün" / "P0_0.png").exists()
 
 
 def test_deleting_an_unknown_photo_reports_nothing_deleted(tmp_path):

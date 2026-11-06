@@ -24,6 +24,7 @@ vi.mock("./shared/api.js", () => ({
   generateBatch: vi.fn(),
   getExportState: vi.fn(),
   getExportSummary: vi.fn(),
+  getMuted: vi.fn().mockResolvedValue([]),
   getSettings: vi.fn(),
   getStatus: vi.fn().mockResolvedValue({ status: "idle" }),
   listFrames: vi.fn().mockResolvedValue([]),
@@ -34,19 +35,20 @@ vi.mock("./shared/api.js", () => ({
   regenerateFrame: vi.fn(),
   removeFrames: vi.fn(),
   removeLayer: vi.fn(),
+  dequeueLayer: vi.fn(),
   renameProject: vi.fn(),
   resumeBatch: vi.fn(),
   retryFailed: vi.fn(),
   retryFrame: vi.fn(),
+  saveMuted: vi.fn(),
   saveOrder: vi.fn(),
   saveSettings: vi.fn(),
   startExport: vi.fn(),
   stopGeneration: vi.fn(),
-  sayHere: vi.fn().mockResolvedValue({ version: 0, asking: false }),
-  waitForIdle: vi.fn(() => new Promise((resolve) => { heldAsks.push(resolve); })),
+  waitForQueue: vi.fn((seen) => new Promise((resolve) => { heldAsks.push({ seen, resolve }); })),
 }));
 
-// The idle watch's held asks, answered by the test that wants the question asked.
+// The queue watch's asks, answered by the test that wants the queue started or ended.
 const heldAsks = [];
 
 const FRAME = { id: "1_a", file: "1_a.png", status: "done" };
@@ -102,37 +104,76 @@ describe("App — the project screen while its record is on its way", () => {
   });
 });
 
-describe("App — orada mısın? on every screen (madde 498)", () => {
-  const ASKED = { version: 1, asking: true };
+describe("App — the queue's notification on every screen (madde 509)", () => {
+  // The browser's Notification, faked: the titles of those shown.
+  let shown;
+  class FakeNotification {
+    static permission = "granted";
+    constructor(title) { shown.push(title); }
+  }
 
   beforeEach(() => {
     heldAsks.length = 0;
-    // The photo panel's record is no business of the box's.
+    shown = [];
+    vi.stubGlobal("Notification", FakeNotification);
+    // The photo panel's record is no business of the notification's.
     getSettings.mockImplementation(() => new Promise(() => {}));
   });
 
-  it("asks over the projects list", async () => {
-    window.history.pushState({}, "", "/");
+  // The first ask, with no counts, answered at once: where they stand when the page opens.
+  async function openOn(path) {
+    window.history.pushState({}, "", path);
     render(<App />);
     await act(async () => {});
+    await act(async () => { heldAsks.at(-1).resolve({ started: 0, ended: 0, last: null }); });
+  }
 
-    await act(async () => { heldAsks.at(-1)(ASKED); });
+  it("rings over the projects list, and asks nobody whether they are there", async () => {
+    await openOn("/");
 
-    expect(screen.getByText("Orada mısın?")).toBeTruthy();
+    await act(async () => {
+      heldAsks.at(-1).resolve({ started: 0, ended: 1, last: { status: "done" } });
+    });
+
+    expect(shown).toEqual(["Queen Editor"]);
+    expect(screen.queryByText("Orada mısın?")).toBeNull();
   });
 
-  it("asks over a project, and moving between screens keeps the one ask it holds", async () => {
-    window.history.pushState({}, "", "/");
-    render(<App />);
-    await act(async () => {});
+  it("keeps the one ask it holds while moving between screens", async () => {
+    await openOn("/");
 
     act(() => navigate(`/projects/${encodeURIComponent("sayan")}`));
     await act(async () => {});
-    expect(heldAsks).toHaveLength(1);
+    expect(heldAsks.map((one) => one.seen)).toEqual(
+      [null, { started: 0, ended: 0, last: null }]);
 
-    await act(async () => { heldAsks.at(-1)(ASKED); });
+    await act(async () => {
+      heldAsks.at(-1).resolve({ started: 0, ended: 1, last: { status: "done" } });
+    });
 
-    expect(screen.getByText("Orada mısın?")).toBeTruthy();
+    expect(shown).toEqual(["Queen Editor"]);
     expect(screen.getByText("sayan")).toBeTruthy();
+  });
+});
+
+// Madde 518: a page left open while the queue is idle never asked again, so a frame the agent or
+// another tab queued stayed out of sight until a reload.
+describe("App — work added elsewhere while the page stands idle", () => {
+  beforeEach(() => {
+    heldAsks.length = 0;
+    getSettings.mockImplementation(() => new Promise(() => {}));
+  });
+
+  it("shows a frame queued elsewhere on the open project page, without a reload", async () => {
+    listFrames.mockResolvedValue([FRAME]);
+    openProject("bosta-proje");
+    await screen.findByText("1_a.png");
+    await act(async () => { heldAsks.at(-1).resolve({ started: 0, ended: 0, last: null }); });
+
+    listFrames.mockResolvedValue([{ id: "2_a", file: "2_a.png", status: "pending",
+                                    owed: ["photo"], failed: [] }, FRAME]);
+    await act(async () => { heldAsks.at(-1).resolve({ started: 1, ended: 0, last: null }); });
+
+    expect(await screen.findByText("2_a.png")).toBeTruthy();
   });
 });

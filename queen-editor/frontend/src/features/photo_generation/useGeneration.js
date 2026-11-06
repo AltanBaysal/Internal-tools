@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   cancelGeneration,
   copyFrames,
+  dequeueLayer as takeOutLayer,
   generateBatch,
   getStatus,
   listFrames,
@@ -18,6 +19,7 @@ import {
   stopGeneration,
 } from "../../shared/api.js";
 import { failureText } from "../../shared/failure_text.js";
+import { onQueueMoved } from "../../shared/queue_watch.js";
 import { FROM_POOL } from "./production_modes.js";
 
 const POLL_MS = 2000;
@@ -127,6 +129,18 @@ export function useGeneration(project) {
     };
   }, [poll]);
 
+  // The chain above stops once the queue is not running, so a page left open while it is idle
+  // would never see work added elsewhere -- by the agent, by another tab (madde 518). The tab's queue
+  // watch hears the queue start, and the page asks again: a run that goes keeps the chain going, the
+  // way a mount finds one, and one that started and ended between two asks still moved the start
+  // count. An ending alone asks nothing: the chain that followed the run saw it end, and asking
+  // again would cost every open page a gallery read per run. An ending count that shrank is a server
+  // that came up again and counts from nought, where a start can bring back a start count already
+  // heard -- so that is asked about too.
+  useEffect(() => onQueueMoved((said, before) => {
+    if (said.started !== before.started || said.ended < before.ended) poll();
+  }), [poll]);
+
   // Whatever the list becomes -- answered, reordered, a frame removed -- is what a later mount
   // starts from. One effect rather than a write next to every setFrames: those are functional
   // updates, and a cache written inside one would be a side effect where there must be none.
@@ -205,13 +219,13 @@ export function useGeneration(project) {
 
   // Hang a layer on every frame in scope. Resolves with the server's answer so the panel can quote
   // how many the queue took, or null when it was refused.
-  const queueLayer = useCallback((kind, files, variants, mode, prompts, orientation) => (
+  const queueLayer = useCallback((kind, frames, variants, mode, prompts, orientation) => (
     // From the pool it is not a layer job at all: no frame is involved and cards are what come
     // back, so it goes to its own door (madde 302). Only it carries an orientation: a video hung on
     // a frame follows that frame's photo (madde 476).
     (mode === FROM_POOL
       ? produceFromReferences(project, prompts, variants, orientation)
-      : postLayer(project, kind, files, variants, mode))
+      : postLayer(project, kind, frames, variants, mode))
       .then((body) => {
         if (!alive.current) return null;
         startPolling(body?.frames);
@@ -224,9 +238,18 @@ export function useGeneration(project) {
       })
   ), [project, startPolling]);
 
+  // A refusal of one of the frame page's presses: kept in `error` for the screens that read it, and
+  // handed back in generate's shape (madde 497) for the page that pressed. The page cannot read it
+  // off `error` -- a good poll clears that, and the refusal still stands (madde 517).
+  const refusal = useCallback((err) => {
+    const said = failureText(err);
+    setError(said);
+    return { error: said };
+  }, []);
+
   // One layer of one frame, made again from the words on screen. Resolves with the server's answer
-  // -- it names the frame the result will land on, which is never this one -- or null when it was
-  // refused; the page has to tell those apart to know whether to say anything.
+  // -- it names the frame the result will land on, which is never this one -- or with the refusal's
+  // words; the page has to tell those apart to know whether to say anything.
   const regenerate = useCallback((frame, kind, prompt, mode, negative, orientation) => (
     regenerateFrame(project, frame, kind, prompt, mode, negative, orientation)
       .then((body) => {
@@ -234,12 +257,8 @@ export function useGeneration(project) {
         startPolling();
         return body;
       })
-      .catch((err) => {
-        if (!alive.current) return null;
-        setError(failureText(err));
-        return null;
-      })
-  ), [project, startPolling]);
+      .catch((err) => (alive.current ? refusal(err) : null))
+  ), [project, startPolling, refusal]);
 
   // One layer off the frames named. Nothing starts running, so the screen only has to read the
   // gallery again -- the frames stay where they are and come back with one layer fewer.
@@ -250,12 +269,20 @@ export function useGeneration(project) {
         poll();
         return body;
       })
-      .catch((err) => {
+      .catch((err) => (alive.current ? refusal(err) : null))
+  ), [project, poll, refusal]);
+
+  // A layer's waiting job out of the queue, and nothing else (madde 516). Nothing starts running,
+  // so the screen reads the gallery again, as after a layer comes off.
+  const dequeueLayer = useCallback((frames, kind) => (
+    takeOutLayer(project, frames, kind)
+      .then((body) => {
         if (!alive.current) return null;
-        setError(failureText(err));
-        return null;
+        poll();
+        return body;
       })
-  ), [project, poll]);
+      .catch((err) => (alive.current ? refusal(err) : null))
+  ), [project, poll, refusal]);
 
   // Every red job at once. Same endpoint as one frame's Tekrar dene, with no frame named.
   const retryAll = useCallback(() => (
@@ -313,8 +340,10 @@ export function useGeneration(project) {
   // Only what the server says really went leaves the screen: a name that was already gone changes
   // nothing here, and the gallery keeps matching Drive. Both lists count -- a photo that left the
   // disk and a frame that only left the queue are equally out of the gallery.
-  // Resolves with the server's answer, or null when the request was refused: the detail page must
-  // not walk away from a frame that is still sitting in the queue.
+  // Resolves with the server's answer, or with the refusal's words: the detail page must not walk
+  // away from a frame that is still sitting in the queue. The server's own sentence, with no framing
+  // of ours wrapped around it -- the card that shows it supplies the heading, and it is the only side
+  // that knows what was attempted.
   const removePhotos = useCallback((frames) => (
     removeFrames(project, frames)
       .then((body) => {
@@ -325,13 +354,8 @@ export function useGeneration(project) {
           : current));
         return body;
       })
-      .catch((err) => {
-        // The server's own sentence, with no framing of ours wrapped around it -- the card that
-        // shows it supplies the heading, and it is the only side that knows what was attempted.
-        if (alive.current) setError(failureText(err));
-        return null;
-      })
-  ), [project]);
+      .catch((err) => (alive.current ? refusal(err) : null))
+  ), [project, refusal]);
 
   // What the screen is told. The raw status stays as it is -- another tab may be watching the same
   // run, and the server is not wrong; only this page's reading of it changes.
@@ -388,6 +412,6 @@ export function useGeneration(project) {
 
   return { job: told, known, frames, framesError, error, errorField, stopping, queue, failures,
            current, currentLayer, startedAt, batch, follow,
-           retryAll, queueLayer, regenerate, removeLayer,
+           retryAll, queueLayer, regenerate, removeLayer, dequeueLayer,
            generate, stop, resume, cancel, retry, clearError, reorder, removePhotos, copyPhotos };
 }

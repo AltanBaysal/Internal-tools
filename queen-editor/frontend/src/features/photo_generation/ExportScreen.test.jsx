@@ -28,9 +28,9 @@ vi.mock("./useGeneration.js", () => ({ useGeneration: vi.fn() }));
 
 // The root every export lands in, beside the projects' (madde 494); a run's own folder is named
 // after the minute it starts and the project.
-const SUMMARY = { videos: 22, seconds: 110, silent: 0, withoutVideo: 0,
+const SUMMARY = { videos: 22, seconds: 110, muted: 0, withoutVideo: 0,
                   folder: "/drive/queenEditorExport" };
-const EMPTY = { videos: 0, seconds: 0, silent: 0, withoutVideo: 0,
+const EMPTY = { videos: 0, seconds: 0, muted: 0, withoutVideo: 0,
                 folder: "/drive/queenEditorExport" };
 const TARGET = "/drive/queenEditorExport/2026-08-12 14-32 düğün";
 
@@ -128,10 +128,24 @@ describe("ExportScreen", () => {
     expect(navigate).toHaveBeenCalledWith("/projects/düğün");
   });
 
-  it("says how many videos have no sound", async () => {
-    await open({ ...SUMMARY, silent: 16 });
+  it("never says a video has no sound (madde 514)", async () => {
+    // The user: "Kalksın". An H3 video carries its own sound, so a video with no sound layer is
+    // not a silent one. The count an older server still sends is read by nothing.
+    await open({ ...SUMMARY, silent: 16, muted: 2 });
 
-    expect(screen.getByText("⚠ 16 videonun sesi yok")).toBeTruthy();
+    expect(screen.queryByText(/sesi yok/)).toBeNull();
+  });
+
+  it("says how many have their sound turned off (madde 510)", async () => {
+    await open({ ...SUMMARY, muted: 2 });
+
+    expect(screen.getByText("⚠ 2 videonun sesi kapalı")).toBeTruthy();
+  });
+
+  it("says nothing of turned-off sounds when there are none", async () => {
+    await open({ ...SUMMARY, muted: 0 });
+
+    expect(screen.queryByText(/sesi kapalı/)).toBeNull();
   });
 
   it("says which frames the sequence will not hold", async () => {
@@ -143,7 +157,7 @@ describe("ExportScreen", () => {
   it("draws no row for a condition that is not there", async () => {
     await open();
 
-    expect(screen.queryByText(/sesi yok/)).toBeNull();
+    expect(screen.queryByText(/sesi kapalı/)).toBeNull();
     expect(screen.queryByText(/diziye girmeyecek/)).toBeNull();
   });
 

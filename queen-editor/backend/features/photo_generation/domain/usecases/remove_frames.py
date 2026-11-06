@@ -5,9 +5,12 @@ is a single window over a mixed selection, so the request behind it is a single 
 costs is decided here, from its own state:
 
   produced  -> every layer it owns leaves the disk and the log says deleted
-  not yet   -> nothing to delete; the log says removed on every layer the queue still owes it, and
-               those jobs are skipped. Every one of them, because an open job is what keeps a card
-               in the gallery (madde 294) -- one left behind would bring the card straight back.
+  not yet   -> nothing to delete
+
+Either way the log says removed on every layer the queue still owes it, and those jobs are skipped.
+Every one of them, because an open job is what keeps a card in the gallery (madde 294) -- one left
+behind would bring the card straight back, a produced one waiting for a video of a picture that is
+gone (madde 519).
 
 Which files really go is decided before a single line is written: a picture two frames share stays
 where it is until the last of them lets go (design v3, madde 101). The disk is touched first, so a
@@ -23,49 +26,85 @@ An identity the gallery does not know is skipped, not refused. The confirm box c
 another tab removes the same frame, and refusing the whole batch over one that is already gone would
 leave the rest standing against the user's own decision. The answer says what really happened.
 
-The frame being rendered needs no guard: it writes its own line when it lands, and the latest line
-about a slot wins, so a removal that raced it is undone by the photo itself.
+A frame the worker is making a layer of is refused, the whole press with it, and nothing is written.
+The layer lands with its own line whatever was written meanwhile -- a landing always wins (madde
+513) -- so a frame deleted under its render came back, at the top, with a video and a picture that
+was gone (madde 519). Refused rather than skipped: the answer would otherwise say the rest went
+while the frame the user meant stays. The screens offer no Sil there; this is for the agent and a
+screen a poll behind.
 """
 from backend.features.photo_generation.domain import layers, queue
 from backend.features.photo_generation.domain.frame_list import checked
 from backend.features.photo_generation.domain.photo_name import layer_file
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
+from backend.features.photo_generation.domain.usecases.run_queue import Busy
 
 
-def remove_frames(record, store, plan_store, order_store, now, project, frames):
+def _being_made(runner, project):
+    """The frames of `project` the worker is making a layer of now: the one it holds and the rest of
+    its batch (madde 411). None while it writes a prompt -- that turn makes nothing, and the next one
+    reads the record again before it renders."""
+    state = runner.status()
+    if state.get("status") != "running" or state.get("project") != project:
+        return set()
+    current = state.get("current") or {}
+    return {fid for fid in [current.get("id"), *(state.get("batch") or [])] if fid}
+
+
+def remove_frames(runner, record, store, plan_store, order_store, now, project, frames):
     checked(frames, "Silinecek")
-    # Raises ProjectMissing when there is no such project.
-    gallery = {frame["id"]: frame
-               for frame in list_frames(record, store, plan_store, order_store, project)}
-    slots = record.slots(project)
+    # Held from the slots read to the order written: which files no other frame holds is decided
+    # before they are unlinked, and a copy born in between -- its rows pointing at those files --
+    # would be left standing on a deleted picture (madde 512).
+    with plan_store.held(project):
+        # Raises ProjectMissing when there is no such project.
+        gallery = {frame["id"]: frame
+                   for frame in list_frames(record, store, plan_store, order_store, project)}
+        made = sorted(_being_made(runner, project) & set(frames) & set(gallery))
+        if made:
+            raise Busy(f"Kare şu an üretiliyor, bitince silinebilir: {', '.join(made)}")
+        slots = record.slots(project)
 
-    # The whole deletion is decided first: which slots close, and which files that leaves unheld.
-    deleted, removed, closing = [], [], set()
-    for fid in frames:
-        frame = gallery.get(fid)
-        if frame is None:
-            continue
-        if frame["status"] == queue.DONE:
+        # The whole deletion is decided first: which slots close, and which files that leaves
+        # unheld.
+        deleted, removed, closing = [], [], set()
+        for fid in frames:
+            frame = gallery.get(fid)
+            if frame is None:
+                continue
+            if frame["status"] == queue.DONE:
+                cells = slots.get(fid, {})
+                closing |= {(fid, slot) for slot, cell in cells.items()
+                            if layers.is_taken(cell["status"])}
+                deleted.append(fid)
+            else:
+                removed.append(fid)
+
+        for file in sorted(layers.files_to_unlink(slots, closing)):
+            store.delete(project, file)
+        for fid, slot in sorted(closing):
+            record.mark(project, fid, slot, slots[fid][slot]["file"], queue.DELETED, now(),
+                        seen=slots[fid][slot]["status"])
+        for fid in deleted + removed:
+            # The name each job was planned to take: nothing was ever produced under it, and a line
+            # still has to say which file it was about. A card never produced and owed nothing at
+            # all is closed on its photo slot, so that "never produced" is written down rather than
+            # left as a silence.
             cells = slots.get(fid, {})
-            closing |= {(fid, slot) for slot, cell in cells.items()
-                        if layers.is_taken(cell["status"])}
-            deleted.append(fid)
-        else:
-            removed.append(fid)
+            video = (cells.get(layers.VIDEO) or {}).get("file")
+            for slot in gallery[fid].get("owed") or (() if fid in deleted else (layers.PHOTO,)):
+                status = (cells.get(slot) or {}).get("status")
+                if status == queue.DONE or (fid, slot) in closing:
+                    # Landed since the gallery was read: the render wins, as above, and a removed
+                    # line over it would leave its file under a free slot (madde 513). On a produced
+                    # frame it is closing with the rest, and its deleted line is written above.
+                    continue
+                # Over the status it was read in, so a layer landing after this look keeps it.
+                record.mark(project, fid, slot, layer_file(slot, fid, video), queue.REMOVED,
+                            now(), seen=status)
 
-    for file in sorted(layers.files_to_unlink(slots, closing)):
-        store.delete(project, file)
-    for fid, slot in sorted(closing):
-        record.mark(project, fid, slot, slots[fid][slot]["file"], queue.DELETED, now())
-    for fid in removed:
-        # The name each job was planned to take: nothing was ever produced under it, and a line
-        # still has to say which file it was about. A card owed nothing at all is closed on its
-        # photo slot, so that "never produced" is written down rather than left as a silence.
-        video = (slots.get(fid, {}).get(layers.VIDEO) or {}).get("file")
-        for slot in gallery[fid].get("owed") or (layers.PHOTO,):
-            record.mark(project, fid, slot, layer_file(slot, fid, video), queue.REMOVED, now())
-
-    gone = set(deleted + removed)
-    if gone:
-        order_store.write(project, [fid for fid in order_store.read(project) if fid not in gone])
+        gone = set(deleted + removed)
+        if gone:
+            order_store.write(project,
+                              [fid for fid in order_store.read(project) if fid not in gone])
     return {"deleted": deleted, "removed": removed}

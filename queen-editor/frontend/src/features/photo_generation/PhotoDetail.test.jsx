@@ -2,7 +2,9 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  dequeueLayer,
   getHappyEnding,
+  getMuted,
   getStatus,
   getVideoLength,
   listFrames,
@@ -12,6 +14,7 @@ import {
   removeFrames,
   removeLayer,
   retryFrame,
+  saveMuted,
 } from "../../shared/api.js";
 import { navigate } from "../../shared/router.js";
 import { VERSION } from "../../shared/version.js";
@@ -19,8 +22,10 @@ import PhotoDetail from "./PhotoDetail.jsx";
 
 vi.mock("../../shared/api.js", () => ({
   cancelGeneration: vi.fn(),
+  dequeueLayer: vi.fn(),
   generateBatch: vi.fn(),
   getHappyEnding: vi.fn(),
+  getMuted: vi.fn(),
   getStatus: vi.fn(),
   getVideoLength: vi.fn(),
   listFrames: vi.fn(),
@@ -31,6 +36,7 @@ vi.mock("../../shared/api.js", () => ({
   removeLayer: vi.fn(),
   resumeBatch: vi.fn(),
   retryFrame: vi.fn(),
+  saveMuted: vi.fn(),
   saveOrder: vi.fn(),
   stopGeneration: vi.fn(),
   fileUrl: (project, file) => `/photos/${project}/${file}`,
@@ -121,6 +127,7 @@ const BROKEN = { id: "P0_0", file: "P0_0.png", status: "failed", prompt: "kırm�
                  errors: { photo: "CUDA out of memory — 3 kez denendi" } };
 
 // A copy frame waiting for its video: it holds its source's picture and owns no file of its own.
+// Done, as the server answers since madde 519: the card is done once its picture is there.
 const QUEUED_COPY = { id: "P0_1", file: "P0_0.png", status: "done", prompt: "kırmızı elbise",
                       negative: "", layers: { photo: "P0_0.png" }, failed: [], owed: ["video"],
                       prompts: { photo: "kırmızı elbise" }, errors: {} };
@@ -160,6 +167,8 @@ beforeEach(() => {
   listProducers.mockResolvedValue([]);
   getVideoLength.mockResolvedValue(8);
   getHappyEnding.mockResolvedValue(false);
+  // No sound turned off (madde 510): every older test reads the page as it was.
+  getMuted.mockResolvedValue([]);
 });
 
 // The frame the worker is holding a layer of: its photo is on disk, its video is not yet.
@@ -318,12 +327,12 @@ describe("PhotoDetail — the layer tabs", () => {
     expect(screen.queryByText("Foto negatif prompt'u")).toBeNull();
   });
 
-  it("repeats the skeleton for sound", async () => {
+  it("repeats the skeleton for sound, its words to read rather than to edit (madde 514)", async () => {
     await open("P0_0", { frames: [LAYERED] });
 
     fireEvent.click(tab("Ses"));
 
-    expect(screen.getByDisplayValue("kumaş hışırtısı")).toBeTruthy();
+    expect(screen.getByText("kumaş hışırtısı")).toBeTruthy();
     expect(screen.queryByText("kadın dönüyor")).toBeNull();
     expect(screen.queryByText("P0_0_V1_0_S1_0.wav")).toBeNull();
   });
@@ -1063,6 +1072,32 @@ describe("PhotoDetail — the new mode", () => {
   });
 });
 
+describe("PhotoDetail — a sound made before MMAudio went (madde 514)", () => {
+  it("plays it and offers its deletion, but never makes it again", async () => {
+    // Nothing makes a new sound: the sound tab keeps what was made -- the player, its words, the
+    // two ways out -- and loses the one button that would ask for another.
+    await open("P0_0", { frames: [LAYERED] });
+
+    fireEvent.click(tab("Ses"));
+
+    expect(document.querySelector("audio").getAttribute("src")).toContain("P0_0_V1_0_S1_0.wav");
+    expect(screen.getByText("kumaş hışırtısı")).toBeTruthy();
+    expect(document.querySelector("textarea")).toBeNull();
+    expect(screen.queryByText("Yeniden üret — yeni kare")).toBeNull();
+    expect(screen.getByText("Sesi sil — video kalır")).toBeTruthy();
+    expect(screen.getByText("Kareyi sil")).toBeTruthy();
+  });
+
+  it("still makes the video again from the video tab", async () => {
+    await open("P0_0", { frames: [LAYERED] });
+
+    fireEvent.click(tab("Video"));
+
+    expect(document.querySelector("textarea")).toBeTruthy();
+    expect(regenButton().disabled).toBe(false);
+  });
+});
+
 describe("PhotoDetail", () => {
   it("shows the position, the file name and the prompt", async () => {
     await open("1_a");
@@ -1291,7 +1326,8 @@ describe("PhotoDetail — a frame that is not a photo yet", () => {
     expect(screen.getByText(/Proje yok/)).toBeTruthy();
   });
 
-  it("leaves the refusal behind when the arrows move on to another frame", async () => {
+  it("shows no card on the frame the arrows move on to, the refusal staying with its own frame",
+     async () => {
     removeFrames.mockRejectedValue(new Error("Proje yok: düğün"));
     listFrames.mockResolvedValue(MIXED);
     getStatus.mockResolvedValue(IDLE);
@@ -1493,8 +1529,7 @@ describe("PhotoDetail — what the page says it did", () => {
     fireEvent.click(tab("Video"));
 
     // Fark 99: the button lived on the photo tab alone, which is not the tab the user is on when
-    // they are looking at what they are waiting for. The words are the photo tab's own -- the
-    // queue takes frames out, not layers (karar 38).
+    // they are looking at what they are waiting for.
     expect(screen.getByText("Kuyruktan çıkar")).toBeTruthy();
   });
 
@@ -1641,6 +1676,53 @@ describe("PhotoDetail — what each tab offers to destroy", () => {
   });
 });
 
+// Madde 516: Kuyruktan çıkar on a waiting layer's tab takes out that job alone. It used to take the
+// whole frame, its finished photo with it, and asked nothing.
+describe("PhotoDetail — a layer waiting in the queue", () => {
+  // A frame whose own photo landed and whose video is still coming, with nobody working on it.
+  const WAITING_VIDEO = RENDERING;
+
+  it("takes out only the job, without asking, and stays on the frame", async () => {
+    dequeueLayer.mockResolvedValue({ removed: ["P0_0_V1_0.mp4"] });
+    await open("P0_0", { frames: [WAITING_VIDEO] });
+
+    fireEvent.click(tab("Video"));
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruktan çıkar")); });
+
+    expect(dequeueLayer).toHaveBeenCalledWith("düğün", ["P0_0"], "video");
+    // Neither of the doors that delete.
+    expect(removeLayer).not.toHaveBeenCalled();
+    expect(removeFrames).not.toHaveBeenCalled();
+    expect(screen.queryByText("1 kare silinsin mi?")).toBeNull();
+    // The frame is still the gallery's, with its photo: the page stays and shows it.
+    expect(navigate).not.toHaveBeenCalled();
+    expect(tab("Foto").getAttribute("aria-current")).toBe("page");
+  });
+
+  it("says the job could not be taken out when the server refuses", async () => {
+    dequeueLayer.mockRejectedValue(new Error("Proje yok: düğün"));
+    await open("P0_0", { frames: [WAITING_VIDEO] });
+
+    fireEvent.click(tab("Video"));
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruktan çıkar")); });
+
+    expect(screen.getByText("Video kuyruktan çıkarılamadı")).toBeTruthy();
+    expect(screen.getByText(/Proje yok/)).toBeTruthy();
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("takes out a copy frame's video by the copy's own identity", async () => {
+    dequeueLayer.mockResolvedValue({ removed: ["P0_1_V1_0.mp4"] });
+    await open("P0_1", { frames: [QUEUED_COPY] });
+
+    fireEvent.click(tab("Video"));
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruktan çıkar")); });
+
+    expect(dequeueLayer).toHaveBeenCalledWith("düğün", ["P0_1"], "video");
+    expect(removeFrames).not.toHaveBeenCalled();
+  });
+});
+
 describe("PhotoDetail — a frame that blew up", () => {
   it("says what the renderer said, once", async () => {
     await open("P0_0", { frames: [BROKEN] });
@@ -1717,15 +1799,50 @@ describe("PhotoDetail — a copy frame waiting in the queue", () => {
     expect(screen.queryByText("Prompt yok — üretimden önce yazılacak.")).toBeNull();
   });
 
-  it("takes it out of the queue without asking", async () => {
-    removeFrames.mockResolvedValue({ deleted: [], removed: ["P0_1"] });
+  it("takes its video out of the queue from the photo tab and stays on it", async () => {
+    // Madde 519: the copy stays a twin holding its source's picture, where it stood. Taking the
+    // whole frame out of the gallery brought it straight back, at the top.
+    dequeueLayer.mockResolvedValue({ removed: ["P0_1_V1_0.mp4"] });
     await open("P0_1", { frames: [QUEUED_COPY] });
 
     await act(async () => { fireEvent.click(screen.getByText("Kuyruktan çıkar")); });
 
     // Its identity, not the picture it shares with its source.
-    expect(removeFrames).toHaveBeenCalledWith("düğün", ["P0_1"]);
+    expect(dequeueLayer).toHaveBeenCalledWith("düğün", ["P0_1"], "video");
+    expect(removeFrames).not.toHaveBeenCalled();
     expect(screen.queryByText("1 kare silinsin mi?")).toBeNull();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(tab("Foto").getAttribute("aria-current")).toBe("page");
+  });
+
+  it("offers no Sil on a frame whose video is being made", async () => {
+    // Madde 519 (QA): the video lands whatever was written meanwhile (madde 513), so a frame deleted
+    // under its render came back with a video and a missing picture.
+    await open("P0_0", { frames: [RENDERING],
+                         status: { status: "running", project: "düğün",
+                                   current: { id: "P0_0", type: "video" } } });
+
+    expect(screen.getByText("Sil").closest("button").disabled).toBe(true);
+  });
+
+  it("offers no way out of the queue while its video is being made", async () => {
+    // The job is no longer waiting: the video tab shows it being made and offers nothing, and the
+    // photo tab's press could only write a line the landing video overrides (madde 516's limit).
+    await open("P0_1", { frames: [QUEUED_COPY],
+                         status: { status: "running", project: "düğün",
+                                   current: { id: "P0_1", type: "video" } } });
+
+    expect(screen.getByText("Kuyruktan çıkar").closest("button").disabled).toBe(true);
+  });
+
+  it("says why when taking its video out is refused", async () => {
+    dequeueLayer.mockRejectedValue(new Error("Proje yok: düğün"));
+    await open("P0_1", { frames: [QUEUED_COPY] });
+
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruktan çıkar")); });
+
+    expect(screen.getByText("Video kuyruktan çıkarılamadı")).toBeTruthy();
+    expect(screen.getByText(/Proje yok/)).toBeTruthy();
   });
 });
 
@@ -2286,5 +2403,320 @@ describe("PhotoDetail — the orientation of a photo made again", () => {
     await settle();
 
     expect(pressed("Yatay")).toBe("true");
+  });
+});
+
+// Madde 510: the sound of the video being watched is turned off from its page -- top right of the
+// video -- and it plays silent there, as it will export. Madde 515: on every video that has landed,
+// with or without an old sound over it, since H3's video carries its own.
+describe("PhotoDetail — the sound turned off (madde 510, 515)", () => {
+  const offSwitch = () => screen.queryByRole("button", { name: "Sesi kapat" });
+  const onSwitch = () => screen.queryByRole("button", { name: "Sesi aç" });
+
+  it.each(["Video", "Ses"])("offers the switch on the %s tab of a video with an old sound",
+                            async (name) => {
+    await open("P0_0", { frames: [LAYERED] });
+
+    fireEvent.click(tab(name));
+
+    expect(offSwitch()).toBeTruthy();
+    expect(getMuted).toHaveBeenCalledWith("düğün");
+  });
+
+  it("offers it on a video with no sound layer, and plays that video silent", async () => {
+    saveMuted.mockResolvedValueOnce(["P1_0"]).mockResolvedValueOnce([]);
+    await open("P1_0", { frames: [SECOND_VIDEO] });
+    fireEvent.click(tab("Video"));
+
+    fireEvent.click(offSwitch());
+    await settle();
+
+    expect(saveMuted).toHaveBeenCalledWith("düğün", "P1_0", true);
+    expect(onSwitch()).toBeTruthy();
+    expect(document.querySelector("video").muted).toBe(true);
+
+    fireEvent.click(onSwitch());
+    await settle();
+
+    expect(saveMuted).toHaveBeenLastCalledWith("düğün", "P1_0", false);
+    expect(document.querySelector("video").muted).toBe(false);
+  });
+
+  it("offers it on a video whose old sound blew up", async () => {
+    await open("P0_0", { frames: [{ ...LAYERED, failed: ["audio"],
+                                    errors: { audio: "ComfyUI 500 — 3 kez denendi" } }] });
+    fireEvent.click(tab("Video"));
+    expect(offSwitch()).toBeTruthy();
+  });
+
+  it("offers none on a frame whose video blew up", async () => {
+    await open("P1_0", { frames: [{ ...SECOND_VIDEO, failed: ["video"],
+                                    errors: { video: "ComfyUI 500 — 3 kez denendi" } }] });
+    fireEvent.click(tab("Video"));
+    expect(offSwitch()).toBeNull();
+    expect(onSwitch()).toBeNull();
+  });
+
+  it("turns the sound off and plays the video silent, then back on", async () => {
+    saveMuted.mockResolvedValueOnce(["P0_0"]).mockResolvedValueOnce([]);
+    await open("P0_0", { frames: [LAYERED] });
+    fireEvent.click(tab("Ses"));
+
+    fireEvent.click(offSwitch());
+    await settle();
+
+    expect(saveMuted).toHaveBeenCalledWith("düğün", "P0_0", true);
+    expect(onSwitch()).toBeTruthy();
+    expect(document.querySelector("video").muted).toBe(true);
+    expect(document.querySelector("audio").muted).toBe(true);
+
+    fireEvent.click(onSwitch());
+    await settle();
+
+    expect(saveMuted).toHaveBeenLastCalledWith("düğün", "P0_0", false);
+    expect(offSwitch()).toBeTruthy();
+    expect(document.querySelector("audio").muted).toBe(false);
+  });
+
+  it.each([["with an old sound", LAYERED], ["with no sound layer", SECOND_VIDEO]])(
+    "opens a video %s whose sound was turned off before as silent", async (_name, frame) => {
+    // "kapatılan ses, yeniden açılana kadar kapalı kalır".
+    getMuted.mockResolvedValue([frame.id]);
+    await open(frame.id, { frames: [frame] });
+
+    fireEvent.click(tab("Video"));
+
+    expect(onSwitch()).toBeTruthy();
+    expect(document.querySelector("video").muted).toBe(true);
+  });
+
+  it("puts a refused press back and says so in the server's own words", async () => {
+    saveMuted.mockRejectedValue(new Error("düğün/muted.json okunamıyor: bozuk"));
+    await open("P0_0", { frames: [LAYERED] });
+    fireEvent.click(tab("Video"));
+
+    fireEvent.click(offSwitch());
+    await settle();
+
+    expect(offSwitch()).toBeTruthy();
+    expect(screen.getByText("Ses kapatılamadı")).toBeTruthy();
+    expect(screen.getByText("düğün/muted.json okunamıyor: bozuk")).toBeTruthy();
+  });
+
+  it("shows no card on the next frame, the refusal staying with its own frame", async () => {
+    saveMuted.mockRejectedValue(new Error("düğün/muted.json okunamıyor: bozuk"));
+    listFrames.mockResolvedValue([LAYERED, SECOND_SOUND]);
+    getStatus.mockResolvedValue(IDLE);
+    listModels.mockResolvedValue({ models: [], loras: LORAS });
+    const { rerender } = render(<PhotoDetail project="düğün" frame="P0_0" />);
+    await settle();
+    fireEvent.click(tab("Video"));
+    fireEvent.click(offSwitch());
+    await settle();
+
+    rerender(<PhotoDetail project="düğün" frame="P1_0" />);
+    await settle();
+
+    expect(screen.queryByText("Ses kapatılamadı")).toBeNull();
+    // The list was read once for the page, not once a frame.
+    expect(getMuted).toHaveBeenCalledTimes(1);
+  });
+});
+
+// Madde 517: a press's answer belongs to the frame it was pressed on. A refusal's card used to read
+// the hook's shared error, which every good poll clears, and no answer knew its frame: one that came
+// late -- refused or done -- acted on whichever frame was open by then.
+describe("PhotoDetail — an answer stays with its frame (madde 517)", () => {
+  // The queue at work on a frame of no concern here: the page polls every two seconds while it runs.
+  const ELSEWHERE = { status: "running", project: "düğün", current: { id: "Q9_0" } };
+  const SAID = "Proje yok: düğün";
+
+  // A request still in flight, answered when the test says so.
+  function deferred() {
+    let resolve;
+    let reject;
+    const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
+    return { promise, resolve, reject };
+  }
+
+  // The page on one frame, and the router's way of swapping another under it.
+  async function mount(fid, frames, status = IDLE) {
+    listFrames.mockResolvedValue(frames);
+    getStatus.mockResolvedValue(status);
+    listModels.mockResolvedValue({ models: [], loras: LORAS });
+    const { rerender } = render(<PhotoDetail project="düğün" frame={fid} />);
+    await settle();
+    return async (to) => {
+      rerender(<PhotoDetail project="düğün" frame={to} />);
+      await settle();
+    };
+  }
+
+  // The page's presses the server can refuse, each with the frame it is made on and one to step to.
+  const PRESSES = [
+    { name: "Yeniden üret", api: regenerateFrame, frames: [LAYERED, SECOND_VIDEO], fid: "P0_0",
+      to: "P1_0", heading: "Kare yeniden üretilemedi",
+      press: () => act(async () => { fireEvent.click(regenButton()); }) },
+    { name: "Videoyu sil", api: removeLayer, frames: [LAYERED, SECOND_VIDEO], fid: "P0_0",
+      to: "P1_0", heading: "Video silinemedi",
+      press: async () => {
+        fireEvent.click(tab("Video"));
+        fireEvent.click(screen.getByText("Videoyu sil — kare kalır"));
+        await act(async () => { fireEvent.click(confirmButton()); });
+      } },
+    { name: "Kuyruktan çıkar on a waiting layer", api: dequeueLayer,
+      frames: [RENDERING, SECOND_VIDEO], fid: "P0_0", to: "P1_0",
+      heading: "Video kuyruktan çıkarılamadı",
+      press: async () => {
+        fireEvent.click(tab("Video"));
+        await act(async () => { fireEvent.click(screen.getByText("Kuyruktan çıkar")); });
+      } },
+    { name: "Kuyruktan çıkar on a waiting frame", api: removeFrames, frames: MIXED, fid: "3_a",
+      to: "0_a", heading: "Kare kuyruktan çıkarılamadı",
+      press: () => act(async () => { fireEvent.click(screen.getByText("Kuyruktan çıkar")); }) },
+  ];
+  // The sound's switch kept its own sentence already; only the frame was missing.
+  const MUTE = { name: "Sesi kapat", api: saveMuted, frames: [LAYERED, SECOND_VIDEO],
+                 fid: "P0_0", to: "P1_0", heading: "Ses kapatılamadı",
+                 press: async () => {
+                   fireEvent.click(tab("Video"));
+                   await act(async () => {
+                     fireEvent.click(screen.getByRole("button", { name: "Sesi kapat" }));
+                   });
+                 } };
+
+  // Named rows, so a title reads the press's name as it is written.
+  const named = (presses) => presses.map((one) => [one.name, one]);
+
+  it.each(named(PRESSES))("keeps the server's sentence under a refused %s while the queue runs",
+                          async (_name, { api, frames, fid, press, heading }) => {
+    api.mockRejectedValue(new Error(SAID));
+    await mount(fid, frames, ELSEWHERE);
+    await press();
+    expect(screen.getByText(SAID)).toBeTruthy();
+
+    // A poll comes and answers well: that used to wipe the sentence and leave the heading alone.
+    const polls = getStatus.mock.calls.length;
+    await settle(2000);
+    expect(getStatus.mock.calls.length).toBeGreaterThan(polls);
+
+    expect(screen.getByText(heading)).toBeTruthy();
+    expect(screen.getByText(SAID)).toBeTruthy();
+  });
+
+  it.each(named([...PRESSES, MUTE]))("draws a late refusal of %s on its own frame alone",
+                                     async (_name, { api, frames, fid, to, press, heading }) => {
+    const answer = deferred();
+    api.mockReturnValue(answer.promise);
+    const step = await mount(fid, frames);
+    await press();
+
+    // The arrows move on before the server has answered.
+    await step(to);
+    await act(async () => { answer.reject(new Error(SAID)); });
+    await settle();
+
+    expect(screen.queryByText(heading)).toBeNull();
+    expect(screen.queryByText(SAID)).toBeNull();
+
+    // And back: the refusal was that frame's, and it is still waiting there to be read.
+    await step(fid);
+
+    expect(screen.getByText(heading)).toBeTruthy();
+    expect(screen.getByText(SAID)).toBeTruthy();
+  });
+
+  it("leaves the open frame's card standing when another frame's refusal lands late", async () => {
+    const first = deferred();
+    regenerateFrame.mockReturnValueOnce(first.promise)
+      .mockRejectedValueOnce(new Error("P1_0 için plan satırı yok"));
+    const step = await mount("P0_0", [LAYERED, SECOND_VIDEO]);
+    await act(async () => { fireEvent.click(regenButton()); });
+    await step("P1_0");
+    await act(async () => { fireEvent.click(regenButton()); });
+    expect(screen.getByText("P1_0 için plan satırı yok")).toBeTruthy();
+
+    await act(async () => { first.reject(new Error(SAID)); });
+    await settle();
+
+    expect(screen.getByText("Kare yeniden üretilemedi")).toBeTruthy();
+    expect(screen.getByText("P1_0 için plan satırı yok")).toBeTruthy();
+    expect(screen.queryByText(SAID)).toBeNull();
+  });
+
+  // A press that goes through, late: the frame open by then is not the one it was made on.
+  it("stays on the frame the user stepped to when a frame's removal lands late", async () => {
+    const answer = deferred();
+    removeFrames.mockReturnValue(answer.promise);
+    const step = await mount("3_a", MIXED);
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruktan çıkar")); });
+    await step("0_a");
+
+    await act(async () => { answer.resolve({ deleted: [], removed: ["3_a"] }); });
+    await settle();
+
+    // The walk to the pressed frame's neighbour was for a user still standing on it.
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["Videoyu sil", LAYERED, removeLayer, async () => {
+      fireEvent.click(screen.getByText("Videoyu sil — kare kalır"));
+      await act(async () => { fireEvent.click(confirmButton()); });
+    }],
+    ["Kuyruktan çıkar on a waiting layer", RENDERING, dequeueLayer, async () => {
+      await act(async () => { fireEvent.click(screen.getByText("Kuyruktan çıkar")); });
+    }],
+  ])("leaves the open frame's tab where it is when %s lands late",
+     async (_name, first, api, press) => {
+    const answer = deferred();
+    api.mockReturnValue(answer.promise);
+    const step = await mount("P0_0", [first, SECOND_VIDEO]);
+    fireEvent.click(tab("Video"));
+    await press();
+    // The second frame has a video too, so its page opens on the same tab.
+    await step("P1_0");
+    expect(tab("Video").getAttribute("aria-current")).toBe("page");
+
+    await act(async () => { answer.resolve({ deleted: ["P0_0_V1_0.mp4"], removed: [] }); });
+    await settle();
+
+    expect(tab("Video").getAttribute("aria-current")).toBe("page");
+  });
+
+  it("marks nothing as sent on the frame the user stepped to when Yeniden üret lands late",
+     async () => {
+    const answer = deferred();
+    regenerateFrame.mockReturnValue(answer.promise);
+    const step = await mount("P0_0", [LAYERED, SECOND_VIDEO]);
+    await act(async () => { fireEvent.click(regenButton()); });
+    await step("P1_0");
+
+    await act(async () => { answer.resolve({ frame: "P0_1" }); });
+    await settle();
+
+    expect(regenButton().disabled).toBe(false);
+    expect(screen.queryByText("Kuyruğa eklendi")).toBeNull();
+    expect(screen.queryByText("yeniden üretilecek — kuyrukta")).toBeNull();
+  });
+
+  it("keeps the open frame's own press going when another frame's answer lands late", async () => {
+    const first = deferred();
+    removeLayer.mockReturnValueOnce(first.promise).mockReturnValueOnce(new Promise(() => {}));
+    const step = await mount("P0_0", [LAYERED, SECOND_VIDEO]);
+    fireEvent.click(tab("Video"));
+    fireEvent.click(screen.getByText("Videoyu sil — kare kalır"));
+    await act(async () => { fireEvent.click(confirmButton()); });
+    await step("P1_0");
+    // The second frame's own deletion, still on its way.
+    fireEvent.click(screen.getByText("Videoyu sil — kare kalır"));
+    await act(async () => { fireEvent.click(confirmButton()); });
+    expect(screen.getByText("Siliniyor…")).toBeTruthy();
+
+    await act(async () => { first.resolve({ deleted: ["P0_0_V1_0.mp4"] }); });
+    await settle();
+
+    // Its window stays open and busy: the answer that came was the other frame's.
+    expect(screen.getByText("Siliniyor…")).toBeTruthy();
   });
 });

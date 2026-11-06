@@ -35,26 +35,26 @@ describe("api.request", () => {
     expect(url).not.toContain("düğün");
   });
 
-  it("asks the idle watch from a version, or at once with none (madde 498)", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(okResponse({ version: 2, asking: true }));
+  it("asks how often the queue started and ended from the counts heard, or at once with none (madde 518)", async () => {
+    const answer = { started: 3, ended: 2, last: { status: "done" } };
+    const fetchMock = vi.fn().mockResolvedValue(okResponse(answer));
     vi.stubGlobal("fetch", fetchMock);
 
-    expect(await api.waitForIdle(1)).toEqual({ version: 2, asking: true });
-    await api.waitForIdle(null);
-    await api.sayHere();
+    expect(await api.waitForQueue({ started: 2, ended: 1, last: null })).toEqual(answer);
+    await api.waitForQueue(null);
 
     expect(fetchMock.mock.calls.map(([url, options]) => [options.method || "GET", url])).toEqual([
-      ["GET", "/api/idle?after=1"], ["GET", "/api/idle"], ["POST", "/api/idle/here"]]);
+      ["GET", "/api/queue/watch?started=2&ended=1"], ["GET", "/api/queue/watch"]]);
   });
 
-  it("holds the idle ask longer than the server does, and cuts it before the tunnel would", async () => {
+  it("holds the queue's ask longer than the server does, and cuts it before the tunnel would", async () => {
     vi.useFakeTimers();
     vi.stubGlobal("fetch", vi.fn((url, { signal }) => new Promise((resolve, reject) => {
       signal.addEventListener("abort", () => reject(Object.assign(new Error("aborted"),
                                                                    { name: "AbortError" })));
     })));
 
-    const asked = api.waitForIdle(0).catch((err) => err);
+    const asked = api.waitForQueue({ started: 0, ended: 0, last: null }).catch((err) => err);
     // The server holds an ask 50 seconds: a client cut at the usual ten would never hear it.
     await vi.advanceTimersByTimeAsync(60_000);
     let settled = false;
@@ -63,7 +63,8 @@ describe("api.request", () => {
     expect(settled).toBe(false);
 
     await vi.advanceTimersByTimeAsync(40_000);
-    expect((await asked).evidence).toBe("GET /api/idle?after=0\nZaman aşımı (80 sn)");
+    expect((await asked).evidence).toBe(
+      "GET /api/queue/watch?started=0&ended=0\nZaman aşımı (80 sn)");
   });
 
   it("throws the server's own text when the server rejects a request", async () => {
@@ -189,12 +190,26 @@ describe("api.request", () => {
     const fetchMock = vi.fn().mockResolvedValue(okResponse({ added: 1 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await queueLayer("düğün", "video", ["0_a.png"], 2, "loop");
+    await queueLayer("düğün", "video", ["0_a"], 2, "loop");
 
     const [url, options] = fetchMock.mock.calls[0];
     expect(url).toBe(`/api/projects/${encodeURIComponent("düğün")}/layers/video`);
-    expect(JSON.parse(options.body)).toEqual({ files: ["0_a.png"], variants: 2, mode: "loop" });
+    // Identities, the delete's and the copy's way (madde 520).
+    expect(JSON.parse(options.body)).toEqual({ frames: ["0_a"], variants: 2, mode: "loop" });
   });
+
+  it("takes a layer's waiting job out at a door of its own, never the delete's (madde 516)",
+     async () => {
+       const fetchMock = vi.fn().mockResolvedValue(okResponse({ removed: [] }));
+       vi.stubGlobal("fetch", fetchMock);
+
+       await api.dequeueLayer("düğün", ["P0_0"], "video");
+
+       const [url, options] = fetchMock.mock.calls[0];
+       expect(url).toBe(`/api/projects/${encodeURIComponent("düğün")}/layers/video/dequeue`);
+       expect(options.method).toBe("POST");
+       expect(JSON.parse(options.body)).toEqual({ frames: ["P0_0"] });
+     });
 
   it("reads and writes Referanstan's record at the project's own address", async () => {
     const fetchMock = vi.fn().mockResolvedValue(okResponse({ prompts: "", variants: null }));
@@ -284,6 +299,23 @@ describe("api.request", () => {
     expect(putUrl).toBe(url);
     expect(put.method).toBe("PUT");
     expect(JSON.parse(put.body)).toEqual({ on: false });
+  });
+
+  it("reads the turned-off sounds and turns one off at the frame's own address (madde 510)",
+     async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse({ frames: ["P0_0"] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(await api.getMuted("düğün")).toEqual(["P0_0"]);
+    expect(await api.saveMuted("düğün", "P0_0", true)).toEqual(["P0_0"]);
+
+    const project = `/api/projects/${encodeURIComponent("düğün")}`;
+    expect(fetchMock.mock.calls[0][0]).toBe(`${project}/muted`);
+    expect(fetchMock.mock.calls[0][1].method).toBeUndefined();
+    const [putUrl, put] = fetchMock.mock.calls[1];
+    expect(putUrl).toBe(`${project}/frames/P0_0/muted`);
+    expect(put.method).toBe("PUT");
+    expect(JSON.parse(put.body)).toEqual({ muted: true });
   });
 
   it("does not abort a request after its answer has arrived", async () => {
