@@ -1,13 +1,10 @@
-from fastapi.testclient import TestClient
-
 from core.about import NAME, VERSION
 from core.server import create_api
+from tests.contract import checked_client
 
 
 def test_health_names_the_app_the_core_and_the_version() -> None:
-    client = TestClient(create_api(core_id="k3v9q2mz7a"))
-
-    response = client.get("/health")
+    response = checked_client(create_api(core_id="k3v9q2mz7a")).get("/health")
 
     assert response.status_code == 200
     assert response.json() == {"app": NAME, "core": "k3v9q2mz7a", "version": VERSION}

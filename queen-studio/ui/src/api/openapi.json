@@ -7,6 +7,9 @@
   "paths": {
     "/health": {
       "get": {
+        "tags": [
+          "Discovery"
+        ],
         "summary": "Which app and which core answer here",
         "description": "Checks the address is this app's core. Calls no other service.",
         "operationId": "health_health_get",
@@ -20,6 +23,16 @@
                 }
               }
             }
+          },
+          "default": {
+            "description": "Any error, in its four fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         }
       }
@@ -27,6 +40,46 @@
   },
   "components": {
     "schemas": {
+      "Error": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "What went wrong, as a fixed name to act on."
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "What is wrong and why; a service's failure in the service's own words."
+          },
+          "details": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Details",
+            "description": "The ids the error is about. `problems` lists each problem, a field's as {field, code, message}."
+          },
+          "hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hint",
+            "description": "The next step, when the core knows it for certain; otherwise null."
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "details",
+          "hint"
+        ],
+        "title": "Error"
+      },
       "Health": {
         "properties": {
           "app": {
@@ -54,5 +107,11 @@
         "title": "Health"
       }
     }
-  }
+  },
+  "tags": [
+    {
+      "name": "Discovery",
+      "description": "How to learn this API, and to check that the address answers with this app's core."
+    }
+  ]
 }

@@ -33,7 +33,8 @@ mesajların ve hint'lerin anlamı Türkçe yazılır.
 - **Zarf yoktur.** Tek bir şeyi döndüren cevap o şeyin kendisidir. Liste cevabı:
   `{"items": [...], "total": 1234, "offset": 0, "limit": 100}` — `total` süzgece uyanların sayısıdır.
 - Bilinmeyen bir alan hatadır, sessizce atılmaz (1. adım: model almadığı şeyi sessizce atmaz; kural
-  bütün gövdelere aynı uygulanır).
+  bütün gövdelere aynı uygulanır). Adresin almadığı sorgu parametresi de öyledir (`query.<ad>`,
+  `unknown`); liste sorgusunu kendisi ayrıştıran endpoint'ler onu kendileri reddeder (madde 529).
 - Gövde en çok 4 MB'tır (20.000 karelik bütün sıra ~120 KB).
 - **Agent başlıkları görmez:** MCP tool'u çağrının durumunu ve gövdesini döndürür (8. adım). Agent'ın
   bilmesi gereken hiçbir şey yalnız bir cevap başlığında durmaz.
@@ -189,7 +190,7 @@ Her hata dört alanla döner (11. adım):
   `details.problems`'ta kendi `code`, `message`, `hint`'iyle ve gösterdiği kimliklerle durur. Üstteki
   `code` hepsi aynıysa o, değilse `several_problems`'tır; `message` kaç engel olduğunu söyler.
 - `400`'lerde her sorun bir alanı gösterir: `{"field": "body.negative", "code": "not_accepted",
-  "message": …}`. Alan yolları `body.`, `query.`, `header.` ile başlar. Alan sorunlarının kodları:
+  "message": …}`. Alan yolları `body.`, `query.`, `header.` ya da `path.` (adresteki alan, ör. `{id}`) ile başlar. Alan sorunlarının kodları:
   `missing`, `unknown`, `wrong_type`, `not_allowed` (izinli değerlerden değil), `out_of_range`,
   `not_accepted` (model bu alanı almıyor), `not_supported` (model bu yöntemi yapmıyor), `name_rule`,
   `duplicate`, `bad_query`.
@@ -267,8 +268,11 @@ olarak efficient olsun"; "endpoint miktarı scale oldukça patlamayalım diye"):
  "rules": "<ortak kurallar, kısa: adresler, anahtar, liste sorgusu, konum, wait, hata biçimi>",
  "sections": [{"name": "Frames",
                "about": "<iki üç cümle: kare nedir, sırası, fotoğrafı ve videosu>",
-               "endpoints": [{"method": "GET", "path": "/projects/{p}/frames", "summary": "Projenin kareleri"}]}]}
+               "endpoints": ["GET /projects/{p}/frames: Projenin kareleri"]}]}
 ```
+
+Her endpoint tek bir metin satırıdır, `"<fiil> <adres>: <özet>"`; nesne değildir, çünkü üç anahtarın
+her satırda yinelenmesi endpoint başına ~30 bayt tutar (madde 529; kararlar, Sapmalar).
 
 **`GET /api?path=<adres>`** — Bir adresin ayrıntısı: o adresteki her fiilin aldığı alanlar (tür,
 zorunlu mu, bir cümle), döndürdüğü ve kendine özgü hataları. Ör. `GET /api?path=/projects/{p}/frames`

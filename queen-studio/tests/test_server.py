@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from core.about import NAME
 from core.server import create_api, serve
+from tests.contract import checked_client
 
 
 @pytest.fixture
@@ -15,7 +16,7 @@ def client(tmp_path: Path) -> TestClient:
     (ui / "assets" / "app.js").write_text("run()", encoding="utf-8")
     # Beside the UI's folder, as core.json is beside nothing it serves: it must not be reachable.
     (tmp_path / "secret.txt").write_text("outside", encoding="utf-8")
-    return TestClient(serve(create_api(core_id="k3v9q2mz7a"), ui))
+    return checked_client(serve(create_api(core_id="k3v9q2mz7a"), ui), api="/api")
 
 
 def test_the_root_is_the_ui(client: TestClient) -> None:
@@ -38,7 +39,7 @@ def test_an_unknown_api_address_never_falls_to_the_ui(client: TestClient) -> Non
     response = client.get("/api/nothing-here")
 
     assert response.status_code == 404
-    assert response.headers["content-type"] == "application/json"
+    assert response.json()["code"] == "unknown_endpoint"
 
 
 def test_fastapis_doc_pages_are_off_and_their_address_is_the_uis(client: TestClient) -> None:
@@ -46,13 +47,19 @@ def test_fastapis_doc_pages_are_off_and_their_address_is_the_uis(client: TestCli
     assert client.get("/docs").status_code == 404
 
 
-@pytest.mark.parametrize("path", ["/api", "/api?path=/health"])
-def test_the_bare_api_address_is_the_apis_root(client: TestClient, path: str) -> None:
-    # v1-5 puts the index there (`GET /api`, `GET /api?path=`); until then it is the API's 404.
-    response = client.get(path)
+def test_the_bare_api_address_is_the_index(client: TestClient) -> None:
+    response = client.get("/api")
 
-    assert response.status_code == 404
-    assert response.headers["content-type"] == "application/json"
+    assert response.status_code == 200
+    assert response.json()["app"] == NAME
+
+
+def test_the_bare_api_address_keeps_its_query(client: TestClient) -> None:
+    # The rewrite to `/api/` leaves the query as sent, so `?path=` reaches the index.
+    response = client.get("/api?path=/health")
+
+    assert response.status_code == 200
+    assert response.json().keys() == {"GET"}
 
 
 # Encoded, so the test client does not resolve the `..` itself and the server sees it as sent.

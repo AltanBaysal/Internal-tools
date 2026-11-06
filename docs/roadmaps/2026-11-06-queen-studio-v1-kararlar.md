@@ -44,6 +44,16 @@ neye, neden, hangi belge düzeltildi.
 7. **Hız sınırı deneyini kullanıcı atlattı, sonuç yine tutuldu** ([528 · v1-4](2026-11-06-queen-studio-v1-roadmap.md#v1-4);
    kullanıcı, 6 Kasım — "üst limiti de denemeyelim"). Atla kararı gelmeden koşmuştu; sonuç 6'daki
    düzeltmenin dayanağı.
+8. **`GET /api`'nin satırları düz yazı** ([529 · v1-5](2026-11-06-queen-studio-v1-roadmap.md#v1-5)):
+   6. adımın `{"method","path","summary"}` nesneleri yerine `"GET /health: …"`. Neden: endpoint başına
+   ~33 bayt, oturum başına ~370 token daha az (kullanıcı, 5 Kasım — "token olarak efficient olsun").
+   Değişen: 6. adım, Discovery.
+9. **Bilinmeyen sorgu parametresi de hata** ([529 · v1-5](2026-11-06-queen-studio-v1-roadmap.md#v1-5)):
+   6. adım yalnız gövdeyi söylüyordu; `?paht=` gibi bir yazım hatası sessizce bütün dizini dönüyordu.
+   Listeler (v1-6) sorgularını kendileri çözer ve bilinmeyen alanı kendileri reddeder. Değişen: 6.
+   adım, Gövde.
+10. **Hata alan yollarına `path.` eklendi** ([529 · v1-5](2026-11-06-queen-studio-v1-roadmap.md#v1-5)):
+    `body.`, `query.`, `header.` yanında adresin kendi alanı (`{id}` gibi) için. Değişen: 6. adım, Biçim.
 
 ## Koşudan önce, belgelerin gözden geçirilmesinde
 

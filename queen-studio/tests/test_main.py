@@ -2,10 +2,10 @@ import json
 from pathlib import Path
 
 import pytest
-from fastapi.testclient import TestClient
 
 import main
 from core.about import NAME, VERSION
+from tests.contract import checked_client
 
 pytestmark = pytest.mark.usefixtures("restore_root_logger")
 
@@ -20,7 +20,7 @@ def ui(tmp_path: Path) -> Path:
 
 def test_health_answers_with_the_identity_on_the_disk(tmp_path: Path, ui: Path) -> None:
     disk = tmp_path / "disk"
-    client = TestClient(main.build(disk, ui))
+    client = checked_client(main.build(disk, ui), api="/api")
 
     identity = json.loads((disk / "core.json").read_text(encoding="utf-8"))["core"]
     assert client.get("/api/health").json()["core"] == identity
