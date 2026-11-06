@@ -1,13 +1,15 @@
 import json
 import re
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
 import pytest
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
-from core.errors import ADDRESS_BYTES, FIELD_BYTES, MESSAGE_BYTES, PROBLEMS_SHOWN
+from core import errors
+from core.change import HEADERS_HINT, Change, change
+from core.errors import ADDRESS_BYTES, FIELD_BYTES, MESSAGE_BYTES, PROBLEMS_SHOWN, FieldCode
 from core.server import create_api, serve
 from tests.budgets import ERROR_BYTES
 from tests.contract import checked_client
@@ -284,6 +286,51 @@ def test_many_problems_list_the_first_and_count_the_rest() -> None:
     assert len(body["details"]["problems"]) == PROBLEMS_SHOWN
     assert body["details"]["more"] == 300 - PROBLEMS_SHOWN
     assert len(response.content) <= ERROR_BYTES
+
+
+def test_only_the_problems_shown_are_said_in_words(monkeypatch: pytest.MonkeyPatch) -> None:
+    # A body of many unknown keys brings an error for each; set small, the bound shows. Each problem
+    # said in words passes through `problem`.
+    monkeypatch.setattr(errors, "PROBLEMS_SHOWN", 2)
+    said: list[str] = []
+    real = errors.problem
+
+    def counted(field: str, code: FieldCode, message: str) -> dict[str, str]:
+        said.append(field)
+        return real(field, code, message)
+
+    monkeypatch.setattr(errors, "problem", counted)
+    sent = {"name": "a", **{f"k{number:02}": 0 for number in range(20)}}
+
+    body = checked_client(sample_api()).post("/samples/1", json=sent, headers=CHANGE).json()
+
+    assert said == ["body.k00", "body.k01"]
+    assert problems(body) == [("body.k00", "unknown"), ("body.k01", "unknown")]
+    assert body["details"]["more"] == 18
+    assert body["message"] == "The request has 20 problems; nothing was done."
+
+
+def test_a_header_problem_past_the_shown_ones_keeps_the_headers_hint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The hint is of every problem, the counted ones too: here the headers come last.
+    monkeypatch.setattr(errors, "PROBLEMS_SHOWN", 2)
+    api = sample_api()
+
+    def numbers(a: int, b: int, c: int) -> int:
+        return a + b + c
+
+    @api.post("/late", summary="Headers last")
+    def late(
+        total: Annotated[int, Depends(numbers)], made: Annotated[Change, Depends(change)]
+    ) -> int:
+        return total
+
+    body = checked_client(api).post("/late").json()
+
+    assert problems(body) == [("query.a", "missing"), ("query.b", "missing")]
+    assert body["details"]["more"] == 3
+    assert body["hint"] == f"{HEADERS_HINT} `GET /api?path=/late` gives what this address takes."
 
 
 def test_the_longest_problems_still_fit_the_budget() -> None:

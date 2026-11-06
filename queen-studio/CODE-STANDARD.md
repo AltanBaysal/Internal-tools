@@ -79,7 +79,9 @@ does not carry over.
   the process: the caller, Drive's files, ComfyUI's and the model hosts' answers, the media. Each
   text, list and count has a maximum in its model; each outbound call, subprocess and download a
   timeout; each answer a byte budget; each disk write a free-space check first. Past a bound the core
-  refuses with the four-field error before doing the work, and never truncates silently. No input
+  refuses with the four-field error before doing the work, and never truncates silently. The one
+  exception is the server's own guards, such as h11's head limit (530): they answer before the app,
+  in the server's plain text. No input
   reaches an engine that runs it as a program — regex, eval, a shell, a template: compiling one
   pattern from a query filled this machine's 16 GB (530). A spec names each bound, and a test reaches
   it with the bound set small.

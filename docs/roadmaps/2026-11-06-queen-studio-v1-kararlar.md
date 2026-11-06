@@ -112,6 +112,14 @@ neye, neden, hangi belge düzeltildi.
     çağrı (değişmemiş projede 1), yazmanın kimliği `w`, kaybolan yazmadan önce md5'e bakılması, klasör
     kimliği etikette, `create` mühürlemez, bilinmeyen `v` okunamaz, disk önbelleğinin anahtarı md5.
     Hepsi: [m532 spec, 4. adımdan sapmalar](../specs/2026-11-06-queen-studio-m532-drive-projeler-design.md#4-adımdan-sapmalar).
+17. **Bağlantı değil, bellekteki gövdeler sayılır** ([533 · v1-42](2026-11-06-queen-studio-v1-roadmap.md#v1-42)).
+    Denetim aynı anda açık bağlantıya sınır diyordu; uvicorn'un sınırı boştaki bağlantıları ve küçük
+    resim isteklerini de sayıyor, düz yazıyla reddediyordu, tünelden gelen bir resim yağmuru ekranı
+    kırardı. Bedeli bellekte: 1 MiB'lık gövde açılınca ~24 MB olabiliyor. Şimdi: aynı anda okunan
+    gövdeler en çok 8 MiB, aşılınca `busy` (503, dört alan); gövdesiz istek hiç reddedilmez. Gövde
+    sınırı 1 MiB, en büyük gerçek gövdenin (edit'in 5000 yeri) ~3,5 katı. Yalnız bellek okuyan
+    endpoint `async` (FOUNDATION 2'ye yazıldı). Değişen: roadmap'in kabul satırı, 6. adım, FOUNDATION,
+    CODE-STANDARD (sunucunun kendi koruması düz yazıyla cevap verir, 530'un h11 sınırı).
 
 ## Koşudan önce, belgelerin gözden geçirilmesinde
 

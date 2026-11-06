@@ -6,6 +6,7 @@ here, so no answer leaves the API in FastAPI's `{"detail": ...}`.
 """
 
 import json
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -46,6 +47,7 @@ CODES: dict[str, Code] = {
     "invalid_request": Code(400, hint=True),
     "unknown_endpoint": Code(404, hint=True),
     "method_not_allowed": Code(405, hint=True),
+    "busy": Code(503, hint=True),
     "internal": Code(500, hint=False),
 }
 
@@ -137,7 +139,13 @@ def handle(api: FastAPI) -> None:
 
     @api.exception_handler(RequestValidationError)
     async def validation(request: Request, error: RequestValidationError) -> JSONResponse:
-        return _invalid(request, [_field_problem(found) for found in error.errors()])
+        # A body of many bad items or unknown keys brings an error for each: only the shown ones
+        # are said in words, the rest counted. The hint is of them all, so their places are kept.
+        found = error.errors()
+        shown = [_field_problem(one) for one in found[:PROBLEMS_SHOWN]]
+        # A field's first part is its `loc`'s first, as _field_problem writes it.
+        places = _places(str(one["loc"][0]) for one in found)
+        return _invalid(template(request), shown, len(found), places, {}).response()
 
     @api.exception_handler(HTTPException)
     async def routing(request: Request, error: HTTPException) -> JSONResponse:
@@ -149,7 +157,7 @@ def handle(api: FastAPI) -> None:
         # read, such as a body cut off mid-read.
         if error.status_code < 500:
             message = f"`body` could not be read: {error.detail}."
-            return _invalid(request, [problem("body", "wrong_type", message)])
+            return invalid(template(request), [problem("body", "wrong_type", message)]).response()
         return respond("internal", f"{error.status_code}: {error.detail}")
 
     @api.exception_handler(Exception)
@@ -177,15 +185,11 @@ def cut(text: str, most: int) -> str:
 def _failure(error: Exception) -> str:
     # A validation error's text carries the values and the source line it failed on: the caller
     # gets its kind and count, the log the rest.
-    if isinstance(error, ValidationException | ValidationError):
-        count = len(error.errors())
+    # Pydantic's `errors()` builds a dict for each error: its own count builds none.
+    if isinstance(error, ValidationError | ValidationException):
+        count = error.error_count() if isinstance(error, ValidationError) else len(error.errors())
         return f"{type(error).__name__}: {count} validation error{'' if count == 1 else 's'}"
     return cut(f"{type(error).__name__}: {error}", MESSAGE_BYTES)
-
-
-def _invalid(request: Request, problems: list[dict[str, str]]) -> JSONResponse:
-    # Raised once a route is found: its address is the template the index writes.
-    return invalid(template(request), problems).response()
 
 
 def invalid(
@@ -195,15 +199,31 @@ def invalid(
 
     `details` adds to them, as a list's fields do (core/lists).
     """
+    places = _places(found["field"] for found in problems)
+    return _invalid(address, problems[:PROBLEMS_SHOWN], len(problems), places, details or {})
+
+
+def _places(fields: Iterable[str]) -> set[str]:
+    """Where the problems are: each field's first part, as `header` or `body`."""
+    return {field.split(".")[0] for field in fields}
+
+
+def _invalid(
+    address: str,
+    shown: list[dict[str, str]],
+    count: int,
+    places: set[str],
+    details: dict[str, Any],
+) -> ApiError:
+    """`invalid_request` of `count` problems, `shown` the first of them; `places` are of all."""
     message = (
-        problems[0]["message"]
-        if len(problems) == 1
-        else f"The request has {len(problems)} problems; nothing was done."
+        shown[0]["message"]
+        if count == 1
+        else f"The request has {count} problems; nothing was done."
     )
-    shown: dict[str, Any] = {"problems": problems[:PROBLEMS_SHOWN]}
-    if len(problems) > PROBLEMS_SHOWN:
-        shown["more"] = len(problems) - PROBLEMS_SHOWN
-    places = {found["field"].split(".")[0] for found in problems}
+    listed: dict[str, Any] = {"problems": shown}
+    if count > len(shown):
+        listed["more"] = count - len(shown)
     hints: list[str] = []
     if "header" in places:
         hints.append(HEADERS_HINT)
@@ -213,7 +233,7 @@ def invalid(
             if address == INDEX
             else f"`GET /api?path={address}` gives what this address takes."
         )
-    return ApiError("invalid_request", message, {**shown, **(details or {})}, " ".join(hints))
+    return ApiError("invalid_request", message, {**listed, **details}, " ".join(hints))
 
 
 def template(request: Request) -> str:

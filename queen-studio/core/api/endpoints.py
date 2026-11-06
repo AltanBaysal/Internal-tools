@@ -54,7 +54,9 @@ def router(core_id: str) -> APIRouter:
         summary="Which app and which core answer here",
         description="Checks the address is this app's core. Calls no other service.",
     )
-    def health() -> Health:
+    # `async` as the index: it reads memory only, so it needs no worker thread, and answers while
+    # waiting requests and slow Drive calls hold them all.
+    async def health() -> Health:
         return Health(app=NAME, core=core_id, version=VERSION)
 
     return endpoints

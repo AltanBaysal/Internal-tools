@@ -58,7 +58,9 @@ Why FastAPI: the skeleton of `GET /api` â€” endpoints, their fields and types â€
 and changes with it, and the same OpenAPI becomes the UI's TypeScript types, so a core change the UI
 does not follow fails at the UI's build, not on the screen. Its own terse error messages are replaced
 by ours. Endpoints are plain `def`, not `async`, so a slow Drive call holds one worker, not the
-server. The whole stack: [step 5](../docs/research/2026-11-03-yeni-editor-v1-5-backend-yigini.md).
+server. An endpoint that reads memory only is `async` (the index, health): it needs no worker, so it
+still answers while waiting requests hold them all, and the agent never reads a busy core as gone.
+The whole stack: [step 5](../docs/research/2026-11-03-yeni-editor-v1-5-backend-yigini.md).
 
 **3. The core reaches its data through a storage port.**
 The port speaks of a project's records, not of Drive's files, and has no permanent delete. Two

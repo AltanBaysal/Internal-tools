@@ -35,7 +35,8 @@ mesajların ve hint'lerin anlamı Türkçe yazılır.
 - Bilinmeyen bir alan hatadır, sessizce atılmaz (1. adım: model almadığı şeyi sessizce atmaz; kural
   bütün gövdelere aynı uygulanır). Adresin almadığı sorgu parametresi de öyledir (`query.<ad>`,
   `unknown`); liste sorgusunu kendisi ayrıştıran endpoint'ler onu kendileri reddeder (madde 529).
-- Gövde en çok 4 MB'tır (20.000 karelik bütün sıra ~120 KB).
+- Gövde en çok 1 MiB'tır (en büyüğü, edit'in 5000 yerlik `replace`'i, ~250–300 KB; madde 533).
+  Core'un aynı anda tuttuğu bütün gövdeler en çok 8 MiB'tır; geçen istek okunmadan `busy` alır.
 - **Agent başlıkları görmez:** MCP tool'u çağrının durumunu ve gövdesini döndürür (8. adım). Agent'ın
   bilmesi gereken hiçbir şey yalnız bir cevap başlığında durmaz.
 
@@ -234,6 +235,7 @@ ve seçeneği söyler; **yok** — `null`.
 | `storage_unconfirmed` | 503 | Drive'a yazma ~60 sn'de belli olmadı (4. adım) | seçenek: aynı anahtarla yeniden gönderilirse yapılmışsa ilk cevap döner, yapılmamışsa bir kez yapılır |
 | `storage_rejected` | 503 | Drive yazmayı reddetti (kota, hız sınırı ~60 sn sürdü) | seçenek: hiçbir şey yazılmadı; aynı anahtarla yeniden gönderilebilir |
 | `project_unreadable` | 503 | Projenin baş dosyası okunamıyor; projeye her istek bunu alır | seçenek: önceki hali Drive'ın sürüm geçmişinde; kullanıcının kararı |
+| `busy` | 503 | Core'un aynı anda tuttuğu istek gövdeleri bu gövdeyle 8 MiB'ı geçerdi; gövde okunmadı (madde 533) | kural: hiçbir şey yapılmadı; öndeki istekler cevaplanınca yeniden gönderilir |
 | `storage_low` | 507 | Export başlarken Drive'daki boş yer çıktının tahmini + 2 GB'tan az (4. adım) | seçenek: yer açılınca yeniden denenebilir; kullanıcıya sor |
 | `ffmpeg_failed` | 503 | Durağan görüntü ya da küçük fotoğraf üretilemedi; `message` ffmpeg'in sözü | yok |
 | `internal` | 500 | Core'un hatası; `message` hatanın kendisi, ayrıntısı log'da | yok |
