@@ -1,9 +1,11 @@
 import json
+import os
 
 import pytest
 
 from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
 from backend.services.storage.storage import Storage
+from backend.tests.test_written_at_once import Meanwhile
 
 
 def record_at(path, *projects):
@@ -379,3 +381,47 @@ def test_a_written_prompt_is_about_its_own_layer_alone(tmp_path):
     record.mark("düğün", "0_a", "photo", "0_a.png", "deleted", "t2", seen=None)
 
     assert record.written_prompts("düğün") == {"0_a": {"video": "kadın dönüyor"}}
+
+
+class InPieces(Storage):
+    """A real storage whose first append reaches the file in two pieces, split `cut` bytes in, and
+    lets a second writer in between them. Nothing says Drive's mount delivers one write whole."""
+
+    def __init__(self, root, cut, meanwhile, second):
+        super().__init__(root)
+        self._cut, self._meanwhile, self._second = cut, meanwhile, second
+        self._first = True
+
+    def append_line(self, folder, name, line):
+        if not self._first:
+            return super().append_line(folder, name, line)
+        self._first = False
+        text = (line + "\n").encode("utf-8")
+        path = os.path.join(self._root, folder, name)
+        with open(path, "ab") as f:
+            f.write(text[:self._cut])
+        self._meanwhile.now(self._second)
+        with open(path, "ab") as f:
+            f.write(text[self._cut:])
+
+
+@pytest.mark.parametrize("cut", [0, 20], ids=["before-its-first-byte", "inside-the-line"])
+def test_two_lines_written_at_once_stand_whole_in_the_order_they_were_written(tmp_path, cut):
+    """The queue writes a layer's line from its own thread while a door writes its own (madde 524).
+    Torn, both lines would be skipped as unreadable; reordered, madde 513's fold, which reads them
+    in the order they stand, would be reading another history."""
+    (tmp_path / "düğün").mkdir()
+    landed = {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done",
+              "prompt": "kraliçe tahtta"}
+    decided = {"file": "1_a.png", "frame": "1_a", "layer": "photo", "status": "removed",
+               "at": "t", "from": "queued"}
+    meanwhile = Meanwhile()
+    record = DrivePhotoRecord(InPieces(str(tmp_path), cut, meanwhile,
+                                       lambda: record.append("düğün", decided)))
+
+    record.append("düğün", landed)
+    meanwhile.done()
+
+    lines = (tmp_path / "düğün" / "photos.jsonl").read_text(encoding="utf-8").splitlines()
+    assert lines == [json.dumps(landed, ensure_ascii=False),
+                     json.dumps(decided, ensure_ascii=False)]

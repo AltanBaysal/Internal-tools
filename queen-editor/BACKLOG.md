@@ -138,18 +138,6 @@ bilinen türleri gönderir. Düzeltme: bilinmeyen satır türü de `UnknownRefer
 planın işlerini, silinmiş yerleri ayırmadan sayıyor olabilir). Ekran bunu "8/9" diye gösterirse sıra
 bitmemiş gibi görünür.
 
-### Fotoğraf kaydına aynı anda iki satır yazılabilir
-
-*(512'nin reviewer'ı buldu, 29 Ekim; Colab'da denenmedi.)* `DrivePhotoRecord.append` `photos.jsonl`'e
-kilitsiz ekliyor; sıra (biten katmanın satırı) ve kapılar (kopya karenin satırları, işaretler) aynı
-anda ekleyebiliyor. Yerel Linux'ta tek bir `O_APPEND` yazması ötekine karışmaz; Drive'ın FUSE bağlamasının
-bunu koruyup korumadığı bilinmiyor. `chat_record` aynı yazmayı bu yüzden kilitliyor. Colab'da denenecek:
-aynı anda çok sayıda satır ekleyip dosyada yarım ya da kayıp satır var mı.
-
-513 de buna dayanıyor: bir kararın satırı (`from`'lu) ancak okunduğu durumun üstüne düşerse geçerli, ve
-bu, satırların dosyada eklendikleri sırada durmasına bağlı. Denemede satırların sırası da bakılacak:
-ekleme sırası ile dosyadaki sıra aynı mı.
-
 ### Windows'ta okunan bir dosyanın üstüne kayıt düşebilir
 
 *(512'nin coder'ı buldu, 29 Ekim; yalnız yerelde.)* Windows açık bir dosyanın üstüne `os.replace`'e izin

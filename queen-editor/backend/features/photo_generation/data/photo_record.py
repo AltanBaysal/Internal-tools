@@ -12,10 +12,11 @@ its source's picture, and closing one of them must not close the other.
 
 A decision's line says which status it was taken over (`from`), and it counts only while the slot
 still stands there (queue.applies, madde 513). The fold walks the lines in the order they are in the
-file, which is the order they were appended in -- the rule rests on that. Lines written before madde
-513 carry no `from` and apply as they always did.
+file, which is the order they were appended in -- the rule rests on that, and append's lock keeps it
+(madde 524). Lines written before madde 513 carry no `from` and apply as they always did.
 """
 import json
+import threading
 
 from backend.features.photo_generation.data.file_cache import FileCache
 from backend.features.photo_generation.domain import layers, queue
@@ -102,11 +103,20 @@ class DrivePhotoRecord:
         # Three of this class's answers come from the same file, and the gallery asks for all
         # three on every poll. Parsed once, kept until the file itself changes.
         self._cache = FileCache(storage)
+        # The queue writes its lines from its own thread under the name's lock, the doors theirs
+        # under the project's gate, so two can come at once; nothing says Drive's mount keeps two
+        # appends at once whole, apart and in order (madde 524). One process serves every writer,
+        # so a line goes to the file only once the one before it is there. A leaf: nothing is taken
+        # inside it, and it is held for one append alone -- the queue waits only for lines being
+        # written, never for a door's reads or its gate.
+        self._appending = threading.Lock()
 
     def append(self, project, entry):
         """entry: {"file", "frame", "layer", "status", …} -- a produced photo also carries prompt,
         negative and seed."""
-        self._storage.append_line(project, FILE, json.dumps(entry, ensure_ascii=False))
+        line = json.dumps(entry, ensure_ascii=False)
+        with self._appending:
+            self._storage.append_line(project, FILE, line)
 
     def mark(self, project, frame, layer, file, status, at, *, seen, error=None):
         """Write down an event that produced no layer: a failure, a deletion, a frame pulled out of
