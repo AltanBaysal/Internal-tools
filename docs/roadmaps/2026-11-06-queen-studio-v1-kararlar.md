@@ -74,6 +74,17 @@ neye, neden, hangi belge düzeltildi.
     değer, `order`/`select`'te bir alan bir kez, cevap en çok 1 MiB. Bitmiş kodun ve sonraki
     maddelerin denetimi yapıldı; ne olacağı kullanıcıda. Değişen: `CODE-STANDARD.md`,
     `.claude/agents/reviewer.md`, `qa.md`.
+13. **Depo portu kare, iş, edit bilmez** ([531 · v1-7](2026-11-06-queen-studio-v1-roadmap.md#v1-7)).
+    4. adımın tablosu değişikliği tek tek sayıyordu (kalkan kareler, yeni sıra, kuyruk…); port yalnız
+    baştan yazılanı (satır ve hal) ve bir kez yazılanı (kayıtlar ve history) bilir. Bilgi aynı, 4.
+    adımın çağrı sayıları değişmez; anlamı core verir. Reviewer'ın bulgusuyla eklenenler: `commit`
+    yalnız bu portun son verdiği sürümü alır (yoksa başka Colab'ın değişikliği sessizce ezilebilirdi);
+    port grupların biçimini (`format`) tutar, yeni biçimli projeyi eski core'a yazdırmaz; `exists`
+    dosyanın boyunu ve md5'ini döner, çıktısı Drive'da olan iş indirmeden kapanır; export'un `photos/`
+    alt klasörü; `trash_project`. Kapı kuralı: bir kapı başkasına yalnız kendisine verilen tür için
+    bakar (depo `Clock` alır). On bir sapmanın hepsi:
+    [m531 spec, 4. adımdan sapmalar](../specs/2026-11-06-queen-studio-m531-depo-portu-design.md#4-adımdan-sapmalar).
+    Değişen: `CODE-STANDARD.md`, kapı kuralı.
 
 ## Koşudan önce, belgelerin gözden geçirilmesinde
 

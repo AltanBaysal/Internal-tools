@@ -30,8 +30,10 @@ queen-studio/.venv/Scripts/python queen-studio/write_openapi.py   # after a core
   three changes for its own reason.
 - **Gates stand apart:** `storage` (the port, with its Drive and in-memory adapters), `comfy`, `ffmpeg`,
   `downloads` (from Hugging Face and Civitai; their rules are the `models` group's), the clock, the
-  Colab disk and the graphics card. A gate looks at no group and at no other gate. Why: everything
-  outside the process is behind a gate, so a test puts a fake in its place.
+  Colab disk and the graphics card. A gate looks at no group and at no other gate, but for the type
+  of one it is handed: storage takes a `Clock` to wait on, never builds one. Why: everything
+  outside the process is behind a gate, so a test puts a fake in its place; a gate handed another
+  is faked as easily.
 - **Groups may call each other, never in a cycle.** Deleting a frame, `frames` asks `jobs`; were
   `jobs` to ask `frames` too, that is a cycle, and forbidden.
 - **`core/`'s root holds the app's assembly and what every group shares:** the name and version
