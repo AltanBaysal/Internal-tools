@@ -12,7 +12,7 @@ from core import errors
 from core.about import NAME, VERSION
 from core.api import endpoints
 from core.body import BodyLimit
-from core.query import known_query
+from core.query import QueryLimit, known_query
 
 
 def create_api(core_id: str) -> FastAPI:
@@ -35,6 +35,7 @@ def create_api(core_id: str) -> FastAPI:
     )
     errors.handle(api)
     api.add_middleware(BodyLimit)
+    api.add_middleware(QueryLimit)
     api.include_router(endpoints.router(core_id))
     return api
 

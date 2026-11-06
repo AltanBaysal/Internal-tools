@@ -10,6 +10,12 @@ INDEX_BYTES = 6144
 INDEX_LINE_BYTES = 96
 # One address's detail, every method at it; v1's largest, t2i's, takes ~10 fields and answers a job.
 DETAIL_BYTES = 4096
+# One item of a list with its default fields, the worst built from the document's schema
+# (tests/lists/test_listing.py). Step 6's largest default set is the frames': two ids, a scene and
+# two statuses, ~230 B. A page of 100 is then at most ~25 KB.
+LIST_ITEM_BYTES = 256
+# The worst item's free text, where the schema sets no maxLength: a scene of a sentence or two.
+TEXT_SAMPLE_BYTES = 120
 # One error: a code, a sentence, the ids it is about and a hint; the first six problems listed, cut
 # (core/errors.py), the rest counted. Whatever the request: the worst the tests send is ~1.3 KB.
 ERROR_BYTES = 2048

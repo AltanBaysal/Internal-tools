@@ -1,6 +1,6 @@
 # Queen Studio — Yol Haritası v1
 
-**Tarih:** 2026-11-06 · **Koşu dalı:** `feat/queen-studio-v1` · **Durum:** 5/33 · koşuyor
+**Tarih:** 2026-11-06 · **Koşu dalı:** `feat/queen-studio-v1` · **Durum:** 6/33 · koşuyor
 
 queen-studio, queen-editor'ın özelliklerini bir AI agent'ın kullanabileceği biçimde sunan yeni bir
 araç. Ne yaptığı [tasarım adımlarında](../research/2026-11-03-yeni-editor-v1-tasarim-adimlar.md).
@@ -17,7 +17,7 @@ koşu durmaz. Son iki madde de kullanıcıyla: Pro'daki deneme ve DeepSeek harne
 | 527 · [v1-3](#v1-3) | İskelet ve ilk ekran, sürüm V1 | ✅ · `ALIGNED` |
 | 528 · [v1-4](#v1-4) | Drive'ın ölçümleri | ✅ *(ayrılmış kimliklerin 1, 3, 7 günlük bakışı 7, 9, 13 Kasım'da)* · `ALIGNED` |
 | 529 · [v1-5](#v1-5) | Ortak sözleşme: hatalar, başlıklar, `GET /api` | ✅ · `ALIGNED` |
-| [v1-6](#v1-6) | Liste sorgusu | `ALIGNED` |
+| 530 · [v1-6](#v1-6) | Liste sorgusu | ✅ *(regex yerine `like`/`ilike`; [kararlar 11](2026-11-06-queen-studio-v1-kararlar.md#sapmalar))* · `ALIGNED` |
 | [v1-7](#v1-7) | Depo portu ve bellek içi adaptör | `ALIGNED` |
 | [v1-8](#v1-8) | Drive adaptörü: projeler ve kayıtlar | `ALIGNED` |
 | [v1-9](#v1-9) | Drive adaptörü: dosyalar | `ALIGNED` |

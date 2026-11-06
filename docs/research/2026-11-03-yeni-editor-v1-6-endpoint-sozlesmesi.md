@@ -115,7 +115,7 @@ uygulanan küçük bir ayrıştırıcıdır:
 |---|---|---|
 | Süzmek | `<alan>=<işleç>.<değer>` | `status=eq.waiting` |
 | İşleçler | `eq`, `neq`, `in.(a,b)`, `gt`, `gte`, `lt`, `lte`, `is.null`, `is.true`, `is.false`; `not.` önüne gelir | `video.status=in.(waiting,running)`, `video=not.is.null` |
-| Regex | `match.<desen>` (büyük/küçük harfe bakar), `imatch.<desen>` (bakmaz: desen de metin de önce küçültülür, `I`, `ı`, `İ` ve `i` dördü de `i` sayılır; böylece hem Türkçe hem İngilizce bulunur); Python `re`, desen en çok 200 karakter | `photo.prompt=imatch.yağmur` |
+| Desen | `like.<desen>` (büyük/küçük harfe bakar), `ilike.<desen>` (bakmaz: desende de metinde de `I`, `ı`, `İ` ve `i` dördü de `i` sayılır, gerisi Unicode'un küçültmesiyle; böylece hem Türkçe hem İngilizce bulunur). Desen bütün metindir, `*` herhangi bir karakter dizisi (PostgREST'in yazışı); `*`'ın kendisi aranamaz. Desen en çok 200 karakter. Regex yok: bir regex'i derlemek bile belleği bitirebiliyor, core'u düşürürdü (madde 530) | `photo.prompt=ilike.*yağmur*` |
 | Tarih aralığı | aynı alana iki işleç | `updated=gte.2026-11-01&updated=lt.2026-11-08` |
 | Sıralamak | `order=<alan>.<asc\|desc>,…` | `order=created.desc` |
 | Sayfa | `limit` (varsayılan 100, en çok 1000; `0` yalnız `total`'ı verir), `offset` | `limit=50&offset=100` |
@@ -123,11 +123,15 @@ uygulanan küçük bir ayrıştırıcıdır:
 
 - Süzülebilen, sıralanabilen ve seçilebilen alanlar cevabın alanlarıdır, türetilenler dahil (ör.
   karenin `video.status`'u). İç içe alan noktayla anılır.
-- Birden çok süzgeç "ve"dir. "Veya" yoktur; agent iki çağrı yapar.
+- Birden çok süzgeç "ve"dir. "Veya" yoktur; agent iki çağrı yapar. Süzgecin alanı yinelenebilir
+  (tarih aralığı); `select`, `order`, `limit`, `offset`, `all` iki kez verilirse `duplicate`'tir
+  (madde 530).
+- Boş değer, SQL'deki gibi, yalnız `is.null`'a uyar; `not.eq` de onu dışarıda bırakır. Sıralamada
+  boşlar iki yönde de sondadır, eşitler varsayılan sırada (madde 530).
 - Her listenin bir varsayılan sırası vardır (karelerde `position`, history'de `seq.desc`…) ve kısa bir
   varsayılan alan seti: agent'ın bağlamı gereksiz veriyle dolmasın (1. adım). Tam kayıt tek şeyin
   `GET`'inde ya da `select=*` ile gelir. Tek şeyin `GET`'i de `select` alır.
-- Bilinmeyen alan, işleç, bozuk regex ya da tarih: `invalid_request`; `details` o listenin alanlarını sayar.
+- Bilinmeyen alan, işleç, uzun desen ya da bozuk tarih: `invalid_request`; `details` o listenin alanlarını sayar.
 - **Maliyet:** süzme bellekte yapılır, Drive'a gitmez (4. adım); yalnız history'nin eski blokları
   istenince indirilir (History'de).
 
@@ -315,7 +319,7 @@ Bir projenin satırı: `id`, `name`, `archived`, `created`, `updated`, `runner` 
 gelir (4. adım); liste projeleri yüklemez.
 
 **`GET /projects`** — Satırların listesi, yalnız bu alanlarla süzülür. Varsayılan sıra `updated.desc`.
-Ör. `?name=imatch.gece`, `?updated=gte.2026-10-29`, `?archived=is.true`. Okunamayan proje listede
+Ör. `?name=ilike.*gece*`, `?updated=gte.2026-10-29`, `?archived=is.true`. Okunamayan proje listede
 `unreadable: true` ile görünür. Maliyet: 0–1 Drive listelemesi (5 sn önbellek).
 
 **`GET /projects/{id}`** — Satır ve `counts`: `{"frames", "edits", "waiting_jobs"}`. Projeyi yükler
@@ -356,7 +360,7 @@ Kare:
 - `position` bugünkü yerdir (0'dan), kimlik değildir.
 
 **`GET /projects/{p}/frames`** — Liste; varsayılan sıra `position`, varsayılan alanlar `id`,
-`position`, `scene`, `photo.status`, `video.status`. Ör. `?photo.prompt=imatch.yağmur`,
+`position`, `scene`, `photo.status`, `video.status`. Ör. `?photo.prompt=ilike.*yağmur*`,
 `?video.status=eq.none`.
 
 **`GET /projects/{p}/frames/{id}`** — Bütün kare.

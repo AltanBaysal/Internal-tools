@@ -36,7 +36,9 @@ queen-studio/.venv/Scripts/python queen-studio/write_openapi.py   # after a core
   `jobs` to ask `frames` too, that is a cycle, and forbidden.
 - **`core/`'s root holds the app's assembly and what every group shares:** the name and version
   (`about.py`), the HTTP app (`server.py`), the log (`log.py`). A group's rule never goes there. Why:
-  each group's rules stay in its own folder, and the root stays small enough to read whole.
+  each group's rules stay in its own folder, and the root stays small enough to read whole. A shared
+  piece that needs more than one file has its own folder there: `core/lists/`, the query every list
+  takes.
 - The real gates are wired in one start file.
 - The UI is laid out by the same groups.
 - Each file has one job.
@@ -71,6 +73,14 @@ does not carry over.
 - No request reads every project or every frame without need; an operation that grows with a list
   says why.
 - Idle — no request, no job, no new log line — the core calls Drive not at all.
+- Every cost an input can drive is bounded before it is spent. Input is whatever comes from outside
+  the process: the caller, Drive's files, ComfyUI's and the model hosts' answers, the media. Each
+  text, list and count has a maximum in its model; each outbound call, subprocess and download a
+  timeout; each answer a byte budget; each disk write a free-space check first. Past a bound the core
+  refuses with the four-field error before doing the work, and never truncates silently. No input
+  reaches an engine that runs it as a program — regex, eval, a shell, a template: compiling one
+  pattern from a query filled this machine's 16 GB (530). A spec names each bound, and a test reaches
+  it with the bound set small.
 
 ## UI
 

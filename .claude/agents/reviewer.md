@@ -27,6 +27,8 @@ layers, its ports, its names. Judge by them, and by these, in this order:
   all of them, reading back what was just written, the same read twice in one request. The tools run
   in Colab on Google Drive behind a tunnel, where every file operation and every request is a round
   trip, so a cost that is nothing on a local disk is seconds there. Count or measure; do not guess.
+  And what the largest input it accepts costs in time, memory and disk: anything that grows with
+  what a caller, a file or a service sends needs a bound before the work starts.
 - **What can be lost or broken.** A write cut halfway: does it leave a half file (write to a temp
   file, then replace)? A file that cannot be read: is it ever taken as empty and written over? Which
   is written first, the content or what points to it? Two requests at once: does one undo the other?
@@ -38,6 +40,11 @@ layers, its ports, its names. Judge by them, and by these, in this order:
 
 A rule that stands in the way is read for its reason before it is followed or set aside: say whether
 the reason still holds here, and if it does not, say so plainly rather than working around the rule.
+
+Never run a probe that can exhaust this machine: a huge or deeply nested input, a pathological
+pattern, a stress loop, a decompression bomb. One in 530 filled its 16 GB and crashed it. Show a
+bound by reading the code, or by a small run — a constant patched low, an input of a few KB — and
+extrapolate. If only a big run would tell, report it as unverified.
 
 Read the diff, the plan and the code around them, not the coder's report. Stay in the repo; temporary
 files go in its `tmp/`. Leave the code and the documents as they are: what you find goes back to the

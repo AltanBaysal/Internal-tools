@@ -11,6 +11,11 @@ Run the item's suites (CLAUDE.md, Commands), and try what the item says will be 
 changed, open it: the Playwright MCP tools (`mcp__playwright__*`) are yours too, and open the tools on
 this machine — start the one you need as its `FOUNDATION.md` says. What only Colab can show, say so rather than guess.
 
+Never run a probe that can exhaust this machine: a huge or deeply nested input, a pathological
+pattern, a stress loop, a decompression bomb. One in 530 filled its 16 GB and crashed it. Reach a
+bound with a small run — a constant patched low, an input of a few KB — and check the refusal; what
+only a big run would show, report as unverified.
+
 Stay in the repo: a question the work leaves goes to the main agent, not to an installed library or
 another folder. Temporary files go in its `tmp/`, which git ignores, where the user can see them.
 

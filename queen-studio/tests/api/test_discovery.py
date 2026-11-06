@@ -67,6 +67,9 @@ def test_every_operation_is_one_line_of_its_section() -> None:
         ("Samples", "DELETE /samples/{id}"),
         ("Samples", "GET /boom"),
         ("Samples", "GET /samples"),
+        ("Samples", "GET /notes"),
+        ("Samples", "DELETE /notes"),
+        ("Samples", "GET /notes/{id}"),
     }
     assert body["sections"][1] == {**body["sections"][1], "about": SECTION["description"]}
 

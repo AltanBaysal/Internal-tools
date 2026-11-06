@@ -120,7 +120,7 @@ INDEX = "/"
 def unknown(address: str) -> ApiError:
     return ApiError(
         "unknown_endpoint",
-        f"`{_cut(address, ADDRESS_BYTES)}` is not an address of this API.",
+        f"`{cut(address, ADDRESS_BYTES)}` is not an address of this API.",
         hint="`GET /api` lists every address.",
     )
 
@@ -136,7 +136,7 @@ def handle(api: FastAPI) -> None:
         return error.response()
 
     @api.exception_handler(RequestValidationError)
-    async def invalid(request: Request, error: RequestValidationError) -> JSONResponse:
+    async def validation(request: Request, error: RequestValidationError) -> JSONResponse:
         return _invalid(request, [_field_problem(found) for found in error.errors()])
 
     @api.exception_handler(HTTPException)
@@ -163,7 +163,8 @@ def _sent(text: str) -> int:
     return len(json.dumps(text, ensure_ascii=False).encode("utf-8")) - 2
 
 
-def _cut(text: str, most: int) -> str:
+def cut(text: str, most: int) -> str:
+    """`text`, cut to `most` bytes as the answer sends it, ending in `…` when cut."""
     if _sent(text) <= most:
         return text
     # Each character is at least a byte, so `most` characters are the most that may fit.
@@ -179,34 +180,44 @@ def _failure(error: Exception) -> str:
     if isinstance(error, ValidationException | ValidationError):
         count = len(error.errors())
         return f"{type(error).__name__}: {count} validation error{'' if count == 1 else 's'}"
-    return _cut(f"{type(error).__name__}: {error}", MESSAGE_BYTES)
+    return cut(f"{type(error).__name__}: {error}", MESSAGE_BYTES)
 
 
 def _invalid(request: Request, problems: list[dict[str, str]]) -> JSONResponse:
+    # Raised once a route is found: its address is the template the index writes.
+    return invalid(template(request), problems).response()
+
+
+def invalid(
+    address: str, problems: list[dict[str, str]], details: dict[str, Any] | None = None
+) -> ApiError:
+    """`invalid_request` for the problems at `address`: the first PROBLEMS_SHOWN, the rest counted.
+
+    `details` adds to them, as a list's fields do (core/lists).
+    """
     message = (
         problems[0]["message"]
         if len(problems) == 1
         else f"The request has {len(problems)} problems; nothing was done."
     )
-    details: dict[str, Any] = {"problems": problems[:PROBLEMS_SHOWN]}
+    shown: dict[str, Any] = {"problems": problems[:PROBLEMS_SHOWN]}
     if len(problems) > PROBLEMS_SHOWN:
-        details["more"] = len(problems) - PROBLEMS_SHOWN
+        shown["more"] = len(problems) - PROBLEMS_SHOWN
     places = {found["field"].split(".")[0] for found in problems}
     hints: list[str] = []
     if "header" in places:
         hints.append(HEADERS_HINT)
     if places - {"header"}:
-        # Raised once a route is found: its address is the template the index writes.
-        address = _template(request)
         hints.append(
             "`GET /api` takes only `path`, an address `GET /api` lists."
             if address == INDEX
             else f"`GET /api?path={address}` gives what this address takes."
         )
-    return respond("invalid_request", message, details, " ".join(hints))
+    return ApiError("invalid_request", message, {**shown, **(details or {})}, " ".join(hints))
 
 
-def _template(request: Request) -> str:
+def template(request: Request) -> str:
+    """The address of the request's route, as the index writes it."""
     # `path_format` drops a converter, `{name:path}` being `{name}`, as the OpenAPI document does.
     # A route that is no APIRoute, FastAPI's /openapi.json, may leave the mount in `scope["route"]`
     # or nothing: its address is the request's.
@@ -223,7 +234,7 @@ def _method_not_allowed(api: FastAPI, request: Request, error: HTTPException) ->
     # The router stops at the first route whose address matches: `scope["route"]` is that route and
     # `Allow` names its methods only, so an address served by a GET and a DELETE route would lose
     # one. The OpenAPI document, built once and kept, has them all.
-    address = _template(request)
+    address = template(request)
     item: dict[str, Any] | None = api.openapi()["paths"].get(address)
     if item is not None:
         methods = sorted(method.upper() for method in item)
@@ -256,6 +267,8 @@ def _method_not_allowed(api: FastAPI, request: Request, error: HTTPException) ->
 _MESSAGES: dict[str, tuple[FieldCode, str]] = {
     "missing": ("missing", "`{field}` is missing."),
     "extra_forbidden": ("unknown", "`{field}` is not a field this address takes."),
+    # Not pydantic's: core/query.py raises it for a parameter given twice.
+    "given_twice": ("duplicate", "`{field}` is given twice; it takes one."),
     "literal_error": ("not_allowed", "`{field}` must be {expected}."),
     "enum": ("not_allowed", "`{field}` must be {expected}."),
     "string_pattern_mismatch": ("not_allowed", "`{field}` must match `{pattern}`."),
@@ -288,7 +301,7 @@ def _field_problem(found: Any) -> dict[str, str]:
     # A JSON error's place ends in the character's position, which is no field: the body is.
     place = found["loc"][:1] if kind == "json_invalid" else found["loc"]
     # A name is the caller's, any length: cut, as is the message it is said in (`?=1` has none).
-    field = _cut(".".join(str(part) or "(empty)" for part in place), FIELD_BYTES)
+    field = cut(".".join(str(part) or "(empty)" for part in place), FIELD_BYTES)
     context: dict[str, Any] = found.get("ctx", {})
     code, template = _MESSAGES.get(kind, ("wrong_type", "`{field}`: {msg}."))
     plural = context.get("min_length", context.get("max_length")) != 1
@@ -299,4 +312,4 @@ def _field_problem(found: Any) -> dict[str, str]:
         items="items" if plural else "item",
         **context,
     )
-    return problem(field, code, _cut(message, PROBLEM_BYTES))
+    return problem(field, code, cut(message, PROBLEM_BYTES))

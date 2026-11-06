@@ -54,6 +54,26 @@ neye, neden, hangi belge düzeltildi.
    adım, Gövde.
 10. **Hata alan yollarına `path.` eklendi** ([529 · v1-5](2026-11-06-queen-studio-v1-roadmap.md#v1-5)):
     `body.`, `query.`, `header.` yanında adresin kendi alanı (`{id}` gibi) için. Değişen: 6. adım, Biçim.
+11. **Listelerde regex yok; yerine `like` / `ilike`** ([530 · v1-6](2026-11-06-queen-studio-v1-roadmap.md#v1-6);
+    kullanıcı, 6 Kasım — "1"). 6. adım `match`/`imatch` ile Python regex'i diyordu. İlk yapılan:
+    `regex` paketi, sorgu başına 1 sn bütçeyle — `re` durdurulamıyor ve GIL'i tutuyor, `(a|aa)+$` gibi
+    tek bir kalıp core'u dondururdu. Ama bütçe yalnız eşleşmeyi kesiyordu, derlemeyi değil: reviewer'ın
+    büyük iç içe tekrarlı kalıpları yalnız derleyen denemesi bu makinenin 16 GB'ını doldurup onu
+    çökertti; Colab'da da core'u, süren üretimle birlikte öldürürdü. Dışarıdan gelen bir kalıbı
+    çalıştırmak, dışarıya program yazdırmaktır. Şimdi: PostgREST'in `like`/`ilike`'ı, joker `*`,
+    regex motoru olmadan doğrusal eşleşmeyle; kalıp en çok 200 karakter; `ilike` I, ı, İ'yi `i`'ye
+    katlar. `regex` paketi çıktı. Ders olarak dışarıdan gelen her girdinin zaman, bellek ve disk
+    harcamasına sınır aranıyor (madde 12). Değişen: 6. adım, Liste sorgusu.
+12. **Girdinin sürebildiği her harcamanın bir sınırı var** ([530 · v1-6](2026-11-06-queen-studio-v1-roadmap.md#v1-6);
+    kullanıcı, 6 Kasım — "bundan ders çıkar hem geçmiş hem gelecek değişikliklere bak"). 11'deki
+    çöküşten. `CODE-STANDARD.md`, Cost: dışarıdan gelen her metnin, listenin ve sayının bir üst sınırı,
+    her dış çağrının bir zaman aşımı, her cevabın bir bayt bütçesi var; sınır geçilince iş yapılmadan
+    reddedilir, sessizce kesilmez; hiçbir girdi onu program gibi çalıştıran bir motora (regex, eval,
+    kabuk) gitmez. Reviewer ve QA bu makinede onu tüketebilecek deneme koşmaz; sınırı küçük bir
+    denemeyle gösterir. 530'da: sorgu en çok 16 KiB, alan başına en çok 2 süzgeç, `in` en çok 1000
+    değer, `order`/`select`'te bir alan bir kez, cevap en çok 1 MiB. Bitmiş kodun ve sonraki
+    maddelerin denetimi yapıldı; ne olacağı kullanıcıda. Değişen: `CODE-STANDARD.md`,
+    `.claude/agents/reviewer.md`, `qa.md`.
 
 ## Koşudan önce, belgelerin gözden geçirilmesinde
 

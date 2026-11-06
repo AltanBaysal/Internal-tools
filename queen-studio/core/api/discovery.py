@@ -15,7 +15,14 @@ RULES = (
     "address does not take is an error, never dropped. Success is always 200. An error is {code, "
     "message, details, hint}: act on code; details holds the ids, and details.problems each "
     "problem; hint is the next step, or null. GET /api?path=<address> gives what each method at "
-    "that address takes and returns."
+    "that address takes and returns. A list answers {items, total, offset, limit}; its query is "
+    "PostgREST's: <field>=[not.]<op>.<value>, all holding, op eq, neq, in.(a,b), gt, gte, lt, lte, "
+    "is.null|true|false, like.<pattern> or ilike.<pattern> (the whole text, * any run of "
+    "characters; ilike ignores case, I ı İ i alike); a null matches "
+    "is.null only; a time is 2026-11-04T09:12:00Z or a day; order=<field>[.desc],…; limit (100, at "
+    "most 1000, 0 for total only); offset; select=<field>,<field.sub> or *. Its fields are its "
+    "items'; its detail gives the default order and select. A bulk change takes a list's filters, "
+    "or all=true for every one; one thing's GET takes select."
 )
 
 # What a field's schema says that the agent acts on; titles and the rest of JSON Schema stay out.
@@ -23,6 +30,8 @@ _KEPT = (
     "description",
     "enum",
     "const",
+    # `date-time` tells a time from text; nothing else says so.
+    "format",
     "default",
     "minimum",
     "maximum",
@@ -96,6 +105,9 @@ def _method(operation: Json, doc: Json) -> Json:
         found["returns"] = _field(answer["schema"], doc, inputs=False)
     if "x-errors" in operation:
         found["errors"] = operation["x-errors"]
+    if "x-list" in operation:
+        # A list's default order and fields (core/lists/listing.py); its query is in RULES.
+        found["list"] = operation["x-list"]
     return found
 
 
