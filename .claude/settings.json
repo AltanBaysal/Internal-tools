@@ -3,6 +3,24 @@
     "superpowers@superpowers-marketplace": false
   },
   "permissions": {
-    "deny": ["mcp__playwright__browser_run_code_unsafe"]
+    "deny": [
+      "mcp__playwright__browser_run_code_unsafe",
+      "Read(/.secrets/**)",
+      "Edit(/.secrets/**)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard_secrets.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
   }
 }

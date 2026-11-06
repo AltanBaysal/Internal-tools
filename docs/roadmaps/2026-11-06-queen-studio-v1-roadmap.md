@@ -1,6 +1,6 @@
 # Queen Studio — Yol Haritası v1
 
-**Tarih:** 2026-11-06 · **Koşu dalı:** `feat/queen-studio-v1` · **Durum:** 0/33 · başlamadı
+**Tarih:** 2026-11-06 · **Koşu dalı:** `feat/queen-studio-v1` · **Durum:** 1/33 · koşuyor
 
 queen-studio, queen-editor'ın özelliklerini bir AI agent'ın kullanabileceği biçimde sunan yeni bir
 araç. Ne yaptığı [tasarım adımlarında](../research/2026-11-03-yeni-editor-v1-tasarim-adimlar.md).
@@ -12,7 +12,7 @@ koşu durmaz. Son iki madde de kullanıcıyla: Pro'daki deneme ve DeepSeek harne
 
 | Numara | İş | Durum |
 |---|---|---|
-| [v1-1](#v1-1) | Kurulum, kullanıcıyla adım adım | `ALIGNED` |
+| [v1-1](#v1-1) | Kurulum, kullanıcıyla adım adım | ✅ *(Colab Secrets CLI'da okunmuyor; [kararlar](2026-11-06-queen-studio-v1-kararlar.md#sapmalar))* · `ALIGNED` |
 | [v1-2](#v1-2) | Aracın kuralları, tasarımcı ve tasarım reviewer'ı | `ALIGNED` |
 | [v1-3](#v1-3) | İskelet ve ilk ekran, sürüm V1 | `ALIGNED` |
 | [v1-4](#v1-4) | Drive'ın ölçümleri | `ALIGNED` |
@@ -558,7 +558,10 @@ Her şey ücretsiz katmanda yeşil olduktan sonra.
 *([10. adım, Harness'lar](../research/2026-11-03-yeni-editor-v1-10-barindirma.md);
 [8. adım](../research/2026-11-03-yeni-editor-v1-8-agent-tarafi.md))*
 
-Son madde; kullanıcıyla birlikte yapılır *(kullanıcı, 6 Kasım)*.
+Son madde; kullanıcıyla birlikte yapılır *(kullanıcı, 6 Kasım)*. Harness'ı ve DeepSeek hesabını
+kullanıcı bu maddede kurar; kurulumda atlandı *(kullanıcı, 6 Kasım — "harnessı ben en son adımda
+kuracağım, sen bu adımı atla, son adıma ekle, user ile yapılacak yaz")*. DeepSeek'in kendi harness'ı
+`dsh` (`@deepseek-ai/dsh`) komut satırından, tıklamasız koşabiliyor; resim gören model `deepseek-flash`.
 
 **Kabul koşulu:**
 - Hangi DeepSeek harness'ının kullanılacağı ve anahtarı kullanıcıyla seçildi.

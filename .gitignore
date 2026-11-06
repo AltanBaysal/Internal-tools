@@ -23,3 +23,6 @@ node_modules/
 
 # Throwaway data for trying a tool by hand, such as a QueenAgent root of test projects.
 tmp/
+
+# Keys and tokens for the test account only (queen-studio v1-1): kept beside the repo so the user can see them, never committed.
+.secrets/

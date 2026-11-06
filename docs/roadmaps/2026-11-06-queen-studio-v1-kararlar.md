@@ -10,7 +10,23 @@ Her karar: hangi maddede, ne karar verildi, neden, başka seçenekler neydi, han
 Kod yazılırken tasarımdan ya da kurallardan farklı yapılanlar: hangi maddede, hangi adımın neyinden
 neye, neden, hangi belge düzeltildi.
 
-Henüz sapma yok.
+1. **Colab Secrets CLI'ın oturumunda okunamıyor** ([v1-1](2026-11-06-queen-studio-v1-roadmap.md#v1-1)).
+   Google'ın cevabı: "Secrets can only be fetched when running from the Colab UI". CLI'la koşan testler
+   aynı üç değeri (`HF_TOKEN`, `CIVITAI_COOKIE`, `GITHUB_TOKEN`) `.secrets/colab-secrets.env`'den alır:
+   dosya `colab upload` ile VM'e gider, orada okunur, iş bitince silinir. Değerleri kullanıcı yazar,
+   ana agent ve subagent'lar okumaz. Notebook'ta Secrets olduğu gibi kalır. Değişen: henüz belge yok;
+   v1-25 ve v1-27 bunu kullanır.
+2. **Colab CLI Windows'ta çalışıyor, kendi ev klasörü `.secrets/colab-home`** ([v1-1](2026-11-06-queen-studio-v1-roadmap.md#v1-1)).
+   Belgeleri yalnız Linux ve macOS diyor; 0.7.5 bu makinede T4 açtı, kod koştu, kapattı. Token'ını,
+   log'unu ve ayarlarını kullanıcı klasörüne yazdığı için her çağrıda `USERPROFILE` ve `HOME`
+   `D:\Github\Internal-tools\.secrets\colab-home` gösterilir; `--config` yalnız oturum listesini
+   taşıyor. CLI `queen-studio/.venv`'de: `queen-studio\.venv\Scripts\colab.exe`.
+3. **Drive erişimi yalnız uygulamanın açtığı dosyalara** ([v1-1](2026-11-06-queen-studio-v1-roadmap.md#v1-1)):
+   `drive.file` izni, deneme hesabında, token `.secrets/drive-token.json`. Neden: testler yalnız kendi
+   açtıklarına dokunur; uygulama doğrulama istemeden yayında, token düşmüyor.
+4. **`.secrets/` okunmaz** ([v1-1](2026-11-06-queen-studio-v1-roadmap.md#v1-1); kullanıcı, 6 Kasım —
+   "okumayı engelleyen bir kural ekle"). `.claude/settings.json` Read ve Edit'i yasaklar,
+   `.claude/hooks/guard_secrets.py` okuyan kabuk komutlarını durdurur. Betikler yolu alır, değer basmaz.
 
 ## Koşudan önce, belgelerin gözden geçirilmesinde
 
