@@ -1,6 +1,6 @@
 # Queen Studio — Yol Haritası v1
 
-**Tarih:** 2026-11-06 · **Koşu dalı:** `feat/queen-studio-v1` · **Durum:** 7/33 · koşuyor
+**Tarih:** 2026-11-06 · **Koşu dalı:** `feat/queen-studio-v1` · **Durum:** 7/41 · koşuyor
 
 queen-studio, queen-editor'ın özelliklerini bir AI agent'ın kullanabileceği biçimde sunan yeni bir
 araç. Ne yaptığı [tasarım adımlarında](../research/2026-11-03-yeni-editor-v1-tasarim-adimlar.md).
@@ -21,25 +21,33 @@ koşu durmaz. Son iki madde de kullanıcıyla: Pro'daki deneme ve DeepSeek harne
 | 531 · [v1-7](#v1-7) | Depo portu ve bellek içi adaptör | ✅ *(port kare, iş, edit bilmez; [kararlar 13](2026-11-06-queen-studio-v1-kararlar.md#sapmalar))* · `ALIGNED` |
 | [v1-8](#v1-8) | Drive adaptörü: projeler ve kayıtlar | `ALIGNED` |
 | [v1-9](#v1-9) | Drive adaptörü: dosyalar | `ALIGNED` |
-| [v1-10](#v1-10) | Bir değişiklik, aynı istek iki kez ve history | `ALIGNED` |
+| [v1-10](#v1-10) | Bir değişiklik ve aynı istek iki kez | `ALIGNED` |
+| [v1-34](#v1-34) | History | `ALIGNED` |
 | [v1-11](#v1-11) | Projeler | `ALIGNED` |
 | [v1-12](#v1-12) | Kareler | `ALIGNED` |
 | [v1-13](#v1-13) | Medya | `ALIGNED` |
-| [v1-14](#v1-14) | Modeller ve indirme | `ALIGNED` |
+| [v1-14](#v1-14) | Modeller | `ALIGNED` |
+| [v1-35](#v1-35) | Model indirme | `ALIGNED` |
 | [v1-15](#v1-15) | İşler | `ALIGNED` |
-| [v1-16](#v1-16) | ComfyUI kapısı | `ALIGNED` |
+| [v1-16](#v1-16) | ComfyUI kapısı: süreç | `ALIGNED` |
+| [v1-36](#v1-36) | ComfyUI kapısı: graflar | `ALIGNED` |
 | [v1-17](#v1-17) | Kuyruk | `ALIGNED` |
+| [v1-37](#v1-37) | Kuyruğun beklemeleri ve başka projenin kuyruğu | `ALIGNED` |
 | [v1-18](#v1-18) | Kuyruğun kendiliğinden durması ve core'un yeniden başlaması | `ALIGNED` |
 | [v1-19](#v1-19) | Kuyruk iki Colab'da | `ALIGNED` |
 | [v1-20](#v1-20) | Edit'ler | `ALIGNED` |
-| [v1-21](#v1-21) | Export | `ALIGNED` |
+| [v1-21](#v1-21) | Export: videonun yapılması | `ALIGNED` |
+| [v1-38](#v1-38) | Export: iptal, geri alma ve sınırlar | `ALIGNED` |
 | [v1-22](#v1-22) | MCP adaptörü | `ALIGNED` |
 | [v1-23](#v1-23) | Resimler resim olarak gider | `ALIGNED` |
 | [v1-24](#v1-24) | Agent senaryoları | `ALIGNED` |
-| [v1-25](#v1-25) | Başlatıcı, notebook ve log | `ALIGNED` |
+| [v1-25](#v1-25) | Başlatıcı ve notebook | `ALIGNED` |
+| [v1-39](#v1-39) | Log'un Drive'a gitmesi ve boştayken sıfır çağrı | `ALIGNED` |
 | [v1-26](#v1-26) | ComfyUI'nin Colab ölçümleri | `ALIGNED` |
 | [v1-27](#v1-27) | Colab testleri | `ALIGNED` |
-| [v1-28](#v1-28) | UI tasarımı: bütün ekranlar, örnek veriyle | `ALIGNED` |
+| [v1-40](#v1-40) | Colab'da dayanıklılık, gerçek Drive'la | `ALIGNED` |
+| [v1-28](#v1-28) | UI tasarımı: dil, projeler ve kareler, örnek veriyle | `ALIGNED` |
+| [v1-41](#v1-41) | UI tasarımı: kuyruk, agent, bildirim, silmek ve edit'ler | `ALIGNED` |
 | [v1-29](#v1-29) | UI bağlantısı: projeler ve kareler | `ALIGNED` |
 | [v1-30](#v1-30) | UI bağlantısı: kuyruk ve agent'ın yaptığı | `ALIGNED` |
 | [v1-31](#v1-31) | UI bağlantısı: silmek ve edit'leri izlemek | `ALIGNED` |
@@ -187,10 +195,10 @@ detaylı olarak o endpoint'e baksın".)*
 - Çağrı sayıları 4. adımın tablosuyla tam eşit.
 
 <a id="v1-10"></a>
-### v1-10 — Bir değişiklik, aynı istek iki kez ve history
+### v1-10 — Bir değişiklik ve aynı istek iki kez
 
 *([4. adım, Bir değişiklik ve Değerlendirme](../research/2026-11-03-yeni-editor-v1-4-depo.md);
-[6. adım, Aynı istek iki kez ve History](../research/2026-11-03-yeni-editor-v1-6-endpoint-sozlesmesi.md);
+[6. adım, Aynı istek iki kez](../research/2026-11-03-yeni-editor-v1-6-endpoint-sozlesmesi.md);
 [2. adım, Her şey için ve History kaydı](../research/2026-11-03-yeni-editor-v1-2-alan-modeli.md))*
 
 **Kabul koşulu:**
@@ -200,7 +208,21 @@ detaylı olarak o endpoint'e baksın".)*
   düşen satırları hata enjekte eden testlerle.
 - Projeyi sırayla iki core'da değiştirmek birinin değişikliğini silmiyor; aynı saniyede kaybolan
   değişiklik söyleniyor.
-- Her değişiklik history'de bir kayıt; `GET /projects/{p}/history` süzülüyor, kayıt değişmiyor.
+- Her değişiklik history'de bir kayıt olarak yazılıyor; okunması [v1-34](#v1-34)'te.
+
+<a id="v1-34"></a>
+### v1-34 — History
+
+*([6. adım, History](../research/2026-11-03-yeni-editor-v1-6-endpoint-sozlesmesi.md);
+[2. adım, History kaydı](../research/2026-11-03-yeni-editor-v1-2-alan-modeli.md))*
+
+[v1-10](#v1-10)'dan bölündü *(kullanıcı, 6 Kasım — "roadmapte başka böyle büyük task varsa onları da
+parçalara bölelim")*.
+
+**Kabul koşulu:**
+- `GET /projects/{p}/history` süzülüyor, sayfalanıyor; kayıt değişmiyor.
+- Eski bir sayfa ya da süzgeç eski blokları sınırsız indirmiyor: bir istek sınırlı sayıda blok tarar,
+  durursa nereden süreceğini söyler.
 
 <a id="v1-11"></a>
 ### v1-11 — Projeler
@@ -250,7 +272,7 @@ detaylı olarak o endpoint'e baksın".)*
 *(Kullanıcı, 5 Kasım — "genel bakış için 1 saniye arayı biz yapalım".)*
 
 <a id="v1-14"></a>
-### v1-14 — Modeller ve indirme
+### v1-14 — Modeller
 
 *([1. adım, Models](../research/2026-11-03-yeni-editor-v1-1-ozellik-envanteri.md);
 [2. adım, Modeller](../research/2026-11-03-yeni-editor-v1-2-alan-modeli.md);
@@ -259,15 +281,27 @@ detaylı olarak o endpoint'e baksın".)*
 **Kabul koşulu:**
 - `GET /models` indirilebilecek her ana modeli ve bu Colab'daki durumunu söylüyor; `GET /models/{id}`
   seçilebilecek her şeyi.
-- Agent bir modeli önceden de indirtebiliyor; LoRA'ları ve yardımcı dosyaları onunla iniyor. Bu Colab'ın
-  kartında çalışmayan model reddediliyor.
-- İnen model yüzdesiyle görünüyor; `GET /models/{id}/wait` inmesi bitene kadar bekliyor.
-- İnemeyen model üç denemeden sonra kaynağın sözüyle "inemedi" görünüyor.
+- Bu Colab'ın kartında çalışmayan model reddediliyor.
 - Modeller ve LoRA seçimleri queen-editor'ın bugünküleridir; listesi (dosyalar, kaynaklar, güçler,
   tetikler) queen-editor'dan veri olarak alınır, kodu alınmaz.
 
-*(Kullanıcı, 5 Kasım — "agent indirmeyi seçsin böylece önceden hazırlık bile yapabilir"; "gidip T4'e H3
-indirmeyelim".)*
+*(Kullanıcı, 5 Kasım — "gidip T4'e H3 indirmeyelim".)*
+
+<a id="v1-35"></a>
+### v1-35 — Model indirme
+
+*([10. adım, Modeller](../research/2026-11-03-yeni-editor-v1-10-barindirma.md);
+[2. adım, Modeller](../research/2026-11-03-yeni-editor-v1-2-alan-modeli.md))*
+
+[v1-14](#v1-14)'ten bölündü *(kullanıcı, 6 Kasım)*.
+
+**Kabul koşulu:**
+- Agent bir modeli önceden de indirtebiliyor; LoRA'ları ve yardımcı dosyaları onunla iniyor.
+- İnen model yüzdesiyle görünüyor; `GET /models/{id}/wait` inmesi bitene kadar bekliyor.
+- İnemeyen model üç denemeden sonra kaynağın sözüyle "inemedi" görünüyor.
+- Diskte yer yetmeyen indirme başlamıyor; yarım inen dosya model sayılmıyor.
+
+*(Kullanıcı, 5 Kasım — "agent indirmeyi seçsin böylece önceden hazırlık bile yapabilir".)*
 
 <a id="v1-15"></a>
 ### v1-15 — İşler
@@ -287,19 +321,29 @@ indirmeyelim".)*
 video promptu gibi şeyler olmaz.")*
 
 <a id="v1-16"></a>
-### v1-16 — ComfyUI kapısı
+### v1-16 — ComfyUI kapısı: süreç
 
 *([7. adım, Hatalar ve süreler](../research/2026-11-03-yeni-editor-v1-7-uretim-ve-kuyruk.md);
-[2. adım, İş — Varyantlar](../research/2026-11-03-yeni-editor-v1-2-alan-modeli.md);
 [12. adım, Birim testle sınanamayanlar](../research/2026-11-03-yeni-editor-v1-12-test-stratejisi.md))*
 
 **Kabul koşulu:**
 - Core ComfyUI'yi kendisi başlatıyor ve cevap vermezse yeniden başlatıyor.
-- Her modelin ComfyUI'ye giden grafı doğru (prompt, seed, LoRA, yön, uzunluk); art arda varyantlar,
-  kart kaldırıyorsa birlikte üretiliyor. Graflar queen-editor'dan veri olarak alınır.
 - Takılan üretim süre sınırında duruyor, iptal başka bir işe çarpmıyor; ComfyUI'nin hatası kendi
   sözüyle geliyor.
 - İşin üretim süresi kaydında, ayrıntılı süreler log'da.
+
+<a id="v1-36"></a>
+### v1-36 — ComfyUI kapısı: graflar
+
+*([2. adım, İş — Varyantlar](../research/2026-11-03-yeni-editor-v1-2-alan-modeli.md);
+[7. adım](../research/2026-11-03-yeni-editor-v1-7-uretim-ve-kuyruk.md))*
+
+[v1-16](#v1-16)'dan bölündü *(kullanıcı, 6 Kasım)*.
+
+**Kabul koşulu:**
+- Her modelin ComfyUI'ye giden grafı doğru (prompt, seed, LoRA, yön, uzunluk). Graflar
+  queen-editor'dan veri olarak alınır.
+- Art arda varyantlar, kart kaldırıyorsa birlikte üretiliyor.
 
 <a id="v1-17"></a>
 ### v1-17 — Kuyruk
@@ -314,11 +358,23 @@ video promptu gibi şeyler olmaz.")*
   boşaltılıyor.
 - Bu Colab'da proje silmek çalışan işi durduruyor ve kuyruğu boşaltıyor.
 - Kendiliğinden durmuş kuyruğa verilen iş kabul ediliyor, cevap `stop_reason`'ı taşıyor.
+- GPU yalnız işin başlamasındaki bakışı bekliyor; işin bitirilmesi GPU'nun yolunun dışında.
+
+<a id="v1-37"></a>
+### v1-37 — Kuyruğun beklemeleri ve başka projenin kuyruğu
+
+*([2. adım, Kuyruk](../research/2026-11-03-yeni-editor-v1-2-alan-modeli.md);
+[4. adım, Kuyruk](../research/2026-11-03-yeni-editor-v1-4-depo.md);
+[7. adım, Yarışlar](../research/2026-11-03-yeni-editor-v1-7-uretim-ve-kuyruk.md))*
+
+[v1-17](#v1-17)'den bölündü *(kullanıcı, 6 Kasım)*.
+
+**Kabul koşulu:**
 - Sırası gelen işin modeli iniyorsa kuyruk `waiting_model` der ve bekler.
 - Bu Colab başka bir projenin kuyruğunu çalıştırırken verilen iş bekliyor; `resume` öbürünü bırakıyor
   (`released`).
-- GPU yalnız işin başlamasındaki bakışı bekliyor; işin bitirilmesi GPU'nun yolunun dışında.
-- `/wait` kendiliğinden ilerlemeyen kuyrukta hemen dönüyor ve nedenini söylüyor.
+- `/wait` kendiliğinden ilerlemeyen kuyrukta hemen dönüyor ve nedenini söylüyor; bekleyen `/wait`
+  sunucunun bir iş parçacığını tutmuyor.
 
 <a id="v1-18"></a>
 ### v1-18 — Kuyruğun kendiliğinden durması ve core'un yeniden başlaması
@@ -368,7 +424,7 @@ video promptu gibi şeyler olmaz.")*
 - Karesi silinen yer "silindi" gösteriyor, agent onu çıkarana ya da başka kareye çevirene kadar.
 
 <a id="v1-21"></a>
-### v1-21 — Export
+### v1-21 — Export: videonun yapılması
 
 *([1. adım, Exports](../research/2026-11-03-yeni-editor-v1-1-ozellik-envanteri.md);
 [2. adım, Export](../research/2026-11-03-yeni-editor-v1-2-alan-modeli.md);
@@ -381,11 +437,22 @@ video promptu gibi şeyler olmaz.")*
 - Dosyalar Drive'da `exports/` altında, ad kuralına uyan kendi klasöründe, fotoğraflarıyla; video
   oynuyor. Export testleri bu makinede gerçek ffmpeg'le. Uyarı görseli queen-editor'dan veri olarak
   alınır.
+- 7. adımın ffmpeg tuzaklarının her biri testle; belleği klip sayısıyla büyümüyor.
+
+<a id="v1-38"></a>
+### v1-38 — Export: iptal, geri alma ve sınırlar
+
+*([4. adım, Export](../research/2026-11-03-yeni-editor-v1-4-depo.md);
+[7. adım, Export](../research/2026-11-03-yeni-editor-v1-7-uretim-ve-kuyruk.md))*
+
+[v1-21](#v1-21)'den bölündü *(kullanıcı, 6 Kasım)*.
+
+**Kabul koşulu:**
 - Süren export iptal ediliyor, yarıda kalan export yazdıklarını geri alıyor; süren bir export'un
   kullandığı kare silinmiyor.
 - Proje silmek süren export'u durduruyor ve klasörünü çöpe atıyor.
-- Colab başına bir export (`export_running`); Drive'da yer yetmezse `storage_low`.
-- 7. adımın ffmpeg tuzaklarının her biri testle.
+- Colab başına bir export (`export_running`); Drive'da yer yetmezse `storage_low`, Colab'ın diskinde
+  yer yetmezse başlamıyor.
 - Başka Colab'ın yaptığı export'un `/wait`'i hemen dönüyor ve iptal yolunu söylüyor.
 
 <a id="v1-22"></a>
@@ -434,7 +501,7 @@ acayip performans düşüşü olur".)*
 - Komutu CLAUDE.md'de.
 
 <a id="v1-25"></a>
-### v1-25 — Başlatıcı, notebook ve log
+### v1-25 — Başlatıcı ve notebook
 
 *([10. adım, Barındırma](../research/2026-11-03-yeni-editor-v1-10-barindirma.md);
 [12. adım, Başlatıcı](../research/2026-11-03-yeni-editor-v1-12-test-stratejisi.md))*
@@ -445,8 +512,17 @@ acayip performans düşüşü olur".)*
   penceresiyle, Secrets core'a ortamdan gidiyor. Model indirmiyor, model seçimi sunmuyor.
 - Tünelin adresi yalnız Pro'da basılıyor; ücretsiz katmanda core'a Colab CLI'la ulaşılıyor, bir kez T4'te
   açılıp `GET /api/health` cevap verdi.
+
+<a id="v1-39"></a>
+### v1-39 — Log'un Drive'a gitmesi ve boştayken sıfır çağrı
+
+*([10. adım, Barındırma](../research/2026-11-03-yeni-editor-v1-10-barindirma.md))*
+
+[v1-25](#v1-25)'ten bölündü *(kullanıcı, 6 Kasım)*.
+
+**Kabul koşulu:**
 - [v1-3](#v1-3)'ten beri diske yazılan log notebook'un çıktısında da görünüyor; 5 dakikada bir ve
-  kapanırken Drive'a yeni bir parça gidiyor.
+  kapanırken Drive'a yeni bir parça gidiyor. Log dosyası sınırsız büyümüyor.
 - İstek, iş ve yeni log yokken Drive'a hiç çağrı gitmiyor; testle.
 
 <a id="v1-26"></a>
@@ -469,27 +545,38 @@ acayip performans düşüşü olur".)*
 **Kabul koşulu:**
 - Ücretsiz T4'te Colab CLI'la koşan suite yeşil: gerçek ComfyUI'yle fotoğraf, model indirme, export,
   gerçek Drive'a karşı depo sözleşmesi. Üretilen fotoğrafa bakıldı.
+- Komutu CLAUDE.md'de; yalnız deneme hesabıyla.
+
+<a id="v1-40"></a>
+### v1-40 — Colab'da dayanıklılık, gerçek Drive'la
+
+*([12. adım, Katmanlar](../research/2026-11-03-yeni-editor-v1-12-test-stratejisi.md);
+[4. adım, Dayanıklılık](../research/2026-11-03-yeni-editor-v1-4-depo.md))*
+
+[v1-27](#v1-27)'den bölündü *(kullanıcı, 6 Kasım)*.
+
+**Kabul koşulu:**
 - Bir kez gerçek Drive'la: core yeniden başlasa, cevap kaybolsa ya da Colab kapansa da kuyruk kaldığı
   yerden sürüyor; iki core aynı projeyi sırayla kullanıyor ve `resume` kuyruğu birinden ötekine
   geçiriyor.
-- Komutu CLAUDE.md'de; yalnız deneme hesabıyla.
+- Yalnız deneme hesabıyla, ücretsiz katmanda.
 
 <a id="v1-28"></a>
-### v1-28 — UI tasarımı: bütün ekranlar, örnek veriyle
+### v1-28 — UI tasarımı: dil, projeler ve kareler, örnek veriyle
 
 *([9. adım, UI](../research/2026-11-03-yeni-editor-v1-9-ui.md);
 [13. adım, Tasarımcı subagent](../research/2026-11-03-yeni-editor-v1-13-yapim-plani.md);
 [5. adım, UI'da TypeScript](../research/2026-11-03-yeni-editor-v1-5-backend-yigini.md))*
 
-v1'in bütün ekranları tek maddede, tutarlı kalsınlar. Akış: tasarımcı → tasarım reviewer'ı →
-reviewer → QA → ana agent → commit. Ekranlar [v1-3](#v1-3)'ün yer tutucu sayfasının yerine geçer.
+v1'in ekranları iki maddede: bu madde tasarım dilini (renkler, yazılar, ortak parçalar) ve ilk
+ekranları kurar, [v1-41](#v1-41) kalanları aynı parçalarla yapar; ekranlar böylece tutarlı kalır
+*(kullanıcı, 6 Kasım — bölmek için "Yes, all 8")*. Akış: tasarımcı → tasarım reviewer'ı → reviewer →
+QA → ana agent → commit. Ekranlar [v1-3](#v1-3)'ün yer tutucu sayfasının yerine geçer.
 
 **Kabul koşulu:**
-- Ekranlar gerçek UI kodunda (React, TypeScript) var: projeler; bir projenin kareleri sırasıyla,
-  fotoğrafları, videoları ve durumları; kuyruk, onu bu Colab'ın mı başka bir Colab'ın mı çalıştırdığı,
-  kendiliğinden durduysa nedeni, Pause ve Resume butonları; agent'ın ne yaptığı ve şu an ne yaptığı;
-  bildirim; kare, video ve proje silmek, onayla; edit'leri export almadan izlemek. Nasıl görüneceğine
-  tasarımcı karar veriyor.
+- Tasarım dili ve ortak parçalar gerçek UI kodunda (React, TypeScript) var; ekranlar: projeler; bir
+  projenin kareleri sırasıyla, fotoğrafları, videoları ve durumları. Nasıl görüneceğine tasarımcı
+  karar veriyor.
 - Ekranlar örnek veriyle çalışıyor, core'a bağlı değil; istek, yoklama ve hata yakalama yok.
 - Örnek veri core'un OpenAPI'sinden çıkan türlerle yazılı; core'da olmayan bir alanı gösteren ekran
   derlenmiyor.
@@ -497,6 +584,21 @@ reviewer → QA → ana agent → commit. Ekranlar [v1-3](#v1-3)'ün yer tutucu 
 - Tasarım reviewer'ı deneyime baktı: kısa UX kontrol listesi ve 9. adımın yapabildiklerinin dışına
   çıkılmadığı. Reviewer kodu her kod maddesindeki gibi okudu. QA ekranları örnek veriye karşı
   Playwright'la denedi.
+
+<a id="v1-41"></a>
+### v1-41 — UI tasarımı: kuyruk, agent, bildirim, silmek ve edit'ler
+
+*([9. adım, UI, Birden çok Colab ve Bildirim](../research/2026-11-03-yeni-editor-v1-9-ui.md))*
+
+[v1-28](#v1-28)'den bölündü *(kullanıcı, 6 Kasım)*; onun tasarım dilini ve ortak parçalarını kullanır,
+yenisini yalnız gerekince ekler. Akış v1-28'inki gibi.
+
+**Kabul koşulu:**
+- Ekranlar: kuyruk, onu bu Colab'ın mı başka bir Colab'ın mı çalıştırdığı, kendiliğinden durduysa
+  nedeni, Pause ve Resume butonları; agent'ın ne yaptığı ve şu an ne yaptığı; bildirim; kare, video ve
+  proje silmek, onayla; edit'leri export almadan izlemek.
+- [v1-28](#v1-28)'in son dört koşulu bu ekranlar için de: örnek veri, OpenAPI türleri, önce düşen
+  test, tasarım reviewer'ı, reviewer ve QA.
 
 <a id="v1-29"></a>
 ### v1-29 — UI bağlantısı: projeler ve kareler
@@ -520,7 +622,7 @@ reviewer → QA → ana agent → commit. Ekranlar [v1-3](#v1-3)'ün yer tutucu 
 
 **Kabul koşulu:**
 - Kuyruk, onu kimin çalıştırdığı, kendiliğinden durma nedeni ve agent'ın ne yaptığı core'dan geliyor;
-  görünüş [v1-28](#v1-28)'deki gibi kalıyor.
+  görünüş [v1-41](#v1-41)'deki gibi kalıyor.
 - Pause ve Resume butonları agent'ın kullandığı `pause` ve `resume`'u çağırıyor.
 - Kuyruk bitince ya da durunca tarayıcı bildirimi geliyor.
 - Yoklama ve istek sayısı [v1-29](#v1-29)'deki gibi sayılı ve sınanıyor.
@@ -534,7 +636,7 @@ reviewer → QA → ana agent → commit. Ekranlar [v1-3](#v1-3)'ün yer tutucu 
 - Kare ve video ekrandan, onayla siliniyor; proje yalnız ekrandan, bir onayla.
 - Reddedilen silmede ekran core'un sözünü gösteriyor.
 - Edit'ler export almadan izlenebiliyor.
-- Görünüş [v1-28](#v1-28)'deki gibi kalıyor.
+- Görünüş [v1-41](#v1-41)'deki gibi kalıyor.
 
 *(Kullanıcı, 5 Kasım — "agent'lar proje silemesin".)*
 
@@ -583,15 +685,15 @@ hepsi tutunca biter; ana agent sonda hepsine kendisi bakar, v1-32 de onları den
 |---|---|
 | 1. Agent işi tek başına bitirir | v1-32 |
 | 2. Resimler resim olarak gider | v1-23, v1-32 |
-| 3. Hiçbir şey iki kez yapılmaz ya da kaybolmaz | v1-10, v1-11 (`creates.json`), v1-17, v1-18, v1-19, v1-21, v1-22 (`retry`), v1-27 |
+| 3. Hiçbir şey iki kez yapılmaz ya da kaybolmaz | v1-10, v1-11 (`creates.json`), v1-17, v1-18, v1-19, v1-38, v1-22 (`retry`), v1-40 |
 | 4. Kuyruk kendiliğinden durunca nedenini söyler | v1-18 |
 | 5. Gerçek Drive'da çalışır | v1-4, v1-8, v1-9, v1-26, v1-27 |
-| 6. Maliyet ve hız bütçede | işlem ekleyen her madde, v1-24, v1-25, v1-29, v1-30 |
-| 7. İki Colab aynı projeyi sırayla kullanır | v1-10, v1-19, v1-27 |
-| 8. Kullanıcı UI'ı onaylar | v1-28, v1-29, v1-30, v1-31, v1-32 |
+| 6. Maliyet ve hız bütçede | işlem ekleyen her madde, v1-24, v1-39, v1-29, v1-30 |
+| 7. İki Colab aynı projeyi sırayla kullanır | v1-10, v1-19, v1-40 |
+| 8. Kullanıcı UI'ı onaylar | v1-28, v1-41, v1-29, v1-30, v1-31, v1-32 |
 | 9. Kullanıcı export'u onaylar | v1-21, v1-27, v1-32 |
 | 10. Bütün suite'ler yeşil | her madde; `main`'den önce bütün araçlar |
-| 11. Şirket hesabına hiçbir test dokunmadı | v1-1, v1-4, v1-8, v1-9, v1-25, v1-26, v1-27 |
+| 11. Şirket hesabına hiçbir test dokunmadı | v1-1, v1-4, v1-8, v1-9, v1-25, v1-26, v1-27, v1-40 |
 
 ---
 
@@ -621,7 +723,9 @@ hepsi tutunca biter; ana agent sonda hepsine kendisi bakar, v1-32 de onları den
   `ALIGNED` doğar ve dayandığı adımı gösterir *(13. adım; kullanıcı, 6 Kasım)*. Bir madde ne istendiğini
   ve nasıl görüleceğini söyler; nasıl yapılacağını coder spec'inde, kodu ve dayandığı adımı okuyarak
   kendi yargısıyla yazar.
-- **Numaralar:** `v1-1`…`v1-32`, koşu gerçek numaralarını verene kadar. Sayaçta en yüksek numara Queen
+- **Numaralar:** `v1-1`…`v1-41`, koşu gerçek numaralarını verene kadar. `v1-34`…`v1-41` büyük maddelerin
+  bölünmesinden; tablodaki yerleri, bölündükleri maddenin hemen altı, yürüme sırasıdır *(kullanıcı,
+  6 Kasım)*. Sayaçta en yüksek numara Queen
   Editor v11.1'in 524'ü.
 - **Ekrandaki sürüm:** CLAUDE.md'nin "ilk madde ekrandaki sürümü artırır" kuralı ilk ekranla tutar:
   [v1-3](#v1-3) ekranı ilk kez açar, yalnız "Queen Studio V1" yazan bir yer tutucu sayfayla; ilk madde
@@ -641,7 +745,7 @@ hepsi tutunca biter; ana agent sonda hepsine kendisi bakar, v1-32 de onları den
   yargısıyla verir; tutmayan bir ölçümde de tasarımı düzeltip geçer. Her kararı gerekçesiyle
   [kararlar belgesine](2026-11-06-queen-studio-v1-kararlar.md) yazar, değişen adımı da düzeltir;
   kullanıcıyla sonda o belgenin üstünden geçilir.
-- **Yolda bulunan iş:** v1'in gerektirdiği `v1-34`'ten başlayarak madde olur ve kararlar
+- **Yolda bulunan iş:** v1'in gerektirdiği `v1-42`'den başlayarak madde olur ve kararlar
   belgesine yazılır; gerisi `queen-studio/BACKLOG.md`'ye.
 - **Tasarımdan sapmak serbesttir:** kodu yazan agent bir şeyi tasarımdan ya da kurallardan farklı
   yapmanın daha doğru olduğunu görürse ana agent'a söyler; bazı şeyler ancak kod yazılırken görülür.

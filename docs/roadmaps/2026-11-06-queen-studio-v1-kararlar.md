@@ -85,6 +85,14 @@ neye, neden, hangi belge düzeltildi.
     bakar (depo `Clock` alır). On bir sapmanın hepsi:
     [m531 spec, 4. adımdan sapmalar](../specs/2026-11-06-queen-studio-m531-depo-portu-design.md#4-adımdan-sapmalar).
     Değişen: `CODE-STANDARD.md`, kapı kuralı.
+14. **Sekiz büyük madde ikiye bölündü** (roadmap; kullanıcı, 6 Kasım — "roadmapte başka böyle büyük
+    task varsa onları da parçalara bölelim"; "Yes, all 8"). 532'nin iki turu bir saati geçince. v1-10,
+    v1-14, v1-16, v1-17, v1-21, v1-25, v1-27 ve v1-28'in ikinci yarısı v1-34…v1-41 oldu, tabloda
+    bölündüğü maddenin hemen altında. Eski numaralar yerinde, çünkü spec'ler ve bu belge onlara
+    bakıyor. Bölünen maddelerin kabul koşullarına, madde 12'nin denetiminden o maddeye düşen sınırlar
+    eklendi: history'nin taradığı blok sayısı, indirmede ve export'ta disk, export belleğinin klip
+    sayısıyla büyümemesi, log'un boyu, `/wait`'in iş parçacığı tutmaması. Yolda bulunan iş artık
+    v1-42'den.
 
 ## Koşudan önce, belgelerin gözden geçirilmesinde
 
