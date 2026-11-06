@@ -1,6 +1,6 @@
 # Queen Studio — Yol Haritası v1
 
-**Tarih:** 2026-11-06 · **Koşu dalı:** `feat/queen-studio-v1` · **Durum:** 7/41 · koşuyor
+**Tarih:** 2026-11-06 · **Koşu dalı:** `feat/queen-studio-v1` · **Durum:** 7/42 · koşuyor
 
 queen-studio, queen-editor'ın özelliklerini bir AI agent'ın kullanabileceği biçimde sunan yeni bir
 araç. Ne yaptığı [tasarım adımlarında](../research/2026-11-03-yeni-editor-v1-tasarim-adimlar.md).
@@ -20,6 +20,7 @@ koşu durmaz. Son iki madde de kullanıcıyla: Pro'daki deneme ve DeepSeek harne
 | 530 · [v1-6](#v1-6) | Liste sorgusu | ✅ *(regex yerine `like`/`ilike`; [kararlar 11](2026-11-06-queen-studio-v1-kararlar.md#sapmalar))* · `ALIGNED` |
 | 531 · [v1-7](#v1-7) | Depo portu ve bellek içi adaptör | ✅ *(port kare, iş, edit bilmez; [kararlar 13](2026-11-06-queen-studio-v1-kararlar.md#sapmalar))* · `ALIGNED` |
 | [v1-8](#v1-8) | Drive adaptörü: projeler ve kayıtlar | `ALIGNED` |
+| [v1-42](#v1-42) | Yapılmış kodun sınırları | `ALIGNED` |
 | [v1-9](#v1-9) | Drive adaptörü: dosyalar | `ALIGNED` |
 | [v1-10](#v1-10) | Bir değişiklik ve aynı istek iki kez | `ALIGNED` |
 | [v1-34](#v1-34) | History | `ALIGNED` |
@@ -183,6 +184,22 @@ detaylı olarak o endpoint'e baksın".)*
 - Hız sınırında istek yavaşlıyor, kaybolmuyor; belirsiz ya da reddedilen yazma Drive'ın sözüyle dönüyor;
   okunamayan bir baş dosyasının üstüne yazılmıyor.
 
+<a id="v1-42"></a>
+### v1-42 — Yapılmış kodun sınırları
+
+*([CODE-STANDARD, Cost](../../queen-studio/CODE-STANDARD.md#cost);
+[kararlar 12](2026-11-06-queen-studio-v1-kararlar.md#sapmalar))*
+
+Yolda bulundu: madde 12'nin denetimi 527–529'un kodunda *(kullanıcı, 6 Kasım — "bundan ders çıkar hem
+geçmiş hem gelecek değişikliklere bak"; "sen karar ver")*.
+
+**Kabul koşulu:**
+- `GET /api/health` bekleyen istekler sunucunun iş parçacıklarını doldursa da cevap veriyor.
+- Gövde sınırı en büyük gerçek gövdeye göre (1 MiB); kötü bir gövdenin hatası yalnız gösterilen
+  sorunları biçimliyor, kalanı sayıyor; liste alanlarının en çok öğesi var.
+- Aynı anda açık bağlantı sayısının sınırı var.
+- Her sınır küçük kurulmuş bir testle.
+
 <a id="v1-9"></a>
 ### v1-9 — Drive adaptörü: dosyalar
 
@@ -209,6 +226,8 @@ detaylı olarak o endpoint'e baksın".)*
 - Projeyi sırayla iki core'da değiştirmek birinin değişikliğini silmiyor; aynı saniyede kaybolan
   değişiklik söyleniyor.
 - Her değişiklik history'de bir kayıt olarak yazılıyor; okunması [v1-34](#v1-34)'te.
+- Bir projenin kilidini bekleyen istek sınırsız beklemiyor; aynı istek iki kez dizini anahtarları
+  tutuyor, kayıtları değil. Değişikliklerin cevabındaki listeler en çok 20 öğe, gerisi sayıyla.
 
 <a id="v1-34"></a>
 ### v1-34 — History
@@ -238,6 +257,8 @@ parçalara bölelim")*.
   okunmuyor.
 - Başka bir Colab'daki değişiklik birkaç saniye içinde görünüyor; core yalnız istenen projeyi yüklüyor.
 - Core yeniden başlasa da aynı anahtarla gelen oluşturma ikinci bir proje açmıyor.
+- Belleğe sığmayacak kadar büyük proje yüklenmiyor, nedeni söyleniyor; yüklü projeler core'un bellek
+  sınırını aşmıyor.
 
 *(Kullanıcı, 5 Kasım — "komple silinsin, history'si okunamasın".)*
 
@@ -254,6 +275,8 @@ parçalara bölelim")*.
 - Bir kare, birçok kare ya da bir karenin videosu siliniyor; videosu silinen kare aynı kimlikle, aynı
   yerde kalıyor.
 - Paylaşılan fotoğraf, onu kullanan kare de iş de kalmayınca çöpe gidiyor.
+- Bir projede en çok 20.000 kare, sahne en çok 500 karakter; toplu silme en çok 1000 kareye dokunuyor,
+  cevabı en çok 100 kimlik ve sayı.
 
 <a id="v1-13"></a>
 ### v1-13 — Medya
@@ -268,6 +291,8 @@ parçalara bölelim")*.
 - Dosya ilk istekte Drive'dan, sonra diskten geliyor; küçük boyut ve durağan görüntüler diskte
   üretiliyor, saklanmıyor.
 - ffmpeg'in hatası ffmpeg'in sözüyle dönüyor.
+- Aynı anda en çok 2 ffmpeg, her biri süre ve bellek sınırıyla; sırası gelmeyen istek kısa bir
+  beklemeden sonra "meşgul" alıyor.
 
 *(Kullanıcı, 5 Kasım — "genel bakış için 1 saniye arayı biz yapalım".)*
 
@@ -299,7 +324,8 @@ parçalara bölelim")*.
 - Agent bir modeli önceden de indirtebiliyor; LoRA'ları ve yardımcı dosyaları onunla iniyor.
 - İnen model yüzdesiyle görünüyor; `GET /models/{id}/wait` inmesi bitene kadar bekliyor.
 - İnemeyen model üç denemeden sonra kaynağın sözüyle "inemedi" görünüyor.
-- Diskte yer yetmeyen indirme başlamıyor; yarım inen dosya model sayılmıyor.
+- Diskte yer yetmeyen indirme başlamıyor; yarım inen dosya model sayılmıyor; aynı anda tek indirme.
+- Takılan bağlantı süre sınırında kesiliyor; Civitai'nin anahtarı hata ve log'da görünmüyor.
 
 *(Kullanıcı, 5 Kasım — "agent indirmeyi seçsin böylece önceden hazırlık bile yapabilir".)*
 
@@ -316,6 +342,8 @@ parçalara bölelim")*.
 - İş verildiği an karesi sıraya giriyor ve cevap düşeceği kareyi söylüyor.
 - Modeli kurulu olmayan ve inmeyen iş verilemiyor; hint indirmeyi gösteriyor.
 - İşler listeleniyor, tek tek ya da toplu çıkarılıyor; işi kuyrukta olan kare ve videosu silinmiyor.
+- Prompt en çok 4000, negatif en çok 2000 karakter; seed JSON'un kesin taşıdığı aralıkta; bir projede
+  en çok 1000 bekleyen iş (`queue_full`).
 
 *(Kullanıcı, 3 Kasım — "Seed gibi gerçekten sorun olmayacak şeylerin varsayılan değeri olabilir, ama
 video promptu gibi şeyler olmaz.")*
@@ -331,6 +359,8 @@ video promptu gibi şeyler olmaz.")*
 - Takılan üretim süre sınırında duruyor, iptal başka bir işe çarpmıyor; ComfyUI'nin hatası kendi
   sözüyle geliyor.
 - İşin üretim süresi kaydında, ayrıntılı süreler log'da.
+- ComfyUI'ye her çağrının süre sınırı var; kaydedilen hata ve durma nedeni kısa tutuluyor; ComfyUI'nin
+  çıktı ve geçici klasörleri Colab'ın diskini doldurmuyor.
 
 <a id="v1-36"></a>
 ### v1-36 — ComfyUI kapısı: graflar
@@ -422,6 +452,7 @@ video promptu gibi şeyler olmaz.")*
 - Yerler ekleniyor, çıkarılıyor, taşınıyor, bütün sıra veriliyor; aynı kare birçok yerde olabiliyor; bir
   yerin sesi kapatılıyor.
 - Karesi silinen yer "silindi" gösteriyor, agent onu çıkarana ya da başka kareye çevirene kadar.
+- Bir edit'te en çok 5000 yer, bir projede en çok 200 edit.
 
 <a id="v1-21"></a>
 ### v1-21 — Export: videonun yapılması
@@ -470,6 +501,8 @@ video promptu gibi şeyler olmaz.")*
   olduğu doğrulanıyor; değilse adres ve kullanıcıya sorulacağı söyleniyor.
 - Claude Code için ayarı depoda; Claude Code'un adaptörü sohbetin klasöründe başlattığı denendi.
   Testler gerçek bir MCP oturumunda.
+- Bir listede en çok 25 çağrı ve bir süre sınırı; metin cevabı bir boy sınırında. Sınır aşılınca
+  adaptör boyu söyleyen bir hata veriyor, sessizce kesmiyor.
 
 <a id="v1-23"></a>
 ### v1-23 — Resimler resim olarak gider
@@ -484,6 +517,7 @@ video promptu gibi şeyler olmaz.")*
   hiçbir JSON cevabında base64 yok.
 - Resim alamayan harness'ta adaptör resmi göndermiyor ve bunu söylüyor.
 - Claude Code'da elle: küçük bir fotoğraf bağlamı birkaç yüz token büyütüyor.
+- Bir listede en çok 8 resim, en çok 2'si tam boyda.
 
 *(Kullanıcı, 5 Kasım — "burası özellikle sıkı test edilsin, çünkü core özellik bu ve burası yanlış olursa
 acayip performans düşüşü olur".)*
@@ -745,7 +779,7 @@ hepsi tutunca biter; ana agent sonda hepsine kendisi bakar, v1-32 de onları den
   yargısıyla verir; tutmayan bir ölçümde de tasarımı düzeltip geçer. Her kararı gerekçesiyle
   [kararlar belgesine](2026-11-06-queen-studio-v1-kararlar.md) yazar, değişen adımı da düzeltir;
   kullanıcıyla sonda o belgenin üstünden geçilir.
-- **Yolda bulunan iş:** v1'in gerektirdiği `v1-42`'den başlayarak madde olur ve kararlar
+- **Yolda bulunan iş:** v1'in gerektirdiği `v1-43`'ten başlayarak madde olur ve kararlar
   belgesine yazılır; gerisi `queen-studio/BACKLOG.md`'ye.
 - **Tasarımdan sapmak serbesttir:** kodu yazan agent bir şeyi tasarımdan ya da kurallardan farklı
   yapmanın daha doğru olduğunu görürse ana agent'a söyler; bazı şeyler ancak kod yazılırken görülür.

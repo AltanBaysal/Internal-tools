@@ -93,6 +93,14 @@ neye, neden, hangi belge düzeltildi.
     eklendi: history'nin taradığı blok sayısı, indirmede ve export'ta disk, export belleğinin klip
     sayısıyla büyümemesi, log'un boyu, `/wait`'in iş parçacığı tutmaması. Yolda bulunan iş artık
     v1-42'den.
+15. **Denetimin kalanı da roadmap'e girdi** (kullanıcı, 6 Kasım — "sen karar ver"). Yapılmış kod için
+    [v1-42](2026-11-06-queen-studio-v1-roadmap.md#v1-42) (`health`'in beklememesi, 1 MiB gövde, hatanın
+    yalnız gösterilen sorunları biçimlemesi, bağlantı sınırı), v1-8'den sonra. Sonraki maddelerin kabul
+    koşullarına denetimin önerdiği sayılar: kare 20.000, sahne 500, prompt 4000, negatif 2000 karakter,
+    1000 bekleyen iş, edit'te 5000 yer, projede 200 edit, toplu silme 1000, aynı anda 2 ffmpeg ve tek
+    indirme, listede 25 çağrı ve 8 resim; ComfyUI'ye ve indirmelere süre sınırı, Civitai anahtarının
+    log'da görünmemesi, büyük projenin yüklenmemesi. Sayılar önerinin kendisi; kullanıcı sonda bu
+    belgenin üstünden geçerken değiştirebilir. Yolda bulunan iş v1-43'ten.
 
 ## Koşudan önce, belgelerin gözden geçirilmesinde
 
