@@ -14,6 +14,3 @@ class ModelFiles(Protocol):
 
     def has_any(self, folder: str, suffix: str) -> bool:
         """Is there a file of this kind here? What a group asks when which one is the user's pick."""
-
-    def path(self, folder: str, name: str) -> str:
-        """Where it sits, whether or not it is there yet."""

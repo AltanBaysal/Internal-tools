@@ -1370,6 +1370,22 @@ describe("Gallery — what a frame owns", () => {
     expect(screen.getByText("video üretiliyor")).toBeTruthy();
   });
 
+  it("offers no Sil while a selected frame has a layer being made, and says why", () => {
+    // Madde 519 (QA): the video lands whatever was written meanwhile (madde 513), so a frame deleted
+    // under its render came back at the top with a video and a missing picture.
+    renderGallery({ frames: [done("P0_0.png", { owed: ["video"] }), done("1_a.png")],
+                    current: "P0_0", currentLayer: "video", running: true });
+    const sil = () => screen.getByText("Sil").closest("button");
+
+    fireEvent.click(checkOf("1_a.png"));
+    expect(sil().disabled).toBe(false);
+    expect(screen.queryByText("Üretilen kare bitince silinebilir.")).toBeNull();
+
+    fireEvent.click(checkOf("P0_0.png"));
+    expect(sil().disabled).toBe(true);
+    expect(screen.getByText("Üretilen kare bitince silinebilir.")).toBeTruthy();
+  });
+
   it("still draws the loading holder while the photo itself is being made", () => {
     renderGallery({ frames: [pending("P0_0.png")],
                     current: "P0_0", currentLayer: "photo" });

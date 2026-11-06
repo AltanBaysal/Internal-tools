@@ -9,8 +9,14 @@ latest line about a slot wins.
 
 Folded per (frame, layer) rather than per file, because a file can be shared: a copy frame points at
 its source's picture, and closing one of them must not close the other.
+
+A decision's line says which status it was taken over (`from`), and it counts only while the slot
+still stands there (queue.applies, madde 513). The fold walks the lines in the order they are in the
+file, which is the order they were appended in -- the rule rests on that, and append's lock keeps it
+(madde 524). Lines written before madde 513 carry no `from` and apply as they always did.
 """
 import json
+import threading
 
 from backend.features.photo_generation.data.file_cache import FileCache
 from backend.features.photo_generation.domain import layers, queue
@@ -21,6 +27,10 @@ FILE = "photos.jsonl"
 # A line saying a layer's prompt was written (madde 403). Nothing became of the layer: it is exactly
 # as owed as it was, so the status fold passes over the line.
 WRITTEN = "written"
+
+# The field a decision's line names the status it was taken over in. A line without it was written
+# before madde 513, and applies whatever the slot says.
+FROM = "from"
 
 
 def _status_of(row):
@@ -53,6 +63,23 @@ def _layer_of(row):
     return layer if isinstance(layer, str) else layers.PHOTO
 
 
+def _applied(rows):
+    """The rows that count, in the order they were written: every one, except a decision whose slot
+    no longer stands where the door read it (queue.applies). A written prompt's row is handed on and
+    moves nothing, as the status fold has always read it."""
+    status = {}
+    for row in rows:
+        now = _status_of(row)
+        if now == WRITTEN:
+            yield row
+            continue
+        slot = (_frame_of(row), _layer_of(row))
+        if FROM in row and not queue.applies(status.get(slot), row[FROM]):
+            continue
+        status[slot] = now
+        yield row
+
+
 def _parse(lines):
     """Every readable row, in the order it was written.
 
@@ -76,16 +103,29 @@ class DrivePhotoRecord:
         # Three of this class's answers come from the same file, and the gallery asks for all
         # three on every poll. Parsed once, kept until the file itself changes.
         self._cache = FileCache(storage)
+        # The queue writes its lines from its own thread under the name's lock, the doors theirs
+        # under the project's gate, so two can come at once; nothing says Drive's mount keeps two
+        # appends at once whole, apart and in order (madde 524). One process serves every writer,
+        # so a line goes to the file only once the one before it is there. A leaf: nothing is taken
+        # inside it, and it is held for one append alone -- the queue waits only for lines being
+        # written, never for a door's reads or its gate.
+        self._appending = threading.Lock()
 
     def append(self, project, entry):
         """entry: {"file", "frame", "layer", "status", …} -- a produced photo also carries prompt,
         negative and seed."""
-        self._storage.append_line(project, FILE, json.dumps(entry, ensure_ascii=False))
+        line = json.dumps(entry, ensure_ascii=False)
+        with self._appending:
+            self._storage.append_line(project, FILE, line)
 
-    def mark(self, project, frame, layer, file, status, at, error=None):
+    def mark(self, project, frame, layer, file, status, at, *, seen, error=None):
         """Write down an event that produced no layer: a failure, a deletion, a frame pulled out of
-        the queue, or a slot put back in line."""
-        entry = {"frame": frame, "layer": layer, "file": file, "status": status, "at": at}
+        the queue, or a slot put back in line.
+
+        `seen` is the slot's status as the writer read it when it decided, None for a slot never
+        written about; the line counts only while the slot still says so (madde 513)."""
+        entry = {"frame": frame, "layer": layer, "file": file, "status": status, "at": at,
+                 FROM: seen}
         if error is not None:
             # The server's own words, verbatim -- never a guessed cause.
             entry["error"] = error
@@ -112,10 +152,11 @@ class DrivePhotoRecord:
         of the five is on every line, so none of those keys is always there.
 
         A written prompt's line is passed over: a job never written about has to stay one, and the
-        queue tells it apart from a job put back in line by exactly that.
+        queue tells it apart from a job put back in line by exactly that. So is a decision taken
+        over a status the slot had already left (madde 513).
         """
         folded = {}
-        for row in self._rows(project):
+        for row in _applied(self._rows(project)):
             if _status_of(row) == WRITTEN:
                 continue
             cell = {"status": _status_of(row), "file": row["file"]}
@@ -160,7 +201,7 @@ class DrivePhotoRecord:
         queued again is written for again.
         """
         latest = {}
-        for row in self._rows(project):
+        for row in _applied(self._rows(project)):
             latest[(_frame_of(row), _layer_of(row))] = (
                 row.get("prompt") if _status_of(row) == WRITTEN else None)
         folded = {}
@@ -172,7 +213,7 @@ class DrivePhotoRecord:
     def list(self, project):
         """Every photo that still exists, newest first -- one row per frame, not per file."""
         live = {}
-        for row in self._rows(project):
+        for row in _applied(self._rows(project)):
             if _layer_of(row) != layers.PHOTO:
                 continue
             frame = _frame_of(row)

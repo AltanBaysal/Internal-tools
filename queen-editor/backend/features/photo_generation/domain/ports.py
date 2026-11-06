@@ -1,5 +1,5 @@
 """Ports this feature needs. Implemented in data/, faked in tests -- domain stays pure."""
-from typing import Protocol
+from typing import ContextManager, Protocol
 
 
 class PhotoGenerator(Protocol):
@@ -160,6 +160,18 @@ class PhotoStore(Protocol):
 
 
 class PlanStore(Protocol):
+    def held(self, project: str) -> ContextManager[None]:
+        """The project's write gate (madde 512), kept here because the plan is what it began with.
+
+        Every door that names frames or closes them holds it from what it reads -- plan, record and
+        order together -- to the last of them it writes: two presses at once then never take one
+        name, drop each other's jobs or order, or unlink a file a frame born in between stands on.
+        append holds it too, so the plan file never loses a write. The reference pool's three
+        writers hold it for the pool's order, and a delete around the halt and the removal
+        (madde 523). The loop writes the record outside it: a landed layer's row names its own
+        slot, and the latest row about a slot wins. Re-entrant: append inside it."""
+        ...
+
     def read(self, project: str) -> dict:
         """{"negative", "frames"} -- the queue as stored, every frame carrying its identity and its
         negative."""
@@ -183,9 +195,13 @@ class PhotoRecord(Protocol):
         """Every photo that still exists, newest first."""
         ...
 
-    def mark(self, project: str, frame: str, layer: str, file: str, status: str, at: str,
-             error: str | None = None) -> None:
-        """Append a line for an event that produced no layer."""
+    def mark(self, project: str, frame: str, layer: str, file: str, status: str, at: str, *,
+             seen: str | None, error: str | None = None) -> None:
+        """Append a line for an event that produced no layer.
+
+        `seen` is the slot's status as the writer read it when it decided (None: never written
+        about). The line counts only while the slot still stands there (queue.applies, madde 513).
+        """
         ...
 
     def prompt_written(self, project: str, frame: str, layer: str, file: str, prompt: str,
@@ -200,7 +216,8 @@ class PhotoRecord(Protocol):
 
     def slots(self, project: str) -> dict:
         """{frame: {slot: {"status", "file"[, "error"][, "renderSeconds"][, "seconds"]}}} -- the
-        latest line per (frame, slot).
+        latest line per (frame, slot) that applies: a decision taken over a status the slot had
+        already left is passed over (madde 513).
 
         "error" is there only where the line carried one, which is only on a failure.
         "renderSeconds" only on a layer produced since madde 405: the seconds the model worked on it.
@@ -251,4 +268,18 @@ class HappyEndingStore(Protocol):
 
     def write(self, project: str, on: bool) -> None:
         """Replace the saved switch."""
+        ...
+
+
+class MuteStore(Protocol):
+    def project_exists(self, project: str) -> bool:
+        ...
+
+    def read(self, project: str) -> list:
+        """The frames whose sound is turned off; [] when nothing is. A list that cannot be read
+        raises OSError rather than reading as empty."""
+        ...
+
+    def put(self, project: str, frame: str, on: bool) -> list:
+        """Turn the frame's sound off (True) or on (False) and answer with the new list."""
         ...

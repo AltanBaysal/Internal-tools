@@ -56,24 +56,25 @@ def test_the_app_comes_up_and_answers_health(import_main):
     assert response.status_code == 200
 
 
-def test_every_worker_runs_its_work_on_the_idle_watchs_threads(import_main):
-    """Madde 498: the queue, the export and the agent tell the watch when work starts and ends by
-    running it where the watch can see it -- one that ran elsewhere would be invisible to it, and
-    the question would come while it worked. The agent's wait on the user is the watch's too."""
+def test_the_queue_tells_the_watch_when_it_starts_and_ends_and_nothing_else_does(import_main):
+    """Madde 509 and 518: the queue's worker tells the watch its starts and its endings -- an export
+    brings nothing, and the agent has nothing to say to the watch either."""
+    from backend.features.agent.runner import _thread_spawn as agent_spawn
+    from backend.features.photo_generation.export_runner import _thread_spawn as export_spawn
     main = import_main()
 
-    assert main._photo_runner._spawn == main._idle.spawn
-    assert main._export_runner._spawn == main._idle.spawn
-    assert main._agent_runner._spawn == main._idle.spawn
-    assert main._agent_runner._waiting == main._idle.waiting
+    assert main._photo_runner._started == main._queue_watch.started
+    assert main._photo_runner._ended == main._queue_watch.ended
+    assert main._export_runner._spawn is export_spawn
+    assert main._agent_runner._spawn is agent_spawn
 
 
-def test_the_app_comes_up_with_nothing_asked(import_main):
+def test_the_app_comes_up_with_the_queue_never_started_nor_ended(import_main):
     main = import_main()
 
-    response = main.app.test_client().get("/api/idle")
+    response = main.app.test_client().get("/api/queue/watch")
 
-    assert response.get_json() == {"version": 0, "asking": False}
+    assert response.get_json() == {"started": 0, "ended": 0, "last": None}
 
 
 def test_a_root_that_is_not_there_is_nobodys_business_until_it_is_asked(import_main, monkeypatch,
@@ -189,6 +190,31 @@ def test_the_queue_reads_the_projects_happy_ending(import_main, monkeypatch, tmp
     assert main._happy_ending("düğün") is False
     main.app.test_client().put("/api/projects/düğün/happy-ending", json={"on": True})
     assert main._happy_ending("düğün") is True
+
+
+def test_the_app_serves_the_projects_turned_off_sounds(import_main, root):
+    """Madde 510: the door's own tests wire it by hand, so only this one reads main.py's wiring."""
+    main = import_main()
+
+    response = main.app.test_client().get("/api/projects/m510-yok/muted")
+
+    assert response.status_code == 404
+    assert response.get_json() == {"error": "Proje yok: m510-yok"}
+
+
+def test_the_export_and_its_summary_read_the_sounds_the_door_turned_off(import_main, monkeypatch,
+                                                                        tmp_path):
+    """One store behind the door, the export and its summary. The summary is reached through its own
+    door: a list it cannot read is a list it read."""
+    (tmp_path / "düğün").mkdir()
+    (tmp_path / "düğün" / "muted.json").write_text("{bozuk", encoding="utf-8")
+    monkeypatch.setenv("QE_DRIVE_ROOT", str(tmp_path))
+    main = import_main()
+
+    assert main._start_export.keywords["mutes"] is main._mutes
+    response = main.app.test_client().get("/api/projects/düğün/export/summary")
+    assert response.status_code == 503
+    assert "düğün/muted.json okunamıyor" in response.get_json()["error"]
 
 
 def test_exports_land_in_the_root_the_notebook_hands_over(import_main, monkeypatch, tmp_path):
@@ -391,12 +417,62 @@ def test_the_video_prompt_is_queen_ai_s(import_main, monkeypatch):
     assert "DEEPSEEK_API_KEY" in _refusal(main, layers.VIDEO)
 
 
-def test_the_sound_prompt_is_queen_ai_s(import_main, monkeypatch):
-    """Madde 404: the sound is written by Queen AI too."""
-    monkeypatch.setenv("QE_DEEPSEEK_API_KEY", "")
+def test_nothing_makes_a_sound_any_more(import_main):
+    """Madde 514, the user's words: "mmaudio zaten silenecek roadmape ekle sil". No producer and no
+    prompt writer for a sound: the sounds already made stay, and no new one is made."""
     main = import_main()
 
-    assert "DEEPSEEK_API_KEY" in _refusal(main, layers.AUDIO)
+    assert set(main._producers) == {layers.PHOTO, layers.VIDEO}
+    assert set(main._writers) == {layers.VIDEO}
+
+
+class _OwedSound:
+    """A project whose frame has its photo and video, and a sound the queue still owes -- the
+    plan, the record and the runner make_job asks of, and nothing else. A line written is kept, so
+    the test can say none was."""
+
+    def __init__(self):
+        from backend.features.photo_generation.domain.running_name import RunningName
+        self.named = RunningName("düğün")
+        self.written = []
+
+    def read(self, _project):
+        return {"frames": [{"id": "P0_0", "type": "audio", "number": 0, "variant": 0,
+                            "prompt": "", "negative": "", "seed": None, "model": ""}]}
+
+    def slots(self, _project):
+        return {"P0_0": {"photo": {"status": "done", "file": "P0_0.png"},
+                         "video": {"status": "done", "file": "P0_0_V1_0.mp4"}}}
+
+    def append(self, *line):
+        self.written.append(line)
+
+    def mark(self, *line, **_said):
+        self.written.append(line)
+
+    def stop_requested(self):
+        return False
+
+    def report(self, _state):
+        pass
+
+
+def test_a_sound_still_owed_stops_the_queue_and_asks_nobody(import_main, monkeypatch):
+    """Madde 514: a sound queued before MMAudio went waits as any job whose producer is not here --
+    run_loop's own rule, and the ending 509's notification names. Its prompt is not written: no
+    request leaves for DeepSeek, and no line is written, so the job stays owed until the user takes
+    it out (Sesleri sil, or clearing the queue)."""
+    from backend.features.photo_generation.domain.run_loop import make_job
+    monkeypatch.setenv("QE_DEEPSEEK_API_KEY", "k-1")
+    main = import_main()
+    monkeypatch.setattr(requests, "post", lambda *a, **k: pytest.fail("DeepSeek'e istek gitti"))
+    project = _OwedSound()
+
+    state = make_job(project, None, project, project, main._producers, lambda: "now",
+                     writers=main._writers)()
+
+    assert (state["status"], state["waitingFor"]) == ("waiting", layers.AUDIO)
+    assert project.written == []
 
 
 def test_the_deepseek_key_comes_from_the_environment(import_main, monkeypatch):
@@ -410,19 +486,18 @@ def test_the_deepseek_key_comes_from_the_environment(import_main, monkeypatch):
     assert config.DEEPSEEK_URL == "https://api.deepseek.com/chat/completions"
 
 
-@pytest.mark.parametrize("kind", [layers.VIDEO, layers.AUDIO], ids=["video", "sound"])
-def test_every_queen_ai_prompt_goes_through_the_box(import_main, monkeypatch, kind):
-    """Madde 416 and 418: H3's and the sound's writer, as main.py wires them, have a failed
-    request sent again and the answer checked -- four HTTP errors, then the fifth try's answer and
-    the check's approval, and that answer is the prompt. requests.post is the one the client sends
-    with, so no request leaves this machine."""
+def test_every_queen_ai_prompt_goes_through_the_box(import_main, monkeypatch):
+    """Madde 416 and 418: H3's writer, as main.py wires it, has a failed request sent again and the
+    answer checked -- four HTTP errors, then the fifth try's answer and the check's approval, and
+    that answer is the prompt. requests.post is the one the client sends with, so no request leaves
+    this machine."""
     monkeypatch.setenv("QE_DEEPSEEK_API_KEY", "k-1")
     main = import_main()
     http = Answers([FakeResponse(status_code=500, text="iç hata")] * 4
                    + [answering("she turns"), answering("APPROVED")])
     monkeypatch.setattr(requests, "post", http.post)
 
-    written = main._writers[kind].write({"photo": "kırmızı elbiseli kadın",
+    written = main._writers[layers.VIDEO].write({"photo": "kırmızı elbiseli kadın",
                                          "video": "kadın dönüyor"},
                                         "standard", source=PHOTO, scene="")
 

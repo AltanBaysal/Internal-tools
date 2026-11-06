@@ -1,7 +1,9 @@
+import threading
 from contextlib import contextmanager
 
 import pytest
 
+from backend.features.photo_generation.data.photo_record import _applied
 from backend.features.photo_generation.domain import layers, production_mode, queue
 from backend.features.photo_generation.domain.photo_name import (
     frame_id,
@@ -14,6 +16,7 @@ from backend.features.photo_generation.domain.photo_name import (
 from backend.features.photo_generation.domain.frame_list import InvalidFrames
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
 from backend.features.photo_generation.domain.run_loop import make_job
+from backend.features.photo_generation.domain.running_name import RunningName
 from backend.features.photo_generation.domain.usecases.copy_frames import copy_frames
 from backend.features.photo_generation.domain.usecases.remove_frames import remove_frames
 from backend.features.photo_generation.domain.usecases.get_status import get_status
@@ -32,6 +35,7 @@ from backend.features.photo_generation.domain.usecases.regenerate import (
     regenerate,
 )
 from backend.features.photo_generation.domain.usecases.remove_layer import remove_layer
+from backend.features.photo_generation.domain.usecases.dequeue_layer import dequeue_layer
 from backend.features.photo_generation.domain.usecases.retry_failed import retry_failed
 from backend.features.photo_generation.domain.usecases.retry_frame import retry_frame
 from backend.features.photo_generation.domain.usecases.run_queue import Busy
@@ -53,6 +57,7 @@ from backend.features.photo_generation.domain.usecases.resume_batch import (
 )
 from backend.features.photo_generation.domain.usecases import halt_project as halt_module
 from backend.features.photo_generation.domain.usecases.halt_project import halt_project
+from backend.features.photo_generation.domain.usecases.follow_delete import follow_delete
 from backend.features.photo_generation.domain.usecases.save_order import InvalidOrder, save_order
 from backend.features.photo_generation.domain.usecases.stop_generation import stop_generation
 from backend.features.photo_generation.runner import PhotoRunner
@@ -155,6 +160,13 @@ class FakePlanStore:
         self.frames = list(frames or [])
         self.negative = negative          # the pre-per-frame field older plans still carry
         self.read_for = None              # the project name the last read was made under
+        # A real lock, as DrivePlanStore's: madde 512's tests run two presses in two threads.
+        self.lock = threading.RLock()
+
+    @contextmanager
+    def held(self, project):
+        with self.lock:
+            yield
 
     def append(self, project, frames):
         self.appended.append(frames)
@@ -183,7 +195,8 @@ class FakePlanStore:
 
 
 class FakeRecord:
-    """Folds the log the way DrivePhotoRecord does: the latest line per (frame, layer) wins."""
+    """Folds the log the way DrivePhotoRecord does: the latest line per (frame, layer) that applies
+    wins -- over the very rows the app's own rule lets through (madde 513)."""
 
     def __init__(self):
         self.rows = []
@@ -191,11 +204,15 @@ class FakeRecord:
     def append(self, project, entry):
         self.rows.append(entry)
 
-    def mark(self, project, frame, layer, file, status, at, error=None):
-        entry = {"frame": frame, "layer": layer, "file": file, "status": status, "at": at}
+    def mark(self, project, frame, layer, file, status, at, *, seen, error=None):
+        entry = {"frame": frame, "layer": layer, "file": file, "status": status, "at": at,
+                 "from": seen}
         if error is not None:
             entry["error"] = error
         self.rows.append(entry)
+
+    def _applied(self):
+        return _applied(list(self.rows))
 
     def prompt_written(self, project, frame, layer, file, prompt, at):
         self.rows.append({"frame": frame, "layer": layer, "file": file, "status": "written",
@@ -209,7 +226,7 @@ class FakeRecord:
 
     def slots(self, project):
         folded = {}
-        for row in self.rows:
+        for row in self._applied():
             # A written prompt is not something that became of the layer (madde 403).
             if row.get("status") == "written":
                 continue
@@ -235,7 +252,7 @@ class FakeRecord:
 
     def written_prompts(self, project):
         folded = {}
-        for row in self.rows:
+        for row in self._applied():
             slot = (self._frame_of(row), self._layer_of(row))
             if row.get("status") == "written":
                 folded[slot] = row["prompt"]
@@ -252,7 +269,7 @@ class FakeRecord:
 
     def list(self, project):
         live = {}
-        for row in self.rows:
+        for row in self._applied():
             if self._layer_of(row) != "photo":
                 continue
             frame = self._frame_of(row)
@@ -266,6 +283,13 @@ class FakeRecord:
         numbers = [number_of(row["file"]) for row in self.rows]
         numbers = [n for n in numbers if n is not None]
         return max(numbers) if numbers else None
+
+
+class NoMutes:
+    """No sound turned off (madde 510): the exports and summaries here are about something else."""
+
+    def read(self, project):
+        return []
 
 
 class FakeOrderStore:
@@ -781,6 +805,21 @@ def test_halting_stops_waiting_the_moment_the_worker_leaves():
     assert runner.status() == {"status": "idle"}
 
 
+def test_a_delete_stops_the_projects_run_before_its_folder_goes():
+    """The confirm's promise, kept by the port the projects feature is handed (madde 523 moved it
+    there with the gate): the removal comes after the stop, and its answer is the delete's."""
+    runner = halting_runner()
+    stopped_first = []
+
+    def remove():
+        stopped_first.append(runner.stop_requested())
+        return False
+
+    assert follow_delete(runner, FakePlanStore(), lambda: None, lambda _: None, "düğün",
+                         remove) is False
+    assert stopped_first == [True]
+
+
 def test_stop_generation_survives_interrupt_failure():
     """A dead ComfyUI must not turn Durdur into a 500 -- the flag alone already stops the batch."""
     runner = PhotoRunner(spawn=lambda fn: None)
@@ -819,8 +858,8 @@ def test_the_gallery_holds_every_frame_the_plan_asked_for():
 
 def test_a_removed_or_deleted_frame_leaves_the_gallery():
     record = FakeRecord()
-    record.mark("düğün", "0_a", "photo", "0_a.png", "removed", "t1")
-    record.mark("düğün", "1_a", "photo", "1_a.png", "deleted", "t2")
+    record.mark("düğün", "0_a", "photo", "0_a.png", "removed", "t1", seen=None)
+    record.mark("düğün", "1_a", "photo", "1_a.png", "deleted", "t2", seen=None)
     plan_store = planned((0, "a", "ilk"), (1, "a", "ikinci"), (2, "a", "üçüncü"))
 
     frames = list_frames(record, FakeStore(), plan_store, FakeOrderStore(), "düğün")
@@ -830,7 +869,7 @@ def test_a_removed_or_deleted_frame_leaves_the_gallery():
 
 def test_a_failed_frame_stays_in_its_own_place():
     record = FakeRecord()
-    record.mark("düğün", "1_a", "photo", "1_a.png", "failed", "t1")
+    record.mark("düğün", "1_a", "photo", "1_a.png", "failed", "t1", seen=None)
     plan_store = planned((0, "a", "ilk"), (1, "a", "ikinci"), (2, "a", "üçüncü"))
 
     frames = list_frames(record, FakeStore(), plan_store, FakeOrderStore(), "düğün")
@@ -978,7 +1017,7 @@ def test_a_video_born_frame_leaves_the_gallery_when_its_video_is_deleted():
     """The rule that takes a card out of the gallery reads the layer that opened it. Generalising it
     to "the last layer" is madde 294's."""
     record = FakeRecord()
-    record.mark("düğün", "0_a", "video", "0_a_v0.mp4", "deleted", "t1")
+    record.mark("düğün", "0_a", "video", "0_a_v0.mp4", "deleted", "t1", seen=None)
     # A second card nobody deleted, so an empty gallery cannot pass this for the wrong reason.
     plan_store = planned_layers(("0_a", layers.VIDEO, "hareket"),
                                 ("1_a", layers.VIDEO, "hareket"))
@@ -1006,7 +1045,7 @@ def a_card_whose_photo_went(fid="0_a", picture="0_a.png"):
     record.append("düğün", {"file": picture, "frame": fid, "layer": "photo", "status": "done"})
     record.append("düğün", {"file": f"{fid}_v0.mp4", "frame": fid, "layer": "video",
                             "status": "done"})
-    record.mark("düğün", fid, "photo", picture, "deleted", "t1")
+    record.mark("düğün", fid, "photo", picture, "deleted", "t1", seen="done")
     return record
 
 
@@ -1039,7 +1078,7 @@ def test_a_card_with_no_photo_is_drawn_under_its_own_name():
 def test_a_card_whose_every_layer_is_gone_leaves_the_gallery():
     """Boş kutu yaşamaz (kullanıcı, 21 Eylül): with nothing left to speak for it, the card goes."""
     record = a_card_whose_photo_went()
-    record.mark("düğün", "0_a", "video", "0_a_v0.mp4", "deleted", "t2")
+    record.mark("düğün", "0_a", "video", "0_a_v0.mp4", "deleted", "t2", seen="done")
     # A second card nobody touched, so an empty gallery cannot pass this for the wrong reason.
     plan_store = planned_layers(("0_a", layers.PHOTO, "ilk"), ("0_a", layers.VIDEO, "hareket"),
                                 ("1_a", layers.PHOTO, "ikinci"))
@@ -1054,7 +1093,7 @@ def test_a_card_still_owed_a_layer_stays_though_its_photo_went():
     not been made yet, and the card is waiting for it."""
     record = FakeRecord()
     record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done"})
-    record.mark("düğün", "0_a", "photo", "0_a.png", "deleted", "t1")
+    record.mark("düğün", "0_a", "photo", "0_a.png", "deleted", "t1", seen="done")
     plan_store = planned_layers(("0_a", layers.PHOTO, "ilk"), ("0_a", layers.VIDEO, "hareket"))
 
     frames = list_frames(record, FakeStore(), plan_store, FakeOrderStore(), "düğün")
@@ -1153,7 +1192,8 @@ def test_a_produced_layer_leaves_the_owed_list():
 def test_a_layer_that_blew_up_is_named_as_such():
     record = FakeRecord()
     record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done"})
-    record.mark("düğün", "0_a", "video", "0_a_V1_0.mp4", "failed", "t", error="node 41")
+    record.mark("düğün", "0_a", "video", "0_a_V1_0.mp4", "failed", "t", seen=None,
+                error="node 41")
     plan_store = FakePlanStore(frames=[frame(0)])
 
     rows = list_frames(record, FakeStore(), plan_store, FakeOrderStore(), "düğün")
@@ -1193,7 +1233,8 @@ def test_a_layer_that_blew_up_has_no_time():
                             "renderSeconds": 46.3})
     record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
                             "status": "done", "renderSeconds": 212.0})
-    record.mark("düğün", "0_a", "video", "0_a_V1_0.mp4", "failed", "t", error="node 41")
+    record.mark("düğün", "0_a", "video", "0_a_V1_0.mp4", "failed", "t", seen="done",
+                error="node 41")
     plan_store = FakePlanStore(frames=[frame(0)])
 
     rows = list_frames(record, FakeStore(), plan_store, FakeOrderStore(), "düğün")
@@ -1206,7 +1247,7 @@ def test_an_emptied_slot_names_no_file_and_keeps_the_frame():
     record.append("düğün", {"file": "0_a.png", "status": "done"})
     record.append("düğün", {"file": "0_a_v0.mp4", "frame": "0_a", "layer": "video",
                             "status": "done"})
-    record.mark("düğün", "0_a", "video", "0_a_v0.mp4", "deleted", "t3")
+    record.mark("düğün", "0_a", "video", "0_a_v0.mp4", "deleted", "t3", seen="done")
     plan_store = planned((0, "a", "ilk"))
 
     frames = list_frames(record, FakeStore(), plan_store, FakeOrderStore(), "düğün")
@@ -1302,9 +1343,10 @@ def test_the_summary_counts_the_frames_that_have_a_video():
     store, record, plan_store = layered_project(audio=False)
     record.append("düğün", {"file": "1_a.png", "frame": "1_a", "layer": "photo", "status": "done"})
 
-    summary = export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5,"düğün")
+    summary = export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5, "düğün",
+                             mutes=NoMutes())
 
-    assert summary == {"videos": 1, "seconds": 5, "silent": 1, "withoutVideo": 1,
+    assert summary == {"videos": 1, "seconds": 5, "muted": 0, "withoutVideo": 1,
                        "folder": "/fake/queenEditorExport"}
 
 
@@ -1313,7 +1355,8 @@ def test_the_total_length_comes_from_whoever_knows_how_long_a_video_is():
     # being quoted after the graph moves.
     store, record, plan_store = layered_project()
 
-    summary = export_summary(record, store, plan_store, FakeOrderStore(), lambda: 7.5, "düğün")
+    summary = export_summary(record, store, plan_store, FakeOrderStore(), lambda: 7.5, "düğün",
+                             mutes=NoMutes())
 
     assert summary["videos"] == 1 and summary["seconds"] == 7.5
 
@@ -1321,16 +1364,18 @@ def test_the_total_length_comes_from_whoever_knows_how_long_a_video_is():
 def test_a_project_with_no_video_exports_nothing():
     store, record, plan_store = video_project((0, "a"))
 
-    assert export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5,"düğün") == {
-        "videos": 0, "seconds": 0, "silent": 0, "withoutVideo": 1,
+    assert export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5, "düğün",
+                          mutes=NoMutes()) == {
+        "videos": 0, "seconds": 0, "muted": 0, "withoutVideo": 1,
         "folder": "/fake/queenEditorExport"}
 
 
 def test_a_video_that_blew_up_is_not_counted():
     store, record, plan_store = video_project((0, "a"))
-    record.mark("düğün", "0_a", "video", "0_a_V1_0.mp4", "failed", "t")
+    record.mark("düğün", "0_a", "video", "0_a_V1_0.mp4", "failed", "t", seen=None)
 
-    assert export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5,"düğün")["videos"] == 0
+    assert export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5, "düğün",
+                          mutes=NoMutes())["videos"] == 0
 
 
 def test_the_summary_reads_the_gallery_from_the_bottom_up():
@@ -1349,16 +1394,16 @@ def frame(number, letter="a", prompt="p", seed=1):
     return {"number": number, "letter": letter, "prompt": prompt, "seed": seed}
 
 
-def test_progress_reports_name_the_frames_still_waiting():
+def test_progress_reports_name_no_waiting_list():
+    """Madde 518: what is owed is read off the gallery. The list the status carried was the queue
+    as it stood when the turn began, a render behind, and nobody read it."""
     runner, reports = sync_runner(), []
     original = runner.report
     runner.report = lambda patch: (reports.append(patch), original(patch))[1]
 
     run_batch(runner, FakeStore(), FakeGenerator(), text='["a", "b"]', variants=1)
 
-    # The first frame's report lists the one behind it; the last report has an empty queue.
-    assert reports[0]["pending"] == ["P1_0.png"]
-    assert reports[-1]["pending"] == []
+    assert reports and all("pending" not in report for report in reports)
 
 
 def test_resume_only_produces_the_frames_the_record_is_missing():
@@ -1391,9 +1436,9 @@ def test_retrying_them_all_puts_every_failed_job_back_in_line():
     store, record, generator = FakeStore(), FakeRecord(), FakeGenerator()
     plan_store = FakePlanStore(frames=[frame(0, "a", "ilk"), frame(1, "a", "ikinci"),
                                        frame(2, "a", "üçüncü")])
-    record.mark("düğün", "0_a", "photo", "0_a.png", queue.FAILED, "t")
-    record.mark("düğün", "1_a", "photo", "1_a.png", queue.DONE, "t")
-    record.mark("düğün", "2_a", "photo", "2_a.png", queue.FAILED, "t")
+    record.mark("düğün", "0_a", "photo", "0_a.png", queue.FAILED, "t", seen=None)
+    record.mark("düğün", "1_a", "photo", "1_a.png", queue.DONE, "t", seen=None)
+    record.mark("düğün", "2_a", "photo", "2_a.png", queue.FAILED, "t", seen=None)
 
     put_back = retry_failed(sync_runner(), store, record, plan_store,
                             {layers.PHOTO: generator}, lambda: "t2", "düğün")
@@ -1493,6 +1538,7 @@ def video_job_project(prompt="p", job_prompt=""):
     ])
     record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done",
                             "prompt": prompt})
+    store.files["0_a.png"] = b"PNGDATA"
     return store, record, plan_store
 
 
@@ -1565,6 +1611,7 @@ def test_a_sound_job_s_writer_is_handed_the_frame_s_words():
     store, record, plan_store = video_job_project(prompt="kırmızı elbiseli kadın")
     record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
                             "status": "done", "prompt": "kadın başını çeviriyor"})
+    store.files["0_a_V1_0.mp4"] = b"MP4DATA"
     plan_store.frames.append({"id": "0_a", "type": "audio", "number": 0, "variant": 0,
                               "prompt": "", "negative": "", "seed": None, "model": ""})
     writer = FakeWriter(answer="fabric rustling")
@@ -1693,6 +1740,7 @@ def test_the_writer_is_handed_the_frame_s_scene_by_its_prompt_s_number():
     for number, prompt in ((0, "taht"), (1, "bahçe")):
         record.append("düğün", {"file": f"{number}_a.png", "frame": f"{number}_a",
                                 "layer": "photo", "status": "done", "prompt": prompt})
+        store.files[f"{number}_a.png"] = b"PNGDATA"
     writer = FakeWriter()
 
     resume_batch(sync_runner(), store, record, plan_store, {layers.VIDEO: FakeGenerator()},
@@ -1714,6 +1762,7 @@ def test_a_twin_is_handed_its_source_s_scene():
     for fid in ("P0_0", "C1_P0_0"):
         record.append("düğün", {"file": "P0_0.png", "frame": fid, "layer": "photo",
                                 "status": "done", "prompt": "taht"})
+    store.files["P0_0.png"] = b"PNGDATA"
     writer = FakeWriter()
 
     resume_batch(sync_runner(), store, record, plan_store, {layers.VIDEO: FakeGenerator()},
@@ -1740,6 +1789,7 @@ def test_a_queued_video_s_prompt_is_on_its_card_before_it_is_made():
     plan_store = FakePlanStore(frames=[frame(0, prompt="kırmızı elbiseli kadın")])
     record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done",
                             "prompt": "kırmızı elbiseli kadın"})
+    store.files["0_a.png"] = b"PNGDATA"
     runner = sync_runner()
 
     queue_layer(runner, store, record, plan_store, FakeOrderStore(),
@@ -1759,6 +1809,7 @@ def test_every_owed_prompt_is_written_before_anything_is_made():
         record.append("düğün", {"file": f"{number}_a.png", "frame": f"{number}_a",
                                 "layer": "photo", "status": "done",
                                 "prompt": "kırmızı elbiseli kadın"})
+        store.files[f"{number}_a.png"] = b"PNGDATA"
     plan_store.append("düğün", [{"id": f"{number}_a", "type": "video", "number": number,
                                  "variant": 0, "prompt": "", "negative": "", "seed": None,
                                  "model": ""} for number in (0, 1)])
@@ -1814,7 +1865,7 @@ def test_a_layer_sent_back_with_tekrar_dene_is_written_for_again():
     one before it is made."""
     store, record, plan_store = video_job_project(prompt="kırmızı elbiseli kadın")
     record.prompt_written("düğün", "0_a", "video", "0_a_V1_0.mp4", "eski prompt", "t")
-    record.mark("düğün", "0_a", "video", "0_a_V1_0.mp4", queue.FAILED, "t",
+    record.mark("düğün", "0_a", "video", "0_a_V1_0.mp4", queue.FAILED, "t", seen=None,
                 error="node 41 — 3 kez denendi")
     generator, writer = FakeGenerator(), FakeWriter()
 
@@ -1851,14 +1902,15 @@ def video_project(*frames):
     for number, _letter in frames:
         record.append("düğün", {"file": f"{number}_a.png", "frame": f"{number}_a",
                                 "layer": "photo", "status": "done"})
+        store.files[f"{number}_a.png"] = b"PNGDATA"
     return store, record, plan_store
 
 
-def queue_video(store, record, plan_store, mode, order=(), files=None):
+def queue_video(store, record, plan_store, mode, order=()):
     """Queue a video job the way the panel would, and hand back the plan lines it wrote."""
     added = queue_layer(sync_runner(), store, record, plan_store, FakeOrderStore(order),
                         {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.VIDEO,
-                        files=files, mode=mode)
+                        mode=mode)
     return added, (plan_store.appended[-1] if plan_store.appended else [])
 
 
@@ -1958,8 +2010,28 @@ def render_one_video(mode, linked_to=None, gallery=((0, "a"), (1, "a")), photos=
     plan_store.append("düğün", [job])
     generator = FakeGenerator()
     make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
-             lambda: "t", "düğün")()
+             lambda: "t", named=RunningName("düğün"))()
     return generator, record
+
+
+def test_a_video_whose_picture_is_gone_from_the_disk_turns_red_without_a_render():
+    """Madde 519: a deletion that lands after the turn read the record takes the picture before the
+    render reads it. The frame's own rule, not the producer's: this tile turns red and the queue goes
+    on, and the red line, read over a slot the deletion closed, is passed over (madde 513)."""
+    store, record = FakeStore(), FakeRecord()
+    plan_store = FakePlanStore(frames=[frame(0)])
+    record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done"})
+    plan_store.append("düğün", [{"id": "0_a", "type": "video", "number": 0, "variant": 0,
+                                 "prompt": "p", "negative": "", "seed": None, "model": ""}])
+    generator = FakeGenerator()
+
+    make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
+             lambda: "t", named=RunningName("düğün"))()
+
+    assert generator.calls == []
+    video = record.slots("düğün")["0_a"]["video"]
+    assert video["status"] == "failed"
+    assert "Kaynak dosya yok: 0_a.png" in video["error"]
 
 
 class FakeStills:
@@ -1996,7 +2068,8 @@ def render_a_video(record, store, stills=None, log=None):
     plan_store = FakePlanStore(frames=[{"id": "0_a", "type": "video", "number": 0, "variant": 0,
                                         "prompt": "p", "negative": "", "seed": 1, "model": ""}])
     state = make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: FakeVideoGenerator()},
-                     lambda: "t", "düğün", stills=stills, log=log)()
+                     lambda: "t", named=RunningName("düğün"), stills=stills,
+                     log=log)()
     return state, plan_store
 
 
@@ -2033,7 +2106,7 @@ def test_a_red_photo_slot_is_not_filled_behind_the_users_back():
     """A failed layer holds its slot and is rescued by Tekrar dene alone; a picture written here
     would take that rescue away."""
     store, record, stills = FakeStore(), FakeRecord(), FakeStills()
-    record.mark("düğün", "0_a", "photo", "0_a.png", "failed", "t")
+    record.mark("düğün", "0_a", "photo", "0_a.png", "failed", "t", seen=None)
 
     render_a_video(record, store, stills=stills)
 
@@ -2129,7 +2202,8 @@ def write_one_video(mode, linked_to=None, numbers=(0, 1)):
     plan_store.append("düğün", [job])
     writer, generator = FakeWriter(), FakeGenerator()
     make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
-             lambda: "t", "düğün", writers={layers.VIDEO: writer})()
+             lambda: "t", named=RunningName("düğün"),
+             writers={layers.VIDEO: writer})()
     return writer, generator, record
 
 
@@ -2230,7 +2304,7 @@ def render_seedless(new_seed, jobs=1):
     plan_store.append("düğün", planned)
     generator = FakeGenerator()
     make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
-             lambda: "t", "düğün", new_seed=new_seed)()
+             lambda: "t", named=RunningName("düğün"), new_seed=new_seed)()
     return generator, record
 
 
@@ -2281,7 +2355,8 @@ def test_the_three_attempts_of_one_job_share_one_seed():
     generator = FakeGenerator(fail_on=["p"])
 
     make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
-             lambda: "t", "düğün", new_seed=lambda: next(seeds))()
+             lambda: "t", named=RunningName("düğün"),
+             new_seed=lambda: next(seeds))()
 
     assert len(generator.calls) == 3
     assert len({call[2] for call in generator.calls}) == 1
@@ -2331,14 +2406,15 @@ def settled_slot_project(layer, status):
                             "status": "done"})
     store.files["0_a.png"] = b"PNGDATA"
     store.files["0_a_V1_0.mp4"] = b"MP4DATA"
-    record.mark("düğün", "0_a", layer, "0_a.png", status, "t")
+    record.mark("düğün", "0_a", layer, "0_a.png", status, "t",
+                seen=None if layer == layers.AUDIO else "done")
     return store, record, plan_store
 
 
-def ask_again(store, record, plan_store, layer, generator, files=None,
+def ask_again(store, record, plan_store, layer, generator, frames=None,
               mode=production_mode.STANDARD, runner=None):
     return queue_layer(runner or sync_runner(), store, record, plan_store, FakeOrderStore(),
-                       {layer: generator}, lambda: "t", "düğün", layer, files=files, mode=mode)
+                       {layer: generator}, lambda: "t", "düğün", layer, frames=frames, mode=mode)
 
 
 def idle_runner():
@@ -2503,7 +2579,7 @@ def test_a_failed_layer_picked_by_hand_becomes_a_frame_of_its_own():
     store, record, plan_store = settled_slot_project(layers.AUDIO, queue.FAILED)
     generator = FakeGenerator()
 
-    ask_again(store, record, plan_store, layers.AUDIO, generator, files=["0_a.png"])
+    ask_again(store, record, plan_store, layers.AUDIO, generator, frames=["0_a"])
 
     assert len(generator.calls) == 1
     # The new identity is the frame's, not the file's: a sound is named after the video it sits on,
@@ -2531,10 +2607,24 @@ def test_a_selection_narrows_the_scope_to_itself():
 
     added = queue_layer(sync_runner(), store, record, plan_store, FakeOrderStore(),
                          {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.VIDEO,
-                         files=["1_a.png"])
+                         frames=["1_a"])
 
     assert added == 1
     assert [job["id"] for job in plan_store.appended[-1]] == ["1_a"]
+
+
+def test_a_selection_of_one_frame_leaves_its_twin_alone():
+    """Madde 520: a Kopyala twin holds its source's picture, so the two share a file name -- a
+    selection of the source is the source, not every frame showing that picture."""
+    store, record, plan_store, order = twin_project((0, "a"))
+    copy_of(record, store, plan_store, order, ["0_a"])
+
+    added = queue_layer(sync_runner(), store, record, plan_store, order,
+                        {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.VIDEO,
+                        frames=["0_a"])
+
+    assert added == 1
+    assert [job["id"] for job in plan_store.appended[-1]] == ["0_a"]
 
 
 def test_a_selected_frame_that_has_a_video_is_still_in_scope():
@@ -2543,7 +2633,7 @@ def test_a_selected_frame_that_has_a_video_is_still_in_scope():
                 "layers": {"video": "0_a_V1_0.mp4"}},
                {"id": "1_a", "file": "1_a.png", "status": "done", "layers": {}}]
 
-    assert [f["id"] for f in frames_in_scope(gallery, layers.VIDEO, ["0_a.png"])] == ["0_a"]
+    assert [f["id"] for f in frames_in_scope(gallery, layers.VIDEO, ["0_a"])] == ["0_a"]
     # The panel's row is called "Videosu olmayan kareler": with no selection it means exactly that.
     assert [f["id"] for f in frames_in_scope(gallery, layers.VIDEO)] == ["1_a"]
 
@@ -2553,7 +2643,7 @@ def test_a_frame_whose_name_claims_no_number_takes_no_video():
     # have one, so the video would quietly vanish instead of being made.
     gallery = [{"id": "kapak", "file": "kapak.png", "status": "done", "layers": {}}]
 
-    assert frames_in_scope(gallery, layers.VIDEO, ["kapak.png"]) == []
+    assert frames_in_scope(gallery, layers.VIDEO, ["kapak"]) == []
 
 
 def test_audio_skips_a_frame_that_has_no_video():
@@ -2564,7 +2654,7 @@ def test_audio_skips_a_frame_that_has_no_video():
 
     assert [f["id"] for f in frames_in_scope(gallery, layers.AUDIO)] == ["1_a"]
     # Even when it is picked by hand: there is nothing to lay the sound over.
-    assert frames_in_scope(gallery, layers.AUDIO, ["0_a.png"]) == []
+    assert frames_in_scope(gallery, layers.AUDIO, ["0_a"]) == []
 
 
 def test_a_frame_with_no_photo_can_still_take_a_video():
@@ -2576,7 +2666,7 @@ def test_a_frame_with_no_photo_can_still_take_a_video():
     gallery = [{"id": "0_a", "file": "0_a.png", "status": "done",
                 "layers": {"video": "0_a_V1_0.mp4"}, "failed": []}]
 
-    assert [f["id"] for f in frames_in_scope(gallery, layers.VIDEO, ["0_a.png"])] == ["0_a"]
+    assert [f["id"] for f in frames_in_scope(gallery, layers.VIDEO, ["0_a"])] == ["0_a"]
 
 
 def test_sound_still_needs_a_video_under_it():
@@ -2713,7 +2803,7 @@ def test_every_variant_of_a_frame_that_has_a_video_is_a_copy():
 
     added = queue_layer(sync_runner(), store, record, plan_store, FakeOrderStore(),
                          {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.VIDEO,
-                         files=["0_a.png"], variants=2)
+                         frames=["0_a"], variants=2)
 
     assert added == 2
     assert [job["id"] for job in plan_store.appended[-1]] == ["P0_1", "P0_2"]
@@ -2748,7 +2838,7 @@ def test_a_copy_takes_its_place_right_above_its_source():
 
     queue_layer(sync_runner(), store, record, plan_store, order,
                  {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.VIDEO,
-                 files=["0_a.png"], variants=3)
+                 frames=["0_a"], variants=3)
 
     # The whole gallery is written down, newest first, with the copies hanging above their source.
     assert order.order == ["1_a", "P0_2", "P0_1", "0_a"]
@@ -2760,7 +2850,7 @@ def test_the_gallery_draws_the_copy_next_to_its_source():
 
     queue_layer(sync_runner(), store, record, plan_store, order,
                  {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.VIDEO,
-                 files=["0_a.png"], variants=2)
+                 frames=["0_a"], variants=2)
 
     frames = list_frames(record, store, plan_store, order, "düğün")
     assert [f["id"] for f in frames] == ["1_a", "P0_1", "0_a"]
@@ -2995,7 +3085,7 @@ def test_a_run_reads_the_project_name_again_every_turn():
     named = MovingName("düğün")
 
     job = make_job(sync_runner(), store, record, plan_store,
-                   {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", named=named)
+                   {layers.PHOTO: FakeGenerator()}, lambda: "t", named=named)
     named.name = "başka"
     job()
 
@@ -3471,6 +3561,181 @@ def test_the_gallery_stops_reporting_a_deleted_layer():
     assert frame["status"] == "done"
 
 
+def video_owed(store, record, plan_store, fid="0_a", number=0):
+    """Put a video job in the queue for a frame, planned and not yet made."""
+    plan_store.append("düğün", [{"id": fid, "type": "video", "number": number, "variant": 0,
+                                 "prompt": "", "negative": "", "seed": None, "model": ""}])
+    return store, record, plan_store
+
+
+def dequeue(record, store, plan_store, frames, kind=layers.VIDEO):
+    return dequeue_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
+                         "düğün", frames, kind)
+
+
+def test_taking_a_queued_video_out_leaves_the_frame_and_its_photo():
+    """Madde 516: Kuyruktan çıkar on the video tab takes out the job alone -- the frame, its photo
+    and its place in the gallery stay, and nothing leaves the disk."""
+    store, record, plan_store = video_owed(*video_project((0, "a")))
+
+    assert dequeue(record, store, plan_store, ["0_a"]) == {"removed": ["0_a_V1_0.mp4"]}
+
+    assert store.deleted == []
+    assert record.slots("düğün")["0_a"]["video"]["status"] == "removed"
+    assert owed_files(record, plan_store) == []
+    frame = list_frames(record, store, plan_store, FakeOrderStore(), "düğün")[0]
+    assert (frame["id"], frame["status"], frame["layers"], frame["owed"]) == (
+        "0_a", "done", {"photo": "0_a.png"}, [])
+
+
+def test_a_video_that_landed_before_the_press_is_not_taken_by_it():
+    """Madde 516: the screen still drew the video as waiting, but it had landed -- a page polled
+    late, a tab in the background. The press meant the job, so the finished video stays."""
+    store, record, plan_store = video_owed(*video_project((0, "a")))
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done", "prompt": "kadın dönüyor"})
+
+    assert dequeue(record, store, plan_store, ["0_a"]) == {"removed": []}
+
+    assert store.deleted == []
+    assert record.slots("düğün")["0_a"]["video"]["status"] == "done"
+
+
+def test_a_sound_waiting_on_the_queued_video_comes_out_with_it():
+    # It would be mixed over a video that is never coming (layers.NEEDS).
+    store, record, plan_store = video_owed(*video_project((0, "a")))
+    plan_store.append("düğün", [{"id": "0_a", "type": "audio", "number": 0, "variant": 0,
+                                 "prompt": "", "negative": "", "seed": None, "model": ""}])
+
+    gone = dequeue(record, store, plan_store, ["0_a"])
+
+    # The sound's name is built on its video's, and with no video yet on the frame's (layer_file).
+    assert gone == {"removed": ["0_a_V1_0.mp4", "0_a_S1_0.wav"]}
+    assert owed_files(record, plan_store) == []
+
+
+def test_a_queue_removal_on_a_copy_frame_leaves_the_card_and_its_sources_picture():
+    # The copy holds its source's picture; only the video it was opened for is taken out.
+    store, record, plan_store = video_project((0, "a"))
+    record.append("düğün", {"file": "0_a.png", "frame": "P0_1", "layer": "photo",
+                            "status": "done", "prompt": "p"})
+    video_owed(store, record, plan_store, fid="P0_1")
+
+    assert dequeue(record, store, plan_store, ["P0_1"]) == {"removed": ["P0_1_V1_0.mp4"]}
+
+    assert store.deleted == []
+    assert record.slots("düğün")["P0_1"]["video"]["status"] == "removed"
+    assert record.slots("düğün")["P0_1"]["photo"]["status"] == "done"
+    assert "video" not in record.slots("düğün")["0_a"]
+
+
+def copy_waiting_for_its_video():
+    """0_a with its photo, and its copy P0_1 holding that picture with its own video still owed --
+    what a second video variant leaves (queue_layer)."""
+    store, record, plan_store = video_project((0, "a"))
+    record.append("düğün", {"file": "0_a.png", "frame": "P0_1", "layer": "photo",
+                            "status": "done", "prompt": "p"})
+    return video_owed(store, record, plan_store, fid="P0_1")
+
+
+def test_a_copy_waiting_for_its_video_is_drawn_with_the_picture_it_holds():
+    """Madde 519: the copy's picture was carried, never planned, so the job that opens its card in
+    the plan is the video it waits for. Its picture is there all the same, and the card is done."""
+    store, record, plan_store = copy_waiting_for_its_video()
+
+    copy = list_frames(record, store, plan_store, FakeOrderStore(), "düğün")[0]
+
+    assert (copy["id"], copy["status"], copy["file"], copy["layers"], copy["owed"]) == (
+        "P0_1", "done", "0_a.png", {"photo": "0_a.png"}, ["video"])
+
+
+def test_a_copy_whose_video_blew_up_is_still_drawn_with_its_picture():
+    # A red layer over a picture, as on a frame whose picture is its own: done, with the video red.
+    store, record, plan_store = copy_waiting_for_its_video()
+    record.mark("düğün", "P0_1", "video", "P0_1_V1_0.mp4", "failed", "t1", seen=None,
+                error="ComfyUI 500")
+
+    copy = list_frames(record, store, plan_store, FakeOrderStore(), "düğün")[0]
+
+    assert (copy["status"], copy["failed"]) == ("done", ["video"])
+
+
+def test_a_waiting_copy_takes_no_variants_of_its_own():
+    """Done is not settled: the copy waits for the video it was born for (madde 292), so a second
+    press of two variants copies its source alone, as before madde 519."""
+    store, record, plan_store = copy_waiting_for_its_video()
+
+    added = queue_layer(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                        {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.VIDEO,
+                        variants=2)
+
+    # 0_a's own video and one copy of it; the waiting copy would have added a copy of its own.
+    assert added == 2
+    assert [job["id"] for job in plan_store.appended[-1]] == ["0_a", "P0_2"]
+
+
+def test_a_kopyala_twin_with_nothing_planned_is_in_scope():
+    """A Kopyala twin is read from the record, with no plan job to open it: its row has no `type`
+    and reads as opened by its photo, so a video press reaches it as it reaches its source (madde
+    519)."""
+    store, record, plan_store = video_project((0, "a"))
+    order = FakeOrderStore()
+    twin = copy_frames(record, store, plan_store, order, lambda: "t", "düğün", ["0_a"])["copies"][0]
+
+    added = queue_layer(sync_runner(), store, record, plan_store, order,
+                        {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.VIDEO)
+
+    assert added == 2
+    assert sorted(job["id"] for job in plan_store.appended[-1]) == sorted(["0_a", twin])
+
+
+def test_a_kopyala_twin_waiting_for_its_video_takes_no_variants_of_its_own():
+    # Once its video is planned, that job opens it -- the shape of a variant's copy, and as before
+    # madde 519: a second press of two variants copies the frame whose picture is its own alone.
+    store, record, plan_store = video_project((0, "a"))
+    order = FakeOrderStore()
+    twin = copy_frames(record, store, plan_store, order, lambda: "t", "düğün", ["0_a"])["copies"][0]
+
+    def press():
+        return queue_layer(sync_runner(), store, record, plan_store, order,
+                           {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.VIDEO,
+                           variants=2)
+
+    press()
+
+    assert press() == 1
+    assert twin not in [job["id"] for job in plan_store.appended[-1]]
+
+
+def test_a_copy_whose_waiting_video_is_taken_out_keeps_its_place():
+    """Madde 519: the photo tab's Kuyruktan çıkar on such a copy takes the video out, nothing else
+    -- the copy stays a twin holding its source's picture, where it stood in the gallery."""
+    store, record, plan_store = copy_waiting_for_its_video()
+    order = FakeOrderStore(["P0_1", "0_a"])
+
+    dequeue_layer(record, store, plan_store, order, lambda: "t", "düğün", ["P0_1"], layers.VIDEO)
+
+    assert order.order == ["P0_1", "0_a"]
+    copy = list_frames(record, store, plan_store, order, "düğün")[0]
+    assert (copy["id"], copy["status"], copy["layers"], copy["owed"]) == (
+        "P0_1", "done", {"photo": "0_a.png"}, [])
+
+
+def test_a_queue_removal_skips_an_identity_the_gallery_does_not_know():
+    store, record, plan_store = video_owed(*video_project((0, "a")))
+
+    assert dequeue(record, store, plan_store, ["yok", "0_a", "0_a"]) == {
+        "removed": ["0_a_V1_0.mp4"]}
+
+
+@pytest.mark.parametrize("names", ["0_a", [7], None])
+def test_a_queue_removal_needs_a_list_of_identities(names):
+    store, record, plan_store = video_owed(*video_project((0, "a")))
+
+    with pytest.raises(InvalidFrames):
+        dequeue(record, store, plan_store, names)
+
+
 def test_resume_refuses_when_nothing_is_left():
     record = FakeRecord()
     record.append("düğün", {"file": "0_a.png"})
@@ -3505,7 +3770,8 @@ def test_cancel_is_refused_while_the_queue_flows():
 def test_a_deleted_number_is_never_used_again():
     store, record, plan_store = FakeStore(next_no=0), FakeRecord(), FakePlanStore()
     record.append("düğün", {"file": "0_a.png"})
-    record.mark("düğün", "0_a", "photo", "0_a.png", "deleted", "2026-08-05T10:00:00+00:00")
+    record.mark("düğün", "0_a", "photo", "0_a.png", "deleted", "2026-08-05T10:00:00+00:00",
+                seen="done")
 
     assert next_number(store, plan_store, record, "düğün") == 1
 
@@ -3521,7 +3787,7 @@ def test_a_photo_leaves_the_disk_and_the_log_says_so():
     plan_store = planned((0, "a", "a"), (1, "a", "b"), (2, "a", "c"))
     order = FakeOrderStore(["0_a.png", "1_a.png", "2_a.png"])
 
-    result = remove_frames(record, store, plan_store, order, stamped, "düğün",
+    result = remove_frames(sync_runner(), record, store, plan_store, order, stamped, "düğün",
                            ["0_a", "2_a"])
 
     assert result == {"deleted": ["0_a", "2_a"], "removed": []}
@@ -3534,8 +3800,8 @@ def test_a_frame_that_was_never_produced_only_leaves_the_queue():
     store, record = FakeStore(), FakeRecord()
     plan_store = planned((0, "a", "a"), (1, "a", "b"))
 
-    result = remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün",
-                           ["1_a"])
+    result = remove_frames(sync_runner(), record, store, plan_store, FakeOrderStore(), stamped,
+                           "düğün", ["1_a"])
 
     assert result == {"deleted": [], "removed": ["1_a"]}
     assert store.deleted == []                       # there is no file to delete yet
@@ -3544,11 +3810,11 @@ def test_a_frame_that_was_never_produced_only_leaves_the_queue():
 
 def test_a_failed_frame_leaves_the_gallery_the_same_way():
     store, record = FakeStore(), FakeRecord()
-    record.mark("düğün", "1_a", "photo", "1_a.png", "failed", "t1")
+    record.mark("düğün", "1_a", "photo", "1_a.png", "failed", "t1", seen=None)
     plan_store = planned((0, "a", "a"), (1, "a", "b"))
 
-    result = remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün",
-                           ["1_a"])
+    result = remove_frames(sync_runner(), record, store, plan_store, FakeOrderStore(), stamped,
+                           "düğün", ["1_a"])
 
     assert result == {"deleted": [], "removed": ["1_a"]}
     assert [f["file"] for f in
@@ -3565,7 +3831,8 @@ def test_a_card_pulled_out_of_the_queue_leaves_no_job_behind():
     plan_store = planned_layers(("0_a", layers.PHOTO, "ilk"), ("0_a", layers.VIDEO, "hareket"),
                                 ("1_a", layers.PHOTO, "ikinci"))
 
-    result = remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["0_a"])
+    result = remove_frames(sync_runner(), record, store, plan_store, FakeOrderStore(), stamped,
+                           "düğün", ["0_a"])
 
     assert result == {"deleted": [], "removed": ["0_a"]}
     assert {slot: cell["status"] for slot, cell in record.slots("düğün")["0_a"].items()} == {
@@ -3580,7 +3847,8 @@ def test_a_card_planned_only_as_a_video_can_be_pulled_out():
     store, record = FakeStore(), FakeRecord()
     plan_store = planned_layers(("0_a", layers.VIDEO, "hareket"), ("1_a", layers.VIDEO, "ikinci"))
 
-    remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["0_a"])
+    remove_frames(sync_runner(), record, store, plan_store, FakeOrderStore(), stamped, "düğün",
+                  ["0_a"])
 
     assert record.slots("düğün")["0_a"] == {
         "video": {"status": "removed", "file": layer_file(layers.VIDEO, "0_a")}}
@@ -3597,8 +3865,8 @@ def test_deleting_a_frame_takes_all_of_its_layer_files():
                             "status": "done"})
     plan_store = planned((0, "a", "a"))
 
-    result = remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün",
-                           ["0_a"])
+    result = remove_frames(sync_runner(), record, store, plan_store, FakeOrderStore(), stamped,
+                           "düğün", ["0_a"])
 
     assert result == {"deleted": ["0_a"], "removed": []}
     assert sorted(store.deleted) == ["0_a.png", "0_a_v0.mp4", "0_a_v0_s0.wav"]
@@ -3619,7 +3887,8 @@ def test_a_file_another_frame_still_holds_is_left_on_disk():
     store, record = FakeStore(), FakeRecord()
     plan_store = shared_video_pair(record)
 
-    remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["0_a"])
+    remove_frames(sync_runner(), record, store, plan_store, FakeOrderStore(), stamped, "düğün",
+                  ["0_a"])
 
     # Its own picture goes; the video the other frame still plays stays.
     assert store.deleted == ["0_a.png"]
@@ -3629,7 +3898,7 @@ def test_the_last_holder_takes_the_shared_file_with_it():
     store, record = FakeStore(), FakeRecord()
     plan_store = shared_video_pair(record)
 
-    remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün",
+    remove_frames(sync_runner(), record, store, plan_store, FakeOrderStore(), stamped, "düğün",
                   ["0_a", "1_a"])
 
     assert sorted(store.deleted) == ["0_a.png", "0_a_v0.mp4", "1_a.png"]
@@ -3638,10 +3907,12 @@ def test_the_last_holder_takes_the_shared_file_with_it():
 def test_deleting_a_frame_whose_video_failed_unlinks_what_is_there():
     store, record = FakeStore(), FakeRecord()
     record.append("düğün", {"file": "0_a.png", "status": "done"})
-    record.mark("düğün", "0_a", "video", "0_a_v0.mp4", "failed", "t2", error="ComfyUI 500")
+    record.mark("düğün", "0_a", "video", "0_a_v0.mp4", "failed", "t2", seen=None,
+                error="ComfyUI 500")
     plan_store = planned((0, "a", "a"))
 
-    remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["0_a"])
+    remove_frames(sync_runner(), record, store, plan_store, FakeOrderStore(), stamped, "düğün",
+                  ["0_a"])
 
     # A failed layer holds its planned name; unlinking a file that never landed is not an error.
     assert sorted(store.deleted) == ["0_a.png", "0_a_v0.mp4"]
@@ -3667,7 +3938,8 @@ def test_deleting_a_frame_leaves_none_of_its_layer_files_behind():
                             "status": "done"})
     plan_store = planned((0, "a", "a"))
 
-    remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["0_a"])
+    remove_frames(sync_runner(), record, store, plan_store, FakeOrderStore(), stamped, "düğün",
+                  ["0_a"])
 
     assert record.slots("düğün")["0_a"] == {
         "photo": {"status": "deleted", "file": "0_a.png"},
@@ -3681,7 +3953,8 @@ def test_a_deleted_photo_still_never_returns_to_the_queue():
     record.append("düğün", {"file": "0_a.png", "status": "done"})
     plan_store = planned((0, "a", "a"))
 
-    remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["0_a"])
+    remove_frames(sync_runner(), record, store, plan_store, FakeOrderStore(), stamped, "düğün",
+                  ["0_a"])
 
     assert owed_files(record, plan_store) == []
 
@@ -3690,7 +3963,8 @@ def test_a_frame_pulled_out_never_gets_its_number_back():
     store, record = FakeStore(next_no=0), FakeRecord()
     plan_store = planned((0, "a", "a"))
 
-    remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["0_a"])
+    remove_frames(sync_runner(), record, store, plan_store, FakeOrderStore(), stamped, "düğün",
+                  ["0_a"])
 
     assert next_number(store, plan_store, record, "düğün") == 1
 
@@ -3699,8 +3973,8 @@ def test_a_name_the_gallery_does_not_know_is_skipped_not_refused():
     store, record = FakeStore(), FakeRecord()
     record.append("düğün", {"file": "0_a.png", "status": "done"})
 
-    result = remove_frames(record, store, FakePlanStore(), FakeOrderStore(), stamped, "düğün",
-                           ["hayalet", "0_a"])
+    result = remove_frames(sync_runner(), record, store, FakePlanStore(), FakeOrderStore(),
+                           stamped, "düğün", ["hayalet", "0_a"])
 
     assert result == {"deleted": ["0_a"], "removed": []}
     assert store.deleted == ["0_a.png"]
@@ -3710,7 +3984,8 @@ def test_removing_takes_the_named_frame_not_the_one_sharing_its_picture():
     store, record, plan_store = layered_project(audio=False)
     with_a_copy(record)
 
-    gone = remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["P0_1"])
+    gone = remove_frames(sync_runner(), record, store, plan_store, FakeOrderStore(), stamped,
+                         "düğün", ["P0_1"])
 
     assert gone == {"deleted": ["P0_1"], "removed": []}
     # Nothing left the disk: every file the copy held is its source's too (madde 101).
@@ -3719,35 +3994,100 @@ def test_removing_takes_the_named_frame_not_the_one_sharing_its_picture():
     assert record.slots("düğün")["P0_1"]["photo"]["status"] == "deleted"
 
 
+def test_deleting_a_frame_takes_the_jobs_still_coming_for_it():
+    """Madde 519, madde 295's rule for a produced frame: an open job keeps a card in the gallery
+    (madde 294), so a frame deleted with its video still coming came back at the top, waiting for a
+    video of a picture that was gone."""
+    store, record, plan_store = video_owed(*video_project((0, "a"), (1, "a")))
+    order = FakeOrderStore(["1_a", "0_a"])
+
+    gone = remove_frames(sync_runner(), record, store, plan_store, order, stamped, "düğün", ["0_a"])
+
+    assert gone == {"deleted": ["0_a"], "removed": []}
+    assert store.deleted == ["0_a.png"]
+    assert {slot: cell["status"] for slot, cell in record.slots("düğün")["0_a"].items()} == {
+        "photo": "deleted", "video": "removed"}
+    assert owed_files(record, plan_store) == []
+    assert [f["id"] for f in list_frames(record, store, plan_store, order, "düğün")] == ["1_a"]
+
+
+def test_deleting_a_copy_waiting_for_its_video_takes_it_for_good():
+    # The selection bar's Sil: the copy goes and its video with it; the picture is its source's.
+    store, record, plan_store = copy_waiting_for_its_video()
+    order = FakeOrderStore(["P0_1", "0_a"])
+
+    gone = remove_frames(sync_runner(), record, store, plan_store, order, stamped, "düğün",
+                         ["P0_1"])
+
+    assert gone == {"deleted": ["P0_1"], "removed": []}
+    assert store.deleted == []
+    assert record.slots("düğün")["P0_1"]["video"]["status"] == "removed"
+    assert [f["id"] for f in list_frames(record, store, plan_store, order, "düğün")] == ["0_a"]
+
+
+def making(project, fid, kind=layers.VIDEO, batch=()):
+    """A runner whose worker is making `fid`'s `kind` layer in `project`, with `batch` beside it."""
+    runner = PhotoRunner(spawn=lambda fn: None)
+    runner.start(project, lambda: None)
+    runner.report({"current": {"id": fid, "type": kind}, "batch": list(batch)})
+    return runner
+
+
+@pytest.mark.parametrize("runner", [making("düğün", "0_a"),
+                                    making("düğün", "1_a", layers.PHOTO, batch=["0_a"])])
+def test_a_frame_being_made_cannot_be_deleted(runner):
+    """Madde 519 (QA): the render lands done whatever was written meanwhile (madde 513), so a frame
+    deleted under it came back at the top with a video and a missing picture. Refused whole, with
+    nothing deleted and nothing written."""
+    store, record, plan_store = video_owed(*video_project((0, "a"), (1, "a")))
+    order = FakeOrderStore(["1_a", "0_a"])
+    rows = list(record.rows)
+
+    with pytest.raises(Busy, match="0_a"):
+        remove_frames(runner, record, store, plan_store, order, stamped, "düğün", ["1_a", "0_a"])
+
+    assert store.deleted == []
+    assert record.rows == rows
+    assert order.order == ["1_a", "0_a"]
+
+
+def test_a_frame_is_deleted_while_another_is_being_made():
+    store, record, plan_store = video_owed(*video_project((0, "a"), (1, "a")))
+
+    gone = remove_frames(making("düğün", "1_a"), record, store, plan_store, FakeOrderStore(),
+                         stamped, "düğün", ["0_a"])
+
+    assert gone == {"deleted": ["0_a"], "removed": []}
+
+
+def test_another_projects_run_does_not_hold_a_deletion():
+    store, record, plan_store = video_owed(*video_project((0, "a")))
+
+    gone = remove_frames(making("başka", "0_a"), record, store, plan_store, FakeOrderStore(),
+                         stamped, "düğün", ["0_a"])
+
+    assert gone == {"deleted": ["0_a"], "removed": []}
+
+
 def test_a_body_that_is_not_a_list_of_names_is_rejected():
     with pytest.raises(InvalidFrames):
-        remove_frames(FakeRecord(), FakeStore(), FakePlanStore(), FakeOrderStore(), stamped,
-                      "düğün", "0_a.png")
+        remove_frames(sync_runner(), FakeRecord(), FakeStore(), FakePlanStore(), FakeOrderStore(),
+                      stamped, "düğün", "0_a.png")
 
 
 def test_removing_in_a_missing_project_is_rejected():
     with pytest.raises(ProjectMissing):
-        remove_frames(FakeRecord(), FakeStore(projects=()), FakePlanStore(), FakeOrderStore(),
-                      stamped, "yok", ["0_a"])
+        remove_frames(sync_runner(), FakeRecord(), FakeStore(projects=()), FakePlanStore(),
+                      FakeOrderStore(), stamped, "yok", ["0_a"])
 
 
-def test_the_summary_counts_the_videos_with_no_sound():
+def test_the_summary_counts_no_video_as_having_no_sound():
+    """Madde 514, the user's word: "Kalksın". The count took every video with no sound layer for
+    one with no sound, but an H3 video carries its own."""
     store, record, plan_store = layered_project(audio=False)
 
-    assert export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5,"düğün")["silent"] == 1
-
-
-def test_a_video_with_a_sound_is_not_silent():
-    store, record, plan_store = layered_project()
-
-    assert export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5,"düğün")["silent"] == 0
-
-
-def test_a_sound_that_blew_up_leaves_the_video_silent():
-    store, record, plan_store = layered_project(audio=False)
-    record.mark("düğün", "0_a", "audio", "0_a_V1_0_S1_0.wav", "failed", "t")
-
-    assert export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5,"düğün")["silent"] == 1
+    assert "silent" not in export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5,
+                                          "düğün", mutes=NoMutes())
 
 
 def test_the_summary_counts_the_frames_that_have_no_video():
@@ -3759,13 +4099,13 @@ def test_the_summary_counts_the_frames_that_have_no_video():
                                  "prompt": "p", "negative": "", "seed": 1, "model": ""}])
 
     assert export_summary(record, store, plan_store, FakeOrderStore(), lambda: 5,
-                          "düğün")["withoutVideo"] == 2
+                          "düğün", mutes=NoMutes())["withoutVideo"] == 2
 
 
 def test_the_summary_rejects_a_missing_project():
     with pytest.raises(ProjectMissing):
         export_summary(FakeRecord(), FakeStore(projects=()), FakePlanStore(), FakeOrderStore(),
-                       lambda: 5, "yok")
+                       lambda: 5, "yok", mutes=NoMutes())
 
 
 def test_get_status_passes_the_runner_state_through():
@@ -3817,7 +4157,8 @@ def test_a_failed_render_says_how_many_times_it_was_tried():
 
 def test_a_frame_carries_the_reason_each_layer_failed():
     record = FakeRecord()
-    record.mark("düğün", "0_a", "photo", "0_a.png", "failed", "t", error="CUDA — 3 kez denendi")
+    record.mark("düğün", "0_a", "photo", "0_a.png", "failed", "t", seen=None,
+                error="CUDA — 3 kez denendi")
 
     frames = list_frames(record, FakeStore(), FakePlanStore(frames=[frame(0)]),
                          FakeOrderStore(), "düğün")
@@ -3907,6 +4248,91 @@ def test_adding_while_another_project_runs_is_busy():
     assert str(exc.value) == "Zaten bir üretim sürüyor."
 
 
+class ClosingPlanStore(FakePlanStore):
+    """Lets one press in right after the read that finds nothing owed, once `ready` says the loop
+    is that far: the loop has decided it is done and the runner has not yet said so -- the window
+    madde 511 is about."""
+
+    def __init__(self, ready):
+        super().__init__()
+        self.ready, self.press = ready, None
+
+    def read(self, project):
+        plan = super().read(project)
+        if self.press and self.ready():
+            press, self.press = self.press, None
+            press()
+        return plan
+
+
+def test_a_job_queued_as_the_queue_closes_still_starts():
+    """The user, 29 Ekim -- "eklediğim video niye başlamıyor abi". No job is left owed with the
+    worker idle, and the queue's end is told once, when nothing is."""
+    jobs, told = [], []
+    runner = PhotoRunner(spawn=jobs.append, ended=told.append)
+    store, record, generator = FakeStore(), FakeRecord(), FakeGenerator()
+    plan_store = ClosingPlanStore(ready=lambda: len(generator.calls) == 1)
+    plan_store.press = lambda: run_batch(runner, store, generator, text='["ikinci"]', variants=1,
+                                         record=record, plan_store=plan_store)
+
+    run_batch(runner, store, generator, text='["ilk"]', variants=1, record=record,
+              plan_store=plan_store)
+    jobs.pop()()
+
+    assert [prompt for prompt, *_rest in generator.calls] == ["ilk", "ikinci"]
+    assert owed_files(record, plan_store) == []
+    assert jobs == []                                   # no second worker was started
+    assert [state["status"] for state in told] == ["done"]
+    assert runner.status()["status"] == "done"
+
+
+class Overtaken(PhotoRunner):
+    """A worker another press claims while this press is between its look at the worker and its
+    start: after status() has answered, before start() runs. `other` is that press's own claim."""
+
+    def __init__(self, other):
+        super().__init__(spawn=lambda fn: None)
+        self.other = other
+
+    def _overtake(self):
+        other, self.other = self.other, None
+        if other:
+            other(self)
+
+    def status(self):
+        state = super().status()
+        self._overtake()
+        return state
+
+    def start(self, project, job):
+        self._overtake()
+        return super().start(project, job)
+
+
+def test_a_press_overtaken_by_another_press_of_its_project_joins_it():
+    """Two presses of one idle project at once: the one that loses the claim joins the run rather
+    than being told a production is already going (madde 511)."""
+    runner = Overtaken(lambda worker: PhotoRunner.start(worker, "düğün", lambda: None))
+    plan_store = FakePlanStore()
+
+    run_batch(runner, FakeStore(), FakeGenerator(), text='["ikinci"]', variants=1,
+              plan_store=plan_store)
+
+    assert runner.status() == {"status": "running", "project": "düğün"}
+    assert len(plan_store.frames) == 1
+
+
+def test_a_press_overtaken_by_another_project_leaves_that_run_where_it_is():
+    """Another project claims the worker in the same moment: this press is refused, and the run that
+    won goes on reading its own folder -- nothing but the claim points the worker anywhere."""
+    runner = Overtaken(lambda worker: PhotoRunner.start(worker, "başka", lambda: None))
+
+    with pytest.raises(Busy):
+        run_batch(runner, FakeStore(), FakeGenerator(), text='["ilk"]', variants=1)
+
+    assert runner.named.now() == "başka"
+
+
 def test_a_failed_frame_is_written_to_the_log():
     record = FakeRecord()
     run_batch(sync_runner(), FakeStore(), FakeGenerator(fail_on=["patlak"]), text='["patlak"]',
@@ -3930,7 +4356,7 @@ def test_a_deleted_photo_does_not_come_back_as_pending():
     run_batch(sync_runner(), FakeStore(), FakeGenerator(), text='["tek"]', variants=1,
               record=record, plan_store=plan_store)
 
-    record.mark("düğün", "P0_0", "photo", "P0_0.png", "deleted", "t9")
+    record.mark("düğün", "P0_0", "photo", "P0_0.png", "deleted", "t9", seen="done")
 
     assert owed_files(record, plan_store) == []
 
@@ -3951,7 +4377,8 @@ def test_retry_puts_the_frame_back_in_line():
 def test_retry_puts_the_frames_failed_layer_back_rather_than_its_photo():
     store, record = FakeStore(), FakeRecord()
     record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done"})
-    record.mark("düğün", "0_a", "video", "0_a_V1_0.mp4", "failed", "t", error="node 41")
+    record.mark("düğün", "0_a", "video", "0_a_V1_0.mp4", "failed", "t", seen=None,
+                error="node 41")
     plan_store = FakePlanStore(frames=[
         frame(0),
         {"id": "0_a", "type": "video", "number": 0, "prompt": "", "negative": "", "seed": None,
@@ -3970,7 +4397,7 @@ def test_retry_of_a_frame_with_nothing_red_still_asks_for_its_photo():
     # A deleted photo the user wants back: no layer is failed, and the photo is what is missing.
     store, record = FakeStore(), FakeRecord()
     record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done"})
-    record.mark("düğün", "0_a", "photo", "0_a.png", "deleted", "t")
+    record.mark("düğün", "0_a", "photo", "0_a.png", "deleted", "t", seen="done")
     plan_store = FakePlanStore(frames=[frame(0)])
 
     retry_frame(sync_runner(), store, record, plan_store, {layers.PHOTO: FakeGenerator()},
@@ -3990,7 +4417,7 @@ def test_a_retried_frame_waits_behind_the_frames_that_never_had_a_turn():
                                 {"id": "P2_0", "number": 2, "variant": 0, "prompt": "yeni",
                                  "negative": "", "seed": 2}])
 
-    record.mark("düğün", "P0_0", "photo", "P0_0.png", queue.QUEUED, "t2")
+    record.mark("düğün", "P0_0", "photo", "P0_0.png", queue.QUEUED, "t2", seen=queue.FAILED)
 
     # Plan order would have put P0_0 first; Tekrar dene does not jump the queue.
     assert owed_files(record, plan_store) == ["P1_0.png", "P2_0.png", "P0_0.png"]
@@ -4000,7 +4427,8 @@ def test_retrying_does_not_interrupt_a_run_that_is_already_going():
     record, plan_store = FakeRecord(), FakePlanStore()
     plan_store.append("düğün", [{"number": 0, "letter": "a", "prompt": "p", "negative": "",
                                  "seed": 1}])
-    record.mark("düğün", "0_a", "photo", "0_a.png", queue.FAILED, "t1", error="node 41: OOM")
+    record.mark("düğün", "0_a", "photo", "0_a.png", queue.FAILED, "t1", seen=None,
+                error="node 41: OOM")
     runner = PhotoRunner(spawn=lambda fn: None)     # claims the worker, never runs the job
     runner.start("düğün", lambda: None)
 
@@ -4087,8 +4515,8 @@ def timed_job(lines, ticks, frames, generator=None):
     plan_store.append("düğün", frames)
     clock = iter(ticks)
     return make_job(sync_runner(), FakeStore(), FakeRecord(), plan_store,
-                    {layers.PHOTO: generator or FakeGenerator()}, lambda: "t1", "düğün",
-                    clock=lambda: next(clock), log=lines.append)
+                    {layers.PHOTO: generator or FakeGenerator()}, lambda: "t1",
+                    named=RunningName("düğün"), clock=lambda: next(clock), log=lines.append)
 
 
 def test_the_render_and_the_writes_are_measured_apart():
@@ -4151,7 +4579,7 @@ def test_a_produced_layer_carries_how_long_the_model_worked_on_it():
     clock, record, plan_store = Clock(), FakeRecord(), FakePlanStore(frames=[frame(0)])
 
     make_job(sync_runner(), FakeStore(), record, plan_store, {layers.PHOTO: Takes(clock, 46.34)},
-             lambda: "t", "düğün", clock=clock)()
+             lambda: "t", named=RunningName("düğün"), clock=clock)()
 
     # A tenth of a second is all the card's m:ss will ever need.
     assert rows_of(record, "photo")[0]["renderSeconds"] == 46.3
@@ -4163,7 +4591,8 @@ def test_waiting_in_the_queue_is_no_part_of_a_layers_time():
     plan_store = FakePlanStore(frames=[frame(0), frame(1)])
 
     make_job(sync_runner(), FakeStore(), record, plan_store,
-             {layers.PHOTO: Takes(clock, 30.0, 50.0)}, lambda: "t", "düğün", clock=clock)()
+             {layers.PHOTO: Takes(clock, 30.0, 50.0)}, lambda: "t",
+             named=RunningName("düğün"), clock=clock)()
 
     assert [row["renderSeconds"] for row in rows_of(record, "photo")] == [30.0, 50.0]
 
@@ -4188,7 +4617,7 @@ def test_reading_what_a_layer_is_made_from_is_no_part_of_its_time():
     store.files["0_a.png"] = b"PNG"
 
     make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: Takes(clock, 40.0)},
-             lambda: "t", "düğün", clock=clock)()
+             lambda: "t", named=RunningName("düğün"), clock=clock)()
 
     assert rows_of(record, "video")[0]["renderSeconds"] == 40.0
 
@@ -4212,7 +4641,7 @@ def test_writing_the_prompt_is_no_part_of_the_layers_time():
     store, record, plan_store = video_job_project(prompt="kırmızı elbiseli kadın")
 
     make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: Takes(clock, 40.0)},
-             lambda: "t", "düğün", clock=clock,
+             lambda: "t", named=RunningName("düğün"), clock=clock,
              writers={layers.VIDEO: SlowWriter(clock, 20.0)})()
 
     assert rows_of(record, "video")[0]["renderSeconds"] == 40.0
@@ -4223,7 +4652,8 @@ def test_a_retried_layer_carries_the_time_of_the_attempt_that_made_it():
     clock, record, plan_store = Clock(), FakeRecord(), FakePlanStore(frames=[frame(0)])
 
     make_job(sync_runner(), FakeStore(), record, plan_store,
-             {layers.PHOTO: Takes(clock, 10.0, fails=2)}, lambda: "t", "düğün", clock=clock)()
+             {layers.PHOTO: Takes(clock, 10.0, fails=2)}, lambda: "t",
+             named=RunningName("düğün"), clock=clock)()
 
     assert rows_of(record, "photo")[0]["renderSeconds"] == 10.0
 
@@ -4260,7 +4690,7 @@ def test_the_report_names_when_the_model_started_and_clears_it_for_the_next_job(
     plan_store = FakePlanStore(frames=[frame(0), frame(1)])
 
     make_job(runner, FakeStore(), FakeRecord(), plan_store, {layers.PHOTO: FakeGenerator()},
-             ticking(), "düğün")()
+             ticking(), named=RunningName("düğün"))()
 
     assert [patch["startedAt"] for patch in reports] == [None, "t1", None, "t3"]
 
@@ -4285,7 +4715,7 @@ def test_no_start_is_reported_while_the_layers_source_is_read():
     store.files["0_a.png"] = b"PNG"
 
     make_job(runner, store, record, plan_store, {layers.VIDEO: FakeGenerator()}, ticking(),
-             "düğün")()
+             named=RunningName("düğün"))()
 
     assert store.seen[0]["current"]["type"] == "video"
     assert store.seen[0]["startedAt"] is None
@@ -4310,7 +4740,7 @@ def test_no_start_is_reported_while_a_prompt_is_written():
     writer = PeekingWriter(reports)
 
     make_job(runner, store, record, plan_store, {layers.VIDEO: FakeGenerator()}, ticking(),
-             "düğün", writers={layers.VIDEO: writer})()
+             named=RunningName("düğün"), writers={layers.VIDEO: writer})()
 
     assert writer.seen[0]["current"] is None
     assert writer.seen[0]["startedAt"] is None
@@ -4338,7 +4768,7 @@ def test_each_attempt_at_a_layer_reports_its_own_start():
     producer = Glancing(reports, fails=2)
 
     make_job(runner, FakeStore(), FakeRecord(), FakePlanStore(frames=[frame(0)]),
-             {layers.PHOTO: producer}, ticking(), "düğün")()
+             {layers.PHOTO: producer}, ticking(), named=RunningName("düğün"))()
 
     assert producer.seen == ["t1", "t2", "t3"]
 
@@ -4349,7 +4779,8 @@ def test_a_job_whose_type_has_no_producer_makes_the_run_wait():
     plan_store = FakePlanStore(frames=[{"id": "P0_0", "type": "video", "number": 0, "variant": 0,
                                         "prompt": "", "seed": 1}])
     state = make_job(sync_runner(), FakeStore(), FakeRecord(), plan_store,
-                     {layers.PHOTO: FakeGenerator()}, lambda: "t1", "düğün")()
+                     {layers.PHOTO: FakeGenerator()}, lambda: "t1",
+                     named=RunningName("düğün"))()
 
     assert state["status"] == "waiting" and state["waitingFor"] == "video"
 
@@ -4376,7 +4807,7 @@ def test_the_loop_finishes_photos_before_it_starts_videos():
     done = []
     make_job(sync_runner(), store, record, plan_store,
              {layers.PHOTO: Records("photo"), layers.VIDEO: Records("video")},
-             lambda: "t1", "düğün")()
+             lambda: "t1", named=RunningName("düğün"))()
 
     # Plan order would have put the video first; the type order does not let it.
     assert done == ["photo", "video"]
@@ -4669,7 +5100,7 @@ def test_a_plain_video_is_rendered_with_no_references_at_all():
     generator = FakeGenerator()
 
     make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
-             lambda: "t", "düğün")()
+             lambda: "t", named=RunningName("düğün"))()
 
     assert generator.references == [[]]
 
@@ -4687,7 +5118,8 @@ def test_the_writer_is_told_which_mode_the_job_is_in():
     writer = FakeWriter()
 
     make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: FakeGenerator()},
-             lambda: "t", "düğün", writers={layers.VIDEO: writer})()
+             lambda: "t", named=RunningName("düğün"),
+             writers={layers.VIDEO: writer})()
 
     assert writer.modes == ["loop"]
 

@@ -1,9 +1,10 @@
 import ProjectScreen from "./features/photo_generation/ProjectScreen.jsx";
 import ProjectsScreen from "./features/projects/ProjectsScreen.jsx";
 import { useProjectSettings } from "./features/projects/useProjectSettings.js";
-import IdleWatch from "./features/idle/IdleWatch.jsx";
+import { useEndedNotification } from "./features/notification/useEndedNotification.js";
 import ExportScreen from "./features/photo_generation/ExportScreen.jsx";
 import PhotoDetail from "./features/photo_generation/PhotoDetail.jsx";
+import { useQueueWatch } from "./shared/queue_watch.js";
 import { routeFromPath, useRoute } from "./shared/router.js";
 
 // The record fills the photo panel's boxes and nothing else on the screen reads it, so the screen
@@ -32,13 +33,11 @@ function Screen() {
   return <ProjectRoute project={project} />;
 }
 
-// "Orada mısın?" stands beside the screen rather than inside each one (madde 498): one watch for
-// all four, and moving between them does not take it down, so its one held ask goes on.
+// The queue watch lives here rather than inside each screen (madde 509, 518): one held ask for all
+// four, and moving between them does not take it down. The notification listens to it here; the
+// screens that read the gallery listen from useGeneration.
 export default function App() {
-  return (
-    <>
-      <Screen />
-      <IdleWatch />
-    </>
-  );
+  useQueueWatch();
+  useEndedNotification();
+  return <Screen />;
 }

@@ -33,6 +33,8 @@ import os
 import shutil
 import stat
 import tempfile
+import time
+import uuid
 
 # What a save writes before it moves into place. Listings skip it: a session that dies mid-save leaves
 # one behind, and it is nobody's file.
@@ -84,6 +86,23 @@ def _is_dir(path):
     return stat.S_ISDIR(info.st_mode)
 
 
+def _hidden(parts):
+    """Whether a folder lies under a hidden name: the trash (trash_dir), which is nobody's. Every
+    door that reaches a folder by a name it was given treats it as not there, the way list_dirs does
+    not list it (madde 523) -- a crafted URL could otherwise rename it back into a project, serve
+    its files, or write into it. Only the trash's own work reaches it: trash_dir makes it,
+    sweep_trash finds it by listing, and delete_dir removes it by the name trash_dir gave."""
+    return any(part.startswith(TEMP_PREFIX) for part in parts)
+
+
+def _trashed_at(name):
+    """When trash_dir put this folder in the trash, from its name; None for any other name."""
+    if not name.startswith(TEMP_PREFIX):
+        return None
+    stamp = name[len(TEMP_PREFIX):].split("-", 1)[0]
+    return int(stamp) if stamp.isdigit() else None
+
+
 def _discard(temporary):
     """Remove a save's temporary file after the save failed.
 
@@ -131,9 +150,41 @@ class Storage:
     # --- folders ----------------------------------------------------------------------------
 
     def list_dirs(self):
-        """[(name, mtime)] for every folder directly under the root. Files are skipped."""
+        """[(name, mtime)] for every folder directly under the root. Files are skipped, and so is
+        the trash (trash_dir)."""
         with os.scandir(self._folder(())) as entries:
-            return [(e.name, e.stat().st_mtime) for e in entries if e.is_dir()]
+            return [(e.name, e.stat().st_mtime) for e in entries
+                    if e.is_dir() and not e.name.startswith(TEMP_PREFIX)]
+
+    def trash_dir(self, name):
+        """Move a folder directly under the root to a hidden name there, in one rename, and return
+        that name; False when it was not there.
+
+        What a removal does first (madde 523): taking a folder away over Drive takes tens of
+        seconds, and a write landing in it meanwhile made the removal fail half way, leaving the
+        folder there, gutted. Renamed, the name is gone at once and nothing written to it lands in
+        the trash; delete_dir then removes the trash at leisure. The hidden name carries the time it
+        was put there, which sweep_trash reads: a folder's own mtime says when its contents last
+        changed, not when it was trashed.
+        """
+        source = self._folder(_checked(name))
+        if _hidden((name,)) or not _is_dir(source):
+            return False
+        trash = f"{TEMP_PREFIX}{int(time.time())}-{uuid.uuid4().hex}"
+        os.rename(source, os.path.join(self._root, trash))
+        return trash
+
+    def sweep_trash(self, age):
+        """Remove the trash put under the root more than `age` seconds ago: what a removal could not
+        finish, or a server that died left. A younger one may be another removal's, still going.
+        One listing of the root; a trash that cannot be removed stays, hidden, for the next sweep."""
+        oldest = time.time() - age
+        with os.scandir(self._folder(())) as entries:
+            old = [entry.path for entry in entries
+                   if entry.is_dir() and _trashed_at(entry.name) is not None
+                   and _trashed_at(entry.name) < oldest]
+        for trash in old:
+            shutil.rmtree(trash, ignore_errors=True)
 
     def make_dir(self, name):
         """Create a folder directly under the root -- the one way a project folder, or an export's
@@ -187,7 +238,7 @@ class Storage:
         _checked(new)
         root = self._folder(())
         source, target = os.path.join(root, old), os.path.join(root, new)
-        if not _is_dir(source):
+        if _hidden((old,)) or not _is_dir(source):
             return False
         try:
             os.stat(target)
@@ -198,16 +249,23 @@ class Storage:
         return os.stat(target).st_mtime
 
     def dir_exists(self, folder):
-        return _is_dir(self._folder(folder))
+        """Whether the folder is there. One under a hidden name is not (_hidden): every project door
+        asks this, so a URL naming the trash finds no project."""
+        path = self._folder(folder)
+        return not _hidden(_parts(folder)) and _is_dir(path)
 
     def path(self, folder, name=None):
         """The absolute path of a folder, or of a file in it, for a reader outside this process --
         ffmpeg, ffprobe, Flask sending a file -- and for the screen to say where an export lands.
 
         The name and the mount are checked like any other operation: the path is only handed out
-        while the root is the one it was.
+        while the root is the one it was. None is handed out under a hidden name (_hidden): it is
+        not there, and a server route answers 404 for it, as for any file that is not.
         """
-        return self._folder(folder) if name is None else self._file(folder, name)
+        path = self._folder(folder) if name is None else self._file(folder, name)
+        if _hidden(_parts(folder)):
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), path)
+        return path
 
     # --- files ------------------------------------------------------------------------------
 
@@ -305,28 +363,79 @@ class Storage:
         except FileNotFoundError:
             pass
 
+    def stage_bytes(self, folder, data):
+        """Write `data` under a hidden name in the folder and return that name -- for a caller that
+        writes the bytes first and learns the name they will carry later (madde 523: a reference
+        upload, whose free name is chosen under the project's gate, while the bytes go to Drive
+        before it). Listings skip the name; rename_file moves it into place, delete_file takes it
+        away. Written, flushed and opened in the folder as a save is.
+        """
+        parts = _parts(folder)
+        directory = self._folder(parts)
+        return os.path.basename(self._staged(parts, directory, len(data),
+                                             lambda opened: opened.write(data)))
+
+    def rename_file(self, folder, old, new):
+        """Give a file in the folder another name there, in one step. Over whatever is under the new
+        name, as a save is: the caller chooses a name that is free."""
+        os.replace(self._file(folder, old), self._file(folder, new))
+
+    def sweep_staged(self, folder, age):
+        """Remove the hidden files in the folder last written more than `age` seconds ago: staged
+        bytes nobody will place -- their folder was renamed from under them, or the server died --
+        and half saves. Hidden from every listing, but each holds its bytes of Drive. A younger one
+        may be a write still on its way, so it stays. A folder that is not there has none; a file
+        that cannot be removed stays, hidden, as _discard leaves it.
+
+        One listing of the folder, and a stat of each hidden file only.
+        """
+        path = self._folder(folder)
+        oldest = time.time() - age
+        try:
+            with os.scandir(path) as entries:
+                left = [entry.path for entry in entries
+                        if entry.name.startswith(TEMP_PREFIX) and entry.is_file()
+                        and entry.stat().st_mtime < oldest]
+        except FileNotFoundError:
+            return
+        for leftover in left:
+            _discard(leftover)
+
     def _save(self, folder, name, size, write):
         """Write `size` bytes through a temporary file beside the target, flush it to the mount, then
         move it over the target in one step: a reader sees the old file or the new one, never half of
         it. The room for them is asked first, so a save that cannot fit leaves nothing behind.
 
         os.replace rather than os.rename: on Windows rename refuses a target that is already there.
-
-        The temporary file opens in the target's folder or not at all. A folder is opened only when
-        that is why it failed, and only below the folder directly under the root: the root and that
-        folder are never opened by a write, so one that is not there stays an error.
         """
         parts = _parts(folder)
         target = self._file(parts, name)
-        self._room(size, target)
-        directory = os.path.dirname(target)
+        temporary = self._staged(parts, target, size, write)
+        try:
+            os.replace(temporary, target)
+        except BaseException:
+            _discard(temporary)
+            raise
+
+    def _staged(self, parts, said, size, write):
+        """The path of a hidden file in the folder of `parts`, holding `size` bytes `write` put in it
+        and flushed to the mount. `said` is the path the errors name: the save's target, or the
+        folder itself. The room for them is asked first, so a write that cannot fit leaves nothing
+        behind, and neither does one that fails.
+
+        The temporary file opens in its folder or not at all. A folder is opened only when that is
+        why it failed, and only below the folder directly under the root: the root and that folder
+        are never opened by a write, so one that is not there stays an error.
+        """
+        self._room(size, said)
+        directory = os.path.join(self._root, *parts)
         try:
             handle, temporary = tempfile.mkstemp(prefix=TEMP_PREFIX, dir=directory)
         except FileNotFoundError as missing:
             if len(parts) < 2:
                 # mkstemp names the temporary file it could not open; the screen prints the error
-                # as it is, so it names the file the save was for.
-                raise FileNotFoundError(missing.errno, missing.strerror, target) from missing
+                # as it is, so it names the file the write was for.
+                raise FileNotFoundError(missing.errno, missing.strerror, said) from missing
             self._open_inside(parts)
             handle, temporary = tempfile.mkstemp(prefix=TEMP_PREFIX, dir=directory)
         try:
@@ -334,10 +443,10 @@ class Storage:
                 write(opened)
                 opened.flush()
                 os.fsync(opened.fileno())
-            os.replace(temporary, target)
         except BaseException:
             _discard(temporary)
             raise
+        return temporary
 
     def _room(self, size, target):
         """Stop unless the mount has `size` bytes free, before anything of `target` is written. The

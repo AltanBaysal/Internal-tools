@@ -21,7 +21,7 @@ while the confirm sits open, and one gone name must not undo the rest.
 """
 from backend.features.photo_generation.domain import layers, queue
 from backend.features.photo_generation.domain.frame_list import checked
-from backend.features.photo_generation.domain.photo_name import layer_file
+from backend.features.photo_generation.domain.usecases.dequeue_layer import owed_on
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
 
 
@@ -33,33 +33,40 @@ def remove_layer(record, store, plan_store, order_store, now, project, frames, k
     its video.
     """
     checked(frames, "Katmanı silinecek")
-    # Raises ProjectMissing when there is no such project.
-    gallery = {frame["id"]: frame
-               for frame in list_frames(record, store, plan_store, order_store, project)}
-    slots = record.slots(project)
-    over = layers.falls_with(kind)      # the layer itself and whatever hangs on it
+    # Held from the slots read to the last line written, remove_frames' way: a copy born in between
+    # would be left standing on a file this press decided nobody else held (madde 512).
+    with plan_store.held(project):
+        # Raises ProjectMissing when there is no such project.
+        gallery = {frame["id"]: frame
+                   for frame in list_frames(record, store, plan_store, order_store, project)}
+        slots = record.slots(project)
+        over = layers.falls_with(kind)      # the layer itself and whatever hangs on it
 
-    # Which slots close, and which jobs hanging on them never get to be made -- both for the whole
-    # press, before anything is written.
-    closing, dropping = set(), []
-    for fid in frames:
-        frame = gallery.get(fid)
-        if frame is None:
-            continue
-        cells = slots.get(fid, {})
-        closing |= {(fid, slot) for slot in over
-                    if layers.is_taken((cells.get(slot) or {}).get("status"))}
-        # A job the queue still owes on a closed layer would go looking for a video that is no
-        # longer there. The name written down is the one it would have taken -- worked out here,
-        # while the video's own row is still readable.
-        dropping += [(fid, slot, layer_file(slot, fid, (cells.get(layers.VIDEO) or {}).get("file")))
-                     for slot in over if slot in frame.get("owed", [])]
+        # Which slots close, and which jobs hanging on them never get to be made -- both for the
+        # whole press, before anything is written.
+        closing, dropping = set(), []
+        for fid in frames:
+            frame = gallery.get(fid)
+            if frame is None:
+                continue
+            cells = slots.get(fid, {})
+            closing |= {(fid, slot) for slot in over
+                        if layers.is_taken((cells.get(slot) or {}).get("status"))}
+            # A job the queue still owes on a closed layer would go looking for a video that is no
+            # longer there -- the same jobs Kuyruktan çıkar takes out, so the same answer (madde
+            # 516). A slot read as taken landed since the gallery was read: it is closing above,
+            # and its deleted line is all it needs (madde 513).
+            dropping += [(fid, slot, name, status)
+                         for slot, name, status in owed_on(frame, cells, kind)]
 
-    deleted = sorted(layers.files_to_unlink(slots, closing))
-    for name in deleted:
-        store.delete(project, name)
-    for fid, slot in sorted(closing):
-        record.mark(project, fid, slot, slots[fid][slot]["file"], queue.DELETED, now())
-    for fid, slot, name in dropping:
-        record.mark(project, fid, slot, name, queue.REMOVED, now())
+        deleted = sorted(layers.files_to_unlink(slots, closing))
+        for name in deleted:
+            store.delete(project, name)
+        # Each line over the status the slot was read in, so a job the loop lands after this look
+        # keeps its layer (madde 513).
+        for fid, slot in sorted(closing):
+            record.mark(project, fid, slot, slots[fid][slot]["file"], queue.DELETED, now(),
+                        seen=slots[fid][slot]["status"])
+        for fid, slot, name, status in dropping:
+            record.mark(project, fid, slot, name, queue.REMOVED, now(), seen=status)
     return {"deleted": deleted}

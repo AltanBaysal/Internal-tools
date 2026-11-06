@@ -4,15 +4,14 @@
 Translation only: no rules here. The use case's exception messages go out verbatim, so the wording
 lives in exactly one place (the domain).
 """
-from flask import Blueprint, jsonify, request, send_from_directory
+from flask import Blueprint, abort, jsonify, request, send_from_directory
 
-from backend.features.photo_generation.domain import layers, orientation, production_mode, queue
+from backend.features.photo_generation.domain import layers, orientation, production_mode
 from backend.features.photo_generation.export_runner import MODES
-from backend.features.photo_generation.domain.frame_list import InvalidFrames
+from backend.features.photo_generation.domain.frame_list import InvalidFrames, checked
 from backend.features.photo_generation.domain.orientation import InvalidOrientation
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
 from backend.features.photo_generation.domain.production_mode import InvalidMode
-from backend.features.photo_generation.domain.usecases.queue_layer import InvalidScope
 from backend.features.photo_generation.domain.usecases.regenerate import LayerMissing, NoNextFrame
 from backend.features.photo_generation.domain.usecases.resume_batch import NothingToResume
 from backend.features.photo_generation.domain.usecases.retry_frame import FrameMissing
@@ -26,23 +25,46 @@ from backend.features.photo_generation.domain.usecases.start_batch import (
 
 
 # The layers a job can be asked for. A photo is not among them: it is asked for with its own
-# prompts, not by hanging a layer on a frame that already exists.
-QUEUEABLE = (layers.VIDEO, layers.AUDIO)
+# prompts, not by hanging a layer on a frame that already exists. Nor is a sound since MMAudio went
+# (madde 514): nothing would make it.
+QUEUEABLE = (layers.VIDEO,)
+
+# The layers a frame's own can be made again -- not a sound, for the same reason.
+REMAKEABLE = (layers.PHOTO, layers.VIDEO)
 
 # The layers that can be taken off a frame on their own -- the photo among them: a card outlives its
 # picture, and it goes when its last layer does (madde 294). Deleting a whole card in one press is
 # still its own door (POST …/frames/delete).
 REMOVABLE = (layers.PHOTO, layers.VIDEO, layers.AUDIO)
 
+# The layers whose waiting job can be taken out of the queue on its own, leaving the frame (madde
+# 516). Not the photo: a frame still waiting for its photo is that job, and it leaves through POST
+# …/frames/delete.
+DEQUEUEABLE = (layers.VIDEO, layers.AUDIO)
+
 
 def make_photo_generation_blueprint(start_batch, get_status, stop_generation, resume_batch,
                                     cancel_generation, retry_frame, retry_failed, queue_layer,
-                                    regenerate, remove_layer, list_frames, list_models, list_loras,
+                                    regenerate, remove_layer, dequeue_layer, list_frames,
+                                    list_models, list_loras,
                                     save_order,
                                     export_summary, export_state, run_export, cancel_export,
                                     remove_frames, copy_frames, photo_dir):
     """The callables are already bound to a runner/store/generator (see main.py)."""
     bp = Blueprint("photo_generation", __name__)
+
+    def with_gallery(answer, project):
+        """`answer` with the gallery the work landed in, while there is one.
+
+        Read after the door has returned, outside its gate: a rename its gate held back moves the
+        folder the moment the door lets go (madde 522). The work was taken all the same, and an
+        error here would send the user to press again and make it twice -- so the answer says what
+        was taken, and the screen, given no gallery, reads it itself.
+        """
+        try:
+            return {**answer, "frames": list_frames(project)}
+        except ProjectMissing:
+            return answer
 
     @bp.post("/api/projects/<project>/generate")
     def post_generate(project):
@@ -81,7 +103,7 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
         # "added" is how many frames the queue took -- the panel quotes it back to the user; and
         # "frames" is the gallery they landed in, because the screen would ask for exactly that in
         # a second round-trip, and until it lands the frames it was just told about are nowhere.
-        return jsonify({"job": "running", "added": added, "frames": list_frames(project)}), 202
+        return jsonify(with_gallery({"job": "running", "added": added}, project)), 202
 
     # One answer for both boxes: the panel draws them together, and a second request would be a
     # second way for one of them to be missing (madde 237).
@@ -141,18 +163,23 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
         if kind not in QUEUEABLE:
             return jsonify({"error": f"Böyle bir katman yok: {kind}"}), 404
         body = request.get_json(silent=True) or {}
-        # No "files" key at all means every frame that does not hold this layer; a list means that
-        # selection.
-        files = body.get("files")
+        # The selection's old key, refused rather than ignored: read as no selection, it would hang
+        # the layer on every frame without one (madde 520).
+        if "files" in body:
+            return jsonify({"error": "Kareler frames ile gönderilmeli."}), 400
         try:
+            # No "frames" key at all means every frame that does not hold this layer; a key that is
+            # there is a selection and has to be a list of identities -- null included, which read
+            # as missing would mean every frame too.
+            frames = checked(body["frames"], "Katman eklenecek") if "frames" in body else None
             # No "variants" key means one per frame, and no "mode" key means a plain video: a
             # client older than either box asks for exactly what it always asked for.
-            added = queue_layer(project, kind, files=files, variants=body.get("variants", 1),
+            added = queue_layer(project, kind, frames=frames, variants=body.get("variants", 1),
                                 mode=body.get("mode", production_mode.STANDARD))
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
-        except InvalidScope as exc:
-            return jsonify({"error": str(exc), "field": "files"}), 400
+        except InvalidFrames as exc:
+            return jsonify({"error": str(exc)}), 400
         except InvalidMode as exc:
             return jsonify({"error": str(exc), "field": "mode"}), 400
         except InvalidVariants as exc:
@@ -162,7 +189,7 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
         # The gallery comes back with the answer, the same as a photo batch: the button is the
         # same button, and one of the two waiting a round-trip longer than the other would be an
         # accident rather than a decision.
-        return jsonify({"job": "running", "added": added, "frames": list_frames(project)}), 202
+        return jsonify(with_gallery({"job": "running", "added": added}, project)), 202
 
     @bp.post("/api/projects/<project>/layers/<kind>/delete")
     def delete_layer(project, kind):
@@ -178,13 +205,27 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
 
+    @bp.post("/api/projects/<project>/layers/<kind>/dequeue")
+    def dequeue(project, kind):
+        if kind not in DEQUEUEABLE:
+            return jsonify({"error": f"Kuyruktan çıkarılabilir bir katman değil: {kind}"}), 404
+        body = request.get_json(silent=True) or {}
+        try:
+            # The jobs really taken out go back; a job that landed or was never asked for is no
+            # error, and neither is a name the gallery no longer knows.
+            return jsonify(dequeue_layer(project, body.get("frames"), kind))
+        except InvalidFrames as exc:
+            return jsonify({"error": str(exc)}), 400
+        except ProjectMissing as exc:
+            return jsonify({"error": str(exc)}), 404
+
     @bp.post("/api/projects/<project>/regenerate")
     def post_regenerate(project):
         body = request.get_json(silent=True) or {}
         layer = body.get("layer")
-        # Every layer can be made again, the photo included: what is asked for here is one named
-        # frame's own layer, not a batch.
-        if layer not in queue.ORDER:
+        # The photo can be made again too: what is asked for here is one named frame's own layer,
+        # not a batch.
+        if layer not in REMAKEABLE:
             return jsonify({"error": f"Böyle bir katman yok: {layer}"}), 404
         prompt = body.get("prompt")
         negative = body.get("negative")
@@ -278,6 +319,9 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
             return jsonify({"error": str(exc)}), 400
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
+        except Busy as exc:
+            # A frame the worker is making a layer of (madde 519).
+            return jsonify({"error": str(exc)}), 409
 
     # Beside the delete above, and the same shape: a list of identities in the body, because a copy
     # frame shares its source's picture and a file name would not say which of the two was asked
@@ -293,14 +337,19 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
             return jsonify({"error": str(exc)}), 404
         # The gallery comes back with the twins: the screen would ask for exactly this in a second
         # round-trip, and until it lands the copies it was just told about are nowhere.
-        return jsonify({**answer, "frames": list_frames(project)})
+        return jsonify(with_gallery(answer, project))
 
     @bp.get("/photos/<project>/<filename>")
     def serve_photo(project, filename):
         # The folder comes from the storage door, which holds the project's name to the root and
         # checks the mount; send_from_directory holds the file's name to the folder, answers 404
-        # for one that is not there, and serves a video in the ranges a browser asks for.
-        resp = send_from_directory(photo_dir(project), filename)
+        # for one that is not there, and serves a video in the ranges a browser asks for. A folder
+        # the door says is not there -- the trash a delete leaves (madde 523) -- is the same 404.
+        try:
+            folder = photo_dir(project)
+        except FileNotFoundError:
+            abort(404)
+        resp = send_from_directory(folder, filename)
         # next_number never reuses a number, so a photo URL's bytes can never change.
         resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
         return resp

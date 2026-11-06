@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { fileUrl } from "../../shared/api.js";
 import { navigate, photoPath, projectPath } from "../../shared/router.js";
@@ -16,6 +16,7 @@ import { FIRST_ORIENTATION, OrientationSegment, shapeOf } from "./orientation.js
 import { LINKED, MODES, STANDARD, labelOf, nounOf } from "./production_modes.js";
 import { useGeneration } from "./useGeneration.js";
 import { useModels } from "./useModels.js";
+import { useMuted } from "./useMuted.js";
 import { useHappyEnding, useVideoLength, videoSaid } from "./useVideoSettings.js";
 
 // minmax(0, …) rather than plain columns: a long project or file name would otherwise widen the
@@ -357,7 +358,7 @@ function PromptBox({ label, value, changed, height, onChange }) {
 // worker is holding turns into its photo without a reload.
 export default function PhotoDetail({ project, frame: fid }) {
   const { frames, current, batch, currentLayer, startedAt, error, removePhotos, removeLayer,
-          regenerate, retry } = useGeneration(project);
+          dequeueLayer, regenerate, retry } = useGeneration(project);
   // The rows the renderer offers, for two lines in the column on the right: a frame stores its
   // model and its lora as ids -- the names they were picked by are in these lists and nowhere else.
   // The hook remembers the answer for the visit, so opening frames costs nothing.
@@ -371,6 +372,9 @@ export default function PhotoDetail({ project, frame: fid }) {
   const { on: ending } = useHappyEnding(project, videoRow);
   // The video panel's own ending to its sentences.
   const settingsSaid = videoSaid(length, ending);
+  // Which frames' sound is turned off (madde 510): read once for the page, which the arrows keep
+  // mounted, so walking from frame to frame asks nothing.
+  const { muted, mute } = useMuted(project);
   // Which window is open, not merely that one is: a failed layer's way out deletes the FRAME while
   // a layer tab is open, and deciding from the open tab would show it the layer's words.
   const [asking, setAsking] = useState(null);              // "frame" | "layer" | null
@@ -384,9 +388,12 @@ export default function PhotoDetail({ project, frame: fid }) {
   // Whether the frame's scenario lies over the picture (madde 401). The user's press rather than the
   // frame's, like the details fold: checking a run of frames against their scenarios costs one press.
   const [sceneShown, setSceneShown] = useState(false);
-  // Only a removal of ours puts the card on screen: the hook's error is also where a failed poll
-  // lands, and that one has nothing to do with this frame.
-  const [refused, setRefused] = useState(false);
+  // Why a frame's last refused press went nowhere: what it was trying to do, as the card's heading,
+  // and the server's own words under it (madde 517). Held here rather than read off the hook's
+  // error, which is the poll's too: a good poll clears it while the refusal still stands. Kept under
+  // the frame the press was made on, whatever frame is open when the answer lands: drawn only there,
+  // it cannot take the place of the open frame's card, and stepping back finds it waiting.
+  const [refusals, setRefusals] = useState({});            // { [fid]: { text, raw } }
   // What the user has typed, per layer. An untouched layer is absent rather than empty: that is
   // what lets the box fall back to the frame's own words as the poll refreshes them.
   const [words, setWords] = useState({});
@@ -394,10 +401,6 @@ export default function PhotoDetail({ project, frame: fid }) {
   // this one, so the page sees neither arrive -- the button has to remember the press itself, and
   // the corner has to say which press it was (Fark 108).
   const [sent, setSent] = useState([]);                    // { layer, retry }
-  // What a refused request of ours was trying to do, as the heading over the server's own words.
-  // Held as the sentence rather than a flag: the two actions on a layer fail differently and the
-  // card must not say the wrong one.
-  const [refusedAct, setRefusedAct] = useState(null);
   // What the video should be made in next. Untouched until the box is used, so the default can
   // follow the poll: null means this video's own mode, whatever the record last said it was.
   const [newMode, setNewMode] = useState(null);
@@ -449,6 +452,9 @@ export default function PhotoDetail({ project, frame: fid }) {
   const openState = stateOf(open);
   // Only a layer that is really there can be made again, and only it can be edited.
   const holds = openState === "done";
+  // A sound is there to play and to delete, not to make again: nothing makes one since MMAudio
+  // went (madde 514).
+  const remakes = holds && open !== "audio";
   // The open layer's own time. The start is the worker's, and only the layer it is on is running.
   const timeShown = productionTime(openState, (frame?.renderSeconds || {})[open], startedAt);
   // Does removing this frame take a file off the disk? Only when the picture is its own: a copy
@@ -460,6 +466,13 @@ export default function PhotoDetail({ project, frame: fid }) {
   // Which layer that is: the one the worker is on, or the first one still owed. The frame's own
   // answer rather than the open tab's, because it is the frame that is waiting.
   const coming = running || (frame?.owed || [])[0] || null;
+  // Does the photo tab's bin take the frame's waiting jobs out rather than the frame? On a copy
+  // waiting over its source's picture (madde 519).
+  const dequeues = produced && !ownsItsPhoto && awaited;
+  // Nothing takes the frame, or its waiting jobs, while the worker makes a layer of it: the layer
+  // lands with its own line whatever was written meanwhile (madde 513), so a frame deleted under
+  // its render came back with a picture that was gone (madde 519). The server refuses it too.
+  const binOff = busy || running !== null;
   // What the layer was made from -- the frame's own words until the user types over them.
   const said = (frame?.prompts || {})[open] ?? (open === "photo" ? frame?.prompt : "") ?? "";
   const typed = words[open] ?? said;
@@ -518,15 +531,33 @@ export default function PhotoDetail({ project, frame: fid }) {
   // Was this layer already sent, and was any of the presses a retry? The corner says which.
   const wasSent = (layer) => sent.some((one) => one.layer === layer);
   const retried = sent.some((one) => one.retry);
+  // May the video on the stage be silenced, and is it? A preview of the server's rule
+  // (domain/mute.require_video): every video that has landed, with or without a sound layer over
+  // it, since H3's video carries its own (madde 515). One that blew up or is still coming has none.
+  const landed = stateOf("video") === "done";
+  const silent = landed && (muted || []).includes(frame.id);
   // What the stage's media belongs to. A new frame or tab builds new media under it, so nothing of
   // the one before can stay on screen while the next file is on its way (madde 232).
   const stageKey = `${fid}/${open}`;
   // The card for whichever box holds the picture; `lifted` on the player, over its clock.
   const scenarioCard = (lifted) => sceneShown
     && <ScenarioCard scene={frame.scene} lifted={lifted} />;
+  // The open frame's refused press, if it has one.
+  const refusal = refusals[fid];
+  // A refused press, filed under the frame it was made on (`at`), and a new press on a frame
+  // taking that frame's old card away. Each render's handlers close over that render's fid, so
+  // `at` is the pressed frame however late the answer lands.
+  const refuse = (at, text, raw) => setRefusals((kept) => ({ ...kept, [at]: { text, raw } }));
+  const unrefuse = (at) => setRefusals(({ [at]: _gone, ...others }) => others);
+  // Which frame is open now, for a press's answer to ask before it touches the screen (madde 517):
+  // the arrows may have moved on, and then the tab, the busy buttons, the window, the "sent" mark
+  // and where the page goes all belong to another frame. Set in the commit that opens the frame,
+  // so no answer can land between the frame changing on screen and this knowing it.
+  const openFrame = useRef(fid);
+  useLayoutEffect(() => { openFrame.current = fid; }, [fid]);
 
-  // The arrows swap the frame under a page that stays mounted, so anything said about the old one
-  // has to go with it -- a refusal card from the previous frame would read as this one's.
+  // The arrows swap the frame under a page that stays mounted, so the presses' state goes with the
+  // old frame. Its refusal card is not here: that is filed under its own frame, and drawn only there.
   //
   // The open tab stays, and so do the details fold (madde 399) and the scenario card (madde 401),
   // neither of which was ever the frame's.
@@ -540,14 +571,12 @@ export default function PhotoDetail({ project, frame: fid }) {
   // frame's: it is worked out during the render that fid changed, and this runs after it. `has` is
   // deliberately not a dependency -- the tab is a question for a new frame, not for every poll.
   useEffect(() => {
-    setRefused(false);
     setAsking(null);
     setBusy(false);
     setOpen((shown) => (has[shown] ? shown : "photo"));
     // The editing belonged to that frame, and so did the presses: both go with it.
     setWords({});
     setSent([]);
-    setRefusedAct(null);
     // The box belongs to the video behind it, so it goes with the frame -- and the orientation's
     // segment to the photo.
     setNewMode(null);
@@ -572,31 +601,37 @@ export default function PhotoDetail({ project, frame: fid }) {
   // nothing is left. Moving on is not an arrow, so a run of deletions keeps walking the same way.
   function handleRemove() {
     setBusy(true);
-    setRefused(false);
+    unrefuse(fid);
     const after = backwards.current ? previous || next : next || previous;
+    // What the press attempts, said as it is made: a photo landing meanwhile does not change it.
+    const failed = produced ? "Kare silinemedi" : "Kare kuyruktan çıkarılamadı";
     return removePhotos([fid]).then((body) => {
+      if (!body) return;                         // the page was left meanwhile
+      if (body.error) refuse(fid, failed, body.error);
+      // The walk to its neighbour is for a user still standing on the frame; the gallery has let it
+      // go either way.
+      if (openFrame.current !== fid) return;
       setBusy(false);
       setAsking(null);
       // Refused: the frame is still there, so staying on it is the only honest thing to do.
-      if (!body) return setRefused(true);
-      navigate(after ? photoPath(project, after.id) : projectPath(project));
+      if (!body.error) navigate(after ? photoPath(project, after.id) : projectPath(project));
     });
   }
 
   // No confirm box and nowhere to go: the frame on screen keeps everything it has, and what was
   // asked for turns up in the gallery as a frame of its own (madde 77).
   function handleRegenerate() {
-    setRefusedAct(null);
+    unrefuse(fid);
     const layer = open;
-    // undefined off the video tab: a body with no mode is what the server has always read, and a
-    // mode on a sound would be refused outright. The negative and the orientation travel the other
-    // way round -- only a photo is made from them.
+    // undefined off the video tab: a body with no mode is what the server has always read. The
+    // negative and the orientation travel the other way round -- only a photo is made from them.
     return regenerate(frame.id, layer, typed, layer === "video" ? picked : undefined,
                       layer === "photo" ? typedNegative : undefined,
                       layer === "photo" ? facing : undefined)
       .then((body) => {
-        if (!body) return setRefusedAct("Kare yeniden üretilemedi");
-        setSent((layers) => [...layers, { layer, retry: false }]);
+        if (!body) return;                       // the page was left meanwhile
+        if (body.error) return refuse(fid, "Kare yeniden üretilemedi", body.error);
+        if (openFrame.current === fid) setSent((layers) => [...layers, { layer, retry: false }]);
       });
   }
 
@@ -609,17 +644,43 @@ export default function PhotoDetail({ project, frame: fid }) {
     return retry(frame.id);
   }
 
+  // The sound's switch over the video (madde 510): off when it is on, on when it is off. Shown at
+  // once by the hook, which puts it back if the server refuses -- and the card says why.
+  function handleMute() {
+    const off = !silent;
+    unrefuse(fid);
+    mute(frame.id, off).catch((err) => refuse(fid, off ? "Ses kapatılamadı" : "Ses açılamadı",
+                                              err.message));
+  }
+
   // The open tab's own layer, and whatever lies over it. The frame stays in the gallery, so the
   // page stays on it -- only the tab it was showing is gone, and the photo is always there.
   function handleRemoveLayer() {
     setBusy(true);
-    setRefusedAct(null);
+    unrefuse(fid);
     const layer = open;
     return removeLayer([frame.id], layer).then((body) => {
+      if (!body) return;                         // the page was left meanwhile
+      if (body.error) refuse(fid, `${LAYER_LABEL[layer]} silinemedi`, body.error);
+      if (openFrame.current !== fid) return;
       setBusy(false);
       setAsking(null);
-      if (!body) return setRefusedAct(`${LAYER_LABEL[layer]} silinemedi`);
-      setOpen("photo");
+      if (!body.error) setOpen("photo");
+    });
+  }
+
+  // A layer's waiting job out of the queue, and nothing that has landed (madde 516): nothing
+  // finished goes, so it asks nothing. The frame stays in the gallery with its photo, so the page
+  // stays on it and the tab falls back to the photo, as when a layer comes off.
+  function handleDequeue(layer) {
+    setBusy(true);
+    unrefuse(fid);
+    return dequeueLayer([frame.id], layer).then((body) => {
+      if (!body) return;                         // the page was left meanwhile
+      if (body.error) refuse(fid, `${LAYER_LABEL[layer]} kuyruktan çıkarılamadı`, body.error);
+      if (openFrame.current !== fid) return;
+      setBusy(false);
+      if (!body.error) setOpen("photo");
     });
   }
 
@@ -680,6 +741,10 @@ export default function PhotoDetail({ project, frame: fid }) {
                                audioUrl={open === "audio"
                                  ? fileUrl(project, frame.layers.audio)
                                  : null}
+                               /* On both tabs: both play this video. No switch until the list
+                                  is read -- one drawn before would be a guess at its state. */
+                               silent={silent}
+                               onMute={landed && muted !== null ? handleMute : undefined}
                                onReady={onReady} onFail={onFail}>
                     {scenarioCard(true)}
                   </LayerPlayer>
@@ -792,7 +857,7 @@ export default function PhotoDetail({ project, frame: fid }) {
               {/* The open layer's own prompt, and nothing under it: what a layer was made from is
                   no longer this page's to show (madde 87). The heading says whose words these are,
                   in the tab's own word so a layer cannot be called two things (Fark 88). */}
-              {holds ? (
+              {remakes ? (
                 <PromptBox label={`${LAYER_LABEL[open]} prompt'u`} value={typed} changed={changed}
                            height={PROMPT_HEIGHT[open]}
                            onChange={(text) => setWords((kept) => ({ ...kept, [open]: text }))} />
@@ -852,7 +917,7 @@ export default function PhotoDetail({ project, frame: fid }) {
                 </div>
               )}
 
-              {holds && (
+              {remakes && (
                 /* Accent whether the prompt was touched or not (madde 78): making the frame again
                    is what this page is for, and a changed prompt only decides the new frame's
                    name. Full size, because the button under it is the way out and the two used to
@@ -889,21 +954,21 @@ export default function PhotoDetail({ project, frame: fid }) {
                 </Note>
               )}
 
-              {refusedAct && <StatusErrorCard text={refusedAct} raw={error} />}
-              {refused && (
-                <StatusErrorCard text={produced ? "Kare silinemedi" : "Kare kuyruktan çıkarılamadı"}
-                                 raw={error} />
-              )}
+              {refusal && <StatusErrorCard text={refusal.text} raw={refusal.raw} />}
 
               {/* What each tab offers to destroy, and what it says is what the press costs. Only a
-                  frame whose picture is its own loses a file, and only that one asks first. Every
-                  branch but the layer's own takes the FRAME rather than the layer: the queue
-                  removes frames and not layers, so there is no press behind a button that would
-                  leave one (karar 38). */}
+                  frame whose picture is its own loses a file, and only that one asks first. A
+                  waiting layer's tab takes out that layer's job alone (madde 516), and so does the
+                  photo tab of a copy waiting over its source's picture -- its first waiting layer,
+                  and what hangs on that goes with it -- so the copy stays where it stands (madde
+                  519). Otherwise the photo tab and a red layer's tab take the frame -- on a frame
+                  still waiting for its photo, that is the job itself. */}
               {open === "photo" ? (
-                <Btn sm disabled={busy || state === "running"}
-                     onClick={ownsItsPhoto ? () => setAsking("frame") : handleRemove}
-                     style={bin(busy || state === "running")}>
+                <Btn sm disabled={binOff}
+                     onClick={ownsItsPhoto ? () => setAsking("frame")
+                       : dequeues ? () => handleDequeue(frame.owed[0])
+                         : handleRemove}
+                     style={bin(binOff)}>
                   <Icon.Trash /> {ownsItsPhoto
                     ? "Sil"
                     : (awaited ? "Kuyruktan çıkar" : "Kareyi sil")}
@@ -917,22 +982,23 @@ export default function PhotoDetail({ project, frame: fid }) {
                   <Btn sm disabled={busy} onClick={() => setAsking("layer")} style={bin(busy)}>
                     <Icon.Trash /> {DESTRUCTIVE[open].label}
                   </Btn>
-                  <Btn sm disabled={busy} onClick={() => setAsking("frame")} style={bin(busy)}>
+                  <Btn sm disabled={binOff} onClick={() => setAsking("frame")} style={bin(binOff)}>
                     <Icon.Trash /> Kareyi sil
                   </Btn>
                 </>
               ) : openState === "pending" ? (
                 /* Fark 99: the button lived on the photo tab alone, which is not the tab the user
-                   is on while they wait for what it shows. */
-                <Btn sm disabled={busy} onClick={handleRemove} style={bin(busy)}>
+                   is on while they wait for what it shows. The job alone, never what has landed:
+                   the frame and its photo stay (madde 516). */
+                <Btn sm disabled={busy} onClick={() => handleDequeue(open)} style={bin(busy)}>
                   <Icon.Trash /> Kuyruktan çıkar
                 </Btn>
               ) : openState === "failed" ? (
                 /* Fark 100: a copy with no video is pointless, so the way out stands beside the
                    way back. */
-                <Btn sm disabled={busy}
+                <Btn sm disabled={binOff}
                      onClick={ownsItsPhoto ? () => setAsking("frame") : handleRemove}
-                     style={bin(busy)}>
+                     style={bin(binOff)}>
                   <Icon.Trash /> Kareyi sil
                 </Btn>
               ) : null}

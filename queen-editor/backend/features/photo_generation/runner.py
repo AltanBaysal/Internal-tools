@@ -6,10 +6,32 @@ so a change here can never break another pipeline (the maintenance rule for this
 The worker knows nothing about photos, frames or policy: it starts one job, holds whatever progress
 the job reports, and carries the stop flag the job reads between frames. `spawn` is injected:
 production starts a daemon thread, tests run the job inline and stay deterministic.
+
+`started` is told when a press takes the worker (madde 518): a page left open while the queue is
+idle asks no more, and this is what makes it ask again. A join tells nothing: it lands while a run
+goes on, and every page open is asking then already.
+
+`ended` is told when a job ends the queue, with the state it published (madde 509): done -- which
+the loop answers only once nothing is owed -- or stopped by an error, a job that raised included, or
+waiting for a producer that is not installed. A pause tells nothing: whoever pressed Durdur is at the
+screen.
+
+A job queued while the run goes on joins it rather than starting a second one (`start`), and the
+run answers for it: the loop can find nothing owed a moment before a job is queued, then say done.
+So a run's end is published only under the lock `start` takes, and only when no job has joined
+since this pass of the loop began; otherwise the loop runs again (madde 511). A job queued after
+that publish finds the worker free and starts it, so no interleaving leaves one owed with nobody to
+run it. Every ending, not only done: a press means the same whenever it lands, so one that joined
+is answered as one made right after the end would be -- a pause comes back paused, an error gets
+three fresh tries, a missing producer is still missing.
 """
 import threading
 
 from backend.features.photo_generation.domain.running_name import RunningName
+
+# The endings `ended` hears of. Named rather than "all but paused", so a status added later tells
+# nobody until someone decides it should.
+TOLD = ("done", "error", "waiting")
 
 
 def _thread_spawn(fn):
@@ -17,11 +39,16 @@ def _thread_spawn(fn):
 
 
 class PhotoRunner:
-    def __init__(self, spawn=None):
+    def __init__(self, spawn=None, started=None, ended=None):
         self._spawn = spawn or _thread_spawn
+        self._started = started or (lambda: None)
+        self._ended = ended or (lambda state: None)
         self._lock = threading.Lock()
         self._state = {"status": "idle"}
         self._stop = False
+        # A job has joined the run since this pass of its loop began (madde 511). Never up while
+        # nothing runs: a run publishes its end only with the flag down, and only a run is joined.
+        self._joined = False
         # Which folder the job is writing into. Held here because the runner is the one object every
         # way into the queue already carries, so nothing else has to be threaded a holder.
         self.named = RunningName()
@@ -34,18 +61,33 @@ class PhotoRunner:
             return state
 
     def start(self, project, job):
-        """Claim the worker and run `job` in the background. False means one is already running.
+        """Run `job` in the background for `project`, or join the run of it that holds the worker.
+        False means another project's run holds it.
 
-        `job()` returns the summary dict it wants published ({"status": "done"|"stopped"|"error",
-        ...}); the runner stamps the project onto it.
+        One step under the lock, so no press can fall between looking at the worker and claiming
+        it. Joining leaves `job` unused and the stop flag standing: the run already has its own
+        job, and a Durdur pressed before the join still stands. The holder of the folder's name is
+        pointed here and nowhere else, and only by the press that won the claim -- pointed by one
+        that then lost it, it would move another project's run into this folder. Outside the lock:
+        the claim is already exclusive, and the holder's own lock can wait on a rename's folder
+        move, which must not hold up every other door that asks this worker anything.
+
+        `job()` returns the summary dict it wants published ({"status": "done"|"paused"|"waiting"|
+        "error", ...}); the runner stamps the project's name onto it, as it stands at the end.
         """
         with self._lock:
             if self._state["status"] == "running":
-                return False
+                if self._state["project"] != project:
+                    return False
+                self._joined = True
+                return True
             self._state = {"status": "running", "project": project}
             self._stop = False      # a stale request must not kill the run that just started
         self.named.took(project)
-        self._spawn(lambda: self._run(project, job))
+        # After the status, outside the lock, as `ended` is told: whoever hears it and asks the
+        # status reads running. Before the job, so the start is never heard after its own end.
+        self._started()
+        self._spawn(lambda: self._run(job))
         return True
 
     def report(self, patch):
@@ -81,14 +123,28 @@ class PhotoRunner:
         with self._lock:
             return self._stop
 
-    def _run(self, project, job):
-        try:
-            summary = job()
-        except Exception as exc:   # the message is user-facing: whatever really failed, verbatim
-            self._set({"status": "error", "project": project, "error": str(exc)})
-            return
-        self._set({**summary, "project": project})
+    def _run(self, job):
+        state = None
+        while state is None:
+            try:
+                summary = job()
+            except Exception as exc:   # the message is user-facing: whatever really failed, verbatim
+                summary = {"status": "error", "error": str(exc)}
+            state = self._finish(summary)
+        # After the status, and outside the lock: whoever hears it and asks the status reads it.
+        if state["status"] in TOLD:
+            self._ended(state)
 
-    def _set(self, state):
+    def _finish(self, summary):
+        """Publish the run's end and return it -- unless a job joined during this pass, which the
+        pass may not have seen: then None, and the next pass begins with no join counted.
+
+        Stamped with the project's name as it stands, not as it was at the start: a project renamed
+        under the run ends under its new name, the one the screen compares with its own.
+        """
         with self._lock:
-            self._state = state
+            if self._joined:
+                self._joined = False
+                return None
+            self._state = {**summary, "project": self._state["project"]}
+            return self._state

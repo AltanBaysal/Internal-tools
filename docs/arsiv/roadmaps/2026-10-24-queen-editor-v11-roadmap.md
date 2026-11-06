@@ -2,6 +2,12 @@
 
 **Tarih:** 2026-10-24 · **Koşu dalı:** `feat/queen-editor-v11` · **Durum:** 7/7 · bitti; kullanıcı 28 Ekim'de denedi *(kullanıcı, 28 Ekim — "ve gerisi düzgün queen agnetı ve editoru maine mergelyebilrisn")*
 
+**Yama v11.1:** 2026-10-29 · **Koşu dalı:** `feat/queen-editor-v11.1` · **Durum:** 16/16 · bitti; kullanıcı 523'e kadar denedi, main'e birleşti *(kullanıcı, 6 Kasım — "bunu bitir sonra
+minae merge et ben zaten geldiğin yere kader test ettim son maddeye bakamdım")* *(kullanıcı, 29 Ekim —
+"patch gibi düşün ubnları"; "queen editorun son roadmpine ekle zaten var v11.1 yap direkt sonuna ekle işte
+ynei madde olarak")*. 509 · v11-8'den 524 · v11-23'e on altı madde bu yamanın; yine tek tek yürürler. Ekrandaki sürüm V11
+kalır, yama onu artırmaz *(kullanıcı, 29 Ekim — "ekran sürümü değişmesin")*.
+
 **Önceki sürüm:** [v10](2026-10-20-queen-editor-v10-roadmap.md) — bitti.
 
 **Sıra: tek tek, dalga yok** *(kullanıcı, 27 Ekim — "ilk queen ediytor tasklarını yapıcaz bitincebana
@@ -17,6 +23,18 @@ ana klasörde koşunun dalında yürür.
 6. **501 · v11-4** — femboy ve futa LoRA'ları, kullanıcıyla, en sonda *("bir femboy taskını son al çünkü ban ihtiaçın
    olcak")*. Bitince kullanıcıya haber verilir, sonra QueenAgent v12'ye geçilir.
 7. **508 · v11-7** — Qwen kalkar; kullanıcının sondaki denemesinden çıktı.
+8. **509 · v11-8** — "orada mısın?" kalkar, üretim bitince bildirim gelir.
+9. **510 · v11-9** — videonun sesi kare sayfasından kapatılabilir.
+10. **511 · v11-10** — sıra kapanırken eklenen iş de başlar; 509'un reviewer'ının bulduğu.
+11. **512 · v11-11** — aynı anda basılan iki Kuyruğa ekle'nin ikisi de sırada kalır; 511'in QA'sının bulduğu.
+12. **513 · v11-12** — bitmiş bir kare yeniden çizilmez: ne yeniden adlandırmada, ne aynı kareye gelen
+    ikinci video basışında; 511'in ve 512'nin QA'larının bulduğu.
+13. **514 · v11-13** — MMAudio kalkar.
+14. **515 · v11-14** — ses düğmesi her videoda; 514'ten çıktı.
+15. **516 · v11-15** — "Kuyruktan çıkar" yalnız sıradaki işi çıkarır; 514'ün QA'sının bulduğu.
+16. **517–524 · v11-16…v11-23** — yamanın yolda bulup BACKLOG'a yazdığı hatalar *(kullanıcı, 30 Ekim —
+    "bu hatalarıda çöz istersen")*. Yalnız Windows'ta olan "okunan bir dosyanın üstüne kayıt düşebilir"
+    girmiyor: araç Colab'da, Linux'ta çalışıyor.
 
 ---
 
@@ -29,6 +47,22 @@ ana klasörde koşunun dalında yürür.
 | 500 · [v11-5](#v11-5) | Eski belgeler ve roadmap'ler arşive | ✅ · `ALIGNED` |
 | 496 · [v11-6](#v11-6) | Sürüm V11 | ✅ · `ALIGNED` |
 | 508 · [v11-7](#v11-7) | Qwen kalkar | ✅ · `ALIGNED` |
+| 509 · [v11-8](#v11-8) | "Orada mısın?" kalkar, üretim bitince bildirim gelir | ✅ *(tünelden gelen işletim sistemi bildirimi ve ona tıklayınca sekmenin öne gelmesi kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
+| 510 · [v11-9](#v11-9) | Videonun sesi kare sayfasından kapatılabilir | ✅ *(gerçek H3 + MMAudio videosunun sessiz oynaması, iki export ve işaretin Colab yeniden açılınca durması kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
+| 512 · [v11-11](#v11-11) | Aynı anda basılan iki Kuyruğa ekle'nin ikisi de sırada kalır | ✅ *(gerçek Drive gecikmesinde, iki sekmeden ya da ajanla aynı anda basılınca ikinci basışın ekranın 10 sn sınırını aşıp aşmadığı kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
+| 513 · [v11-12](#v11-12) | Bitmiş bir kare yeniden çizilmez | ✅ *(gerçek Drive gecikmesi ve Drive'da aynı anda yazılan kayıt satırlarının sırası kullanıcının sondaki Colab denemesinde; deneme birleştirmeye kadar bu dalla yapılır)* · `ALIGNED` |
+| 514 · [v11-13](#v11-13) | MMAudio kalkar | ✅ *(defterin iki kutucukla baştan sona çalışması ve MMAudio'nun artık inmemesi kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
+| 515 · [v11-14](#v11-14) | Ses düğmesi her videoda | ✅ *(gerçek H3 videosunun kendi sesiyle sessiz oynaması ve sessiz export'u kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
+| 517 · [v11-16](#v11-16) | Bir reddin cümlesi kalır ve kendi karesinde görünür | ✅ *(tünelin gerçek gecikmesinde ok tuşuyla aynı anda gelen bir cevap kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
+| 518 · [v11-17](#v11-17) | Açık sayfa dışarıdan eklenen işi görür | ✅ *(tünel üzerinden açık tutulan istek, arka plandaki gerçek bir sekme ve ajanın kendi düzeltme basışı kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
+| 519 · [v11-18](#v11-18) | Bekleyen kopya kare doğru görünür ve yerinde kalır | ✅ *(gerçek H3 üretimi ve prompt yazarının süresi kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
+| 520 · [v11-19](#v11-19) | Seçilen bir kare yalnız kendisi sayılır | ✅ · `ALIGNED` |
+| 521 · [v11-20](#v11-20) | Birleşik export'ta ses parçadan parçaya taşmaz | ✅ *(gerçek ffprobe'un süreleri, Colab'daki ffmpeg sürümü ve birleşik bir export'u dinlemek kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
+| 522 · [v11-21](#v11-21) | Yeniden adlandırma bir basışı ya da prompt'u kaybettirmez | ✅ *(Drive'ın gerçek gecikmesinde video üretilirken adlandırma ve iki sekmeden aynı anda basış kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
+| 523 · [v11-22](#v11-22) | Referans sırası ve arşiv işaretleri aynı anda yazılınca kaybolmaz | ✅ *(Drive'da klasör taşımanın tek adım olması, gerçek silme süresi ve iki sekmeden aynı anda yükleme ve arşivleme kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
+| 524 · [v11-23](#v11-23) | Fotoğraf kaydına satırlar sırayla yazılır | ✅ *(Drive'ın bağlantısında art arda yazılan satırların sırası Colab'da görülmedi; yerelde yırtılan yazmalarla denendi)* · `ALIGNED` |
+| 516 · [v11-15](#v11-15) | "Kuyruktan çıkar" yalnız sıradaki işi çıkarır | ✅ *(tünel üzerinden gerçek bir H3 işi sıradayken basmak kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
+| 511 · [v11-10](#v11-10) | Sıra kapanırken eklenen iş de başlar | ✅ *(gerçek Drive gecikmesinde son iş biterken Kuyruğa ekle kullanıcının sondaki Colab denemesinde)* · `ALIGNED` |
 
 ---
 
@@ -243,3 +277,253 @@ gereksiz kalabalık".)*
 defterin CONFIG'inde görünmüyor, defter onun dosyalarını indirmiyor. 499'un Qwen'le gelen her parçası
 — graph'ı, üreticisi, LoRA satırı, testleri — gider; Krea'nın SNOFS + Slime'ı ve Boş'u kalır. Daha önce
 Qwen'le çizilmiş fotoğraflar Drive'da durur.
+
+<a id="v11-8"></a>
+### 509 · v11-8 — "Orada mısın?" kalkar, üretim bitince bildirim gelir
+
+*(Kullanıcı, 29 Ekim — "10 dk sorma olayında kullanıc aktif olsada videoları inceleip silsede orda mısın
+diye soruyo".)*
+
+**Kabul koşulu:**
+- 10 dk'lık geri sayım ve "orada mısın?" kutusu yok; kullanıcı ne yaparsa yapsın çıkmıyor.
+- Sıra boşalınca, yani sıradaki bütün fotoğraf ve videolar bitince, bir kez tarayıcı bildirimi
+  geliyor. Bildirim A100 demiyor.
+
+**Bugün:** [498](#v11-2) sıra boş kaldıkça her 10 dk'da bir kutu ve bildirim çıkarıyor; ekranda çalışan
+kullanıcıyı görmüyor, ve cümlesi her oturumda "A100" diyor.
+
+**Kullanıcının kararları** *(29 Ekim)*:
+- **Basit olsun:** *"bu özelliği kaldır üretim bitince bildirim atsın yeter bu kadar basit yapalım"*.
+  Önce etkileşimi de sayan bir kural konuşuldu (*"10 dakikadır üretim yoksa && 10 dakikadır etkileşim
+  yoksa"*); kullanıcı onu karışık bulup bıraktı.
+- **"Üretim bitti" ne demek** *(cevap: "Sıra boşalınca: sıradaki bütün fotoğraf ve videolar bitince")*:
+  export'un bitişi bildirim getirmez.
+- **Sıra boşalmadan durunca da** *(cevap: "gelsin"; yapılırken reviewer'ın sorusu üzerine)*: sıra bir
+  hatayla ya da kurulu olmayan bir model yüzünden durunca da kendi cümlesiyle bildirim gelir. Durdur'a
+  basılınca gelmez; basan zaten ekranın başında.
+- **A100:** *"sürekli a100 diyor ama hep a100 kualnımıyor garip oluyor"*.
+
+<a id="v11-9"></a>
+### 510 · v11-9 — Videonun sesi kare sayfasından kapatılabilir
+
+*(Kullanıcı, 29 Ekim — "bir m3 sesli video üretebiliyor ama bzen sesin kapatmak istiyourz spefisfik bir
+videonun exportt olurken yapamıyoruz".)*
+
+**Kabul koşulu:**
+- Videonun izlendiği kare sayfasında, sesi olan videonun sağ üstünde bir ses ikonu var. Basınca o
+  videonun sesi kapanıyor, bir daha basınca açılıyor.
+- Sesi kapalı video kare sayfasında sessiz oynuyor ve export'ta sessiz çıkıyor; öteki videolar sesli.
+  Sessiz, hiç ses yok demek: H3 videosunun kendi sesi de girmiyor.
+- Export ekranı, bugünkü "N videonun sesi yok" uyarısının yanında "N videonun sesi kapalı" diyor.
+- Ses projede durmaya devam ediyor; yeniden açılınca geri geliyor.
+
+**Bugün:** export her karenin videosuna, varsa o karenin MMAudio sesini ekliyor. Tek bir kare için sesi
+atlamanın yolu yok.
+
+**Kullanıcının kararları** *(29 Ekim)*:
+- **Hangi ses:** MMAudio'nun sesi; Queen Editor'de videoya ses ekleyen tek model o.
+- **Nereden:** *"export erkanında değil cardlarlar sesi olan video sesini kaptma özelliğ olursa daha güzel
+  olur"*; *"yan vidoe ekranınd acardda sağ üste fala nses ikonu aç kapa yapıyor gibi düşün"*.
+- **Kalıcı:** kapatılan ses, yeniden açılana kadar kapalı kalır.
+- **Kart değil, kare sayfası** *(yapılırken, coder'ın sorusu üzerine)*: *"abi card a değil detay sayfaına
+  gelecek detay sayfaında viideo izliyoruz ya oraya"*. Galerinin kartları video oynatmıyor, ve sağ üst
+  köşelerinde sıra numarası duruyor.
+- **Kare sayfasında da sessiz:** *"hayır kare sayfasındada kapatılır es"*.
+- **Export ekranındaki uyarı:** "N videonun sesi kapalı" ayrı bir satır *(cevap: "Mantıklı")*.
+- **Sessiz, hiç ses yok demek** *(Claude'un önerisi; kullanıcı, 29 Ekim — "böyle olsun")*: bugün sesi
+  olmayan bir video H3'ün kendi sesiyle kesiliyor; sesi kapatılan video onu da taşımaz.
+
+<a id="v11-10"></a>
+### 511 · v11-10 — Sıra kapanırken eklenen iş de başlar
+
+*(Kullanıcı, 29 Ekim — "eklediğim video niye başlamıyor abi"; "abi kesinlik lütfen düzeltelim".)*
+
+**Kabul koşulu:** Kuyruğa ne zaman bir iş eklenirse eklensin, sıra kapanırken eklense bile, o iş
+başlıyor; hiçbir iş sırada başlamadan kalmıyor. İş varken "Sıradaki bütün fotoğraf ve videolar bitti."
+bildirimi gelmiyor.
+
+**Ne oluyor** *(509'un reviewer'ı, 29 Ekim)*: sıra son işi bitirip yapacak bir şey kalmadığını görünce
+kapanmaya başlıyor, ama bir iki saniye daha "çalışıyor" görünüyor. O arada Kuyruğa ekle'ye basılırsa,
+Kuyruğa ekle sıranın çalıştığını görüp onu yeniden başlatmıyor; sıra da yeni işi görmeden kapanıyor.
+Hata 509'dan eski; 509 yalnız ona yanlış bir bildirim ekledi.
+
+**Kullanıcının kararları** *(29 Ekim)*:
+- **Bildirim sırayı etkilemez:** *"bildirim ile sırasını nnasıl çalıştığını asla etkilememli öyle bir şey
+  yok"*; *"bildirim tamamne ayrı bir şey sıra mantığın ıdeğiştiremez"*.
+- **Bu yamada düzelir** *(cevap: "Bu yamaya madde olarak ekleyip düzeltelim")*.
+- **Yapılırken kararlaşan** *(Claude, 29 Ekim; reviewer'ın bulduklarıyla, kullanıcının "kesinlik" sözü
+  üzerine)*:
+  - Sırayı başlatmak ve çalışan sıraya iş katmak tek adım olur. Böylece iki komşu boşluk da kapanır:
+    aynı anda basılan iki Kuyruğa ekle'den birinin yanlışlıkla "Zaten bir üretim sürüyor." demesi, ve
+    o anda başka bir projenin başlaması çalışan sırayı yanlış projenin klasörüne çevirebilmesi.
+  - Sıra hangi sonla biterse bitsin, kapanırken eklenen iş bir tur daha döndürür; yalnız "bitti" değil.
+    Durdur yine durdurur.
+  - Sıra çalışırken proje yeniden adlandırılırsa, sıranın sonu yeni adla yazılır; yoksa ekran biten
+    sırayı kendi sırası olarak tanımıyor.
+
+<a id="v11-11"></a>
+### 512 · v11-11 — Aynı anda basılan iki Kuyruğa ekle'nin ikisi de sırada kalır
+
+*(Kullanıcı, 29 Ekim — cevap: "İkisini de bu yamaya madde olarak (512 ve 513) ekleyip düzeltelim".)*
+
+**Kabul koşulu:** Aynı projeye aynı anda iki iş eklenince, örneğin çift tıklamada ya da kullanıcı ve
+ajan birlikte eklerken, ikisi de sıraya giriyor ve ikisi de üretiliyor. "Eklendi" denen hiçbir iş
+kaybolmuyor; bir iş eklenemezse ekran bunu sistemin kendi sözüyle söylüyor.
+
+**Ne oluyor** *(511'in QA'sı, 29 Ekim)*: iki basış da "eklendi" dedi, ama sıraya yalnız biri girdi: 15
+basıştan 8'i. Sıra dosyası okunup bir satır eklenip yeniden yazılıyor, ve aynı anda gelen iki basış
+aynı numarayı alıyor; sonra yazan öncekini siliyor. Bir turda Windows'ta dosya yerine konurken
+"Access is denied" hatası da çıktı. Hata 511'den eski.
+
+<a id="v11-12"></a>
+### 513 · v11-12 — Bitmiş bir kare yeniden çizilmez
+
+*(Kullanıcı, 29 Ekim — cevap: "İkisini de bu yamaya madde olarak (512 ve 513) ekleyip düzeltelim".)*
+
+**Kabul koşulu:** Sıra çalışırken proje yeniden adlandırılınca, bitmiş hiçbir kare yeniden üretilmiyor
+ve hiçbir dosyanın üstüne yazılmıyor. Sıra kaldığı yerden, yeni addaki klasörde sürüyor.
+
+**Ne oluyor** *(511'in QA'sı, 29 Ekim)*: sıra her turda önce planı eski adla okuyor; tam o arada
+klasör yeni ada taşınınca, kayıtları eski adla okuyunca boş buluyor. Bu yüzden bütün planlı işler
+yapılmamış görünüyor, ve ilki yeniden çizilip yeni klasördeki dosyanın üstüne yazılıyor. QA bunu
+ekranda da gördü: dakikalar önce bitmiş bir kare, adlandırmadan sonra yeniden üretildi. Hata 511'den
+eski.
+
+**Aynı türden ikinci yol** *(512'nin QA'sı, 29 Ekim; Claude bu maddeye kattı, çünkü kullanıcının kararı
+"bitmiş kare yeniden çizilip üstüne yazılmasın" üzerineydi)*: videosu olmayan bir kareye video istenip
+sıra o videoyu bitirirken aynı kareye ikinci bir video basışı gelirse, bitmiş video yeniden üretilip
+dosyasının üstüne yazılıyor. Basış galeriyi okurken kare videosuz görünüyor, hemen ardından kaydı
+okurken sıranın "bitti" satırını görüyor ve bitmiş yeri yeniden açıyor. Bu da kabul koşuluna girer:
+hiçbir basış bitmiş bir katmanı yeniden üretmez; isteyen yeni bir varyant ister. Hata 512'den eski.
+
+**Kullanıcının kararı** *(29 Ekim — "galeri sırada / kayıt bitti demesi lazım değil mi")*: sırada ya da
+bitmiş bir iş yeniden eklenmez; kayıt "bitti" dediyse ondan önce verilmiş bir "yeniden yap" kararı onu
+ezemez. Sıra bunun için beklemez.
+
+<a id="v11-13"></a>
+### 514 · v11-13 — MMAudio kalkar
+
+*(Kullanıcı, 29 Ekim — "mmaudio zaten silenecek roadmape ekle sil".)*
+
+**Kabul koşulu:** MMAudio'yla yeni ses üretilemiyor: yan paneldeki "Ses üret" sekmesi ve defterin
+MMAudio kutucuğu yok, defter onun dosyalarını indirmiyor, üreticisi ve graph'ı gitti. Daha önce
+üretilmiş sesler olduğu gibi kalıyor: kare sayfasında çalıyor, export'a giriyor, silinebiliyor.
+
+**Kullanıcının kararları** *(29 Ekim)*:
+- *"girsin sadece modeli kaldır yeter başka bir şeye karışma"* — eski sesler export'a girmeye devam
+  eder; madde yalnız modeli kaldırır.
+- **"N videonun sesi yok" uyarısı kalkar** *(yapılırken, reviewer'ın sorusu üzerine; cevap: "Kalksın")*:
+  uyarı MMAudio sesi olmayan her videoyu sayıyordu, oysa H3 videosu kendi sesini taşır. "N videonun sesi
+  kapalı" kalır.
+- **Eski sırada kalmış ses işi için bir şey yapılmaz** *(cevap: "öyle bir proje yok")*.
+
+<a id="v11-14"></a>
+### 515 · v11-14 — Ses düğmesi her videoda
+
+*(Kullanıcı, 29 Ekim — 510'un düğmesi her videoda çıksın ve H3'ün kendi sesini kapatsın mı sorusuna:
+"evet lütfen".)*
+
+**Kabul koşulu:** Kare sayfasında 510'un ses düğmesi, MMAudio sesi olsun olmasın her videoda var.
+Basınca video kare sayfasında sessiz oynuyor ve export'ta tamamen sessiz çıkıyor: H3'ün kendi sesi de, varsa
+eski MMAudio sesi de girmiyor. Bir daha basınca ikisi de geri geliyor.
+
+**Neden:** kullanıcının ilk mesajındaki "m3" büyük ihtimalle H3'tü, kendi sesiyle video üreten model.
+510 onu MMAudio sanılarak kuruldu, ve düğme yalnız MMAudio sesi olan videoda çıkıyor; 514'ten sonra
+yeni hiçbir videoda çıkmazdı.
+
+<a id="v11-15"></a>
+### 516 · v11-15 — "Kuyruktan çıkar" yalnız sıradaki işi çıkarır
+
+*(Kullanıcı, 29 Ekim — cevap: "Yamaya ekleyip düzeltelim: düğme yalnız sıradaki işi çıkarsın".)*
+
+**Kabul koşulu:** Kare sayfasında sırada bekleyen bir katmanın (örneğin video) sekmesindeki
+"Kuyruktan çıkar", yalnız o sıradaki işi çıkarıyor. Karenin bitmiş fotoğrafı ve öteki katmanları
+yerinde kalıyor, kare galeride duruyor. Hiçbir bitmiş dosya sorulmadan silinmiyor.
+
+**Ne oluyor** *(514'ün QA'sı, 29 Ekim; Claude kodda doğruladı)*: düğme sırada bekleyen katmanın
+sekmesinde bütün kareyi siliyor ve sormuyor; karenin bitmiş fotoğrafı, varsa bitmiş videosu da
+gidiyor. Fotoğraf sekmesindeki silme ise önce soruyor. Hata bu yamadan eski.
+
+---
+
+**517–524** *(kullanıcı, 30 Ekim — "bu hatalarıda çöz istersen")*: yamanın yolda bulup
+[BACKLOG.md](../../../queen-editor/BACKLOG.md)'ye yazdığı hatalar. Her madde bitince kendi BACKLOG girdisi
+silinir. Hepsi bu yamadan eski.
+
+<a id="v11-16"></a>
+### 517 · v11-16 — Bir reddin cümlesi kalır ve kendi karesinde görünür
+
+**Kabul koşulu:** Kare sayfasında bir basış reddedilince kart sunucunun cümlesini gösteriyor, ve cümle
+sıra çalışırken de silinmiyor. Ret geç gelirse ve kullanıcı o arada başka kareye geçtiyse, kart yalnız
+basışın yapıldığı karede görünüyor.
+
+**Bugün:** sıra çalışırken cümle ~1,5 sn'de siliniyor, yalnız başlık kalıyor (516'nın QA'sı); geç gelen
+bir ret, o an açık olan karede görünüyor (510'un reviewer'ı).
+
+<a id="v11-17"></a>
+### 518 · v11-17 — Açık sayfa dışarıdan eklenen işi görür
+
+**Kabul koşulu:** Sıra boşken açık duran bir kare ya da proje sayfası, ajanın ya da başka bir sekmenin
+eklediği işi yenilemeden gösteriyor.
+
+**Bugün:** sıra boşken açılmış bir sayfa bir daha yoklamıyor (516'nın QA'sı).
+
+<a id="v11-18"></a>
+### 519 · v11-18 — Bekleyen kopya kare doğru görünür ve yerinde kalır
+
+**Kabul koşulu:** Videosunu bekleyen bir kopya kare, kare sayfasında kaynağın fotoğrafını ve "kaynak foto ·
+kopya kare" etiketini gösteriyor. Fotoğraf sekmesinden "Kuyruktan çıkar" ile çıkarılınca galerideki yerinde
+kalıyor, sona atlamıyor.
+
+**Bugün:** "bekliyor" kutusu çıkıyor; çıkarılınca kare yerini kaybedip galerinin başında yeniden beliriyor
+(516'nın coder'ı).
+
+<a id="v11-19"></a>
+### 520 · v11-19 — Seçilen bir kare yalnız kendisi sayılır
+
+**Kabul koşulu:** Video panelinde "Seçili kareler" ile gönderilen bir seçim yalnız seçilen karelere iş
+ekliyor; aynı fotoğrafı paylaşan kopyalar seçilmedikçe girmiyor. Kopyala'dan sonra seçim, v4'teki gibi
+kopyaya geçiyor.
+
+**Bugün:** video paneli seçimi dosya adıyla gönderiyor, ve tek bir kare seçilince aynı fotoğrafı paylaşan
+bütün kopyalar da videoya giriyor (520'nin coder'ı). QA'nın kopyanın videosunu silmesi ise bir hata
+değildi: v4'ün 11. maddesi "seçim kopyaya geçer" diye karar vermişti (Fark 77).
+
+**Kullanıcının kararı** *(30 Ekim — Kopyala'dan sonra seçim seçilen karede mi kalsın, kopyaya mı geçsin
+sorusuna: "2")*: seçim kopyaya geçmeye devam eder. İlk yazılan kabul koşulu ("seçim o karede kalıyor")
+bununla değişti.
+
+<a id="v11-20"></a>
+### 521 · v11-20 — Birleşik export'ta ses parçadan parçaya taşmaz
+
+**Kabul koşulu:** Birleşik export'ta her parçanın sesi kendi parçasında bitiyor; sesi kapalı bir parçaya
+öncekinin sesi taşmıyor.
+
+**Bugün:** her parçanın sesi sonrakine ~50 ms taşıyor (515'in QA'sı, gerçek ffmpeg'le ölçüldü).
+
+<a id="v11-21"></a>
+### 522 · v11-21 — Yeniden adlandırma bir basışı ya da prompt'u kaybettirmez
+
+**Kabul koşulu:** Proje yeniden adlandırılırken aynı anda Kuyruğa ekle'ye basılsa da iş başlıyor; sıra
+çalışırken adlandırma hiçbir videoyu boş prompt'la ürettirmiyor.
+
+**Bugün:** iki sekmede ya da ajanla aynı anda olunca iş başlamadan kalabiliyor (511'in reviewer'ı); bir
+turun adlandırmanın iki yanına düşen okumaları bir videoyu boş prompt'la ürettirebiliyor (513'ün coder'ı).
+
+<a id="v11-22"></a>
+### 523 · v11-22 — Referans sırası ve arşiv işaretleri aynı anda yazılınca kaybolmaz
+
+**Kabul koşulu:** Referans havuzuna ekleme, çıkarma ve sıralama, ve projeleri arşivleme, geri alma,
+silme, adlandırma aynı anda iki kez gelince ikisi de kalıyor.
+
+**Bugün:** dosya okunup değiştirilip yazılıyor, kilit yok; biri ötekini siliyor (512'nin coder'ı).
+
+<a id="v11-23"></a>
+### 524 · v11-23 — Fotoğraf kaydına satırlar sırayla yazılır
+
+**Kabul koşulu:** Sıra ve düğmeler fotoğraf kaydına aynı anda satır yazınca satırlar bölünmüyor,
+kaybolmuyor ve yazıldıkları sırada kalıyor — Drive'ın bağlantısı bunu kendisi garanti etmese de. 513'ün
+"bitti ezilemez" kuralı bu sıraya dayanıyor.
+
+**Bugün:** kayda yazmanın kilidi yok; yerel Linux'ta tek satırlık yazmalar karışmıyor, ama Drive'ın
+bağlantısında bilinmiyor (512'nin coder'ı).

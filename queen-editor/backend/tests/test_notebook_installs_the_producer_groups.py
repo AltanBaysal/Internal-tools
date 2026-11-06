@@ -27,7 +27,7 @@ TOOL = os.path.dirname(          # queen-editor
 NOTEBOOK = os.path.join(TOOL, "queeneditor.ipynb")
 
 # Which CONFIG checkbox owns which producer.
-SWITCH = {"photo": "INSTALL_PHOTO", "video": "INSTALL_VIDEO", "audio": "INSTALL_AUDIO"}
+SWITCH = {"photo": "INSTALL_PHOTO", "video": "INSTALL_VIDEO"}
 
 
 def _catalog():
@@ -287,7 +287,7 @@ def test_the_form_leaves_the_model_section_at_its_heading():
 def test_choosing_nothing_stops_the_notebook():
     """With no producer chosen the app opens and renders nothing -- a queued job waits forever.
     Hearing that in CONFIG costs a second; hearing it in the UI costs the whole setup run."""
-    assert "assert INSTALL_PHOTO or INSTALL_VIDEO or INSTALL_AUDIO" in _source()
+    assert "assert INSTALL_PHOTO or INSTALL_VIDEO, (" in _source()
 
 
 def test_the_chosen_files_come_down_through_download_models_with_the_mirror_and_the_cookie():
@@ -318,8 +318,7 @@ def test_an_unticked_group_costs_no_bytes():
     source = _source()
 
     for names, switch in ((("CIVITAI_PHOTO", "OPEN_PHOTO", "HF_PHOTO"), SWITCH["photo"]),
-                          (("CIVITAI_H3", "HF_H3"), SWITCH["video"]),
-                          (("HF_AUDIO",), SWITCH["audio"])):
+                          (("CIVITAI_H3", "HF_H3"), SWITCH["video"])):
         for name in names:
             assert f"{name} if {switch} else []" in source, \
                 f"{name} kendi anahtarının arkasında değil"
@@ -403,7 +402,7 @@ def test_choosing_photo_without_a_model_stops_the_notebook():
 
 
 def test_an_unticked_model_costs_no_bytes():
-    """The rule the three producer boxes already follow, one level down: a row is reached only
+    """The rule the producer boxes already follow, one level down: a row is reached only
     through its own switch."""
     assert "in PHOTO_MODELS if on" in _cell("PHOTO_MODELS = ["), \
         "PHOTO_MODELS satırları kendi anahtarıyla süzülmüyor"
@@ -462,7 +461,7 @@ def test_every_file_the_app_renders_with_is_one_the_notebook_can_fetch():
 
 
 def test_the_disk_is_measured_before_the_download_starts():
-    """All three together are ~54 GiB. Finding out the disk was too small halfway through leaves
+    """Both together are over 40 GiB. Finding out the disk was too small halfway through leaves
     half-written files and no explanation. The sizes are the notebook's, next to the boxes; the check
     runs under test (madde 438)."""
     assert _in_order(_cell("# === Target folders ==="), "SIZES = [", "check_disk(SIZES)",
@@ -470,20 +469,16 @@ def test_the_disk_is_measured_before_the_download_starts():
     assert "check_disk" in _imported("colab.downloads"), "Defter check_disk'i klondan import etmiyor"
 
 
-def test_the_sound_box_installs_the_library_and_its_weights():
-    """MMAudio runs inside the app's process, so `import mmaudio` has to work there -- a weight
-    file with no library is not a producer. The base weights come with it: warming them here is
-    what keeps the first sound job from stalling on a ~7 GiB download. Both behind the sound box;
-    how each comes down runs under test since madde 438 (test_colab_sound.py)."""
-    library = _cell("# === Ses motoru — MMAudio kütüphanesi ===")
-    weights = _cell("# === Ses motoru — MMAudio'nun kendi ağırlıkları")
+def test_mmaudio_is_gone_from_the_notebook():
+    """Madde 514, the user's words: "mmaudio zaten silenecek roadmape ekle sil". A box left behind
+    would still bring ~9 GiB and a 30-minute pip install down for a producer the app no longer has.
+    H3's own audio VAE is H3's, and stays."""
+    source = _source()
 
-    assert re.search(r"if INSTALL_AUDIO:\n\s+install_mmaudio\(MMAUDIO_DIR\)", library), \
-        "Ses kutusu kütüphaneyi install_mmaudio ile kurmuyor"
-    assert re.search(r"if INSTALL_AUDIO:\n\s+fetch_mmaudio_weights\(MMAUDIO_DIR, APP_DIR\)",
-                     weights), "Ses kutusu ağırlıkları fetch_mmaudio_weights ile, uygulamanın klasörüne indirmiyor"
-    for name in ("install_mmaudio", "fetch_mmaudio_weights"):
-        assert name in _imported("colab.sound"), f"Defter {name}'ı klondan import etmiyor"
+    for leftover in ("INSTALL_AUDIO", "HF_AUDIO", "MMAU", "mmaudio", "MMAudio", "colab.sound",
+                     "Ses motoru"):
+        assert leftover not in source, f"Defterde kaldırılan MMAudio'dan iz kaldı: {leftover}"
+    assert not os.path.exists(os.path.join(TOOL, "colab", "sound.py")), "colab/sound.py duruyor"
 
 
 def test_the_app_is_told_where_the_notebook_installed():

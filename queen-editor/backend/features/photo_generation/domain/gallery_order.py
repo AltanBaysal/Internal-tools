@@ -8,6 +8,26 @@ names could not say which of them it meant.
 """
 
 
+def keep_unnamed(named, gallery):
+    """A dragged sequence, with every frame of `gallery` it does not name put back where it stood.
+
+    named: the identities the drag sends, in its order. gallery: the gallery's whole sequence as it
+    stands. A frame the drag leaves out goes directly above the frame that was under it in the
+    gallery -- for a copy that arrived after the screen built its list, above its source, which is
+    where copy_frame.placed put it (madde 512). One with nothing under it goes at the foot. Walked
+    from the foot up, so frames left out side by side keep their own sequence.
+    """
+    sequence = list(named)
+    held = set(sequence)
+    under = None
+    for fid in reversed(gallery):
+        if fid not in held:
+            sequence.insert(len(sequence) if under is None else sequence.index(under), fid)
+            held.add(fid)
+        under = fid
+    return sequence
+
+
 def apply_order(rows, order):
     """rows: frames, newest first. order: stored frame identities. Returns them in gallery order."""
     by_id = {row["id"]: row for row in rows}

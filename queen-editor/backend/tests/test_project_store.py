@@ -130,6 +130,61 @@ def test_deleting_an_archived_project_drops_its_mark(tmp_path):
     assert store.list_archived() == []
 
 
+def test_a_delete_whose_removal_fails_leaves_no_project_behind(tmp_path):
+    """Madde 523's QA: a removal that failed half way over Drive left the project there, gutted, and
+    an upload could bring it back. The folder is put in the trash in one step first, so a removal
+    that then fails leaves only hidden trash -- on neither list, swept later."""
+    storage = Storage(str(tmp_path))
+    store = DriveProjectStore(storage)
+    store.create("düğün")
+    store.archive("düğün")
+
+    def fails(_folder):
+        raise OSError("Drive bağlantısı koptu")
+
+    storage.delete_dir = fails
+
+    store.clear(store.delete("düğün"))
+
+    assert store.list() == []
+    assert store.list_archived() == []
+    store.create("düğün")
+    assert [p.name for p in store.list()] == ["düğün"]          # not born archived
+
+
+def test_a_delete_whose_move_to_the_trash_fails_leaves_the_project_and_its_mark(tmp_path):
+    """The one step that takes the project away is a rename: when it fails, nothing has changed."""
+    storage = Storage(str(tmp_path))
+    store = DriveProjectStore(storage)
+    store.create("düğün")
+    store.archive("düğün")
+
+    def fails(_folder):
+        raise OSError("Drive bağlantısı koptu")
+
+    storage.trash_dir = fails
+
+    with pytest.raises(OSError):
+        store.delete("düğün")
+
+    assert [p.name for p in store.list_archived()] == ["düğün"]
+
+
+def test_clearing_the_trash_also_sweeps_what_older_deletes_left(tmp_path, monkeypatch):
+    storage = Storage(str(tmp_path))
+    store = DriveProjectStore(storage)
+    store.create("eski")
+    store.create("düğün")
+    left = storage.trash_dir("eski")
+    swept = []
+    monkeypatch.setattr(storage, "sweep_trash", swept.append)
+
+    store.clear(store.delete("düğün"))
+
+    assert swept == [3600]
+    assert [path.name for path in tmp_path.iterdir()] == [left]
+
+
 def test_an_unreadable_mark_file_reads_as_an_empty_archive(tmp_path):
     """settings.json's own rule: nothing unreadable may make the list impossible to draw."""
     store = store_at(tmp_path)

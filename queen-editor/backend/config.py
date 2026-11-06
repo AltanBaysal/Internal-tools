@@ -49,8 +49,6 @@ KREA2_WORKFLOW_PATH = os.path.join(_ASSETS_DIR, "workflow_photo_krea2_api.json")
 H3_VIDEO_WORKFLOW_PATH = os.path.join(_ASSETS_DIR, "workflow_video_h3_api.json")
 H3_VIDEO_FIRST_LAST_WORKFLOW_PATH = os.path.join(_ASSETS_DIR,
                                                  "workflow_video_h3_first_last_api.json")
-# Sound has no graph: MMAudio runs inside this process, so its weights are a model file like any
-# other, installed by the notebook rather than shipped here.
 
 # The disclaimer laid over an exported video. It ships in the repo like the graphs do, and for the
 # same reason: the notebook clones and builds nothing, so a file that is not committed is a file
@@ -62,10 +60,10 @@ RENDER_TIMEOUT = 15 * 60   # seconds for one photo; a T4 render is ~1 min, so th
 VIDEO_TIMEOUT = 30 * 60    # seconds for one video; a render takes minutes, so this is a stall guard
 POLL_INTERVAL = 5          # longest gap between /history looks; ComfyUI's done notice cuts it short
 
-# Queen AI: the model that writes every video's prompt looking at the frame's photo, and every
-# sound's from its video's prompt (madde 400, 404). The key comes from Colab Secrets through the
-# notebook, under the name QueenAgent's notebook reads too; without one the app still starts and
-# photos still render, and a video or sound job stops the run with the client's own sentence.
+# Queen AI: the model that writes every video's prompt looking at the frame's photo (madde 400). The
+# key comes from Colab Secrets through the notebook, under the name QueenAgent's notebook reads too;
+# without one the app still starts and photos still render, and a video job stops the run with the
+# client's own sentence.
 DEEPSEEK_API_KEY = os.environ.get("QE_DEEPSEEK_API_KEY", "")
 # Not read from the environment: nothing probes DeepSeek, so nothing outside the app has to ask
 # what the app asks.

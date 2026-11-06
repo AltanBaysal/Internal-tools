@@ -18,22 +18,14 @@ from backend.features.agent.domain.usecases.chats import (
 )
 from backend.features.agent.presentation.routes import make_agent_blueprint, make_chats_blueprint
 from backend.features.agent.runner import AgentRunner
-from backend.features.idle.presentation.routes import make_idle_blueprint
-from backend.features.idle.watch import IdleWatch
 from backend.features.photo_generation.data.comfy_krea_photo_generator import (
     ComfyKreaPhotoGenerator,
 )
 from backend.features.photo_generation.data.comfy_photo_generator import ComfyPhotoGenerator
-from backend.features.photo_generation.data.ffmpeg_audio import FfmpegAudio
 from backend.features.photo_generation.data.ffmpeg_clips import FfmpegClips
 from backend.features.photo_generation.data.ffmpeg_stills import FfmpegStills
-from backend.features.photo_generation.data.mmaudio_generator import MMAudioGenerator
-from backend.features.photo_generation.data.mmaudio_sampler import MMAudioSampler
 from backend.features.photo_generation.data.comfy_h3_video_generator import ComfyH3VideoGenerator
-from backend.features.photo_generation.data.prompt_writer import (
-    AudioPromptWriter,
-    H3VideoPromptWriter,
-)
+from backend.features.photo_generation.data.prompt_writer import H3VideoPromptWriter
 from backend.features.photo_generation.domain import catalog, layers, seed
 from backend.features.photo_generation.data.order_store import DriveOrderStore
 from backend.features.photo_generation.data.photo_by_model import PhotoByModel
@@ -46,6 +38,7 @@ from backend.features.photo_generation.data.reference_order_store import (
 from backend.features.photo_generation.data.reference_store import DriveReferenceStore
 from backend.features.photo_generation.data.video_length_store import DriveVideoLengthStore
 from backend.features.photo_generation.data.happy_ending_store import DriveHappyEndingStore
+from backend.features.photo_generation.data.mute_store import DriveMuteStore
 from backend.features.photo_generation.domain.usecases.add_references import add_references
 from backend.features.photo_generation.domain.usecases.copy_frames import copy_frames
 from backend.features.photo_generation.domain.usecases.list_references import list_references
@@ -63,11 +56,12 @@ from backend.features.photo_generation.export_runner import MODES, ExportRunner
 from backend.features.photo_generation.domain.usecases.cancel_generation import cancel_generation
 from backend.features.photo_generation.domain.usecases.fix_photo import fix_photo
 from backend.features.photo_generation.domain.usecases.get_status import get_status
+from backend.features.photo_generation.domain.usecases.follow_delete import follow_delete
 from backend.features.photo_generation.domain.usecases.follow_rename import follow_rename
-from backend.features.photo_generation.domain.usecases.halt_project import halt_project
 from backend.features.photo_generation.domain.usecases.queue_layer import queue_layer
 from backend.features.photo_generation.domain.usecases.regenerate import regenerate
 from backend.features.photo_generation.domain.usecases.remove_layer import remove_layer
+from backend.features.photo_generation.domain.usecases.dequeue_layer import dequeue_layer
 from backend.features.photo_generation.domain.usecases.retry_failed import retry_failed
 from backend.features.photo_generation.domain.usecases.retry_frame import retry_frame
 from backend.features.photo_generation.domain.usecases.resume_batch import resume_batch
@@ -84,6 +78,7 @@ from backend.features.photo_generation.domain.usecases.happy_ending import (
     get_happy_ending,
     save_happy_ending,
 )
+from backend.features.photo_generation.domain.usecases.mute import get_muted, set_muted
 from backend.features.photo_generation.presentation.reference_routes import (
     make_reference_blueprint,
 )
@@ -94,6 +89,7 @@ from backend.features.photo_generation.presentation.video_length_routes import (
 from backend.features.photo_generation.presentation.happy_ending_routes import (
     make_happy_ending_blueprint,
 )
+from backend.features.photo_generation.presentation.mute_routes import make_mute_blueprint
 from backend.features.photo_generation.runner import PhotoRunner
 from backend.features.projects.data.project_store import DriveProjectStore
 from backend.features.projects.data.reference_settings_store import DriveReferenceSettingsStore
@@ -114,13 +110,15 @@ from backend.features.projects.domain.usecases.save_reference_settings import (
 )
 from backend.features.projects.domain.usecases.save_settings import save_settings
 from backend.features.producers.data.comfy_models import ComfyModelFiles
-from backend.features.producers.domain.model_groups import GROUPS, audio_weights
+from backend.features.producers.domain.model_groups import GROUPS
 from backend.features.producers.domain.usecases.list_producers import list_producers
 from backend.features.producers.presentation.routes import make_producers_blueprint
 from backend.features.projects.presentation.reference_settings_routes import (
     make_reference_settings_blueprint,
 )
 from backend.features.projects.presentation.routes import make_projects_blueprint
+from backend.features.queue_watch.presentation.routes import make_watch_blueprint
+from backend.features.queue_watch.watch import QueueWatch
 from backend.services.comfy.client import ComfyClient
 from backend.services.deepseek.box import Box
 from backend.services.deepseek.client import DeepSeekClient
@@ -147,9 +145,8 @@ _photo_generator = PhotoByModel(
     ComfyPhotoGenerator(_comfy_client, config.WORKFLOW_PATH, config.RENDER_TIMEOUT),
     {catalog.KREA2: ComfyKreaPhotoGenerator(_comfy_client, config.KREA2_WORKFLOW_PATH,
                                             config.RENDER_TIMEOUT)})
-# Queen AI writes every prompt nobody typed (madde 400, 404): a video's looking at the frame's
-# photo, a sound's from its video's prompt. Every ask goes through the box, which sends a failed
-# request again (madde 416).
+# Queen AI writes every prompt nobody typed (madde 400): a video's, looking at the frame's photo.
+# Every ask goes through the box, which sends a failed request again (madde 416).
 _queen_ai = Box(DeepSeekClient(config.DEEPSEEK_API_KEY, config.DEEPSEEK_MODEL,
                                config.DEEPSEEK_URL, timeout=config.DEEPSEEK_TIMEOUT))
 # H3 is the one video model (madde 435): every session renders its videos with H3's graphs, and
@@ -159,30 +156,30 @@ _video_generator = ComfyH3VideoGenerator(_comfy_client, config.H3_VIDEO_WORKFLOW
                                          config.H3_VIDEO_FIRST_LAST_WORKFLOW_PATH,
                                          config.VIDEO_TIMEOUT)
 _video_writer = H3VideoPromptWriter(_queen_ai)
-# Sound is the one producer that is not a ComfyUI graph: MMAudio runs inside this process. Where
-# its weights live is the producers feature's answer, so the path is taken from the group it
-# installs rather than spelled out here a second time.
-_model_files = ComfyModelFiles(config.COMFY_ROOT)
-_audio_generator = MMAudioGenerator(MMAudioSampler(audio_weights(_model_files)), FfmpegAudio())
-# What the loop dispatches on: one producer per job type. All three are ComfyUI graphs; a type with
-# nobody to do it would make the queue wait rather than skip the work.
-_producers = {layers.PHOTO: _photo_generator, layers.VIDEO: _video_generator,
-              layers.AUDIO: _audio_generator}
+# What the loop dispatches on: one producer per job type, both ComfyUI graphs. Sound has none since
+# MMAudio went (madde 514): a sound job queued before waits rather than being skipped -- the loop's
+# rule for a type with nobody to do it -- until the user takes it out of the queue.
+_producers = {layers.PHOTO: _photo_generator, layers.VIDEO: _video_generator}
 # Who writes a job's prompt when it carries none. Photo has no writer: its prompt is the user's own.
-_writers = {layers.VIDEO: _video_writer, layers.AUDIO: AudioPromptWriter(_queen_ai)}
+# A sound has none either, so a sound still owed costs no request.
+_writers = {layers.VIDEO: _video_writer}
 # What a card with no picture gets when its video lands (madde 296). ffmpeg is already on the
-# machine -- the sound engine cuts with it, and the export joins with it.
+# machine -- the export joins with it.
 _stills = FfmpegStills()
-# "Orada mısın?" once nothing has worked for ten minutes (madde 498). The three workers run their
-# work on its threads, which is how it hears each start and end: the one place they all meet.
-_idle = IdleWatch()
-_photo_runner = PhotoRunner(spawn=_idle.spawn)
+# One browser notification each time the queue ends -- emptied, or stopped (madde 509) -- and a page
+# left open while it is idle asking again when it starts (madde 518): the queue's worker is the one
+# that knows, so it is the one that tells the watch the screen listens to.
+_queue_watch = QueueWatch()
+_photo_runner = PhotoRunner(started=_queue_watch.started, ended=_queue_watch.ended)
 _photo_record = DrivePhotoRecord(_storage)
 _plan_store = DrivePlanStore(_storage)
 _order_store = DriveOrderStore(_storage)
 
-_export_runner = ExportRunner(spawn=_idle.spawn)
+_export_runner = ExportRunner()
 _video_exporter = FfmpegVideoExporter(disclaimer=config.DISCLAIMER_PATH)
+# Which frames' sound is turned off (madde 510): one store, and its lock, behind the frame page's
+# door, the export and the export's summary.
+_mutes = DriveMuteStore(_storage)
 
 # The one place the two features meet: deleting a project has to stop the production that project
 # owns, and the worker that owns it belongs to photo generation. The projects feature is handed the
@@ -192,12 +189,12 @@ _projects_bp = make_projects_blueprint(
     create_project=partial(create_project, _project_store),
     check_name=check_name,
     delete_project=partial(delete_project, _project_store,
-                           partial(halt_project, _photo_runner, _comfy_client.interrupt,
-                                   time.sleep)),
+                           partial(follow_delete, _photo_runner, _plan_store,
+                                   _comfy_client.interrupt, time.sleep)),
     # Renaming meets the worker too, but the other way round: the production is not stopped, it is
     # carried over to the folder's new name.
     rename_project=partial(rename_project, _project_store,
-                           partial(follow_rename, _photo_runner)),
+                           partial(follow_rename, _photo_runner, _plan_store)),
     get_settings=partial(get_settings, _settings_store),
     save_settings=partial(save_settings, _settings_store),
     # No halt port: archiving marks the project rather than moving it (madde 227), so a worker
@@ -219,7 +216,8 @@ _start_export = partial(
     _video_exporter,
     # Local time and down to the minute: the folder's name is read by a person, and two exports of
     # the same opening are meant to land together (madde 92).
-    lambda: datetime.now().strftime("%Y-%m-%d %H-%M"))
+    lambda: datetime.now().strftime("%Y-%m-%d %H-%M"),
+    mutes=_mutes)
 
 
 def _cancel_export():
@@ -297,6 +295,8 @@ _photo_bp = make_photo_generation_blueprint(
                        ending=_happy_ending),
     remove_layer=partial(remove_layer, _photo_record, _photo_store, _plan_store, _order_store,
                          lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
+    dequeue_layer=partial(dequeue_layer, _photo_record, _photo_store, _plan_store, _order_store,
+                          lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
     list_frames=partial(list_frames, _photo_record, _photo_store, _plan_store, _order_store),
     list_models=partial(list_models, config.PHOTO_MODELS),
     list_loras=list_loras,
@@ -306,11 +306,12 @@ _photo_bp = make_photo_generation_blueprint(
     # graph answers for it. That is H3's: a WAN video's line from before 423 counts at H3's four
     # seconds, as an H3 session always counted it (madde 435).
     export_summary=partial(export_summary, _photo_record, _photo_store, _plan_store, _order_store,
-                           _video_generator.seconds),
+                           _video_generator.seconds, mutes=_mutes),
     export_state=_export_runner.state,
     run_export=_start_export,
     cancel_export=_cancel_export,
-    remove_frames=partial(remove_frames, _photo_record, _photo_store, _plan_store, _order_store,
+    remove_frames=partial(remove_frames, _photo_runner, _photo_record, _photo_store, _plan_store,
+                          _order_store,
                           lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
     copy_frames=partial(copy_frames, _photo_record, _photo_store, _plan_store, _order_store,
                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
@@ -320,12 +321,14 @@ _photo_bp = make_photo_generation_blueprint(
 # The pool's own surface, beside the cards' blueprint rather than inside it -- the two answer
 # different questions.
 _references_bp = make_reference_blueprint(
+    # The pool's three writers take the project's write gate (madde 523), so the plan store too.
     add_references=partial(add_references, _photo_store, _reference_store, _reference_orders,
-                           _clips),
+                           _clips, _plan_store),
     list_references=partial(list_references, _photo_store, _reference_store, _reference_orders),
-    remove_reference=partial(remove_reference, _photo_store, _reference_store, _reference_orders),
+    remove_reference=partial(remove_reference, _photo_store, _reference_store, _reference_orders,
+                             _plan_store),
     save_reference_order=partial(save_reference_order, _photo_store, _reference_store,
-                                 _reference_orders),
+                                 _reference_orders, _plan_store),
     queue_references=partial(queue_references, _photo_runner, _photo_store, _photo_record,
                              _plan_store, _order_store, _reference_store, _reference_orders,
                              _producers, seed.random_seed,
@@ -342,10 +345,15 @@ _video_length_bp = make_video_length_blueprint(
 _happy_ending_bp = make_happy_ending_blueprint(
     get_happy_ending=_happy_ending,
     save_happy_ending=partial(save_happy_ending, _happy_endings))
+# A video's sound turned off from its frame page (madde 510). Turning off asks the record whether
+# the frame's video has landed (madde 515).
+_mute_bp = make_mute_blueprint(get_muted=partial(get_muted, _mutes),
+                               set_muted=partial(set_muted, _mutes, _photo_record))
 
 # Every producer is judged by its own model group: installed means those files are on this machine.
 # Nothing is installed from here -- the notebook does that before this process starts
 # (FOUNDATION 9), so the panel only reads.
+_model_files = ComfyModelFiles(config.COMFY_ROOT)
 _producers_bp = make_producers_blueprint(
     list_producers=lambda: list_producers(GROUPS, _model_files))
 
@@ -371,18 +379,18 @@ _agent = partial(answer_question, _queen_ai,
                          log=_timing, writers=_writers, stills=_stills,
                          references=_reference_files))
 # Which chats' agents are working: in this process alone, so a restart ends them all.
-_agent_runner = AgentRunner(_chat_record, spawn=_idle.spawn, waiting=_idle.waiting)
+_agent_runner = AgentRunner(_chat_record)
 _agent_bp = make_agent_blueprint(
     ask_question=partial(ask_question, _chat_record, _agent_runner, _agent,
                          lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
     stop_agent=partial(stop_agent, _chat_record, _agent_runner),
     working_chats=partial(working_chats, _chat_record, _agent_runner),
     answer_permission=partial(answer_permission, _chat_record, _agent_runner))
-_idle_bp = make_idle_blueprint(_idle)
+_queue_watch_bp = make_watch_blueprint(_queue_watch)
 
 app = create_app(blueprints=[_projects_bp, _reference_settings_bp, _photo_bp, _references_bp,
-                             _video_length_bp, _happy_ending_bp, _producers_bp, _chats_bp,
-                             _agent_bp, _idle_bp])
+                             _video_length_bp, _happy_ending_bp, _mute_bp, _producers_bp,
+                             _chats_bp, _agent_bp, _queue_watch_bp])
 
 if __name__ == "__main__":
     print(f"Proje kökü: {config.DRIVE_ROOT}")

@@ -12,6 +12,7 @@ under arsiv/, and moving them back is done in Drive by hand -- the user's own ca
 needed once does not live in this file forever.
 """
 import json
+import threading
 
 from backend.features.projects.domain import name_rules
 from backend.features.projects.domain.project import Project
@@ -20,6 +21,9 @@ from backend.features.projects.domain.project import Project
 # files over Drive, and this screen is slow enough already (madde 225).
 MARK_FILE = "arsiv.json"
 KEY = "arsiv"
+# How old another delete's trash is before a delete sweeps it, in seconds: far past any removal
+# still going.
+STALE = 3600
 
 
 def _parse(raw):
@@ -36,6 +40,12 @@ def _parse(raw):
 class DriveProjectStore:
     def __init__(self, storage):
         self.storage = storage
+        # Every change of the marks reads the one file and writes it back whole: two at once, even
+        # for two projects, would each write the list they read and the first one's mark would be
+        # lost (madde 523). One process serves every press. Nothing is taken inside it, and it is
+        # held for a read, a write and at most a folder's rename -- a rename holds it under the
+        # project's name lock, which the loop waits on, so a folder's removal never runs in it.
+        self._lock = threading.Lock()
 
     # --- the mark ---------------------------------------------------------------------------
 
@@ -88,16 +98,18 @@ class DriveProjectStore:
         """
         if not self.storage.dir_exists(name):
             return False
-        marks = self._held_marks()
-        if name not in marks:
-            self._write_marks(marks + [name])
+        with self._lock:
+            marks = self._held_marks()
+            if name not in marks:
+                self._write_marks(marks + [name])
         return True
 
     def restore(self, name):
-        marks = self._held_marks()
-        if name not in marks:
-            return False
-        self._write_marks([held for held in marks if held != name])
+        with self._lock:
+            marks = self._held_marks()
+            if name not in marks:
+                return False
+            self._write_marks([held for held in marks if held != name])
         return True
 
     def is_archived(self, name):
@@ -114,29 +126,58 @@ class DriveProjectStore:
         return Project(name, mtime)
 
     def delete(self, name):
-        """Remove the project folder with everything in it; False when there was nothing to remove.
+        """Take the project away at once: its folder put in the trash, its mark dropped. What is
+        left to clear -- the trash -- or False when there was no such project.
+
+        The folder goes in one rename (Storage.trash_dir) rather than a removal, which over Drive
+        takes tens of seconds: an upload writing into the folder meanwhile made the removal fail half
+        way, and the project survived, gutted, holding that upload (madde 523's QA). Renamed, the
+        name is gone at once, and the slow part is clear's, after the caller has let the project's
+        gate go.
 
         The mark goes with it. A name left behind breaks no list -- there is no folder under it --
         right up until somebody makes a project with that name, which would then be born archived.
         The marks are read before the folder goes, so a file that cannot be read stops the delete
-        while the project is still there.
+        while the project is still there, and written after, so a rename that fails leaves an
+        archived project archived. All three under the marks' lock, as a rename of a project is:
+        one read, one rename, one write.
         """
-        marks = self._held_marks()
-        gone = self.storage.delete_dir(name)
-        if name in marks:
-            self._write_marks([held for held in marks if held != name])
-        return gone
+        with self._lock:
+            marks = self._held_marks()
+            trash = self.storage.trash_dir(name)
+            if name in marks:
+                self._write_marks([held for held in marks if held != name])
+        return trash
+
+    def clear(self, trash):
+        """Remove what delete put in the trash, and sweep the trash older deletes left -- a removal
+        that failed, or a server that died -- once it is STALE seconds old: a younger one may be
+        another delete's, still being removed.
+
+        Never raises: the project is already gone, and an error now would tell the user a delete
+        failed that did not. What cannot be removed stays hidden from every list, for the next
+        delete's sweep.
+        """
+        try:
+            self.storage.delete_dir(trash)
+            self.storage.sweep_trash(STALE)
+        except OSError:
+            pass
 
     def rename(self, old, new):
         """The renamed project, None when the new name is taken, False when the old one is gone.
 
-        The marks are read first, for the reason delete reads them first."""
-        marks = self._held_marks()
-        moved = self.storage.rename_dir(old, new)
-        # `is` and not truthiness: an mtime can be 0.0 and that is a success.
-        if moved is None or moved is False:
-            return moved
-        # The mark hangs on a name now rather than on where the folder sits, so it has to follow.
-        if old in marks:
-            self._write_marks([new if held == old else held for held in marks])
+        The marks are read first, for the reason delete reads them first. The folder's move is
+        under the marks' lock with them: it is one rename, and a mark change of another project
+        landing between the read and the write would be lost."""
+        with self._lock:
+            marks = self._held_marks()
+            moved = self.storage.rename_dir(old, new)
+            # `is` and not truthiness: an mtime can be 0.0 and that is a success.
+            if moved is None or moved is False:
+                return moved
+            # The mark hangs on a name now rather than on where the folder sits, so it has to
+            # follow.
+            if old in marks:
+                self._write_marks([new if held == old else held for held in marks])
         return Project(new, moved)

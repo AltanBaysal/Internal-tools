@@ -147,6 +147,23 @@ export async function saveHappyEnding(project, on) {
   });
 }
 
+// The frames whose sound is turned off (madde 510), by identity.
+export async function getMuted(project) {
+  const body = await request(`/api/projects/${encodeURIComponent(project)}/muted`);
+  return body.frames;
+}
+
+// A state, not a toggle: true turns the frame's sound off, false on. Answers with the new list.
+export async function saveMuted(project, frame, muted) {
+  const body = await request(
+    `/api/projects/${encodeURIComponent(project)}/frames/${encodeURIComponent(frame)}/muted`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ muted }),
+    });
+  return body.frames;
+}
+
 // `orientation` is yatay or dikey (madde 477): the size the batch's photos are made at.
 export async function generateBatch(project, { prompts, negative, variants, model, lora,
                                                orientation }) {
@@ -163,14 +180,15 @@ export async function listModels() {
   return request("/api/models");
 }
 
-// Hang a layer on every frame in scope. No "files" key means every frame that does not hold it; a
-// list means that selection. `variants` is how many each of them gets: the ones past the first are
-// born as copy frames. `mode` is how a video ends -- plain, looping, or on the next frame's picture.
-export async function queueLayer(project, kind, files, variants, mode) {
+// Hang a layer on every frame in scope. No "frames" key means every frame that does not hold it; a
+// list of identities means that selection. `variants` is how many each of them gets: the ones past
+// the first are born as copy frames. `mode` is how a video ends -- plain, looping, or on the next
+// frame's picture.
+export async function queueLayer(project, kind, frames, variants, mode) {
   return request(`/api/projects/${encodeURIComponent(project)}/layers/${kind}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...(files === null ? {} : { files }), variants, mode }),
+    body: JSON.stringify({ ...(frames === null ? {} : { frames }), variants, mode }),
   });
 }
 
@@ -194,6 +212,17 @@ export async function regenerateFrame(project, frame, layer, prompt, mode, negat
 // whole selection and the detail page takes it off one.
 export async function removeLayer(project, frames, kind) {
   return request(`/api/projects/${encodeURIComponent(project)}/layers/${kind}/delete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ frames }),
+  });
+}
+
+// Take a layer's waiting job out of the queue (madde 516). The frame stays with everything it holds,
+// and a layer that has landed meanwhile stays too. A door of its own, never a mode of removeLayer:
+// that one deletes. The answer names the jobs really taken out.
+export async function dequeueLayer(project, frames, kind) {
+  return request(`/api/projects/${encodeURIComponent(project)}/layers/${kind}/dequeue`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ frames }),
@@ -297,20 +326,17 @@ export async function getStatus() {
   return request("/api/status");
 }
 
-// "Orada mısın?" as the server's idle watch has it (madde 498): { version, asking }. Asked from a
-// version, the server holds the answer until the question moves or 50 seconds pass -- long polling,
-// since the Quick Tunnel holds a streaming body until it ends -- so the wait outlasts the server's
-// hold and stays under the tunnel's cut of about 100 quiet seconds. With no version, at once.
-const IDLE_ASK_TIMEOUT_MS = 80_000;
+// How many times the queue has started and ended, and how it last ended, as the server keeps them
+// (madde 509, 518): { started, ended, last }.
+// Asked from the counts last heard, the server holds the answer until one of them moves or 50 seconds
+// pass -- long polling, since the Quick Tunnel holds a streaming body until it ends -- so the wait
+// outlasts the server's hold and stays under the tunnel's cut of about 100 quiet seconds. With
+// nothing heard yet, at once.
+const QUEUE_ASK_TIMEOUT_MS = 80_000;
 
-export async function waitForIdle(after) {
-  const since = after === null ? "" : `?after=${after}`;
-  return request(`/api/idle${since}`, { timeout: IDLE_ASK_TIMEOUT_MS });
-}
-
-// Buradayım: the question closes and the ten minutes start again. Answers like waitForIdle.
-export async function sayHere() {
-  return request("/api/idle/here", { method: "POST" });
+export async function waitForQueue(seen) {
+  const since = seen === null ? "" : `?started=${seen.started}&ended=${seen.ended}`;
+  return request(`/api/queue/watch${since}`, { timeout: QUEUE_ASK_TIMEOUT_MS });
 }
 
 // Plain URL, not a fetch: the browser loads it into an <img>, a <video> or an <audio>. Any file
