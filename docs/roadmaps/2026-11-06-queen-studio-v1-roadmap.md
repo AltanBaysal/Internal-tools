@@ -1,6 +1,6 @@
 # Queen Studio — Yol Haritası v1
 
-**Tarih:** 2026-11-06 · **Koşu dalı:** `feat/queen-studio-v1` · **Durum:** 10/43 · koşuyor
+**Tarih:** 2026-11-06 · **Koşu dalı:** `feat/queen-studio-v1` · **Durum:** 10/44 · koşuyor
 
 queen-studio, queen-editor'ın özelliklerini bir AI agent'ın kullanabileceği biçimde sunan yeni bir
 araç. Ne yaptığı [tasarım adımlarında](../research/2026-11-03-yeni-editor-v1-tasarim-adimlar.md).
@@ -23,6 +23,7 @@ koşu durmaz. Son iki madde de kullanıcıyla: Pro'daki deneme ve DeepSeek harne
 | 533 · [v1-42](#v1-42) | Yapılmış kodun sınırları | ✅ *(bağlantı değil gövde; [kararlar 17](2026-11-06-queen-studio-v1-kararlar.md#sapmalar))* · `ALIGNED` | | |
 | 534 · [v1-9](#v1-9) | Drive adaptörü: dosyalar | ✅ *(klasörün çöpe atılması 537'ye açık; [kararlar 18](2026-11-06-queen-studio-v1-kararlar.md#sapmalar))* · `ALIGNED` | | |
 | 567 · [v1-43](#v1-43) | Drive'da proje tek dosya | `ALIGNED` | | |
+| 568 · [v1-44](#v1-44) | Yapılmış kodun sadeleşmesi | `ALIGNED` | | |
 | 535 · [v1-10](#v1-10) | Bir değişiklik ve aynı istek iki kez | `ALIGNED` | | |
 | 536 · [v1-34](#v1-34) | History | `ALIGNED` | | |
 | 537 · [v1-11](#v1-11) | Projeler | `ALIGNED` | | |
@@ -245,6 +246,22 @@ olabilir misin, ben daha basit ve kolay güncellenebilir bir kod bekliyordum"; "
 - Port ve sözleşme testleri değişmiyor; ikisi de bellek içi adaptörde, taklit Drive'da ve gerçek
   Drive'da yeşil. Bir değişiklik 2 çağrı.
 - Drive kodunun dosya ve satır sayısı, önce ve sonra, spec'te; sonrası belirgin biçimde az.
+
+<a id="v1-44"></a>
+### v1-44 — Yapılmış kodun sadeleşmesi
+
+Yolda bulundu *(kullanıcı, 7 Kasım — "önceki kodları da düzelt"; "sadece kodun kolay düzeltilebilir
+olduğuna emin ol yeter, sade olursa zaten bugları çözeriz hızlıca")*. [v1-43](#v1-43)'ten sonra,
+535'ten önce.
+
+**Kabul koşulu:**
+- 527–534'ün kodu (liste sorgusu, ortak sözleşme, sınırlar, port ve bellek içi adaptör, Drive'ın dosya
+  kısmı) sadelik kuralıyla gözden geçirildi: kolay düzeltilmeyecek kadar karışık olan, kendi başına bir
+  iş görmeyen ya da küçük bir riske karşı eklenmiş mekanizma sadeleşti ya da kalktı.
+- Kalkan mekanizmanın karşıladığı risk `queen-studio/BACKLOG.md`'de bir yapılacak olarak yazılı.
+- Davranış aynı: suite'ler yeşil, sözleşme testleri ve çağrı sayıları değişmedi; değişen kural varsa
+  kararlar belgesinde.
+- Dosya ve satır sayısı, önce ve sonra, spec'te.
 
 <a id="v1-10"></a>
 ### v1-10 — Bir değişiklik ve aynı istek iki kez
@@ -798,7 +815,7 @@ hepsi tutunca biter; ana agent sonda hepsine kendisi bakar, v1-32 de onları den
   kendi yargısıyla yazar.
 - **Numaralar:** her maddenin gerçek numarası tabloda, 525'ten 566'ya, yürüme sırasıyla *(kullanıcı, 7
   Kasım — "bütün roadmape numara verir misin")*. Sonradan gelen madde sıradaki boş numarayı alır ve
-  tablodaki yerinde yürür: 567, 535'ten önce. `v1-34`…`v1-42` büyük maddelerin bölünmesinden ve
+  tablodaki yerinde yürür: 567 ve 568, 535'ten önce. `v1-34`…`v1-42` büyük maddelerin bölünmesinden ve
   denetimden; tablodaki yerleri, bölündükleri maddenin hemen altı, yürüme sırasıdır *(kullanıcı, 6
   Kasım)*. Sayaçta en yüksek numara Queen
   Editor v11.1'in 524'ü.
@@ -825,8 +842,12 @@ hepsi tutunca biter; ana agent sonda hepsine kendisi bakar, v1-32 de onları den
   değildir, bir fonksiyonu şişirmek de sadeliği bozar. Bir tasarım her review'da yeni bir mekanizma
   istiyorsa durulur, daha basit bir tasarım aranır ve kullanıcıya götürülür *(kullanıcı, 7 Kasım —
   "bundan sonraki adımlarda sadeliğe önem ver"; "en az parça her zaman en sade olmuyor, gereksiz yere
-  bir fonksiyonu da şişirebilirsin")*. Coder'a ve reviewer'a her maddede söylenir.
-- **Yolda bulunan iş:** v1'in gerektirdiği `v1-44`'ten başlayarak madde olur ve kararlar
+  bir fonksiyonu da şişirebilirsin")*. Ölçüt: kod kolay düzeltilebilir olsun. Küçük bir riske karşı,
+  kolay çözülmüyorsa, var olduğundan emin olunmasa da mekanizma eklenmez: risk
+  `queen-studio/BACKLOG.md`'ye yapılacak olarak yazılır; v1'de küçük bug'lar kalabilir *(kullanıcı, 7
+  Kasım — "küçük bir risk varsa onu todoya aç, kendin kolay çözemeyeceksen"; "v1 çıkarıyoruz, küçük
+  buglar olsa da sıkıntı olmaz")*. Coder'a ve reviewer'a her maddede söylenir.
+- **Yolda bulunan iş:** v1'in gerektirdiği `v1-45`'ten başlayarak madde olur ve kararlar
   belgesine yazılır; gerisi `queen-studio/BACKLOG.md`'ye.
 - **Tasarımdan sapmak serbesttir:** kodu yazan agent bir şeyi tasarımdan ya da kurallardan farklı
   yapmanın daha doğru olduğunu görürse ana agent'a söyler; bazı şeyler ancak kod yazılırken görülür.
