@@ -820,9 +820,12 @@ hepsi tutunca biter; ana agent sonda hepsine kendisi bakar, v1-32 de onları den
   yargısıyla verir; tutmayan bir ölçümde de tasarımı düzeltip geçer. Her kararı gerekçesiyle
   [kararlar belgesine](2026-11-06-queen-studio-v1-kararlar.md) yazar, değişen adımı da düzeltir;
   kullanıcıyla sonda o belgenin üstünden geçilir.
-- **Sadelik:** her maddede işi gören en az parçalı çözüm seçilir; bir tasarım her review'da yeni bir
-  parça istiyorsa durulur, daha basit bir tasarım aranır ve kullanıcıya götürülür *(kullanıcı, 7 Kasım —
-  "bundan sonraki adımlarda sadeliğe önem ver")*. Coder'a ve reviewer'a her maddede söylenir.
+- **Sadelik:** her maddede işi gören en sade çözüm seçilir: kolay anlaşılan ve kolay değişen; en az
+  mekanizma, her parça tek işte, gereksiz parça da şişmiş fonksiyon da yok. Az parça kendi başına sade
+  değildir, bir fonksiyonu şişirmek de sadeliği bozar. Bir tasarım her review'da yeni bir mekanizma
+  istiyorsa durulur, daha basit bir tasarım aranır ve kullanıcıya götürülür *(kullanıcı, 7 Kasım —
+  "bundan sonraki adımlarda sadeliğe önem ver"; "en az parça her zaman en sade olmuyor, gereksiz yere
+  bir fonksiyonu da şişirebilirsin")*. Coder'a ve reviewer'a her maddede söylenir.
 - **Yolda bulunan iş:** v1'in gerektirdiği `v1-44`'ten başlayarak madde olur ve kararlar
   belgesine yazılır; gerisi `queen-studio/BACKLOG.md`'ye.
 - **Tasarımdan sapmak serbesttir:** kodu yazan agent bir şeyi tasarımdan ya da kurallardan farklı

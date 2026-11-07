@@ -139,8 +139,10 @@ neye, neden, hangi belge düzeltildi.
     ve bloklar, her review'da bir yarışa karşı yeni bir parça (16), 14 dosya. Tek dosyanın yazılması
     bütündür, iki Colab'dan sonra yazan kazanır ve proje bozulmaz; çağrı sayısı aynı (2), bedeli
     değişiklik başına baytın proje boyuyla artması (tahmin: 2000 karede ~200 KB, 20.000'de ~2 MB, 2–3
-    sn; v1-43'te ölçülür). Port ve sözleşme testleri değişmez. Sonraki maddelerde işi gören en az parçalı
-    çözüm seçilir; her review'da yeni parça isteyen tasarımda durulur ve kullanıcıya gidilir.
+    sn; v1-43'te ölçülür). Port ve sözleşme testleri değişmez. Sonraki maddelerde işi gören en sade
+    çözüm seçilir: en az mekanizma, her parça tek işte; az parça uğruna fonksiyon şişirilmez (kullanıcı,
+    "en az parça her zaman en sade olmuyor"). Her review'da yeni mekanizma isteyen tasarımda durulur ve
+    kullanıcıya gidilir.
 
 ## Koşudan önce, belgelerin gözden geçirilmesinde
 
