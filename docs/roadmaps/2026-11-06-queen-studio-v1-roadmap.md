@@ -10,67 +10,63 @@ koşu durmaz. Son iki madde de kullanıcıyla: Pro'daki deneme ve DeepSeek harne
 
 ---
 
-| Numara | İş | Durum |
-|---|---|---|
-| 525 · [v1-1](#v1-1) | Kurulum, kullanıcıyla adım adım | ✅ *(Colab Secrets CLI'da okunmuyor; [kararlar](2026-11-06-queen-studio-v1-kararlar.md#sapmalar))* · `ALIGNED` |
-| 526 · [v1-2](#v1-2) | Aracın kuralları, tasarımcı ve tasarım reviewer'ı | ✅ · `ALIGNED` |
-| 527 · [v1-3](#v1-3) | İskelet ve ilk ekran, sürüm V1 | ✅ · `ALIGNED` |
-| 528 · [v1-4](#v1-4) | Drive'ın ölçümleri | ✅ *(ayrılmış kimliklerin 1, 3, 7 günlük bakışı 7, 9, 13 Kasım'da)* · `ALIGNED` |
-| 529 · [v1-5](#v1-5) | Ortak sözleşme: hatalar, başlıklar, `GET /api` | ✅ · `ALIGNED` |
-| 530 · [v1-6](#v1-6) | Liste sorgusu | ✅ *(regex yerine `like`/`ilike`; [kararlar 11](2026-11-06-queen-studio-v1-kararlar.md#sapmalar))* · `ALIGNED` |
-| 531 · [v1-7](#v1-7) | Depo portu ve bellek içi adaptör | ✅ *(port kare, iş, edit bilmez; [kararlar 13](2026-11-06-queen-studio-v1-kararlar.md#sapmalar))* · `ALIGNED` |
-| 532 · [v1-8](#v1-8) | Drive adaptörü: projeler ve kayıtlar | ✅ *(her mühür yeni blok; [kararlar 16](2026-11-06-queen-studio-v1-kararlar.md#sapmalar))* · `ALIGNED` |
-| 533 · [v1-42](#v1-42) | Yapılmış kodun sınırları | ✅ *(bağlantı değil gövde; [kararlar 17](2026-11-06-queen-studio-v1-kararlar.md#sapmalar))* · `ALIGNED` |
-| 534 · [v1-9](#v1-9) | Drive adaptörü: dosyalar | ✅ *(klasörün çöpe atılması 537'ye açık; [kararlar 18](2026-11-06-queen-studio-v1-kararlar.md#sapmalar))* · `ALIGNED` |
-| 535 · [v1-10](#v1-10) | Bir değişiklik ve aynı istek iki kez | `ALIGNED` |
-| 536 · [v1-34](#v1-34) | History | `ALIGNED` |
-| 537 · [v1-11](#v1-11) | Projeler | `ALIGNED` |
-| 538 · [v1-12](#v1-12) | Kareler | `ALIGNED` |
-| 539 · [v1-13](#v1-13) | Medya | `ALIGNED` |
-| 540 · [v1-14](#v1-14) | Modeller | `ALIGNED` |
-| 541 · [v1-35](#v1-35) | Model indirme | `ALIGNED` |
-| 542 · [v1-15](#v1-15) | İşler | `ALIGNED` |
-| 543 · [v1-16](#v1-16) | ComfyUI kapısı: süreç | `ALIGNED` |
-| 544 · [v1-36](#v1-36) | ComfyUI kapısı: graflar | `ALIGNED` |
-| 545 · [v1-17](#v1-17) | Kuyruk | `ALIGNED` |
-| 546 · [v1-37](#v1-37) | Kuyruğun beklemeleri ve başka projenin kuyruğu | `ALIGNED` |
-| 547 · [v1-18](#v1-18) | Kuyruğun kendiliğinden durması ve core'un yeniden başlaması | `ALIGNED` |
-| 548 · [v1-19](#v1-19) | Kuyruk iki Colab'da | `ALIGNED` |
-| 549 · [v1-20](#v1-20) | Edit'ler | `ALIGNED` |
-| 550 · [v1-21](#v1-21) | Export: videonun yapılması | `ALIGNED` |
-| 551 · [v1-38](#v1-38) | Export: iptal, geri alma ve sınırlar | `ALIGNED` |
-| 552 · [v1-22](#v1-22) | MCP adaptörü | `ALIGNED` |
-| 553 · [v1-23](#v1-23) | Resimler resim olarak gider | `ALIGNED` |
-| 554 · [v1-24](#v1-24) | Agent senaryoları | `ALIGNED` |
-| 555 · [v1-25](#v1-25) | Başlatıcı ve notebook | `ALIGNED` |
-| 556 · [v1-39](#v1-39) | Log'un Drive'a gitmesi ve boştayken sıfır çağrı | `ALIGNED` |
-| 557 · [v1-26](#v1-26) | ComfyUI'nin Colab ölçümleri | `ALIGNED` |
-| 558 · [v1-27](#v1-27) | Colab testleri | `ALIGNED` |
-| 559 · [v1-40](#v1-40) | Colab'da dayanıklılık, gerçek Drive'la | `ALIGNED` |
-| 560 · [v1-28](#v1-28) | UI tasarımı: dil, projeler ve kareler, örnek veriyle | `ALIGNED` |
-| 561 · [v1-41](#v1-41) | UI tasarımı: kuyruk, agent, bildirim, silmek ve edit'ler | `ALIGNED` |
-| 562 · [v1-29](#v1-29) | UI bağlantısı: projeler ve kareler | `ALIGNED` |
-| 563 · [v1-30](#v1-30) | UI bağlantısı: kuyruk ve agent'ın yaptığı | `ALIGNED` |
-| 564 · [v1-31](#v1-31) | UI bağlantısı: silmek ve edit'leri izlemek | `ALIGNED` |
-| 565 · [v1-32](#v1-32) | Pro'da tek deneme, kullanıcıyla | `ALIGNED` |
-| 566 · [v1-33](#v1-33) | DeepSeek harness'ı, kullanıcıyla | `ALIGNED` |
+| Numara | İş | Durum | Süre | Token |
+|---|---|---|---|---|
+| 525 · [v1-1](#v1-1) | Kurulum, kullanıcıyla adım adım | ✅ *(Colab Secrets CLI'da okunmuyor; [kararlar](2026-11-06-queen-studio-v1-kararlar.md#sapmalar))* · `ALIGNED` | | |
+| 526 · [v1-2](#v1-2) | Aracın kuralları, tasarımcı ve tasarım reviewer'ı | ✅ · `ALIGNED` | | |
+| 527 · [v1-3](#v1-3) | İskelet ve ilk ekran, sürüm V1 | ✅ · `ALIGNED` | | |
+| 528 · [v1-4](#v1-4) | Drive'ın ölçümleri | ✅ *(ayrılmış kimliklerin 1, 3, 7 günlük bakışı 7, 9, 13 Kasım'da)* · `ALIGNED` | | |
+| 529 · [v1-5](#v1-5) | Ortak sözleşme: hatalar, başlıklar, `GET /api` | ✅ · `ALIGNED` | | |
+| 530 · [v1-6](#v1-6) | Liste sorgusu | ✅ *(regex yerine `like`/`ilike`; [kararlar 11](2026-11-06-queen-studio-v1-kararlar.md#sapmalar))* · `ALIGNED` | | |
+| 531 · [v1-7](#v1-7) | Depo portu ve bellek içi adaptör | ✅ *(port kare, iş, edit bilmez; [kararlar 13](2026-11-06-queen-studio-v1-kararlar.md#sapmalar))* · `ALIGNED` | | |
+| 532 · [v1-8](#v1-8) | Drive adaptörü: projeler ve kayıtlar | ✅ *(her mühür yeni blok; [kararlar 16](2026-11-06-queen-studio-v1-kararlar.md#sapmalar))* · `ALIGNED` | | |
+| 533 · [v1-42](#v1-42) | Yapılmış kodun sınırları | ✅ *(bağlantı değil gövde; [kararlar 17](2026-11-06-queen-studio-v1-kararlar.md#sapmalar))* · `ALIGNED` | | |
+| 534 · [v1-9](#v1-9) | Drive adaptörü: dosyalar | ✅ *(klasörün çöpe atılması 537'ye açık; [kararlar 18](2026-11-06-queen-studio-v1-kararlar.md#sapmalar))* · `ALIGNED` | | |
+| 535 · [v1-10](#v1-10) | Bir değişiklik ve aynı istek iki kez | `ALIGNED` | | |
+| 536 · [v1-34](#v1-34) | History | `ALIGNED` | | |
+| 537 · [v1-11](#v1-11) | Projeler | `ALIGNED` | | |
+| 538 · [v1-12](#v1-12) | Kareler | `ALIGNED` | | |
+| 539 · [v1-13](#v1-13) | Medya | `ALIGNED` | | |
+| 540 · [v1-14](#v1-14) | Modeller | `ALIGNED` | | |
+| 541 · [v1-35](#v1-35) | Model indirme | `ALIGNED` | | |
+| 542 · [v1-15](#v1-15) | İşler | `ALIGNED` | | |
+| 543 · [v1-16](#v1-16) | ComfyUI kapısı: süreç | `ALIGNED` | | |
+| 544 · [v1-36](#v1-36) | ComfyUI kapısı: graflar | `ALIGNED` | | |
+| 545 · [v1-17](#v1-17) | Kuyruk | `ALIGNED` | | |
+| 546 · [v1-37](#v1-37) | Kuyruğun beklemeleri ve başka projenin kuyruğu | `ALIGNED` | | |
+| 547 · [v1-18](#v1-18) | Kuyruğun kendiliğinden durması ve core'un yeniden başlaması | `ALIGNED` | | |
+| 548 · [v1-19](#v1-19) | Kuyruk iki Colab'da | `ALIGNED` | | |
+| 549 · [v1-20](#v1-20) | Edit'ler | `ALIGNED` | | |
+| 550 · [v1-21](#v1-21) | Export: videonun yapılması | `ALIGNED` | | |
+| 551 · [v1-38](#v1-38) | Export: iptal, geri alma ve sınırlar | `ALIGNED` | | |
+| 552 · [v1-22](#v1-22) | MCP adaptörü | `ALIGNED` | | |
+| 553 · [v1-23](#v1-23) | Resimler resim olarak gider | `ALIGNED` | | |
+| 554 · [v1-24](#v1-24) | Agent senaryoları | `ALIGNED` | | |
+| 555 · [v1-25](#v1-25) | Başlatıcı ve notebook | `ALIGNED` | | |
+| 556 · [v1-39](#v1-39) | Log'un Drive'a gitmesi ve boştayken sıfır çağrı | `ALIGNED` | | |
+| 557 · [v1-26](#v1-26) | ComfyUI'nin Colab ölçümleri | `ALIGNED` | | |
+| 558 · [v1-27](#v1-27) | Colab testleri | `ALIGNED` | | |
+| 559 · [v1-40](#v1-40) | Colab'da dayanıklılık, gerçek Drive'la | `ALIGNED` | | |
+| 560 · [v1-28](#v1-28) | UI tasarımı: dil, projeler ve kareler, örnek veriyle | `ALIGNED` | | |
+| 561 · [v1-41](#v1-41) | UI tasarımı: kuyruk, agent, bildirim, silmek ve edit'ler | `ALIGNED` | | |
+| 562 · [v1-29](#v1-29) | UI bağlantısı: projeler ve kareler | `ALIGNED` | | |
+| 563 · [v1-30](#v1-30) | UI bağlantısı: kuyruk ve agent'ın yaptığı | `ALIGNED` | | |
+| 564 · [v1-31](#v1-31) | UI bağlantısı: silmek ve edit'leri izlemek | `ALIGNED` | | |
+| 565 · [v1-32](#v1-32) | Pro'da tek deneme, kullanıcıyla | `ALIGNED` | | |
+| 566 · [v1-33](#v1-33) | DeepSeek harness'ı, kullanıcıyla | `ALIGNED` | | |
 
 ---
 
-## Süre ve maliyet
+## Agent kaydı
 
-Her madde başlarken ve biterken saat (İstanbul), her subagent'ın her turu için süre ve token yazılır;
-süreç bununla anlaşılır ve daha ucuza yürütülür *(kullanıcı, 7 Kasım — "bir taska başlarken başlama
-zamanı bitme zamanı hangi subagent ne kadar zaman ve token harcadı görmek istiyorum")*. Token, agent'ın
-o maddede harcadığı toplamdır; ana agent'ın kendi harcaması bu oturumda görünmediği için yazılmaz.
-531–534 geriye dönük, bildirimlerden; başlama saati bir önceki commit'tir (≈). 525–530'unki yok.
+Her agent turu bir satır; ana tablonun Süre'si maddenin başından sonuna duvar saati, Token'ı buradaki
+turların toplamı *(kullanıcı, 7 Kasım — "bir taska başlarken başlama zamanı bitme zamanı hangi subagent
+ne kadar zaman ve token harcadı görmek istiyorum"; "ana tabloda süre ve total token, detaylar logda";
+"geçmiştekileri boşver")*. Saatler İstanbul. Ana agent'ın kendi token'ı bu oturumda görünmediği için
+yazılmaz; gerçek Drive'ı ana agent koşturunca satırı tokensizdir. Kayıt 535'ten başlar.
 
-| Madde | Başladı | Bitti | Duvar saati | Subagent turları (süre · token) |
-|---|---|---|---|---|
-| 531 | ≈ 6 Kas 21:42 | 6 Kas 22:32 | 50 dk | coder 2 tur, 38 dk · 425 bin; reviewer 1 tur, 10 dk · 191 bin |
-| 532 | ≈ 6 Kas 22:32 | 7 Kas 00:16 | 1 sa 44 dk | coder 4 tur, 94 dk · 684 bin; reviewer 2 tur, 14 dk · 228 bin |
-| 533 | ≈ 7 Kas 00:16 | 7 Kas 00:51 | 35 dk | coder 2 tur, 22 dk · 233 bin; reviewer 1 tur, 7 dk · 109 bin |
-| 534 | ≈ 7 Kas 00:51 | 7 Kas 10:29 | 9 sa 38 dk *(01:–02:00 kullanım sınırı, gece bekleme)* | coder 4 tur, 29 dk+ · 534 bin *(ilk tur sınıra takıldı, süresi yok)*; reviewer 1 tur, 7 dk · 158 bin; gerçek Drive, ana agent: 4 dk + 6,5 dk + yarıda kesilen |
+| Madde | Agent | Başladı | Bitti | Süre | Token |
+|---|---|---|---|---|---|
 
 ---
 
