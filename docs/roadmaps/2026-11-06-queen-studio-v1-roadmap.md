@@ -1,6 +1,6 @@
 # Queen Studio — Yol Haritası v1
 
-**Tarih:** 2026-11-06 · **Koşu dalı:** `feat/queen-studio-v1` · **Durum:** 10/42 · koşuyor
+**Tarih:** 2026-11-06 · **Koşu dalı:** `feat/queen-studio-v1` · **Durum:** 10/43 · koşuyor
 
 queen-studio, queen-editor'ın özelliklerini bir AI agent'ın kullanabileceği biçimde sunan yeni bir
 araç. Ne yaptığı [tasarım adımlarında](../research/2026-11-03-yeni-editor-v1-tasarim-adimlar.md).
@@ -22,6 +22,7 @@ koşu durmaz. Son iki madde de kullanıcıyla: Pro'daki deneme ve DeepSeek harne
 | 532 · [v1-8](#v1-8) | Drive adaptörü: projeler ve kayıtlar | ✅ *(her mühür yeni blok; [kararlar 16](2026-11-06-queen-studio-v1-kararlar.md#sapmalar))* · `ALIGNED` | | |
 | 533 · [v1-42](#v1-42) | Yapılmış kodun sınırları | ✅ *(bağlantı değil gövde; [kararlar 17](2026-11-06-queen-studio-v1-kararlar.md#sapmalar))* · `ALIGNED` | | |
 | 534 · [v1-9](#v1-9) | Drive adaptörü: dosyalar | ✅ *(klasörün çöpe atılması 537'ye açık; [kararlar 18](2026-11-06-queen-studio-v1-kararlar.md#sapmalar))* · `ALIGNED` | | |
+| 567 · [v1-43](#v1-43) | Drive'da proje tek dosya | `ALIGNED` | | |
 | 535 · [v1-10](#v1-10) | Bir değişiklik ve aynı istek iki kez | `ALIGNED` | | |
 | 536 · [v1-34](#v1-34) | History | `ALIGNED` | | |
 | 537 · [v1-11](#v1-11) | Projeler | `ALIGNED` | | |
@@ -223,6 +224,27 @@ geçmiş hem gelecek değişikliklere bak"; "sen karar ver")*.
 - Aynı yüklemenin tekrarı ikinci dosya bırakmıyor; kopan büyük yükleme kaldığı yerden sürüyor, yarım
   dosya kalmıyor; core hiçbir dosyayı kalıcı silmiyor.
 - Çağrı sayıları 4. adımın tablosuyla tam eşit.
+
+<a id="v1-43"></a>
+### v1-43 — Drive'da proje tek dosya
+
+*([4. adım, Depo](../research/2026-11-03-yeni-editor-v1-4-depo.md);
+[kararlar 16, 19](2026-11-06-queen-studio-v1-kararlar.md#sapmalar))*
+
+Yolda bulundu: 532'nin baş dosyası ve blokları, iki Colab'ın yarışlarına karşı her review'da yeni bir
+parça aldı (mühür, emekli bloklar, süpürme, son süre) *(kullanıcı, 7 Kasım — "overengineer yapmış
+olabilir misin, ben daha basit ve kolay güncellenebilir bir kod bekliyordum"; "evet, sadeleştirelim";
+"bunu bir madde yap")*. 535'ten önce yürür.
+
+**Kabul koşulu:**
+- Önce Colab'da küçük bir ölçüm: büyük bir projenin sıkıştırılmış dosya boyu ve Drive'a yazılma süresi.
+  Değişiklik başına süre kabul edilemezse kullanıcıya dönülür.
+- Drive adaptörü bir projeyi tek bir sıkıştırılmış dosyada tutuyor; her değişiklik onu bütünüyle
+  yazıyor; history ayrı, günlük dosyalarda. Blok, mühür, emekli blok, süpürme ve değişikliğin son süresi
+  yok.
+- Port ve sözleşme testleri değişmiyor; ikisi de bellek içi adaptörde, taklit Drive'da ve gerçek
+  Drive'da yeşil. Bir değişiklik 2 çağrı.
+- Drive kodunun dosya ve satır sayısı, önce ve sonra, spec'te; sonrası belirgin biçimde az.
 
 <a id="v1-10"></a>
 ### v1-10 — Bir değişiklik ve aynı istek iki kez
@@ -775,7 +797,8 @@ hepsi tutunca biter; ana agent sonda hepsine kendisi bakar, v1-32 de onları den
   ve nasıl görüleceğini söyler; nasıl yapılacağını coder spec'inde, kodu ve dayandığı adımı okuyarak
   kendi yargısıyla yazar.
 - **Numaralar:** her maddenin gerçek numarası tabloda, 525'ten 566'ya, yürüme sırasıyla *(kullanıcı, 7
-  Kasım — "bütün roadmape numara verir misin")*. `v1-34`…`v1-42` büyük maddelerin bölünmesinden ve
+  Kasım — "bütün roadmape numara verir misin")*. Sonradan gelen madde sıradaki boş numarayı alır ve
+  tablodaki yerinde yürür: 567, 535'ten önce. `v1-34`…`v1-42` büyük maddelerin bölünmesinden ve
   denetimden; tablodaki yerleri, bölündükleri maddenin hemen altı, yürüme sırasıdır *(kullanıcı, 6
   Kasım)*. Sayaçta en yüksek numara Queen
   Editor v11.1'in 524'ü.
@@ -797,7 +820,10 @@ hepsi tutunca biter; ana agent sonda hepsine kendisi bakar, v1-32 de onları den
   yargısıyla verir; tutmayan bir ölçümde de tasarımı düzeltip geçer. Her kararı gerekçesiyle
   [kararlar belgesine](2026-11-06-queen-studio-v1-kararlar.md) yazar, değişen adımı da düzeltir;
   kullanıcıyla sonda o belgenin üstünden geçilir.
-- **Yolda bulunan iş:** v1'in gerektirdiği `v1-43`'ten başlayarak madde olur ve kararlar
+- **Sadelik:** her maddede işi gören en az parçalı çözüm seçilir; bir tasarım her review'da yeni bir
+  parça istiyorsa durulur, daha basit bir tasarım aranır ve kullanıcıya götürülür *(kullanıcı, 7 Kasım —
+  "bundan sonraki adımlarda sadeliğe önem ver")*. Coder'a ve reviewer'a her maddede söylenir.
+- **Yolda bulunan iş:** v1'in gerektirdiği `v1-44`'ten başlayarak madde olur ve kararlar
   belgesine yazılır; gerisi `queen-studio/BACKLOG.md`'ye.
 - **Tasarımdan sapmak serbesttir:** kodu yazan agent bir şeyi tasarımdan ya da kurallardan farklı
   yapmanın daha doğru olduğunu görürse ana agent'a söyler; bazı şeyler ancak kod yazılırken görülür.

@@ -132,6 +132,15 @@ neye, neden, hangi belge düzeltildi.
     tutan beş klasör sorunsuz gitti. Nedeni 537'de (proje silme) aranır; her testi kendi klasöründe
     koşan deneme `test_real.py`'de hazır. Deneme hesabında iki test klasörü kaldı. Hepsi:
     [m534 spec](../specs/2026-11-07-queen-studio-m534-drive-dosyalar-design.md).
+19. **Drive'da proje tek dosyaya iner; sadelik kural olur** ([567 · v1-43](2026-11-06-queen-studio-v1-roadmap.md#v1-43);
+    kullanıcı, 7 Kasım — "overengineer yapmış olabilir misin"; "evet, sadeleştirelim"; "bundan sonraki
+    adımlarda sadeliğe önem ver"). 4. adımın iki hedefi, 20.000 karede bile değişiklik başına az bayt
+    ve aynı projeye aynı anda yazan Colab'lar, Drive'ın üstünde küçük bir veritabanı istedi: baş dosyası
+    ve bloklar, her review'da bir yarışa karşı yeni bir parça (16), 14 dosya. Tek dosyanın yazılması
+    bütündür, iki Colab'dan sonra yazan kazanır ve proje bozulmaz; çağrı sayısı aynı (2), bedeli
+    değişiklik başına baytın proje boyuyla artması (tahmin: 2000 karede ~200 KB, 20.000'de ~2 MB, 2–3
+    sn; v1-43'te ölçülür). Port ve sözleşme testleri değişmez. Sonraki maddelerde işi gören en az parçalı
+    çözüm seçilir; her review'da yeni parça isteyen tasarımda durulur ve kullanıcıya gidilir.
 
 ## Koşudan önce, belgelerin gözden geçirilmesinde
 
