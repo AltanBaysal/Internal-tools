@@ -57,6 +57,23 @@ koşu durmaz. Son iki madde de kullanıcıyla: Pro'daki deneme ve DeepSeek harne
 
 ---
 
+## Süre ve maliyet
+
+Her madde başlarken ve biterken saat (İstanbul), her subagent'ın her turu için süre ve token yazılır;
+süreç bununla anlaşılır ve daha ucuza yürütülür *(kullanıcı, 7 Kasım — "bir taska başlarken başlama
+zamanı bitme zamanı hangi subagent ne kadar zaman ve token harcadı görmek istiyorum")*. Token, agent'ın
+o maddede harcadığı toplamdır; ana agent'ın kendi harcaması bu oturumda görünmediği için yazılmaz.
+531–534 geriye dönük, bildirimlerden; başlama saati bir önceki commit'tir (≈). 525–530'unki yok.
+
+| Madde | Başladı | Bitti | Duvar saati | Subagent turları (süre · token) |
+|---|---|---|---|---|
+| 531 | ≈ 6 Kas 21:42 | 6 Kas 22:32 | 50 dk | coder 2 tur, 38 dk · 425 bin; reviewer 1 tur, 10 dk · 191 bin |
+| 532 | ≈ 6 Kas 22:32 | 7 Kas 00:16 | 1 sa 44 dk | coder 4 tur, 94 dk · 684 bin; reviewer 2 tur, 14 dk · 228 bin |
+| 533 | ≈ 7 Kas 00:16 | 7 Kas 00:51 | 35 dk | coder 2 tur, 22 dk · 233 bin; reviewer 1 tur, 7 dk · 109 bin |
+| 534 | ≈ 7 Kas 00:51 | 7 Kas 10:29 | 9 sa 38 dk *(01:–02:00 kullanım sınırı, gece bekleme)* | coder 4 tur, 29 dk+ · 534 bin *(ilk tur sınıra takıldı, süresi yok)*; reviewer 1 tur, 7 dk · 158 bin; gerçek Drive, ana agent: 4 dk + 6,5 dk + yarıda kesilen |
+
+---
+
 <a id="v1-1"></a>
 ### v1-1 — Kurulum, kullanıcıyla adım adım
 
