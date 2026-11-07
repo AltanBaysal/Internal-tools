@@ -846,7 +846,10 @@ hepsi tutunca biter; ana agent sonda hepsine kendisi bakar, v1-32 de onları den
   kolay çözülmüyorsa, var olduğundan emin olunmasa da mekanizma eklenmez: risk
   `queen-studio/BACKLOG.md`'ye yapılacak olarak yazılır; v1'de küçük bug'lar kalabilir *(kullanıcı, 7
   Kasım — "küçük bir risk varsa onu todoya aç, kendin kolay çözemeyeceksen"; "v1 çıkarıyoruz, küçük
-  buglar olsa da sıkıntı olmaz")*. Coder'a ve reviewer'a her maddede söylenir.
+  buglar olsa da sıkıntı olmaz")*. Neden: bug'a karşı eklenen her mekanizma kendi bug yüzeyidir; 532'de
+  yarışa karşı eklenen "eski blok bir saat sonra çöpe" yeni bir bug açtı, ona karşı da son süre geldi
+  *(kullanıcı, 7 Kasım — "kodu ne kadar karmaşık yazarsan, bugları engellemek için ne kadar karmaşık
+  mekanizma, o kadar bug yüzeyi oluşuyor")*. Coder'a ve reviewer'a her maddede söylenir.
 - **Yolda bulunan iş:** v1'in gerektirdiği `v1-45`'ten başlayarak madde olur ve kararlar
   belgesine yazılır; gerisi `queen-studio/BACKLOG.md`'ye.
 - **Tasarımdan sapmak serbesttir:** kodu yazan agent bir şeyi tasarımdan ya da kurallardan farklı
