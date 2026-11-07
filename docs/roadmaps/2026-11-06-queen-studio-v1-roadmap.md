@@ -1,6 +1,6 @@
 # Queen Studio — Yol Haritası v1
 
-**Tarih:** 2026-11-06 · **Koşu dalı:** `feat/queen-studio-v1` · **Durum:** 9/42 · koşuyor
+**Tarih:** 2026-11-06 · **Koşu dalı:** `feat/queen-studio-v1` · **Durum:** 10/42 · koşuyor
 
 queen-studio, queen-editor'ın özelliklerini bir AI agent'ın kullanabileceği biçimde sunan yeni bir
 araç. Ne yaptığı [tasarım adımlarında](../research/2026-11-03-yeni-editor-v1-tasarim-adimlar.md).
@@ -21,39 +21,39 @@ koşu durmaz. Son iki madde de kullanıcıyla: Pro'daki deneme ve DeepSeek harne
 | 531 · [v1-7](#v1-7) | Depo portu ve bellek içi adaptör | ✅ *(port kare, iş, edit bilmez; [kararlar 13](2026-11-06-queen-studio-v1-kararlar.md#sapmalar))* · `ALIGNED` |
 | 532 · [v1-8](#v1-8) | Drive adaptörü: projeler ve kayıtlar | ✅ *(her mühür yeni blok; [kararlar 16](2026-11-06-queen-studio-v1-kararlar.md#sapmalar))* · `ALIGNED` |
 | 533 · [v1-42](#v1-42) | Yapılmış kodun sınırları | ✅ *(bağlantı değil gövde; [kararlar 17](2026-11-06-queen-studio-v1-kararlar.md#sapmalar))* · `ALIGNED` |
-| [v1-9](#v1-9) | Drive adaptörü: dosyalar | `ALIGNED` |
-| [v1-10](#v1-10) | Bir değişiklik ve aynı istek iki kez | `ALIGNED` |
-| [v1-34](#v1-34) | History | `ALIGNED` |
-| [v1-11](#v1-11) | Projeler | `ALIGNED` |
-| [v1-12](#v1-12) | Kareler | `ALIGNED` |
-| [v1-13](#v1-13) | Medya | `ALIGNED` |
-| [v1-14](#v1-14) | Modeller | `ALIGNED` |
-| [v1-35](#v1-35) | Model indirme | `ALIGNED` |
-| [v1-15](#v1-15) | İşler | `ALIGNED` |
-| [v1-16](#v1-16) | ComfyUI kapısı: süreç | `ALIGNED` |
-| [v1-36](#v1-36) | ComfyUI kapısı: graflar | `ALIGNED` |
-| [v1-17](#v1-17) | Kuyruk | `ALIGNED` |
-| [v1-37](#v1-37) | Kuyruğun beklemeleri ve başka projenin kuyruğu | `ALIGNED` |
-| [v1-18](#v1-18) | Kuyruğun kendiliğinden durması ve core'un yeniden başlaması | `ALIGNED` |
-| [v1-19](#v1-19) | Kuyruk iki Colab'da | `ALIGNED` |
-| [v1-20](#v1-20) | Edit'ler | `ALIGNED` |
-| [v1-21](#v1-21) | Export: videonun yapılması | `ALIGNED` |
-| [v1-38](#v1-38) | Export: iptal, geri alma ve sınırlar | `ALIGNED` |
-| [v1-22](#v1-22) | MCP adaptörü | `ALIGNED` |
-| [v1-23](#v1-23) | Resimler resim olarak gider | `ALIGNED` |
-| [v1-24](#v1-24) | Agent senaryoları | `ALIGNED` |
-| [v1-25](#v1-25) | Başlatıcı ve notebook | `ALIGNED` |
-| [v1-39](#v1-39) | Log'un Drive'a gitmesi ve boştayken sıfır çağrı | `ALIGNED` |
-| [v1-26](#v1-26) | ComfyUI'nin Colab ölçümleri | `ALIGNED` |
-| [v1-27](#v1-27) | Colab testleri | `ALIGNED` |
-| [v1-40](#v1-40) | Colab'da dayanıklılık, gerçek Drive'la | `ALIGNED` |
-| [v1-28](#v1-28) | UI tasarımı: dil, projeler ve kareler, örnek veriyle | `ALIGNED` |
-| [v1-41](#v1-41) | UI tasarımı: kuyruk, agent, bildirim, silmek ve edit'ler | `ALIGNED` |
-| [v1-29](#v1-29) | UI bağlantısı: projeler ve kareler | `ALIGNED` |
-| [v1-30](#v1-30) | UI bağlantısı: kuyruk ve agent'ın yaptığı | `ALIGNED` |
-| [v1-31](#v1-31) | UI bağlantısı: silmek ve edit'leri izlemek | `ALIGNED` |
-| [v1-32](#v1-32) | Pro'da tek deneme, kullanıcıyla | `ALIGNED` |
-| [v1-33](#v1-33) | DeepSeek harness'ı, kullanıcıyla | `ALIGNED` |
+| 534 · [v1-9](#v1-9) | Drive adaptörü: dosyalar | ✅ *(klasörün çöpe atılması 537'ye açık; [kararlar 18](2026-11-06-queen-studio-v1-kararlar.md#sapmalar))* · `ALIGNED` |
+| 535 · [v1-10](#v1-10) | Bir değişiklik ve aynı istek iki kez | `ALIGNED` |
+| 536 · [v1-34](#v1-34) | History | `ALIGNED` |
+| 537 · [v1-11](#v1-11) | Projeler | `ALIGNED` |
+| 538 · [v1-12](#v1-12) | Kareler | `ALIGNED` |
+| 539 · [v1-13](#v1-13) | Medya | `ALIGNED` |
+| 540 · [v1-14](#v1-14) | Modeller | `ALIGNED` |
+| 541 · [v1-35](#v1-35) | Model indirme | `ALIGNED` |
+| 542 · [v1-15](#v1-15) | İşler | `ALIGNED` |
+| 543 · [v1-16](#v1-16) | ComfyUI kapısı: süreç | `ALIGNED` |
+| 544 · [v1-36](#v1-36) | ComfyUI kapısı: graflar | `ALIGNED` |
+| 545 · [v1-17](#v1-17) | Kuyruk | `ALIGNED` |
+| 546 · [v1-37](#v1-37) | Kuyruğun beklemeleri ve başka projenin kuyruğu | `ALIGNED` |
+| 547 · [v1-18](#v1-18) | Kuyruğun kendiliğinden durması ve core'un yeniden başlaması | `ALIGNED` |
+| 548 · [v1-19](#v1-19) | Kuyruk iki Colab'da | `ALIGNED` |
+| 549 · [v1-20](#v1-20) | Edit'ler | `ALIGNED` |
+| 550 · [v1-21](#v1-21) | Export: videonun yapılması | `ALIGNED` |
+| 551 · [v1-38](#v1-38) | Export: iptal, geri alma ve sınırlar | `ALIGNED` |
+| 552 · [v1-22](#v1-22) | MCP adaptörü | `ALIGNED` |
+| 553 · [v1-23](#v1-23) | Resimler resim olarak gider | `ALIGNED` |
+| 554 · [v1-24](#v1-24) | Agent senaryoları | `ALIGNED` |
+| 555 · [v1-25](#v1-25) | Başlatıcı ve notebook | `ALIGNED` |
+| 556 · [v1-39](#v1-39) | Log'un Drive'a gitmesi ve boştayken sıfır çağrı | `ALIGNED` |
+| 557 · [v1-26](#v1-26) | ComfyUI'nin Colab ölçümleri | `ALIGNED` |
+| 558 · [v1-27](#v1-27) | Colab testleri | `ALIGNED` |
+| 559 · [v1-40](#v1-40) | Colab'da dayanıklılık, gerçek Drive'la | `ALIGNED` |
+| 560 · [v1-28](#v1-28) | UI tasarımı: dil, projeler ve kareler, örnek veriyle | `ALIGNED` |
+| 561 · [v1-41](#v1-41) | UI tasarımı: kuyruk, agent, bildirim, silmek ve edit'ler | `ALIGNED` |
+| 562 · [v1-29](#v1-29) | UI bağlantısı: projeler ve kareler | `ALIGNED` |
+| 563 · [v1-30](#v1-30) | UI bağlantısı: kuyruk ve agent'ın yaptığı | `ALIGNED` |
+| 564 · [v1-31](#v1-31) | UI bağlantısı: silmek ve edit'leri izlemek | `ALIGNED` |
+| 565 · [v1-32](#v1-32) | Pro'da tek deneme, kullanıcıyla | `ALIGNED` |
+| 566 · [v1-33](#v1-33) | DeepSeek harness'ı, kullanıcıyla | `ALIGNED` |
 
 ---
 
@@ -255,6 +255,10 @@ parçalara bölelim")*.
   söyleniyor, kurala uymayan ad hangi kuralı bozduğunu söylüyor.
 - Silinen projenin her şeyi, bitmiş export'lar dışında, Drive'ın çöpüne gidiyor ve ondan hiçbir şey
   okunmuyor.
+- **534'ten açık:** gerçek Drive'da testlerin klasörü çöpe atılırken Drive `appNotAuthorizedToChild`
+  diyerek reddetti, içindeki 78 dosyanın her biri tek tek çöpe gitse de. Nedeni bulundu ve proje silme
+  gerçek Drive'da tek çağrıyla, ya da sınırlı bir maliyetle, çalışıyor; testi gerçek Drive'da
+  ([kararlar 18](2026-11-06-queen-studio-v1-kararlar.md#sapmalar)).
 - Başka bir Colab'daki değişiklik birkaç saniye içinde görünüyor; core yalnız istenen projeyi yüklüyor.
 - Core yeniden başlasa da aynı anahtarla gelen oluşturma ikinci bir proje açmıyor.
 - Belleğe sığmayacak kadar büyük proje yüklenmiyor, nedeni söyleniyor; yüklü projeler core'un bellek
@@ -757,9 +761,10 @@ hepsi tutunca biter; ana agent sonda hepsine kendisi bakar, v1-32 de onları den
   `ALIGNED` doğar ve dayandığı adımı gösterir *(13. adım; kullanıcı, 6 Kasım)*. Bir madde ne istendiğini
   ve nasıl görüleceğini söyler; nasıl yapılacağını coder spec'inde, kodu ve dayandığı adımı okuyarak
   kendi yargısıyla yazar.
-- **Numaralar:** `v1-1`…`v1-41`, koşu gerçek numaralarını verene kadar. `v1-34`…`v1-41` büyük maddelerin
-  bölünmesinden; tablodaki yerleri, bölündükleri maddenin hemen altı, yürüme sırasıdır *(kullanıcı,
-  6 Kasım)*. Sayaçta en yüksek numara Queen
+- **Numaralar:** her maddenin gerçek numarası tabloda, 525'ten 566'ya, yürüme sırasıyla *(kullanıcı, 7
+  Kasım — "bütün roadmape numara verir misin")*. `v1-34`…`v1-42` büyük maddelerin bölünmesinden ve
+  denetimden; tablodaki yerleri, bölündükleri maddenin hemen altı, yürüme sırasıdır *(kullanıcı, 6
+  Kasım)*. Sayaçta en yüksek numara Queen
   Editor v11.1'in 524'ü.
 - **Ekrandaki sürüm:** CLAUDE.md'nin "ilk madde ekrandaki sürümü artırır" kuralı ilk ekranla tutar:
   [v1-3](#v1-3) ekranı ilk kez açar, yalnız "Queen Studio V1" yazan bir yer tutucu sayfayla; ilk madde

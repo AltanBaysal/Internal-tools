@@ -26,7 +26,7 @@ from core.storage.drive.head import GZIP, Block, read_lines
 from core.storage.drive.limits import Limits
 from core.storage.drive.retry import Conflict, Missing, again, read
 from core.storage.drive.seal import Write
-from core.storage.drive.writes import created, trash, untrash
+from core.storage.drive.writes import PastPages, created, listed, trash, untrash
 from core.storage.port import StorageError, Unreadable
 
 # Measured: eight reads at once go no slower (528); four blocks download together.
@@ -95,42 +95,33 @@ class Blocks:
         `retire_after` before `now`, Drive's time; untrashes a named one the whole listing lacks.
         A failure is logged: the next seal sweeps again."""
         made_before = now - timedelta(seconds=2 * self._limits.retire_after)
-        listed: set[str] = set()
-        page: str | None = None
+        listed_ids: set[str] = set()
         try:
-            for _ in range(self._limits.pages):
-                found = read(
-                    self._clock,
-                    lambda page=page: self._api.children(
-                        folder, _SWEEP_FIELDS, folders=False, page=page
-                    ),
-                )
-                for file in found.files:
-                    file_id, name = str(file.get("id")), file.get("name")
-                    listed.add(file_id)
-                    made = created(file.get("createdTime"))
-                    if (
-                        isinstance(name, str)
-                        and _BLOCK_NAME.fullmatch(name)
-                        and file_id not in named | retired
-                        and made is not None
-                        and made < made_before
-                    ):
-                        trash(self._api, self._clock, file_id)
-                if found.next is None:
-                    break
-                page = found.next
-            else:
-                log.warning(
-                    "Folder %s lists past %s pages; the rest waits.", folder, self._limits.pages
-                )
-                return  # not whole: what is missing from it may just be on a page not read
-            for missing in named - listed:
+            for file in listed(
+                self._api, self._clock, folder, _SWEEP_FIELDS, False, self._limits.pages
+            ):
+                file_id, name = str(file.get("id")), file.get("name")
+                listed_ids.add(file_id)
+                made = created(file.get("createdTime"))
+                if (
+                    isinstance(name, str)
+                    and _BLOCK_NAME.fullmatch(name)
+                    and file_id not in named | retired
+                    and made is not None
+                    and made < made_before
+                ):
+                    trash(self._api, self._clock, file_id)
+            for missing in named - listed_ids:
                 log.warning("Block %s is named and was in the trash: taken back out.", missing)
                 try:
                     untrash(self._api, self._clock, missing)
                 except Missing as gone:
                     log.error("Block %s is named and gone from Drive: %s", missing, gone)
+        except PastPages:
+            # Not whole: what is missing from it may just be on a page not read.
+            log.warning(
+                "Folder %s lists past %s pages; the rest waits.", folder, self._limits.pages
+            )
         except Missing as gone:
             log.warning("Folder %s was not swept: %s", folder, gone)
         except StorageError as failed:  # the sweep is tidying, never the change itself

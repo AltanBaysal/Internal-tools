@@ -8,6 +8,9 @@ from dataclasses import dataclass
 
 KIB = 1024
 MIB = 1024 * KIB
+GIB = 1024 * MIB
+# A file's bytes are held this much at a time while they are hashed or streamed from Drive.
+PIECE = MIB
 # Opened JSON parsed into Python objects takes this many times its bytes (measured on records by
 # the 532 review): the memory bounds below count the opened bytes, so the memory is this much more.
 PARSED = 4.7
@@ -40,3 +43,10 @@ class Limits:
     # plan, and its plan came at most commit_most before the head that retired it: two
     # commit_most, a third of this, with room for the clocks.
     retire_after: float = 3600
+    # Files (the m534 spec, Yükleme): up to Drive's 5 MB multipart limit in one request, read whole
+    # into memory; past it a resumable upload, one chunk in memory at a time. On Drive a chunk but
+    # the last is a multiple of 256 KiB; step 4 takes 16 MB.
+    simple_most: int = 5 * MIB
+    chunk: int = 16 * MIB
+    # What a download leaves free on the machine's disk, for ComfyUI and the cache beside it.
+    keep_free: int = GIB

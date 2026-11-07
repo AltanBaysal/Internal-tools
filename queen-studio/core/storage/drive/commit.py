@@ -6,6 +6,9 @@ by its deadline or not at all, so no head lands so late that it names a block an
 since trashed; and the trash and the sweep come after the head, so a failed tidy-up neither delays
 nor fails the change. A folder made at a new id, the reserved one refused, goes back to the trash
 if the change then fails: no head names it.
+
+`rename_folder` is the one other write to a head: its `folder` property alone, when a project's
+first file made `<p>/` at a new id (places.py), under the same project lock as a commit.
 """
 
 import logging
@@ -15,10 +18,10 @@ from typing import Any
 from core.clock.clock import Clock
 from core.storage.drive.api import DriveApi
 from core.storage.drive.blocks import Blocks
-from core.storage.drive.head import Head, properties
+from core.storage.drive.head import Head, properties, read_folder
 from core.storage.drive.limits import Limits
 from core.storage.drive.pool import Pool
-from core.storage.drive.retry import Missing, Unusable, written
+from core.storage.drive.retry import Missing, Unusable, again, read, written
 from core.storage.drive.seal import Planned, Sealing, finish, sealed
 from core.storage.drive.writes import folder_at, trash
 from core.storage.port import Commit, NotFound, Rejected, StorageError, Unconfirmed
@@ -89,6 +92,40 @@ class Writer:
         if planned.now is not None:
             self._tidy(folder, planned, planned.now)
         return planned, folder
+
+    def rename_folder(self, project: str, head: str, old: str, made: str) -> str:
+        """The head's `folder` property turned from `old` to `made`, a `<p>/` made at a new id by
+        a project's first file (places.py), since Drive no longer takes `old`; the folder the head
+        names after. The caller holds the project's lock, so no commit of this core is between
+        its look and its write: the properties are read again here, and if another core turned
+        them first its folder stands and `made` goes to the trash. Properties alone are written:
+        Drive keeps the keys not sent, and the content's md5, the version, stays."""
+
+        def trashed(found: dict[str, Any]) -> dict[str, Any]:
+            if found.get("trashed") is True:
+                raise NotFound(f"Project {project} went to the trash meanwhile.")
+            return found
+
+        try:
+            seen = trashed(read(self._clock, lambda: self._api.get(head, "properties,trashed")))
+            named = read_folder(seen.get("properties"))
+            if named == old:
+                update = {"properties": {"folder": made}}
+                trashed(again(self._clock, lambda: self._api.update(head, update, None, "trashed")))
+                named = made
+        except Missing:
+            self._quietly_trash(made)
+            raise NotFound(f"Project {project}'s head file is gone.") from None
+        except BaseException:
+            self._quietly_trash(made)  # no head names it
+            raise
+        if named == made:
+            log.warning(
+                "Drive refused project %s's folder id; its folder is now %s.", project, made
+            )
+        else:
+            self._quietly_trash(made)
+        return named
 
     def _open_folder(self, project: str, folder: str) -> str:
         """The project's folder, on its first seal, at the id reserved at its creation; if Drive

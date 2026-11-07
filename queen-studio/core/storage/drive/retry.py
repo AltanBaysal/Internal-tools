@@ -7,13 +7,15 @@ with up to a second's jitter, for about a minute of the clock's time — the tim
 included, so a call that hangs until its timeout spends the same budget. The clock is handed in:
 a test's ManualClock waits no real second.
 
-Three waits, one for each kind of call:
+Four waits, one for each kind of call:
 
 - `read`: tried again, then Rejected in Drive's words;
 - `again`, a write the same twice is harmless (a block, the trash, a folder at a reserved id):
   tried again, then Unconfirmed if a try may have been made, Rejected if none was;
 - `written`, a head file's write: looked at before each new try, so a lost write never goes over
-  another core's.
+  another core's;
+- `resumed`, a chunk of a resumable upload: after a cut Drive is asked where the upload stands,
+  so no byte is sent twice blind (the m534 spec, Yükleme).
 
 Drive's 404 and 409 are no failure to wait out: they reach the caller as Missing and Conflict,
 for it to name; so does a 400 on a create at a reserved id, as Unusable, when the caller can take
@@ -175,6 +177,34 @@ def written(
             return
         if md5 != expected:
             raise Unconfirmed(f"Another core wrote the project meanwhile. {last.said}")
+
+
+def resumed[T](backoff: Backoff, send: Callable[[], T], status: Callable[[], T]) -> T:
+    """`send`'s answer; after a failed try, once waited, `status`'s, until one answers. Either says
+    where the upload stands, and the caller goes on from there.
+
+    The caller hands in `backoff`, renewed each time the upload moves on: rounds that make no
+    progress spend one budget. A 404 is the session gone: Missing. A 409 with the last chunk is a
+    file another upload made at the id first: Conflict, as `again` gives. Past the budget:
+    Unconfirmed if the chunk may have arrived, Rejected if Drive refused it.
+    """
+    call, uncertain = send, False
+    while True:
+        try:
+            return call()
+        except DriveError as failed:
+            if failed.status == 404:
+                raise Missing(failed.said) from None
+            if failed.status == 409:
+                raise Conflict(uncertain) from None
+            uncertain |= call is send and _may_be_made(failed)
+            if not retryable(failed) or not backoff.wait():
+                raise _ended(uncertain, failed) from failed
+        except DriveLost as failed:
+            uncertain |= call is send
+            if not backoff.wait():
+                raise _ended(uncertain, failed) from failed
+        call = status
 
 
 def _look_again(

@@ -6,6 +6,12 @@ It behaves as 528 measured Drive: a file is made at an id only once (`409` again
 field does); writing to a trashed file succeeds; listings page, oldest first. It answers only the
 fields asked for, so the adapter cannot lean on one it did not ask.
 
+A resumable upload is a session (`sessions`, which a test may reach into): each chunk must begin
+where the upload stands, and the file is made only with its last byte, as Drive's are (528,
+cut_upload); a used id is refused only then, with that last chunk, as 534 found on Drive. A folder
+id reserved and never made lists as empty, as on Drive (534); one made and gone, 404. A copy
+follows a create's rules for its id. A stream hands its bytes over in pieces of `piece` bytes.
+
 A fault is injected by call, optionally held to one file id, and fires on that many calls:
 `Fail` is Drive's error, nothing done; `Lose` drops the answer, before the write or, `after`, once
 it is made; `Hang` holds the call for a timeout on the clock, then drops it; `Before` runs a hook
@@ -22,8 +28,21 @@ from typing import Any, Literal
 from core.clock.clock import Clock
 from core.storage.drive.api import FOLDER, PAGE, DriveError, DriveLost, Page
 
-Call = Literal["get", "download", "children", "create", "update", "generate_ids"]
-WRITES: frozenset[Call] = frozenset({"create", "update"})
+Call = Literal[
+    "get",
+    "download",
+    "children",
+    "create",
+    "update",
+    "generate_ids",
+    "stream",
+    "copy",
+    "about",
+    "upload_start",
+    "upload_chunk",
+    "upload_status",
+]
+WRITES: frozenset[Call] = frozenset({"create", "update", "copy", "upload_start", "upload_chunk"})
 
 
 @dataclass(frozen=True)
@@ -66,6 +85,15 @@ class FakeFile:
 
 
 @dataclass
+class Session:
+    metadata: dict[str, Any]
+    size: int
+    fields: str
+    received: bytearray
+    done: dict[str, Any] | None = None
+
+
+@dataclass
 class _Pending:
     call: Call
     fault: Fault
@@ -78,6 +106,9 @@ class FakeDrive:
         self.clock = clock
         self.page_size = page_size
         self.files: dict[str, FakeFile] = {}
+        self.sessions: dict[str, Session] = {}
+        self.quota: int | None = None
+        self.piece = 4
         self.calls: list[tuple[Call, str]] = []
         self._generated: set[str] = set()
         self._counter = 0
@@ -145,6 +176,8 @@ class FakeDrive:
     ) -> Page:
         self._enter("children", parent)
         with self._lock:
+            if parent not in self.files and parent in self._generated:
+                return Page([], None)  # a folder never made lists as empty on Drive (534)
             self._file(parent)  # Drive's 404 for a parent it does not have
             found = sorted(
                 (
@@ -170,23 +203,7 @@ class FakeDrive:
         wanted = metadata.get("id")
         due = self._enter("create", wanted or "")
         with self._lock:
-            if wanted is not None:
-                if wanted in self.files:
-                    raise DriveError(
-                        409, "duplicate", "A file already exists with the provided ID."
-                    )
-                if wanted not in self._generated:
-                    raise DriveError(400, "badRequest", "The provided file ID is not usable.")
-            parents: list[str] = list(metadata.get("parents", []))
-            for parent in parents:
-                self._file(parent)
-            made = self._new(
-                wanted or self._id(),
-                str(metadata["name"]),
-                parents,
-                str(metadata.get("mimeType", "application/octet-stream")),
-                content,
-            )
+            made = self._admit(metadata, content)
             for key, value in dict(metadata.get("properties", {})).items():
                 if value is not None:
                     made.properties[str(key)] = str(value)
@@ -222,7 +239,111 @@ class FakeDrive:
             self._generated.update(ids)
         return ids
 
+    def stream(self, file_id: str, most: int, into: Callable[[bytes], object]) -> None:
+        self._enter("stream", file_id)
+        with self._lock:
+            found = self._file(file_id)
+            if found.content is None:
+                raise DriveError(403, "fileNotDownloadable", "Only files with binary content.")
+            content = found.content[: most + 1]
+        for start in range(0, len(content), self.piece):
+            into(content[start : start + self.piece])
+
+    def copy(self, file_id: str, metadata: dict[str, Any], fields: str) -> dict[str, Any]:
+        due = self._enter("copy", metadata.get("id") or "")
+        with self._lock:
+            source = self._file(file_id)
+            if source.content is None:
+                raise DriveError(403, "cannotCopyFile", "This file cannot be copied.")
+            whole = {"name": source.name, "mimeType": source.mime, **metadata}
+            answer = self._fields(self._admit(whole, source.content), fields)
+        due()
+        return answer
+
+    def about(self, fields: str) -> dict[str, Any]:
+        self._enter("about", fields)
+        with self._lock:
+            held = [file for file in self.files.values() if file.content is not None]
+            quota = {
+                "usage": str(sum(len(file.content or b"") for file in held)),
+                "usageInDriveTrash": str(
+                    sum(len(file.content or b"") for file in held if self._trashed(file))
+                ),
+            }
+            if self.quota is not None:
+                quota["limit"] = str(self.quota)
+        return {"storageQuota": quota} if "storageQuota" in fields else {}
+
+    def upload_start(self, metadata: dict[str, Any], size: int, fields: str) -> str:
+        due = self._enter("upload_start", metadata.get("id") or "")
+        with self._lock:
+            self._admissible(metadata, taken=False)  # Drive's 409 comes with the last chunk
+            self._counter += 1
+            session = f"session-{self._counter}"
+            self.sessions[session] = Session(dict(metadata), size, fields, bytearray())
+        due()
+        return session
+
+    def upload_chunk(
+        self, session: str, data: bytes, start: int, size: int
+    ) -> int | dict[str, Any]:
+        due = self._enter("upload_chunk", session)
+        with self._lock:
+            found = self._session(session)
+            if found.done is None:
+                if (start, size) != (len(found.received), found.size):
+                    raise DriveError(400, "badRequest", "The chunk is not where the upload stands.")
+                found.received += data
+            answer = self._held(found)
+        due()
+        return answer
+
+    def upload_status(self, session: str, size: int) -> int | dict[str, Any]:
+        self._enter("upload_status", session)
+        with self._lock:
+            return self._held(self._session(session))
+
     # -- inside ----------------------------------------------------------------------------------
+
+    def _admit(self, metadata: dict[str, Any], content: bytes | None) -> FakeFile:
+        """A new file as `metadata` asks."""
+        parents = self._admissible(metadata)
+        return self._new(
+            metadata.get("id") or self._id(),
+            str(metadata["name"]),
+            parents,
+            str(metadata.get("mimeType", "application/octet-stream")),
+            content,
+        )
+
+    def _admissible(self, metadata: dict[str, Any], taken: bool = True) -> list[str]:
+        """A create's rules for its id and its parents, which it gives; `taken`, a used id's 409."""
+        wanted = metadata.get("id")
+        if wanted is not None:
+            if wanted in self.files:
+                if taken:
+                    raise DriveError(
+                        409, "duplicate", "A file already exists with the provided ID."
+                    )
+            elif wanted not in self._generated:
+                raise DriveError(400, "badRequest", "The provided file ID is not usable.")
+        parents: list[str] = list(metadata.get("parents", []))
+        for parent in parents:
+            self._file(parent)
+        return parents
+
+    def _session(self, session: str) -> Session:
+        found = self.sessions.get(session)
+        if found is None:
+            raise DriveError(404, "notFound", "The upload session is not found.")
+        return found
+
+    def _held(self, found: Session) -> int | dict[str, Any]:
+        """The bytes the session holds; its file, made with the last of them."""
+        if found.done is None and len(found.received) == found.size:
+            made = self._admit(found.metadata, bytes(found.received))
+            found.done = self._fields(made, found.fields)
+        return len(found.received) if found.done is None else found.done
 
     def _enter(self, call: Call, file: str) -> Callable[[], None]:
         """Counts the call and fires its faults; what fires once the write is made is returned."""
@@ -272,6 +393,7 @@ class FakeDrive:
             file_id, name, parents, mime, content, self.clock.now(), order=self._counter
         )
         self.files[file_id] = made
+        self._generated.discard(file_id)  # used: a folder made and gone is a 404, not empty
         return made
 
     def _file(self, file_id: str) -> FakeFile:

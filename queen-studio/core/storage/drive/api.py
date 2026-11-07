@@ -1,14 +1,15 @@
-"""What the Drive adapter asks of Drive: six calls, each one round trip.
+"""What the Drive adapter asks of Drive: twelve calls, each one round trip.
 
 The adapter speaks to this, never to Drive's library: GoogleDrive (google.py) is the real one, and
 the tests hand in a fake that counts each call and injects Drive's errors (step 12). A query is
 given by its parts, never as Drive's `q` text: the real client builds and escapes it, the fake
-needs no parser.
+needs no parser. None of them deletes for good: the trash is an update.
 
 Metadata comes back as Drive's JSON: from outside the process, so the adapter checks every field
 it reads.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -81,3 +82,31 @@ class DriveApi(Protocol):
         ...
 
     def generate_ids(self, count: int) -> list[str]: ...
+
+    # -- files (the m534 spec) -------------------------------------------------------------------
+
+    def stream(self, file_id: str, most: int, into: Callable[[bytes], object]) -> None:
+        """The file's bytes handed to `into` piece by piece as they arrive, at most `most` + 1 of
+        them: one request whatever the size, never more than a piece held."""
+        ...
+
+    def copy(self, file_id: str, metadata: dict[str, Any], fields: str) -> dict[str, Any]:
+        """A copy made inside Drive, at the id in `metadata` when it has one."""
+        ...
+
+    def about(self, fields: str) -> dict[str, Any]: ...
+
+    def upload_start(self, metadata: dict[str, Any], size: int, fields: str) -> str:
+        """A resumable upload's session, a secret that is never shown: no file exists until its
+        last byte is in, and `fields` are what that last answer carries."""
+        ...
+
+    def upload_chunk(
+        self, session: str, data: bytes, start: int, size: int
+    ) -> int | dict[str, Any]:
+        """`data` at byte `start` of `size`: the bytes Drive now holds, or the file once whole."""
+        ...
+
+    def upload_status(self, session: str, size: int) -> int | dict[str, Any]:
+        """Where the upload stands, asked after a cut: the same answer as a chunk's."""
+        ...

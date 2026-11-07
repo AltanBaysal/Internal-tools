@@ -477,6 +477,18 @@ class PortContract:
         port.get(ref, tmp_path / "back.png", most=10)
         assert (tmp_path / "back.png").read_bytes() == b"one"
 
+    def test_a_put_at_a_trashed_files_ref_is_taken(self, rig: Rig, tmp_path: Path) -> None:
+        # The ref is used, and its file is not there: the core takes another (m534).
+        port = rig.open()
+        project, _ = create(port)
+        (ref,) = port.reserve(1)
+        source = written(tmp_path, "a.png", b"one")
+        port.put(ref, source, "17.png", InProject(project))
+        port.trash(ref)
+
+        with pytest.raises(Taken):
+            port.put(ref, source, "17.png", InProject(project))
+
     def test_a_ref_never_reserved_is_refused(self, rig: Rig, tmp_path: Path) -> None:
         a = rig.open()
         project, _ = create(a)

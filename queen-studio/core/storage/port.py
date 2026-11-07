@@ -248,8 +248,9 @@ class Port(Protocol):
     def put(self, ref: str, source: Path, name: str, place: Place) -> Stored:
         """Writes the file on disk at the reserved `ref`.
 
-        The same content again is the same file; other content is Taken. Rejected for a ref never
-        reserved; NotFound when the place was never there.
+        The same content again is the same file; other content, or a file at `ref` gone to the
+        trash, is Taken: the ref is used. Rejected for a ref never reserved; NotFound when the
+        place was never there.
         """
         ...
 
@@ -267,7 +268,8 @@ class Port(Protocol):
         ...
 
     def copy(self, source: str, ref: str, name: str, place: Place) -> Stored:
-        """A copy inside the store at the reserved `ref`; no byte is downloaded. Again as `put`."""
+        """A copy inside the store at the reserved `ref`; no byte is downloaded. Again as `put`.
+        A source in the trash may still be copied: no adapter is held to refuse it."""
         ...
 
     def trash(self, ref: str) -> None:

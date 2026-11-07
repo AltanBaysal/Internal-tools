@@ -318,8 +318,11 @@ class MemoryPort:
             stored = Stored(ref, len(content), hashlib.md5(content).hexdigest())
             if existing is None:
                 self._data.files[ref] = _File(place, name, content, stored.md5)
-            elif (len(existing.content), existing.md5) != (stored.size, stored.md5):
-                raise Taken(f"Another file is at {ref}.")
+            elif not self._alive(existing) or (len(existing.content), existing.md5) != (
+                stored.size,
+                stored.md5,
+            ):
+                raise Taken(f"Another file, or one in the trash, is at {ref}.")
         due.leave()
         return stored
 
@@ -353,8 +356,11 @@ class MemoryPort:
             if existing is None:
                 self._fresh(ref, place, len(original.content))
                 self._data.files[ref] = _File(place, name, original.content, original.md5)
-            elif (len(existing.content), existing.md5) != (len(original.content), original.md5):
-                raise Taken(f"Another file is at {ref}.")
+            elif not self._alive(existing) or (len(existing.content), existing.md5) != (
+                len(original.content),
+                original.md5,
+            ):
+                raise Taken(f"Another file, or one in the trash, is at {ref}.")
         due.leave()
         return Stored(ref, len(original.content), original.md5)
 

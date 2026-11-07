@@ -40,6 +40,13 @@ _WRITE = re.compile(r"[0-9a-f]{16}")
 _CORE = re.compile(r"[a-z0-9]{10}")
 
 
+def check_ref(ref: str) -> None:
+    """A file's or folder's ref, a Drive id: it comes from the core, but maybe from the address
+    first, and goes into a request (the m534 spec, Hatalar)."""
+    if not DRIVE_ID.fullmatch(ref):
+        raise ValueError(f"{ref!r} is not a file's ref: a Drive id, letters, digits, - and _.")
+
+
 class _Bad(Exception):
     """Inside: what is wrong in a file read from Drive, said once as Unreadable."""
 

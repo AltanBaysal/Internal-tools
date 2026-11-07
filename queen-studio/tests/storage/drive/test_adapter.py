@@ -652,6 +652,19 @@ def test_a_half_trashed_project_has_its_folder_trashed_on_opening(world: World) 
     assert project not in {found.id for found in world.open().projects()}
 
 
+def test_every_folder_of_a_trashed_project_goes_on_opening(world: World) -> None:
+    # A project may have two <p>/: one made at a new id when Drive refused the reserved one.
+    port = world.open()
+    project, _ = create(port)
+    projects = world.head(project).parents[0]
+    folders = [world.drive.folder(project, projects) for _ in range(2)]
+    port.trash_project(project)
+
+    world.open()
+
+    assert all(world.drive.files[each].trashed for each in folders)
+
+
 # -- bounds and the unreadable -------------------------------------------------------------------
 
 

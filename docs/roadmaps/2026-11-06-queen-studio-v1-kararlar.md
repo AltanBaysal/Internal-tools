@@ -120,6 +120,18 @@ neye, neden, hangi belge düzeltildi.
     sınırı 1 MiB, en büyük gerçek gövdenin (edit'in 5000 yeri) ~3,5 katı. Yalnız bellek okuyan
     endpoint `async` (FOUNDATION 2'ye yazıldı). Değişen: roadmap'in kabul satırı, 6. adım, FOUNDATION,
     CODE-STANDARD (sunucunun kendi koruması düz yazıyla cevap verir, 530'un h11 sınırı).
+18. **Drive'da dosyalar; klasörün çöpe atılması açık kaldı** ([534 · v1-9](2026-11-06-queen-studio-v1-roadmap.md#v1-9);
+    kullanıcı, 7 Kasım — "534'ü şimdi commit'leyip devam edelim"). Sözleşmenin hepsi gerçek Drive'da
+    yeşil. Gerçek Drive'dan öğrenilen: kullanılmış kimliğe büyük yüklemede 409 son parçada gelir, bu
+    yüzden büyük yükleme önce bir kez bakar (+1 çağrı, tekrarı tek çağrı); hiç açılmamış klasör boş
+    liste döner; çöpteki klasöre dosya yazılabilir ve dosya çöpte sayılmaz. 4. adımdan sapmalar: `get`
+    2 çağrı (bakış ve indirme), `media/`'nın kimliği baş dosyasında değil, `exports/` ilk export'ta
+    bulunur, export adları kodda karşılaştırılır. `media/`'yı elle çöpe atana karşı periyodik bakış
+    eklenmedi: elle müdahale kullanıcınındır (4. adım). **Açık:** testlerin klasörü
+    `appNotAuthorizedToChild` ile çöpe gitmedi, içindeki 78 dosya tek tek gitse de; tek tür dosya
+    tutan beş klasör sorunsuz gitti. Nedeni 537'de (proje silme) aranır; her testi kendi klasöründe
+    koşan deneme `test_real.py`'de hazır. Deneme hesabında iki test klasörü kaldı. Hepsi:
+    [m534 spec](../specs/2026-11-07-queen-studio-m534-drive-dosyalar-design.md).
 
 ## Koşudan önce, belgelerin gözden geçirilmesinde
 

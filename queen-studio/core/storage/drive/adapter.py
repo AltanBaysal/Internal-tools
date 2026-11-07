@@ -9,7 +9,7 @@ What the port keeps between calls is kept.py's, its reserved ids pool.py's. Ever
 through one of retry.py's three waits and ends in Drive's own words; a 404 is named where it
 happens. Within one core a project's commits go one at a time, as on every store: a second built
 on the same version meets Stale. Across cores the look is no lock (m531). The file operations
-are v1-9's.
+are files.py's.
 """
 
 import hashlib
@@ -27,6 +27,7 @@ from core.disk.cache import DiskCache
 from core.storage.drive.api import FOLDER, DriveApi
 from core.storage.drive.blocks import Blocks
 from core.storage.drive.commit import Writer
+from core.storage.drive.files import Files
 from core.storage.drive.head import (
     DRIVE_ID,
     GZIP,
@@ -44,10 +45,11 @@ from core.storage.drive.head import (
 )
 from core.storage.drive.kept import Kept, Where
 from core.storage.drive.limits import Limits
+from core.storage.drive.places import Places
 from core.storage.drive.pool import Pool
 from core.storage.drive.retry import Conflict, Missing, again, read
 from core.storage.drive.seal import sealable
-from core.storage.drive.writes import folder_at, trash
+from core.storage.drive.writes import PastPages, folder_named, listed, trash
 from core.storage.port import (
     MOST_ENTRIES,
     MOST_RESERVED,
@@ -80,7 +82,6 @@ _HEAD_NAME = re.compile(r"([a-z0-9]{10})\.json\.gz")
 _PROJECT = re.compile(r"[a-z0-9]{10}")
 # A head that changes between its look and its download is read again, this many times in all.
 _LOAD_TRIES = 3
-_FILES = "Drive's file operations come with v1-9."
 
 log = logging.getLogger("core.storage")
 
@@ -106,6 +107,7 @@ class DrivePort:
         cache: DiskCache,
         limits: Limits,
         pool: Pool,
+        root: str,
     ) -> None:
         self._api = api
         self._projects = projects
@@ -117,6 +119,17 @@ class DrivePort:
         self._writer = Writer(api, clock, pool, self._blocks, limits, projects)
         self._locks_lock = threading.Lock()
         self._locks: dict[str, threading.Lock] = {}
+        places = Places(
+            api,
+            clock,
+            pool,
+            self._kept,
+            root,
+            projects,
+            find=lambda project: self._find(project).where,
+            rename=self._rename_folder,
+        )
+        self._files = Files(api, clock, limits, places)
 
     @classmethod
     def open(
@@ -131,7 +144,7 @@ class DrivePort:
         the folders of projects whose head went to the trash without them."""
         pool = Pool(api, clock)
         projects = _projects_folder(api, clock, pool, root)
-        port = cls(api, projects, clock, cache, limits or Limits(), pool)
+        port = cls(api, projects, clock, cache, limits or Limits(), pool, root)
         port._tidy()
         return port
 
@@ -303,35 +316,35 @@ class DrivePort:
             except StorageError as failed:
                 log.warning("Project %s's folder stays for the next opening: %s", project, failed)
 
-    # -- files: v1-9 -----------------------------------------------------------------------------
+    # -- files: files.py's ------------------------------------------------------------------------
 
     def reserve(self, count: int) -> tuple[str, ...]:
         check_count("count", count, MOST_RESERVED)
         return tuple(self._pool.take(count))
 
     def put(self, ref: str, source: Path, name: str, place: Place) -> Stored:
-        raise NotImplementedError(_FILES)
+        return self._files.put(ref, source, name, place)
 
     def exists(self, ref: str) -> Stored | None:
-        raise NotImplementedError(_FILES)
+        return self._files.exists(ref)
 
     def get(self, ref: str, target: Path, most: int) -> Stored:
-        raise NotImplementedError(_FILES)
+        return self._files.get(ref, target, most)
 
     def copy(self, source: str, ref: str, name: str, place: Place) -> Stored:
-        raise NotImplementedError(_FILES)
+        return self._files.copy(source, ref, name, place)
 
     def trash(self, ref: str) -> None:
-        raise NotImplementedError(_FILES)
+        self._files.trash(ref)
 
     def export_folder(self, ref: str, name: str, inside: str | None = None) -> None:
-        raise NotImplementedError(_FILES)
+        self._files.export_folder(ref, name, inside)
 
     def export_names(self, prefix: str) -> tuple[str, ...]:
-        raise NotImplementedError(_FILES)
+        return self._files.export_names(prefix)
 
     def space(self) -> Space:
-        raise NotImplementedError(_FILES)
+        return self._files.space()
 
     # -- a commit --------------------------------------------------------------------------------
 
@@ -380,6 +393,11 @@ class DrivePort:
         if not (uncertain and found.get("md5Checksum") == version):
             raise Exists(f"A project was created at {ref} before.")
 
+    def _rename_folder(self, project: str, head: str, old: str, made: str) -> str:
+        # Under the project's lock: no commit of this core between its look and its head's write.
+        with self._lock_of(project):
+            return self._writer.rename_folder(project, head, old, made)
+
     def _lock_of(self, project: str) -> threading.Lock:
         # One per project used: as many as there are projects.
         with self._locks_lock:
@@ -389,47 +407,43 @@ class DrivePort:
 
     def _tidy(self) -> None:
         heads: set[str] = set()
-        folders: dict[str, str] = {}
+        folders: dict[str, list[str]] = {}
         for found in self._listing(folders=None):
             if found.get("mimeType") == FOLDER:
                 name = found.get("name")
                 if isinstance(name, str) and _PROJECT.fullmatch(name):
-                    folders[name] = str(found["id"])
+                    folders.setdefault(name, []).append(str(found["id"]))
                 continue
             project = _project_of(found)
             if project is not None:
                 heads.add(project)
                 where = Where(str(found["id"]), _folder_or_none(found.get("properties")))
                 self._kept.remember(project, where)
-        for project, folder in folders.items():
+        for project, found in folders.items():
             if project in heads:
                 continue
-            # Its head went to the trash and the folder did not follow (step 4, Silme).
-            try:
-                trash(self._api, self._clock, folder)
-            except StorageError as failed:
-                log.warning("The folder of trashed project %s stays for now: %s", project, failed)
+            # Its head went to the trash and its folder did not follow (step 4, Silme); a name
+            # may have two, one made at a new id when Drive refused the reserved one (m534).
+            for folder in found:
+                try:
+                    trash(self._api, self._clock, folder)
+                except StorageError as failed:
+                    log.warning(
+                        "The folder of trashed project %s stays for now: %s", project, failed
+                    )
 
     def _listing(self, folders: bool | None) -> Iterator[dict[str, Any]]:
-        page: str | None = None
-        for _ in range(self._limits.pages):
-            try:
-                found = read(
-                    self._clock,
-                    lambda page=page: self._api.children(
-                        self._projects, _LIST_FIELDS, folders=folders, page=page
-                    ),
-                )
-            except Missing as missing:
-                raise Rejected(f"{PROJECTS}/ is not on Drive: {missing}") from None
-            yield from found.files
-            if found.next is None:
-                return
-            page = found.next
-        raise Rejected(
-            f"{PROJECTS}/ lists past {self._limits.pages} pages; the rest is not read, so the "
-            "list is not given."
-        )
+        try:
+            yield from listed(
+                self._api, self._clock, self._projects, _LIST_FIELDS, folders, self._limits.pages
+            )
+        except Missing as missing:
+            raise Rejected(f"{PROJECTS}/ is not on Drive: {missing}") from None
+        except PastPages:
+            raise Rejected(
+                f"{PROJECTS}/ lists past {self._limits.pages} pages; the rest is not read, so "
+                "the list is not given."
+            ) from None
 
     # -- looking and reading ---------------------------------------------------------------------
 
@@ -494,20 +508,10 @@ class DrivePort:
 
 
 def _projects_folder(api: DriveApi, clock: Clock, pool: Pool, root: str) -> str:
-    def listed() -> list[dict[str, Any]]:
-        return read(clock, lambda: api.children(root, "id", folders=True, name=PROJECTS)).files
-
     try:
-        found = listed()
-        if not found:
-            pool.make(lambda made: folder_at(api, clock, made, PROJECTS, root))
-            # Two cores opening a new root at once each make one: both take the oldest.
-            found = listed()
+        return folder_named(api, clock, pool, PROJECTS, root)
     except Missing as missing:
         raise Rejected(f"The root folder {root} is not on Drive: {missing}") from None
-    if not found:
-        raise Rejected(f"{PROJECTS}/ was made in {root} and is not listed there.")
-    return str(found[0]["id"])
 
 
 def _project_of(found: dict[str, Any]) -> str | None:
